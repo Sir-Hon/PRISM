@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRISM — Admin Dashboard</title>
+  <link rel="icon" type="image/png" href="Prismcrys.png"/>
+  <link rel="stylesheet" href="portal.css?v=3"/>
+  <script src="portal-mobile.js?v=3" defer></script>
+  <style>
+    :root { --a:#f59e0b; --a-dark:#d97706; --a-light:#fef3c7; --a-mid:#fcd34d; }
+
+    .admin-hero {
+      border-radius:20px; padding:2.5rem;
+      background:linear-gradient(135deg,#1c1300 0%,#451a03 50%,#f59e0b 100%);
+      color:white; margin-bottom:2rem; position:relative; overflow:hidden; animation:fadeUp .4s ease;
+    }
+    .admin-hero::before { content:''; position:absolute; inset:0; background-image:repeating-linear-gradient(55deg,rgba(255,255,255,.04) 0,rgba(255,255,255,.04) 2px,transparent 2px,transparent 22px); }
+    .admin-hero-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#fcd34d; margin-bottom:.5rem; position:relative; }
+    .admin-hero h1    { font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:800; margin-bottom:.35rem; position:relative; }
+    .admin-hero p     { font-size:.95rem; color:rgba(255,255,255,.75); position:relative; }
+    .admin-hero-gem   { position:absolute; right:2rem; top:50%; transform:translateY(-50%); opacity:.12; font-size:7rem; pointer-events:none; }
+
+    /* tabs */
+    .page-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.38rem; box-shadow:0 4px 24px rgba(245,158,11,.10); width:fit-content; margin-bottom:2rem; flex-wrap:wrap; }
+    .page-tab  { padding:.55rem 1.25rem; border-radius:10px; font-size:.9rem; font-weight:600; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .page-tab:hover:not(.active) { background:var(--a-light); color:var(--a-dark); }
+    .page-tab.active { background:var(--a); color:white; }
+    .tab-panel { display:none; animation:fadeUp .25s ease; }
+    .tab-panel.active { display:block; }
+
+    /* stats */
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat-card { background:#fff; border-radius:16px; padding:1.3rem 1.5rem; box-shadow:0 4px 18px rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.09); animation:fadeUp .4s ease both; }
+    .stat-card .sv { font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:800; color:var(--a); }
+    .stat-card .sl { font-size:.8rem; color:#9ca3af; font-weight:600; margin-top:2px; }
+    .stat-card .sc { font-size:.75rem; margin-top:4px; }
+    .stat-card .sc.up   { color:#10b981; }
+    .stat-card .sc.down { color:#ef4444; }
+
+    .section-heading { font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:800; color:#16132b; margin-bottom:1.2rem; display:flex; align-items:center; gap:.5rem; }
+    .panel-card { background:#fff; border-radius:18px; padding:1.4rem; box-shadow:0 4px 24px rgba(245,158,11,.10); border:1px solid rgba(245,158,11,.12); }
+    .dash-events-list { min-height:2.5rem; }
+    .dash-ev-row { display:flex; align-items:stretch; gap:.75rem; padding:.55rem 0; border-bottom:1px solid #fef3c7; }
+    .dash-ev-row:last-child { border-bottom:none; }
+    .dash-ev-bar { width:4px; border-radius:3px; flex-shrink:0; }
+    .dash-ev-title { font-weight:700; font-size:.9rem; color:#16132b; }
+    .dash-ev-meta { font-size:.78rem; color:#9ca3af; margin-top:.15rem; }
+
+    /* cards */
+    .a-card { background:#fff; border-radius:18px; padding:1.8rem; box-shadow:0 4px 24px rgba(245,158,11,.09); border:1px solid rgba(245,158,11,.08); margin-bottom:1.4rem; }
+    .a-card-title { font-family:'DM Sans',sans-serif; font-size:1.05rem; font-weight:800; color:#16132b; margin-bottom:1.2rem; display:flex; align-items:center; gap:.5rem; }
+
+    /* teacher table */
+    .t-search { border:1.5px solid #fde68a; border-radius:10px; padding:.6rem 1rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#16132b; outline:none; background:#fef9e7; transition:border-color .2s; width:260px; }
+    .t-search:focus { border-color:var(--a); background:#fff; }
+    table { width:100%; border-collapse:collapse; }
+    thead { background:#fef9e7; }
+    th { padding:.8rem 1.1rem; font-size:.72rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.07em; text-align:left; border-bottom:1px solid #fde68a; }
+    td { padding:.8rem 1.1rem; font-size:.9rem; color:#374151; border-bottom:1px solid #fafafa; vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:#fef9e7; }
+    .wrap-table { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 4px 18px rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.08); }
+    .table-toolbar { display:flex; align-items:center; gap:.8rem; padding:1.1rem 1.4rem; border-bottom:1px solid #fef3c7; flex-wrap:wrap; }
+
+    .badge { display:inline-block; font-size:.72rem; font-weight:700; padding:2px 9px; border-radius:20px; }
+    .badge-teacher { background:rgba(16,185,129,.1); color:#065f46; }
+    .badge-admin   { background:rgba(245,158,11,.12); color:#92400e; }
+    .badge-student { background:rgba(99,102,241,.1); color:#3730a3; }
+    .badge-active  { background:#d1fae5; color:#065f46; }
+    .badge-inactive{ background:#f3f4f6; color:#6b7280; }
+
+    .icon-btn { padding:.38rem .85rem; border-radius:8px; border:1.5px solid #fde68a; background:none; color:#92400e; font-size:.8rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .icon-btn:hover { background:var(--a); color:white; border-color:var(--a); }
+    .icon-btn.red   { border-color:#fca5a5; color:#ef4444; }
+    .icon-btn.red:hover { background:#ef4444; color:white; border-color:#ef4444; }
+
+    /* invite codes */
+    .invite-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.9rem; margin-top:1rem; }
+    .invite-card { background:#fef9e7; border:1.5px solid #fde68a; border-radius:14px; padding:1.1rem 1.2rem; position:relative; }
+    .invite-card.used { opacity:.5; }
+    .invite-code-text { font-family:'DM Sans',sans-serif; font-size:1.3rem; font-weight:800; color:var(--a-dark); letter-spacing:.08em; margin:.3rem 0; display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+    .inv-role { font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:20px; display:inline-block; margin-bottom:.3rem; }
+    .inv-role.teacher { background:rgba(16,185,129,.12); color:#065f46; }
+    .inv-role.admin   { background:rgba(245,158,11,.15); color:#92400e; }
+    .inv-meta { font-size:.75rem; color:#9ca3af; line-height:1.6; }
+    .copy-btn { background:none; border:1.5px solid #fde68a; border-radius:7px; padding:2px 9px; font-size:.72rem; font-weight:700; color:#92400e; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; white-space:nowrap; }
+    .copy-btn:hover { background:var(--a); color:white; border-color:var(--a); }
+    .used-pill { font-size:.7rem; background:#f3f4f6; color:#9ca3af; padding:2px 8px; border-radius:20px; }
+    .inv-del { position:absolute; top:.7rem; right:.8rem; background:none; border:none; color:#fca5a5; cursor:pointer; font-size:.95rem; }
+    .inv-del:hover { color:#ef4444; }
+
+    .gen-row { display:flex; gap:.7rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+    .a-select { border:1.5px solid #fde68a; border-radius:10px; padding:.6rem .9rem; font-family:'DM Sans',sans-serif; font-size:.88rem; color:#374151; outline:none; background:#fef9e7; }
+    .a-btn { padding:.65rem 1.4rem; background:var(--a); color:white; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; transition:opacity .2s; }
+    .a-btn:hover { opacity:.88; }
+    .a-btn.outline { background:none; border:1.5px solid var(--a); color:var(--a-dark); }
+    .a-btn.outline:hover { background:var(--a-light); }
+
+    /* announcement composer */
+    .compose-box { border:1.5px solid #fde68a; border-radius:12px; padding:1rem; background:#fef9e7; width:100%; font-family:'DM Sans',sans-serif; font-size:.95rem; color:#16132b; outline:none; resize:vertical; min-height:90px; transition:border-color .2s; }
+    .compose-box:focus { border-color:var(--a); background:#fff; }
+    .compose-row { display:flex; gap:.7rem; margin-top:.8rem; flex-wrap:wrap; align-items:center; }
+    .compose-type { border:1.5px solid #fde68a; border-radius:9px; padding:.45rem .75rem; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#374151; outline:none; background:#fff; }
+
+    /* announcement feed */
+    .ann-item { display:flex; gap:.9rem; padding:1rem 0; border-bottom:1px solid #fef3c7; }
+    .ann-item:last-child { border-bottom:none; }
+    .ann-avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#f59e0b,#d97706); color:white; display:flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; font-weight:800; font-size:.9rem; flex-shrink:0; }
+    .ann-body { flex:1; }
+    .ann-header { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-bottom:.3rem; }
+    .ann-author { font-weight:700; font-size:.9rem; color:#16132b; }
+    .ann-date   { font-size:.75rem; color:#9ca3af; }
+    .ann-type-badge { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:20px; }
+    .ann-type-badge.portal { background:#fef3c7; color:#92400e; }
+    .ann-type-badge.alert  { background:#fee2e2; color:#991b1b; }
+    .ann-type-badge.info   { background:#dbeafe; color:#1d4ed8; }
+    .ann-text { font-size:.9rem; color:#374151; line-height:1.7; }
+    .ann-del { background:none; border:none; color:#d1d5db; cursor:pointer; font-size:.88rem; padding:2px 6px; border-radius:6px; transition:all .15s; }
+    .ann-del:hover { background:#fee2e2; color:#ef4444; }
+
+    /* passphrase */
+    .pp-row { display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; }
+    .pp-input { border:1.5px solid #fde68a; border-radius:10px; padding:.68rem 1rem; font-family:'DM Sans',sans-serif; font-size:.95rem; color:#16132b; outline:none; background:#fef9e7; flex:1; min-width:180px; transition:border-color .2s; }
+    .pp-input:focus { border-color:var(--a); background:#fff; }
+    .status-pill { font-size:.8rem; font-weight:700; padding:4px 12px; border-radius:20px; }
+    .status-pill.set   { background:#d1fae5; color:#065f46; }
+    .status-pill.unset { background:#fee2e2; color:#991b1b; }
+
+    /* modal */
+    .m-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter:blur(5px); z-index:500; align-items:center; justify-content:center; }
+    .m-overlay.active { display:flex; }
+    .m-box { background:#fff; border-radius:20px; padding:2rem; width:440px; max-width:94vw; box-shadow:0 20px 60px rgba(0,0,0,.18); animation:popIn .28s cubic-bezier(.34,1.56,.64,1); position:relative; max-height:90vh; overflow-y:auto; }
+    .m-box h3 { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:800; color:#16132b; margin-bottom:1.1rem; }
+    .m-close { position:absolute; top:1rem; right:1rem; background:#fef3c7; border:none; width:30px; height:30px; border-radius:50%; cursor:pointer; color:#92400e; display:flex; align-items:center; justify-content:center; }
+    .m-close:hover { background:#fde68a; }
+    .m-field { margin-bottom:1rem; }
+    .m-field label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:.4rem; }
+    .m-field input, .m-field select { width:100%; border:1.5px solid #fde68a; border-radius:10px; padding:.68rem .9rem; font-size:.9rem; font-family:'DM Sans',sans-serif; color:#16132b; outline:none; background:#fef9e7; transition:border-color .2s; }
+    .m-field input:focus, .m-field select:focus { border-color:var(--a); background:#fff; }
+    .m-actions { display:flex; gap:.7rem; margin-top:1.2rem; }
+    .m-btn { flex:1; padding:.68rem; border:none; border-radius:10px; font-size:.9rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .m-btn.primary { background:var(--a); color:white; }
+    .m-btn.ghost   { background:#fef3c7; color:#374151; }
+    .form-msg { font-size:.85rem; margin-top:.6rem; min-height:1em; }
+    .form-msg.ok  { color:#10b981; }
+    .form-msg.err { color:#ef4444; }
+
+    @media(max-width:640px){ .stats-row{grid-template-columns:1fr 1fr;} }
+  </style>
+</head>
+<body>
+<script src="api.js"></script>
+
+<script>
+/* ── script.js inlined ── */
+// ═══════════════════════════════════════════════════════
+//  PRISM PORTAL — script.js  
+//  Auth guard + role-based access control
+// ═══════════════════════════════════════════════════════
+
+window.__prismAdminSession = (async function() {
+  var data = await fetch('/prism/api/auth.php?action=session', {credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
+  if (!data.loggedIn) { window.location.replace('login.html'); return; }
+  var u = data.user;
+  if (['admin'].indexOf(u.role) === -1) {
+    window.location.replace(u.role==='teacher'?'teacher.html':u.role==='admin'?'admin.html':'index.html');
+    return;
+  }
+  sessionStorage.setItem('prism_logged_in','true');
+  sessionStorage.setItem('prism_user_id',  u.id);
+  sessionStorage.setItem('prism_user_name',u.name);
+  sessionStorage.setItem('prism_role',     u.role);
+  sessionStorage.setItem('prism_section',  u.section||'');
+})();
+
+function getRoleHome(role) {
+  if (role === 'teacher') return 'teacher.html';
+  if (role === 'admin')   return 'admin.html';
+  return 'index.html';
+}
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch('/prism/api/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+function previewImage(event, imgId, placeholderId) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var img = document.getElementById(imgId);
+  var placeholder = document.getElementById(placeholderId);
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    img.src = e.target.result;
+    img.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+</script>
+<script>
+/* ── portal-sidebar.js inlined ── */
+/* portal-sidebar.js
+   Call initSidebar(activePage) after DOMContentLoaded.
+   Builds the correct sidebar nav for the logged-in role.
+*/
+
+var PORTAL_CLASSES = [
+  { id:'math101', subject:'Mathematics',        color:'#7c3aed' },
+  { id:'sci102',  subject:'Science & Tech',     color:'#0d9488' },
+  { id:'eng103',  subject:'English Comm.',      color:'#d97706' },
+  { id:'prog104', subject:'Programming',        color:'#2563eb' },
+  { id:'hist105', subject:'Philippine History', color:'#be123c' },
+  { id:'pe106',   subject:'Physical Education', color:'#15803d' },
+];
+
+var ROLE_NAV = {
+  student: [
+    { page:'home',     href:'index.html',    icon:'🏠', label:'Home' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'notes',    href:'notes.html',    icon:'📓', label:'Notes' },
+    { page:'quizzes',  href:'quizzes.html',  icon:'🧠', label:'Quizzes' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+  teacher: [
+    { page:'home',      href:'teacher.html',   icon:'🏠', label:'My Classes' },
+    { page:'quizmaker', href:'quizmaker.html', icon:'🧪', label:'Quiz Maker' },
+    { page:'records',   href:'records.html',   icon:'📋', label:'Records' },
+    { page:'grading',   href:'grading.html',   icon:'🎯', label:'Grading' },
+    { page:'calendar',  href:'calendar.html',  icon:'📅', label:'Calendar' },
+    { page:'call',      href:'call.html',      icon:'📞', label:'Organizations' },
+  ],
+  admin: [
+    { page:'home',     href:'admin.html',    icon:'🏠', label:'Dashboard' },
+    { page:'manage',   href:'manage.html',   icon:'👥', label:'Manage Users' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+};
+
+function diamondSVG(color, size) {
+  size = size || 14;
+  return '<svg class="sidebar-diamond" width="'+size+'" height="'+size+'" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="'+color+'" stroke="'+color+'" stroke-width="0.5" stroke-linejoin="round"/></svg>';
+}
+
+function initSidebar(activePage) {
+  var uid      = sessionStorage.getItem('prism_user_id') || '';
+  var profile  = JSON.parse(localStorage.getItem('prism_profile_' + uid) || '{}');
+  var userName = profile.name || sessionStorage.getItem('prism_user_name') || uid || 'User';
+  if (profile.name) sessionStorage.setItem('prism_user_name', profile.name);
+  var roleRaw  = sessionStorage.getItem('prism_role') || 'student';
+  var role     = String(roleRaw).toLowerCase().trim();
+  if (!ROLE_NAV[role]) role = 'student';
+  try { document.body.setAttribute('data-prism-role', role); } catch (e) {}
+  var initial  = userName.charAt(0).toUpperCase();
+
+  // ── TOPBAR LOGO — fix href and gem emoji ──
+  var logoLinks = document.querySelectorAll('.topbar-logo');
+  var homeHref  = role === 'admin' ? 'admin.html' : role === 'teacher' ? 'teacher.html' : 'index.html';
+  for (var li = 0; li < logoLinks.length; li++) {
+    logoLinks[li].href = homeHref;
+    var gem = logoLinks[li].querySelector('.topbar-logo-gem');
+    if (gem) {
+      gem.innerHTML = '<img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/>';
+    }
+  }
+
+  // ── TOPBAR ──
+  var tbName   = document.getElementById('topbar-name');
+  var tbRole   = document.getElementById('topbar-role');
+  var tbAvatar = document.getElementById('topbar-avatar');
+  if (tbName)   tbName.textContent   = userName;
+  if (tbRole) {
+    tbRole.textContent = role;
+    // Update badge color to match role
+    var roleColors = { student: '#7c3aed', teacher: '#10b981', admin: '#f59e0b' };
+    var roleBgs    = { student: '#ede9fe',  teacher: '#d1fae5',  admin: '#fef3c7'  };
+    tbRole.style.color      = roleColors[role] || '#7c3aed';
+    tbRole.style.background = roleBgs[role]    || '#ede9fe';
+    tbRole.style.borderColor = (roleColors[role] || '#7c3aed') + '33';
+  }
+  if (tbAvatar) {
+    if (profile.avatar) {
+      tbAvatar.innerHTML = '<img src="'+profile.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" alt=""/>';
+    } else {
+      tbAvatar.textContent = initial;
+    }
+  }
+
+  // ── USER CARD — hidden in CSS (profile is in the top bar) ──
+  var userCard = document.getElementById('sidebar-user-card');
+  if (userCard) userCard.innerHTML = '';
+
+  // ── NAV — replace the placeholder with the correct role nav ──
+  var placeholder = document.getElementById('sidebar-nav');
+  if (placeholder) {
+    var links = ROLE_NAV[role] || ROLE_NAV['student'];
+    var lbl   = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
+
+    var sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+
+    var secLbl = document.createElement('div');
+    secLbl.className = 'sidebar-section-label';
+    secLbl.textContent = lbl;
+    sec.appendChild(secLbl);
+
+    for (var i = 0; i < links.length; i++) {
+      var l = links[i];
+      if (l.placeholder) {
+        var sp = document.createElement('span');
+        sp.className = 'sidebar-link sidebar-link-placeholder';
+        sp.setAttribute('data-page', l.page);
+        sp.setAttribute('aria-disabled', 'true');
+        sp.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(sp);
+      } else {
+        var a = document.createElement('a');
+        a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
+        a.setAttribute('data-page', l.page);
+        a.href = l.href;
+        a.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(a);
+      }
+    }
+
+    sec.id = 'sidebar-nav';
+    placeholder.parentNode.replaceChild(sec, placeholder);
+  }
+
+  // ── MY CLASSES section ──
+  var classCont = document.getElementById('sidebar-classes');
+  if (classCont) {
+
+    // Hide the whole My Classes section for admins
+    if (role === 'admin') {
+      var node = classCont.parentNode;
+      while (node && !(node.className && node.className.indexOf('sidebar-section') !== -1)) {
+        node = node.parentNode;
+      }
+      if (node) node.style.display = 'none';
+      var prev = node && node.previousElementSibling;
+      if (prev && prev.className && prev.className.indexOf('sidebar-divider') !== -1) {
+        prev.style.display = 'none';
+      }
+      return;
+    }
+
+    // For students and teachers — show classes
+    // Update section label based on role
+    var classSection = classCont.parentNode;
+    if (classSection) {
+      var classLabel = classSection.querySelector('.sidebar-section-label');
+      if (classLabel) {
+        classLabel.textContent = role === 'teacher' ? 'Classes' : 'My Classes';
+      }
+    }
+
+    classCont.innerHTML = '';
+
+    if (role === 'teacher') {
+      // Teacher: show their created classes
+      var teacherId = sessionStorage.getItem('prism_user_id') || 'teacher';
+      var teacherClasses = JSON.parse(localStorage.getItem('prism_classes_'+teacherId)||'[]');
+      if (!teacherClasses.length) {
+        var emp = document.createElement('div');
+        emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp.textContent = 'No subjects yet';
+        classCont.appendChild(emp);
+      } else {
+        teacherClasses.forEach(function(cls) {
+          var btn = document.createElement('button');
+          btn.className = 'sidebar-class-item';
+          btn.innerHTML = diamondSVG(cls.color||'#7c3aed', 13) +
+            '<span class="sidebar-class-name">'+cls.subject+'</span>';
+          btn.onclick = function() { window.location.href = 'teacher.html'; };
+          classCont.appendChild(btn);
+        });
+      }
+    } else {
+      // Student: show joined classes
+      var studentId = sessionStorage.getItem('prism_user_id') || 'student';
+      var joinedRaw = JSON.parse(localStorage.getItem('prism_joined_'+studentId)||'{}');
+      var joinedList = Object.values(joinedRaw);
+      if (!joinedList.length) {
+        var emp2 = document.createElement('div');
+        emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp2.textContent = 'No classes joined yet';
+        classCont.appendChild(emp2);
+      } else {
+        var colors = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d'];
+        joinedList.forEach(function(entry, idx) {
+          (function(e, i) {
+            var btn = document.createElement('button');
+            btn.className = 'sidebar-class-item';
+            btn.innerHTML = diamondSVG(colors[i%colors.length], 13) +
+              '<span class="sidebar-class-name">'+e.subject+'</span>';
+            btn.onclick = function() {
+              if (typeof openClassDetail === 'function') {
+                openClassDetail(e.classId, e.teacherId, e.subject, colors[i%colors.length]);
+              } else {
+                window.location.href = 'index.html';
+              }
+            };
+            classCont.appendChild(btn);
+          })(entry, idx);
+        });
+      }
+    }
+  }
+}
+
+
+</script>
+
+<div class="topbar">
+  <a class="topbar-logo" href="admin.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-right">
+    <span class="topbar-role-badge" id="topbar-role">admin</span>
+    <span class="topbar-name" id="topbar-name"></span>
+    <a class="topbar-avatar" href="profile.html" id="topbar-avatar">A</a>
+  </div>
+</div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div id="sidebar-user-card" class="sidebar-user-card"></div>
+    <div id="sidebar-nav"></div>
+    <div style="margin-top:auto;padding-top:1rem;">
+      <div class="sidebar-divider"></div>
+      <button class="sidebar-logout" onclick="logout()"><span class="s-icon">🚪</span> Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <div class="admin-hero">
+      <div class="admin-hero-label">Admin Dashboard</div>
+      <h1 id="admin-greeting">Welcome, Admin 👋</h1>
+      <p>Monitor teachers, manage accounts, and keep the portal running smoothly.</p>
+      <div class="admin-hero-gem">🛡️</div>
+    </div>
+
+    <div id="admin-users-alert" style="display:none;margin-bottom:1rem;padding:.85rem 1.1rem;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:.88rem;"></div>
+
+    <!-- STATS -->
+    <div class="stats-row" id="stats-row">
+      <div class="stat-card" style="animation-delay:.05s">
+        <div class="sv" id="stat-teachers">0</div><div class="sl">Teachers</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.1s">
+        <div class="sv" id="stat-students">0</div><div class="sl">Students</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.15s">
+        <div class="sv" id="stat-codes">0</div><div class="sl">Active Invite Codes</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.2s">
+        <div class="sv" id="stat-quizzes">0</div><div class="sl">Quizzes Created</div>
+      </div>
+      <div class="stat-card" style="animation-delay:.25s">
+        <div class="sv" id="stat-posts">0</div><div class="sl">Posts Made</div>
+      </div>
+    </div>
+
+    <div class="section-heading">📅 Upcoming events</div>
+    <div class="panel-card" style="margin-bottom:2rem;">
+      <div id="dash-events-list" class="dash-events-list"></div>
+      <div style="text-align:right;margin-top:.65rem;"><a href="calendar.html" style="font-size:.82rem;font-weight:600;color:var(--a-dark);text-decoration:none;">Open calendar →</a></div>
+    </div>
+
+    <!-- TABS -->
+    <div class="page-tabs">
+      <button class="page-tab active" onclick="switchTab('teachers',this)">👨‍🏫 Teachers</button>
+      <button class="page-tab"        onclick="switchTab('students',this)">🎓 Students</button>
+      <button class="page-tab"        onclick="switchTab('codes',this)">🔑 Invite Codes</button>
+      <button class="page-tab"        onclick="switchTab('announce',this)">📢 Announcements</button>
+      <button class="page-tab"        onclick="switchTab('security',this)">🔐 Security</button>
+    </div>
+
+    <!-- ═══ TEACHERS ═══ -->
+    <div class="tab-panel active" id="tab-teachers">
+      <div class="wrap-table">
+        <div class="table-toolbar">
+          <input class="t-search" id="teacher-search" placeholder="🔍 Search teachers…" oninput="renderTeachers()"/>
+          <button class="a-btn" onclick="openCreateModal('teacher')">+ Add Teacher</button>
+          <span style="margin-left:auto;font-size:.82rem;color:#9ca3af;" id="teacher-count"></span>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>ID</th><th>Department</th><th>Status</th><th>Source</th><th>Actions</th></tr></thead>
+          <tbody id="teacher-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ STUDENTS ═══ -->
+    <div class="tab-panel" id="tab-students">
+      <div class="wrap-table">
+        <div class="table-toolbar">
+          <input class="t-search" id="student-search" placeholder="🔍 Search students…" oninput="renderStudents()"/>
+          <span style="margin-left:auto;font-size:.82rem;color:#9ca3af;" id="student-count"></span>
+        </div>
+        <table>
+          <thead><tr><th>Name</th><th>ID</th><th>Section</th><th>Source</th><th>Actions</th></tr></thead>
+          <tbody id="student-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ INVITE CODES ═══ -->
+    <div class="tab-panel" id="tab-codes">
+      <div class="a-card">
+        <div class="a-card-title">🔑 Generate Invite Code</div>
+        <div class="gen-row">
+          <select class="a-select" id="code-role">
+            <option value="teacher">📚 Teacher</option>
+            <option value="admin">🛡️ Admin</option>
+          </select>
+          <select class="a-select" id="code-exp">
+            <option value="7">Expires in 7 days</option>
+            <option value="30">Expires in 30 days</option>
+            <option value="0">Never expires</option>
+          </select>
+          <button class="a-btn" onclick="generateCode()">Generate Code</button>
+        </div>
+        <p style="font-size:.8rem;color:#9ca3af;margin-top:.5rem;">Share the generated code + the registration URL privately. Admin codes also require the portal passphrase.</p>
+      </div>
+      <div class="invite-grid" id="invite-grid">
+        <p style="color:#9ca3af;font-size:.9rem;">No codes yet.</p>
+      </div>
+    </div>
+
+    <!-- ═══ ANNOUNCEMENTS ═══ -->
+    <div class="tab-panel" id="tab-announce">
+      <div class="a-card">
+        <div class="a-card-title">✍️ Post Portal-Wide Announcement</div>
+        <textarea class="compose-box" id="ann-text" placeholder="Write an announcement visible to all users…"></textarea>
+        <div class="compose-row">
+          <select class="compose-type" id="ann-type">
+            <option value="portal">📢 General</option>
+            <option value="alert">🚨 Alert</option>
+            <option value="info">ℹ️ Info</option>
+          </select>
+          <button class="a-btn" onclick="postAnnouncement()">Post →</button>
+        </div>
+      </div>
+      <div class="a-card">
+        <div class="a-card-title">📋 Posted Announcements</div>
+        <div id="ann-feed"><p style="color:#9ca3af;font-size:.9rem;text-align:center;padding:1rem 0;">No announcements yet.</p></div>
+      </div>
+    </div>
+
+    <!-- ═══ SECURITY ═══ -->
+    <div class="tab-panel" id="tab-security">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;" class="security-grid-layout">
+
+        <div class="a-card">
+          <div class="a-card-title">🔑 Admin Passphrase</div>
+          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;line-height:1.65;">Required alongside an admin invite code to self-register at <code style="background:#fef3c7;padding:1px 6px;border-radius:5px;font-size:.82em;color:#92400e;">admin-register.html</code>.</p>
+          <div id="pp-status" style="margin-bottom:1rem;"></div>
+          <div class="pp-row">
+            <input type="password" class="pp-input" id="new-pp" placeholder="New passphrase…"/>
+            <button class="a-btn" onclick="setPassphrase()">Set</button>
+            <button class="a-btn outline" onclick="clearPassphrase()">Clear</button>
+          </div>
+          <div class="form-msg" id="pp-msg"></div>
+          <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid #fef3c7;">
+            <div style="font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem;">Admin Registration URL</div>
+            <div style="background:#fef9e7;border:1px solid #fde68a;border-radius:10px;padding:.65rem 1rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">
+              <code style="font-size:.8rem;color:#92400e;flex:1;word-break:break-all;" id="admin-url"></code>
+              <button class="copy-btn" onclick="copyAdminUrl()" id="copy-url-btn">Copy</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="a-card">
+          <div class="a-card-title">🔍 Audit Log</div>
+          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;">Admin self-registration events.</p>
+          <div id="audit-log" style="max-height:320px;overflow-y:auto;"></div>
+          <button onclick="clearAudit()" style="margin-top:.8rem;padding:.45rem 1rem;background:none;border:1.5px solid #fca5a5;color:#ef4444;border-radius:9px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Clear Log</button>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Create Account Modal -->
+<div class="m-overlay" id="create-overlay">
+  <div class="m-box">
+    <button class="m-close" onclick="closeCreateModal()">✕</button>
+    <h3 id="create-modal-title">Add Teacher</h3>
+    <div class="m-field"><label>First Name</label><input type="text" id="m-fname" placeholder="Juan"/></div>
+    <div class="m-field"><label>Last Name</label><input type="text" id="m-lname" placeholder="Dela Cruz"/></div>
+    <div class="m-field"><label>ID / Username</label><input type="text" id="m-id" placeholder="e.g. 2024-00005"/></div>
+    <div class="m-field"><label>Department / Subject</label><input type="text" id="m-dept" placeholder="e.g. Mathematics Dept."/></div>
+    <div class="m-field"><label>Password</label><input type="password" id="m-pw" placeholder="Minimum 6 characters"/></div>
+    <div class="m-actions">
+      <button class="m-btn ghost" onclick="closeCreateModal()">Cancel</button>
+      <button class="m-btn primary" onclick="createAccount()">Create Account</button>
+    </div>
+    <div class="form-msg" id="create-msg"></div>
+  </div>
+</div>
+
+<style>
+  .security-grid-layout { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
+  @media(max-width:700px){ .security-grid-layout{ grid-template-columns:1fr; } }
+</style>
+
+<script>
+function escJs(s) {
+  return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+}
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function userRole(u) {
+  return String(u && u.role != null ? u.role : '').toLowerCase().trim();
+}
+
+let adminUsersCache = [];
+let adminUsersError = '';
+
+/** Loads all users from API into adminUsersCache; clears legacy prism_accounts to avoid stale client-only data. */
+async function refreshAdminUsers() {
+  adminUsersError = '';
+  const alertEl = document.getElementById('admin-users-alert');
+  try {
+    adminUsersCache = await PrismAdmin.getAllUsers();
+    try { localStorage.removeItem('prism_accounts'); } catch (e) {}
+    if (alertEl) { alertEl.style.display = 'none'; alertEl.textContent = ''; }
+  } catch (e) {
+    adminUsersCache = [];
+    adminUsersError = e.message || 'Could not load users from the database.';
+    console.error('refreshAdminUsers:', e);
+    if (alertEl) {
+      alertEl.style.display = 'block';
+      alertEl.textContent = adminUsersError + ' Check that Apache/MySQL are running and the app URL matches api.js (e.g. http://localhost/prism/).';
+    }
+  }
+}
+
+function fmtDashEvTime(t) {
+  if (!t) return '';
+  const p = String(t).split(':');
+  const hr = parseInt(p[0], 10) || 0;
+  const m = p[1] != null ? p[1] : '00';
+  return ((hr % 12) || 12) + ':' + m + (hr >= 12 ? ' PM' : ' AM');
+}
+function escDash(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function renderDashboardIncomingEvents() {
+  const el = document.getElementById('dash-events-list');
+  if (!el) return;
+  let raw = [];
+  try { raw = JSON.parse(localStorage.getItem('prism_events') || '[]'); } catch (e) { raw = []; }
+  const todayStr = new Date().toISOString().split('T')[0];
+  const upcoming = raw.filter(e => e.date >= todayStr)
+    .sort((a, b) => {
+      const c = a.date.localeCompare(b.date);
+      return c !== 0 ? c : String(a.time || '').localeCompare(String(b.time || ''));
+    })
+    .slice(0, 8);
+  if (!upcoming.length) {
+    el.innerHTML = '<div style="text-align:center;padding:1rem 0;color:#9ca3af;font-size:.9rem;">No upcoming events. Add events on the calendar.</div>';
+    return;
+  }
+  el.innerHTML = upcoming.map(ev => {
+    const dl = new Date(ev.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const bar = ev.color || '#6d28d9';
+    return '<div class="dash-ev-row"><div class="dash-ev-bar" style="background:' + bar + '"></div><div><div class="dash-ev-title">' + escDash(ev.title || 'Event') + '</div><div class="dash-ev-meta">' + escDash(dl) + (ev.time ? ' · ' + fmtDashEvTime(ev.time) : '') + '</div></div></div>';
+  }).join('');
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+  if (window.__prismAdminSession) await window.__prismAdminSession;
+  const user = await prismAuthGuard(['admin']);
+  if (!user) return;
+  if (typeof initSidebar === 'function') initSidebar('home');
+  const hour = new Date().getHours();
+  const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
+  document.getElementById('admin-greeting').textContent = `${g}, ${user.name}! 👋`;
+  document.getElementById('admin-url').textContent = location.origin + location.pathname.replace(/[^/]+$/, '') + 'admin-register.html';
+  try {
+    if (typeof PrismEvents !== 'undefined' && PrismEvents.get) {
+      const apiEv = await PrismEvents.get();
+      const mapped = apiEv.map(e => ({
+        id: e.id, title: e.title, date: e.event_date, time: e.event_time || '', notes: e.notes || '', color: e.color || '#6d28d9', alarm: e.alarm
+      }));
+      localStorage.setItem('prism_events', JSON.stringify(mapped));
+    }
+  } catch (evErr) { console.warn('Events sync:', evErr); }
+  renderDashboardIncomingEvents();
+  await refreshAdminUsers();
+  await renderStats();
+  await renderTeachers();
+  await renderStudents();
+  await renderInviteCodes();
+  await renderAnnouncements();
+});
+
+/* ── STATS ── */
+async function renderStats() {
+  try {
+    const users = adminUsersCache;
+    const codes = await PrismAdmin.getInviteCodes();
+    document.getElementById('stat-teachers').textContent = users.filter(a => userRole(a) === 'teacher').length;
+    document.getElementById('stat-students').textContent = users.filter(a => userRole(a) === 'student').length;
+    document.getElementById('stat-codes').textContent    = codes.filter(c=>!c.used).length;
+    document.getElementById('stat-quizzes').textContent  = '—';
+    document.getElementById('stat-posts').textContent    = '—';
+  } catch(e) { console.error('renderStats:', e); }
+}
+
+/* ── TEACHERS TABLE ── */
+async function renderTeachers() {
+  const q = (document.getElementById('teacher-search').value||'').toLowerCase();
+  const tbody = document.getElementById('teacher-tbody');
+  if (adminUsersError) {
+    document.getElementById('teacher-count').textContent = '';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:2rem;">' + escHtml(adminUsersError) + '</td></tr>';
+    return;
+  }
+  try {
+    const teachers = adminUsersCache.filter(a => userRole(a) === 'teacher' && (
+      (a.name||'').toLowerCase().includes(q) || String(a.id||'').toLowerCase().includes(q)
+    ));
+    document.getElementById('teacher-count').textContent = teachers.length + ' teacher' + (teachers.length!==1?'s':'');
+    if (!teachers.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:2rem;">No teachers in the database yet.</td></tr>'; return; }
+    tbody.innerHTML = teachers.map(t => `<tr>
+      <td><strong style="color:#16132b;">${escHtml(t.name)}</strong></td>
+      <td style="font-family:monospace;font-size:.85rem;color:#6b7280;">${escHtml(t.id)}</td>
+      <td style="color:#9ca3af;">${escHtml(t.section)}</td>
+      <td><span class="badge badge-active">Active</span></td>
+      <td><span class="badge badge-teacher" style="font-size:.68rem;">database</span></td>
+      <td><button class="icon-btn red" onclick="deleteAccount('${escJs(t.id)}')">Delete</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    console.error('renderTeachers:', e);
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#ef4444;padding:2rem;">' + escHtml(e.message || 'Failed to render teachers.') + '</td></tr>';
+  }
+}
+
+/* ── STUDENTS TABLE ── */
+async function renderStudents() {
+  const q = (document.getElementById('student-search').value||'').toLowerCase();
+  const tbody = document.getElementById('student-tbody');
+  if (adminUsersError) {
+    document.getElementById('student-count').textContent = '';
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#ef4444;padding:2rem;">' + escHtml(adminUsersError) + '</td></tr>';
+    return;
+  }
+  try {
+    const students = adminUsersCache.filter(a => userRole(a) === 'student' && (
+      (a.name||'').toLowerCase().includes(q) || String(a.id||'').toLowerCase().includes(q)
+    ));
+    document.getElementById('student-count').textContent = students.length + ' student' + (students.length!==1?'s':'');
+    if (!students.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:2rem;">No students in the database yet.</td></tr>'; return; }
+    tbody.innerHTML = students.map(s => `<tr>
+      <td><strong style="color:#16132b;">${escHtml(s.name)}</strong></td>
+      <td style="font-family:monospace;font-size:.85rem;color:#6b7280;">${escHtml(s.id)}</td>
+      <td style="color:#9ca3af;">${escHtml(s.section)}</td>
+      <td><span class="badge badge-student" style="font-size:.68rem;">database</span></td>
+      <td><button class="icon-btn red" onclick="deleteAccount('${escJs(s.id)}')">Delete</button></td>
+    </tr>`).join('');
+  } catch(e) {
+    console.error('renderStudents:', e);
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#ef4444;padding:2rem;">' + escHtml(e.message || 'Failed to render students.') + '</td></tr>';
+  }
+}
+
+async function deleteAccount(id) {
+  if (!confirm(`Delete account "${id}"? This cannot be undone.`)) return;
+  try {
+    await PrismAdmin.deleteUser(id);
+    await refreshAdminUsers();
+    await renderTeachers(); await renderStudents(); await renderStats();
+  } catch(e) { alert(e.message || 'Failed to delete account.'); }
+}
+
+/* ── CREATE ACCOUNT MODAL ── */
+let createRole = 'teacher';
+function openCreateModal(role) {
+  createRole = role;
+  document.getElementById('create-modal-title').textContent = role==='teacher'?'➕ Add Teacher':'➕ Add Admin';
+  document.getElementById('m-id').placeholder = role==='teacher'?'e.g. 2024-00005':'e.g. admin002';
+  ['m-fname','m-lname','m-id','m-dept','m-pw'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('create-msg').textContent = '';
+  document.getElementById('create-overlay').classList.add('active');
+}
+function closeCreateModal() { document.getElementById('create-overlay').classList.remove('active'); }
+
+async function createAccount() {
+  const fn   = document.getElementById('m-fname').value.trim();
+  const ln   = document.getElementById('m-lname').value.trim();
+  const id   = document.getElementById('m-id').value.trim();
+  const dept = document.getElementById('m-dept').value.trim();
+  const pw   = document.getElementById('m-pw').value;
+  const showMsg = (t,c) => { const el=document.getElementById('create-msg'); el.textContent=t; el.className='form-msg '+c; };
+  if(!fn) { showMsg('First name required.','err'); return; }
+  if(!ln) { showMsg('Last name required.','err'); return; }
+  if(!id||id.length<4) { showMsg('ID must be at least 4 characters.','err'); return; }
+  if(!dept) { showMsg('Department required.','err'); return; }
+  if(!pw||pw.length<6) { showMsg('Password must be at least 6 characters.','err'); return; }
+  try {
+    // Must use register_admin: the public "register" action always creates students only.
+    await apiCall('auth', 'register_admin', 'POST', {
+      id, password:pw, name:fn+' '+ln, section:dept, role: createRole === 'admin' ? 'admin' : 'teacher'
+    });
+    showMsg('✅ Account created!','ok');
+    setTimeout(async ()=>{ closeCreateModal(); await refreshAdminUsers(); await renderTeachers(); await renderStudents(); await renderStats(); },900);
+  } catch(e) { showMsg(e.message||'Failed to create account.','err'); }
+}
+document.getElementById('create-overlay').addEventListener('click',function(e){if(e.target===this)closeCreateModal();});
+
+/* ── INVITE CODES ── */
+async function generateCode() {
+  try {
+    const data = await PrismAdmin.createInvite();
+    await renderInviteCodes(); await renderStats();
+  } catch(e) { alert(e.message || 'Failed to generate code.'); }
+}
+
+async function renderInviteCodes() {
+  const grid = document.getElementById('invite-grid');
+  try {
+    const codes = await PrismAdmin.getInviteCodes();
+    if (!codes.length) { grid.innerHTML='<p style="color:#9ca3af;font-size:.9rem;">No codes yet. Generate one above.</p>'; return; }
+    grid.innerHTML = [...codes].reverse().map(c => {
+      const invalid = c.used;
+      return `<div class="invite-card${invalid?' used':''}">
+        <span class="inv-role teacher">📚 teacher</span>
+        <div class="invite-code-text">
+          ${c.code}
+          <button class="copy-btn" onclick="copyCode('${c.code}',this)">Copy</button>
+          ${invalid?'<span class="used-pill">Used</span>':''}
+        </div>
+        <div class="inv-meta">${c.used?'Used by: '+(c.used_by||'—'):'Available'}<br/>Created: ${new Date(c.created_at).toLocaleDateString()}</div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('renderInviteCodes:', e); }
+}
+
+function copyCode(code, btn) {
+  navigator.clipboard.writeText(code).then(()=>{
+    const o=btn.textContent; btn.textContent='Copied!'; btn.style.color='#10b981';
+    setTimeout(()=>{btn.textContent=o;btn.style.color='';},1800);
+  });
+}
+
+/* ── ANNOUNCEMENTS ── */
+async function postAnnouncement() {
+  const text = document.getElementById('ann-text').value.trim();
+  if (!text) return;
+  try {
+    await PrismAdmin.addAnnouncement({
+      text, type: document.getElementById('ann-type').value,
+      author: sessionStorage.getItem('prism_user_name')||'Admin'
+    });
+    document.getElementById('ann-text').value = '';
+    await renderAnnouncements();
+  } catch(e) { alert(e.message || 'Failed to post announcement.'); }
+}
+
+async function renderAnnouncements() {
+  const feed = document.getElementById('ann-feed');
+  try {
+    const anns = await PrismAdmin.getAnnouncements();
+    if (!anns.length) { feed.innerHTML='<p style="color:#9ca3af;font-size:.9rem;text-align:center;padding:1rem 0;">No announcements yet.</p>'; return; }
+    feed.innerHTML = anns.map(a => {
+      const dl = new Date(a.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      return `<div class="ann-item">
+        <div class="ann-avatar">${(a.author||'A').charAt(0).toUpperCase()}</div>
+        <div class="ann-body">
+          <div class="ann-header">
+            <span class="ann-author">${a.author||'Admin'}</span>
+            <span class="ann-date">${dl}</span>
+            <span class="ann-type-badge ${a.type}">${a.type==='portal'?'📢 General':a.type==='alert'?'🚨 Alert':'ℹ️ Info'}</span>
+          </div>
+          <div class="ann-text">${a.text}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('renderAnnouncements:', e); }
+}
+
+function copyAdminUrl() {
+  const url = document.getElementById('admin-url').textContent;
+  navigator.clipboard.writeText(url).then(()=>{
+    const b=document.getElementById('copy-url-btn'); const o=b.textContent;
+    b.textContent='Copied!'; setTimeout(()=>b.textContent=o,1800);
+  });
+}
+
+/* ── TAB SWITCHER ── */
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

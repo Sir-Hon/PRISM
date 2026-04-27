@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRISM — Quiz Maker</title>
+  <link rel="icon" type="image/png" href="Prismcrys.png"/>
+  <link rel="stylesheet" href="portal.css?v=3"/>
+  <script src="portal-mobile.js?v=3" defer></script>
+  <style>
+    :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
+    .t-btn { padding:.55rem 1.2rem; background:var(--t); color:white; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:700; cursor:pointer; transition:opacity .2s; }
+    .t-btn:hover { opacity:.85; }
+    .t-select { border:1.5px solid #d1fae5; border-radius:9px; padding:.45rem .75rem; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#374151; outline:none; background:#fff; }
+    .class-bar { background:#fff; border-radius:14px; padding:.7rem 1.3rem; box-shadow:0 4px 18px rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.1); margin-bottom:1.5rem; display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
+    .t-card { background:#fff; border-radius:18px; padding:1.6rem; box-shadow:0 4px 24px rgba(16,185,129,.09); border:1px solid rgba(16,185,129,.08); margin-bottom:1.2rem; }
+    .t-card-title { font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:800; color:#16132b; margin-bottom:1rem; }
+    .form-msg { font-size:.82rem; margin-top:.5rem; min-height:1em; }
+    .form-msg.ok { color:var(--t); }
+    .form-msg.err { color:#ef4444; }
+    /* QM layout */
+    .qm-layout { display:grid; grid-template-columns:1fr 320px; gap:1.4rem; }
+    @media(max-width:860px){ .qm-layout{grid-template-columns:1fr;} }
+    .qm-title { width:100%; border:none; border-bottom:2px solid #d1fae5; padding:.5rem 0; font-family:'DM Sans',sans-serif; font-size:1.5rem; font-weight:800; color:#16132b; outline:none; margin-bottom:1.4rem; background:transparent; }
+    .qm-title:focus { border-bottom-color:var(--t); }
+    .qm-title::placeholder { color:#d1d5db; }
+    .qm-field { margin-bottom:1rem; }
+    .qm-field label { display:block; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:.38rem; }
+    .qm-field input, .qm-field select, .qm-field textarea { width:100%; border:1.5px solid #d1fae5; border-radius:10px; padding:.6rem .85rem; font-size:.88rem; font-family:'DM Sans',sans-serif; color:#16132b; outline:none; background:#f0fdf4; transition:border-color .2s; }
+    .qm-field input:focus, .qm-field select:focus, .qm-field textarea:focus { border-color:var(--t); background:#fff; }
+    .q-card { background:#fafffe; border:2px solid #d1fae5; border-radius:14px; padding:1.3rem; margin-bottom:1rem; transition:border-color .2s; }
+    .q-card:hover { border-color:var(--t); }
+    .q-header { display:flex; align-items:center; gap:.6rem; margin-bottom:1rem; }
+    .q-num { width:28px; height:28px; background:var(--t); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:800; font-family:'DM Sans',sans-serif; flex-shrink:0; }
+    .q-type-sel { border:1.5px solid #d1fae5; border-radius:8px; padding:.3rem .65rem; font-size:.8rem; font-family:'DM Sans',sans-serif; color:#374151; outline:none; background:#fff; cursor:pointer; }
+    .q-pts { width:62px; border:1.5px solid #d1fae5; border-radius:8px; padding:.3rem .5rem; font-size:.8rem; font-family:'DM Sans',sans-serif; text-align:center; color:#374151; outline:none; background:#fff; }
+    .q-del { margin-left:auto; background:none; border:1px solid #fca5a5; color:#ef4444; width:28px; height:28px; border-radius:7px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.85rem; transition:all .15s; }
+    .q-del:hover { background:#ef4444; color:white; }
+    .q-text { width:100%; border:none; border-bottom:1.5px solid #e4dffa; padding:.45rem 0; font-size:.95rem; font-weight:600; color:#16132b; outline:none; font-family:'DM Sans',sans-serif; margin-bottom:1rem; background:transparent; transition:border-color .2s; }
+    .q-text:focus { border-bottom-color:var(--t); }
+    .q-text::placeholder { color:#d1d5db; font-weight:400; }
+    .mc-opts { display:flex; flex-direction:column; gap:.5rem; }
+    .mc-opt-row { display:flex; align-items:center; gap:.5rem; }
+    .mc-radio { accent-color:var(--t); width:15px; height:15px; flex-shrink:0; cursor:pointer; }
+    .mc-opt-inp { flex:1; border:1.5px solid #e4dffa; border-radius:8px; padding:.48rem .8rem; font-size:.85rem; font-family:'DM Sans',sans-serif; color:#16132b; outline:none; transition:border-color .2s; background:#fff; }
+    .mc-opt-inp:focus { border-color:var(--t); }
+    .mc-rm { background:none; border:none; color:#d1d5db; cursor:pointer; font-size:.95rem; transition:color .15s; }
+    .mc-rm:hover { color:#ef4444; }
+    .mc-add { background:none; border:1.5px dashed #d1fae5; color:var(--t); border-radius:8px; padding:.4rem .85rem; font-size:.8rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:.3rem; transition:all .15s; width:100%; text-align:center; }
+    .mc-add:hover { background:var(--t-light); }
+    .tf-row { display:flex; gap:.6rem; }
+    .tf-btn { flex:1; padding:.6rem; border:2px solid #e4dffa; border-radius:10px; font-size:.88rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; background:#fff; color:#6b7280; transition:all .2s; text-align:center; }
+    .tf-btn.sel-true  { border-color:var(--t); background:var(--t-light); color:var(--t-dark); }
+    .tf-btn.sel-false { border-color:#ef4444; background:#fee2e2; color:#991b1b; }
+    .sa-ph { border:1.5px dashed #d1fae5; border-radius:8px; padding:.7rem 1rem; font-size:.85rem; color:#9ca3af; font-family:'DM Sans',sans-serif; background:var(--t-light); }
+    .add-q-btn { display:flex; align-items:center; justify-content:center; gap:.5rem; width:100%; padding:.8rem; border:2px dashed #d1fae5; border-radius:13px; background:none; color:var(--t); font-size:.9rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .2s; }
+    .add-q-btn:hover { background:var(--t-light); border-color:var(--t); }
+    .publish-btn { width:100%; padding:.8rem; background:linear-gradient(135deg,var(--t),var(--t-dark)); color:white; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:700; cursor:pointer; transition:opacity .2s,transform .15s; margin-bottom:.6rem; }
+    .publish-btn:hover { opacity:.9; transform:translateY(-1px); }
+    .draft-btn { width:100%; padding:.72rem; background:#f0fdf4; color:#374151; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:600; cursor:pointer; }
+    .section-pills { display:flex; gap:.4rem; flex-wrap:wrap; }
+    .section-pill { padding:.38rem .9rem; border-radius:20px; border:1.5px solid #d1fae5; background:#fff; color:#6b7280; font-size:.82rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .section-pill:hover { border-color:var(--t); color:var(--t); }
+    .section-pill.active { background:var(--t); color:#fff; border-color:var(--t); }
+    .saved-q-item { display:flex; align-items:center; gap:.7rem; padding:.7rem .9rem; border:1.5px solid #d1fae5; border-radius:10px; margin-bottom:.5rem; background:#f0fdf4; transition:all .15s; }
+    .saved-q-item:hover { border-color:var(--t); }
+    .sq-icon { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--t),var(--t-dark)); display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0; }
+    .sq-title { font-weight:700; font-size:.85rem; color:#16132b; }
+    .sq-meta  { font-size:.72rem; color:#9ca3af; margin-top:1px; }
+    .sq-actions { display:flex; flex-shrink:0; gap:.35rem; align-items:center; margin-left:auto; }
+    .sq-log-btn { padding:.32rem .55rem; border:1px solid #e9d5ff; background:#faf5ff; color:#7c3aed; border-radius:8px; font-size:.72rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
+    .sq-log-btn:hover { background:#f3e8ff; }
+    .sq-del-btn { padding:.32rem .65rem; border:1.5px solid #fecaca; background:#fff; color:#dc2626; border-radius:8px; font-size:.72rem; font-weight:800; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
+    .sq-del-btn:hover { background:#fee2e2; border-color:#f87171; }
+  </style>
+</head>
+<body>
+<script src="api.js"></script>
+<script>
+(function(){
+(async function(){
+  var data = await fetch('/prism/api/auth.php?action=session',{credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
+  if(!data.loggedIn){window.location.replace('login.html');return;}
+  var u=data.user;
+  if(u.role!=='teacher'){window.location.replace(u.role==='admin'?'admin.html':'index.html');return;}
+  sessionStorage.setItem('prism_logged_in','true');
+  sessionStorage.setItem('prism_user_id',u.id);
+  sessionStorage.setItem('prism_user_name',u.name);
+  sessionStorage.setItem('prism_role',u.role);
+  sessionStorage.setItem('prism_section',u.section||'');
+})();
+})();
+function logout(){
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
+  .finally(function(){sessionStorage.clear();window.location.href = 'login.html';});
+}
+</script>
+<script>
+/* portal-sidebar.js
+   Call initSidebar(activePage) after DOMContentLoaded.
+   Builds the correct sidebar nav for the logged-in role.
+*/
+
+// Class list is now dynamic (loaded from localStorage)
+
+var ROLE_NAV = {
+  student: [
+    { page:'home',     href:'index.html',    icon:'🏠', label:'Home' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'notes',    href:'notes.html',    icon:'📓', label:'Notes' },
+    { page:'quizzes',  href:'quizzes.html',  icon:'🧠', label:'Quizzes' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+  teacher: [
+    { page:'home',      href:'teacher.html',   icon:'🏠', label:'My Classes' },
+    { page:'quizmaker', href:'quizmaker.html', icon:'🧪', label:'Quiz Maker' },
+    { page:'records',   href:'records.html',   icon:'📋', label:'Records' },
+    { page:'grading',   href:'grading.html',   icon:'🎯', label:'Grading' },
+    { page:'calendar',  href:'calendar.html',  icon:'📅', label:'Calendar' },
+    { page:'call',      href:'call.html',      icon:'📞', label:'Organizations' },
+  ],
+  admin: [
+    { page:'home',     href:'admin.html',    icon:'🏠', label:'Dashboard' },
+    { page:'manage',   href:'manage.html',   icon:'👥', label:'Manage Users' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+};
+
+function diamondSVG(color, size) {
+  size = size || 14;
+  return '<svg class="sidebar-diamond" width="'+size+'" height="'+size+'" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="'+color+'" stroke="'+color+'" stroke-width="0.5" stroke-linejoin="round"/></svg>';
+}
+
+function initSidebar(activePage) {
+  var uid      = sessionStorage.getItem('prism_user_id') || '';
+  var profile  = JSON.parse(localStorage.getItem('prism_profile_' + uid) || '{}');
+  var userName = profile.name || sessionStorage.getItem('prism_user_name') || uid || 'User';
+  if (profile.name) sessionStorage.setItem('prism_user_name', profile.name);
+  var roleRaw  = sessionStorage.getItem('prism_role') || 'student';
+  var role     = String(roleRaw).toLowerCase().trim();
+  if (!ROLE_NAV[role]) role = 'student';
+  try { document.body.setAttribute('data-prism-role', role); } catch (e) {}
+  var initial  = userName.charAt(0).toUpperCase();
+
+  // ── TOPBAR LOGO — fix href and gem emoji ──
+  var logoLinks = document.querySelectorAll('.topbar-logo');
+  var homeHref  = role === 'admin' ? 'admin.html' : role === 'teacher' ? 'teacher.html' : 'index.html';
+  for (var li = 0; li < logoLinks.length; li++) {
+    logoLinks[li].href = homeHref;
+    var gem = logoLinks[li].querySelector('.topbar-logo-gem');
+    if (gem) {
+      gem.innerHTML = '<img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/>';
+    }
+  }
+
+  // ── TOPBAR ──
+  var tbName   = document.getElementById('topbar-name');
+  var tbRole   = document.getElementById('topbar-role');
+  var tbAvatar = document.getElementById('topbar-avatar');
+  if (tbName)   tbName.textContent   = userName;
+  if (tbRole) {
+    tbRole.textContent = role;
+    // Update badge color to match role
+    var roleColors = { student: '#7c3aed', teacher: '#10b981', admin: '#f59e0b' };
+    var roleBgs    = { student: '#ede9fe',  teacher: '#d1fae5',  admin: '#fef3c7'  };
+    tbRole.style.color      = roleColors[role] || '#7c3aed';
+    tbRole.style.background = roleBgs[role]    || '#ede9fe';
+    tbRole.style.borderColor = (roleColors[role] || '#7c3aed') + '33';
+  }
+  if (tbAvatar) {
+    if (profile.avatar) {
+      tbAvatar.innerHTML = '<img src="'+profile.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" alt=""/>';
+    } else {
+      tbAvatar.textContent = initial;
+    }
+  }
+
+  // ── USER CARD — hidden in CSS (profile is in the top bar) ──
+  var userCard = document.getElementById('sidebar-user-card');
+  if (userCard) userCard.innerHTML = '';
+
+  // ── NAV — replace the placeholder with the correct role nav ──
+  var placeholder = document.getElementById('sidebar-nav');
+  if (placeholder) {
+    var links = ROLE_NAV[role] || ROLE_NAV['student'];
+    var lbl   = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
+
+    var sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+
+    var secLbl = document.createElement('div');
+    secLbl.className = 'sidebar-section-label';
+    secLbl.textContent = lbl;
+    sec.appendChild(secLbl);
+
+    for (var i = 0; i < links.length; i++) {
+      var l = links[i];
+      if (l.placeholder) {
+        var sp = document.createElement('span');
+        sp.className = 'sidebar-link sidebar-link-placeholder';
+        sp.setAttribute('data-page', l.page);
+        sp.setAttribute('aria-disabled', 'true');
+        sp.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(sp);
+      } else {
+        var a = document.createElement('a');
+        a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
+        a.setAttribute('data-page', l.page);
+        a.href = l.href;
+        a.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(a);
+      }
+    }
+
+    sec.id = 'sidebar-nav';
+    placeholder.parentNode.replaceChild(sec, placeholder);
+  }
+
+  // ── MY CLASSES section ──
+  var classCont = document.getElementById('sidebar-classes');
+  if (classCont) {
+
+    // Hide the whole My Classes section for admins
+    if (role === 'admin') {
+      var node = classCont.parentNode;
+      while (node && !(node.className && node.className.indexOf('sidebar-section') !== -1)) {
+        node = node.parentNode;
+      }
+      if (node) node.style.display = 'none';
+      var prev = node && node.previousElementSibling;
+      if (prev && prev.className && prev.className.indexOf('sidebar-divider') !== -1) {
+        prev.style.display = 'none';
+      }
+      return;
+    }
+
+    // For students and teachers — show classes
+    // Update section label based on role
+    var classSection = classCont.parentNode;
+    if (classSection) {
+      var classLabel = classSection.querySelector('.sidebar-section-label');
+      if (classLabel) {
+        classLabel.textContent = role === 'teacher' ? 'Classes' : 'My Classes';
+      }
+    }
+
+    classCont.innerHTML = '';
+
+    if (role === 'teacher') {
+      // Teacher: show their created classes
+      var teacherId = sessionStorage.getItem('prism_user_id') || 'teacher';
+      var teacherClasses = JSON.parse(localStorage.getItem('prism_classes_'+teacherId)||'[]');
+      if (!teacherClasses.length) {
+        var emp = document.createElement('div');
+        emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp.textContent = 'No subjects yet';
+        classCont.appendChild(emp);
+      } else {
+        teacherClasses.forEach(function(cls) {
+          var btn = document.createElement('button');
+          btn.className = 'sidebar-class-item';
+          var sideLabel = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'Class');
+          btn.innerHTML = diamondSVG(cls.color||'#7c3aed', 13) +
+            '<span class="sidebar-class-name"></span>';
+          btn.querySelector('.sidebar-class-name').textContent = sideLabel;
+          btn.onclick = function() { window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id); };
+          classCont.appendChild(btn);
+        });
+      }
+    } else {
+      // Student: show joined classes
+      var studentId = sessionStorage.getItem('prism_user_id') || 'student';
+      var joinedRaw = JSON.parse(localStorage.getItem('prism_joined_'+studentId)||'{}');
+      var joinedList = Object.values(joinedRaw);
+      if (!joinedList.length) {
+        var emp2 = document.createElement('div');
+        emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp2.textContent = 'No classes joined yet';
+        classCont.appendChild(emp2);
+      } else {
+        var colors = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d'];
+        joinedList.forEach(function(entry, idx) {
+          (function(e, i) {
+            var btn = document.createElement('button');
+            btn.className = 'sidebar-class-item';
+            btn.innerHTML = diamondSVG(colors[i%colors.length], 13) +
+              '<span class="sidebar-class-name">'+e.subject+'</span>';
+            btn.onclick = function() {
+              if (typeof openClassDetail === 'function') {
+                openClassDetail(e.classId, e.teacherId, e.subject, colors[i%colors.length]);
+              } else {
+                window.location.href = 'index.html';
+              }
+            };
+            classCont.appendChild(btn);
+          })(entry, idx);
+        });
+      }
+    }
+  }
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch('/prism/api/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+</script>
+
+<div class="topbar">
+  <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-right">
+    <span class="topbar-role-badge" id="topbar-role"></span>
+    <span class="topbar-name" id="topbar-name"></span>
+    <a class="topbar-avatar" href="profile.html" id="topbar-avatar">T</a>
+  </div>
+</div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div id="sidebar-user-card" class="sidebar-user-card"></div>
+    <div id="sidebar-nav"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Classes</div>
+      <div id="sidebar-classes"></div>
+    </div>
+    <div style="margin-top:auto;padding-top:1rem;">
+      <div class="sidebar-divider"></div>
+      <button class="sidebar-logout" onclick="logout()"><span class="s-icon">🚪</span> Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1>🧪 Quiz Maker</h1>
+      <p>Create quizzes, exams, and activities for your students.</p>
+    </div>
+
+    <div class="class-bar">
+      <span style="font-size:.82rem;font-weight:700;color:#9ca3af;">📚 Class:</span>
+      <select id="class-select" class="t-select" onchange="onClassChange(this.value)" style="min-width:220px;font-weight:600;"></select>
+    </div>
+
+    <div id="quizmaker-class-scope-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.15rem;border-radius:14px;background:linear-gradient(135deg,#ecfdf5 0%,#f0fdf4 100%);border:1.5px solid #a7f3d0;font-size:.84rem;line-height:1.55;color:#065f46;"></div>
+
+    <div id="qm-section-pills-wrap" style="display:none;margin-bottom:1rem;"></div>
+
+    <div class="qm-layout">
+      <div class="t-card">
+        <input class="qm-title" id="qm-title" placeholder="Quiz or Exam Title…"/>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
+          <div class="qm-field"><label>Type</label>
+            <select id="qm-type"><option value="quiz">Quiz</option><option value="exam">Exam</option><option value="activity">Activity</option></select>
+          </div>
+          <div class="qm-field"><label>Time Limit (min)</label><input type="number" id="qm-time" placeholder="e.g. 30" min="1"/></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:1.2rem;">
+          <div class="qm-field"><label>Due Date</label><input type="date" id="qm-due"/></div>
+          <div class="qm-field"><label>Due Time</label><input type="time" id="qm-due-time" step="60" title="Optional — end of due date (11:59 PM) if empty"/></div>
+        </div>
+        <div class="qm-field" style="margin-bottom:1.2rem;">
+          <label>Instructions</label>
+          <textarea id="qm-instructions" rows="2" placeholder="Instructions for students…"></textarea>
+        </div>
+        <div id="questions-list"></div>
+        <button class="add-q-btn" onclick="addQuestion()">＋ Add Question</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1.1rem;">
+        <div class="t-card">
+          <div class="t-card-title">⚙️ Settings</div>
+          <div class="qm-field"><label>Max Attempts</label>
+            <select id="qm-attempts"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="0">Unlimited</option></select>
+          </div>
+          <div class="qm-field"><label>Shuffle Questions</label>
+            <select id="qm-shuffle"><option value="yes">Yes</option><option value="no">No</option></select>
+          </div>
+          <div class="qm-field"><label>Show Answers After</label>
+            <select id="qm-reveal"><option value="submit">Submission</option><option value="due">Due date</option><option value="never">Never</option></select>
+          </div>
+          <button class="publish-btn" onclick="publishQuiz()">🚀 Publish Quiz</button>
+          <button class="draft-btn" onclick="saveDraft()">💾 Save Draft</button>
+          <div class="form-msg" id="qm-msg"></div>
+        </div>
+        <div class="t-card">
+          <div class="t-card-title">📝 Saved Quizzes</div>
+          <div id="qm-quiz-filter-wrap" style="display:none;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:.85rem;padding:.55rem .85rem;background:#f0fdf4;border-radius:10px;border:1.5px solid #d1fae5;">
+            <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">View quiz</span>
+            <select id="qm-quiz-filter-select" class="t-select" style="min-width:220px;max-width:100%;font-weight:600;"></select>
+          </div>
+          <div id="saved-quizzes"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Quiz Log Modal -->
+<div id="quiz-log-modal-wrap"></div>
+
+<script>
+var TEACHER_ID = sessionStorage.getItem('prism_user_id') || 'teacher';
+const CLASS_COLORS = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d','#0284c7','#9333ea','#dc2626','#d97706'];
+function getClasses()    { return JSON.parse(localStorage.getItem('prism_classes_'+TEACHER_ID)||'[]'); }
+function getQuizzes()    { return JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]'); }
+function saveQuizzes(q)  { localStorage.setItem('prism_teacher_quizzes', JSON.stringify(q)); }
+function qmQuizBelongsToClass(q, classId) {
+  return String(q.classId || q.class_id || '') === String(classId);
+}
+/** Map API row to local quiz shape (same as student home cache). */
+function mapApiQuizRowToLocal(q, classId) {
+  var qs = q.questions;
+  if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (e) { qs = []; } }
+  var ts = q.target_section != null ? String(q.target_section).trim() : '';
+  return {
+    id: q.id,
+    classId: q.class_id || classId,
+    teacherId: q.teacher_id,
+    title: q.title,
+    type: q.type || 'quiz',
+    published: !!+q.published,
+    due: q.due_date || q.due || '',
+    due_time: q.due_time || '',
+    time: parseInt(q.time_limit, 10) || 0,
+    attempts: parseInt(q.attempts, 10) || 1,
+    totalPoints: parseInt(q.total_points, 10) || 0,
+    questions: qs || [],
+    target_section: ts,
+  };
+}
+/** Drop server-deleted quizzes from cache and merge API rows; keep local-only drafts. */
+async function syncQuizzesFromApiForClass(classId) {
+  if (!classId || !TEACHER_ID) return;
+  try {
+    var list = await PrismQuizzes.get(classId);
+    var apiIds = new Set((list || []).map(function (r) { return String(r.id); }));
+    var mapped = (list || []).map(function (q) { return mapApiQuizRowToLocal(q, classId); });
+    var all = getQuizzes();
+    var otherClasses = all.filter(function (q) { return !qmQuizBelongsToClass(q, classId); });
+    var localSame = all.filter(function (q) { return qmQuizBelongsToClass(q, classId); });
+    var keepLocal = localSame.filter(function (q) {
+      if (apiIds.has(String(q.id))) return false;
+      if (!q.published) return true;
+      return false;
+    });
+    saveQuizzes(otherClasses.concat(mapped).concat(keepLocal));
+  } catch (e) {
+    console.warn('syncQuizzesFromApiForClass', e);
+  }
+}
+function getPosts()      { return JSON.parse(localStorage.getItem('prism_teacher_posts')||'[]'); }
+function savePosts(p)    { localStorage.setItem('prism_teacher_posts', JSON.stringify(p)); }
+
+var activeClassId = null;
+var activeQmTargetSection = '__all__';
+/** __all__ or quiz id — saved list filter (per class in sessionStorage) */
+var qmQuizViewFilter = '__all__';
+var CLASSES = [];
+var questions = [];
+
+function qmUniqueSections(classId) {
+  try {
+    var raw = localStorage.getItem('prism_students_' + classId) || '[]';
+    var studs = JSON.parse(raw);
+    var set = {};
+    (studs || []).forEach(function(s) {
+      var sec = (s.section || '').trim();
+      if (sec) set[sec] = true;
+    });
+    return Object.keys(set).sort();
+  } catch (e) { return []; }
+}
+function qmLoadTargetSection(classId) {
+  try {
+    var v = sessionStorage.getItem('prism_qm_target_section_' + classId);
+    var secs = qmUniqueSections(classId);
+    if (v == null || v === '' || v === '__all__') { activeQmTargetSection = '__all__'; return; }
+    if (secs.indexOf(v) >= 0) { activeQmTargetSection = v; return; }
+  } catch (e) { /* ignore */ }
+  activeQmTargetSection = '__all__';
+}
+function qmGetTargetSectionForApi() {
+  if (activeQmTargetSection === '__all__') return null;
+  return activeQmTargetSection;
+}
+function qmItemMatchesSection(it) {
+  var t = (it && it.target_section != null) ? String(it.target_section).trim() : '';
+  if (activeQmTargetSection === '__all__') return true;
+  if (!t) return true;
+  return t === activeQmTargetSection;
+}
+function renderQmSectionPills() {
+  var wrap = document.getElementById('qm-section-pills-wrap');
+  if (!wrap || !activeClassId) return;
+  var secs = qmUniqueSections(activeClassId);
+  if (activeQmTargetSection !== '__all__' && secs.indexOf(activeQmTargetSection) < 0) {
+    secs = secs.concat([activeQmTargetSection]).sort();
+  }
+  wrap.style.display = 'block';
+  var html = '<div style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.45rem;">Filter by section</div><div class="section-pills">';
+  html += '<button type="button" class="section-pill' + (activeQmTargetSection === '__all__' ? ' active' : '') + '" data-sec="__all__">All Sections</button>';
+  secs.forEach(function(sec) {
+    var esc = String(sec).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    html += '<button type="button" class="section-pill' + (activeQmTargetSection === sec ? ' active' : '') + '" data-sec="' + esc + '">' + esc + '</button>';
+  });
+  html += '</div><p style="font-size:.74rem;color:#6b7280;margin:.5rem 0 0;line-height:1.45;">Published quizzes use the section you select here (or all sections).</p>';
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.section-pill').forEach(function(btn) {
+    btn.onclick = function() {
+      activeQmTargetSection = btn.getAttribute('data-sec') || '__all__';
+      try { sessionStorage.setItem('prism_qm_target_section_' + activeClassId, activeQmTargetSection); } catch (e) {}
+      renderQmSectionPills();
+      renderSavedQuizzes();
+    };
+  });
+}
+
+function updateQuizScopeBanner() {
+  var el = document.getElementById('quizmaker-class-scope-banner');
+  if (!el) return;
+  if (!activeClassId || !CLASSES.length) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  var cls = CLASSES.find(function(c) { return c.id === activeClassId; });
+  var subj = cls ? (typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'This class')) : 'This class';
+  var safe = String(subj).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  el.style.display = 'block';
+  el.innerHTML = '<strong style="font-family:DM Sans,sans-serif;font-size:.92rem;">Quizzes for: ' + safe + '</strong>'
+    + '<span style="display:block;margin-top:.4rem;opacity:.95;font-weight:500;">Published quizzes and drafts you save here belong only to this class. Students in other subjects will not see them. Switch class above to work on a different subject.</span>';
+}
+
+async function onClassChange(id) {
+  activeClassId = id;
+  try { sessionStorage.setItem('prism_teacher_active_class_id', id); } catch (e) {}
+  CLASSES = getClasses();
+  qmLoadTargetSection(id);
+  loadQmQuizViewFilter();
+  await syncQuizzesFromApiForClass(id);
+  updateQuizScopeBanner();
+  renderQmSectionPills();
+  renderSavedQuizzes();
+}
+
+function addQuestion(pre) {
+  const q=pre||{id:Date.now().toString(),type:'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true'};
+  questions.push(q); renderQMQuestions();
+}
+function removeQuestion(id){questions=questions.filter(q=>q.id!==id);renderQMQuestions();}
+function renderQMQuestions(){
+  const list=document.getElementById('questions-list');list.innerHTML='';
+  questions.forEach((q,i)=>{
+    const card=document.createElement('div');card.className='q-card';
+    card.innerHTML=`<div class="q-header"><div class="q-num">${i+1}</div>
+      <select class="q-type-sel" onchange="changeQType('${q.id}',this.value)">
+        <option value="mc" ${q.type==='mc'?'selected':''}>Multiple Choice</option>
+        <option value="tf" ${q.type==='tf'?'selected':''}>True / False</option>
+        <option value="sa" ${q.type==='sa'?'selected':''}>Short Answer</option>
+        <option value="essay" ${q.type==='essay'?'selected':''}>Essay</option>
+      </select>
+      <input class="q-pts" type="number" min="1" value="${q.points}" onchange="updateQ('${q.id}','points',this.value)" title="Points"/>
+      <span style="font-size:.72rem;color:#9ca3af;">pts</span>
+      <button class="q-del" onclick="removeQuestion('${q.id}')">🗑</button></div>
+      <input class="q-text" placeholder="Type your question…" value="${esc(q.question)}" oninput="updateQ('${q.id}','question',this.value)"/>
+      <div id="qo-${q.id}">${renderOpts(q)}</div>`;
+    list.appendChild(card);
+  });
+}
+function renderOpts(q){
+  if(q.type==='mc')return`<div class="mc-opts">${q.options.map((o,i)=>`
+    <div class="mc-opt-row">
+      <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
+      <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
+      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})">✕</button>`:''}
+    </div>`).join('')}
+    ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
+  </div>`;
+  if(q.type==='tf')return`<div class="tf-row">
+    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')">✅ True</button>
+    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')">❌ False</button>
+  </div>`;
+  if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
+  if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;
+  return '';
+}
+function changeQType(id,type){const q=questions.find(x=>x.id===id);if(!q)return;q.type=type;if(type==='mc'&&(!q.options||!q.options.length))q.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];if(type==='tf')q.tfAnswer=q.tfAnswer||'true';document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function updateQ(id,f,v){const q=questions.find(x=>x.id===id);if(q)q[f]=f==='points'?parseInt(v)||1:v;}
+function updateOpt(id,i,v){const q=questions.find(x=>x.id===id);if(q&&q.options[i])q.options[i].text=v;}
+function setCorrect(id,i){const q=questions.find(x=>x.id===id);if(!q)return;q.options.forEach((o,j)=>o.correct=j===i);}
+function addOpt(id){const q=questions.find(x=>x.id===id);if(!q||q.options.length>=6)return;q.options.push({text:'',correct:false});document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function removeOpt(id,i){const q=questions.find(x=>x.id===id);if(!q||q.options.length<=2)return;q.options.splice(i,1);if(!q.options.some(o=>o.correct))q.options[0].correct=true;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function setTF(id,v){const q=questions.find(x=>x.id===id);if(!q)return;q.tfAnswer=v;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function getQMData(){
+  const cls=CLASSES.find(c=>c.id===activeClassId)||{};
+  return{
+    id:Date.now().toString(),classId:activeClassId,teacherId:TEACHER_ID,
+    subjectName:cls.subject||'', subjectColor:cls.color||'#7c3aed',
+    title:document.getElementById('qm-title').value.trim(),
+    type:document.getElementById('qm-type').value,
+    time:parseInt(document.getElementById('qm-time').value)||0,
+    instructions:document.getElementById('qm-instructions').value.trim(),
+    due:document.getElementById('qm-due').value,
+    due_time:document.getElementById('qm-due-time').value.trim(),
+    attempts:document.getElementById('qm-attempts').value,
+    shuffle:document.getElementById('qm-shuffle').value,
+    reveal:document.getElementById('qm-reveal').value,
+    questions:JSON.parse(JSON.stringify(questions)),
+    totalPoints:questions.reduce((s,q)=>s+(parseInt(q.points)||0),0),
+  };
+}
+
+async function publishQuiz(){
+  const d=getQMData();
+  if(!d.title){showQMsg('Enter a title.','err');return;}
+  if(!d.questions.length){showQMsg('Add at least one question.','err');return;}
+  if(!activeClassId){showQMsg('Select a class first.','err');return;}
+  try{
+    const payload={
+      id:d.id,
+      class_id:activeClassId,
+      target_section:qmGetTargetSectionForApi(),
+      title:d.title,
+      type:d.type||'quiz',
+      instructions:d.instructions||'',
+      time:d.time||0,
+      due:d.due||'',
+      due_time:d.due_time||'',
+      attempts:parseInt(d.attempts,10)||1,
+      shuffle:d.shuffle==='yes'?'yes':'no',
+      reveal:d.reveal||'submit',
+      questions:d.questions,
+      totalPoints:d.totalPoints||0,
+      published:true,
+    };
+    const saved=await PrismQuizzes.save(payload);
+    const quizId=saved.id||d.id;
+    const author=sessionStorage.getItem('prism_user_name')||'Teacher';
+    await PrismPosts.add({
+      class_id:activeClassId,
+      type:'quiz',
+      body:`New quiz: "${d.title}" — ${d.questions.length} questions, ${d.totalPoints} pts${d.due?' · Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(d.due,d.due_time):d.due):''}`,
+      quiz_id:quizId,
+      author,
+      target_section:qmGetTargetSectionForApi(),
+    });
+    d.published=true; d.publishedAt=new Date().toISOString(); d.id=quizId;
+    d.target_section = qmGetTargetSectionForApi() || '';
+    const quizzes=getQuizzes(); quizzes.push(d); saveQuizzes(quizzes);
+    await syncQuizzesFromApiForClass(activeClassId);
+    showQMsg('✅ Published!','ok'); resetQM(); renderSavedQuizzes();
+  }catch(e){ showQMsg(e.message||'Publish failed.','err'); }
+}
+function saveDraft(){
+  const d=getQMData();if(!d.title){showQMsg('Enter a title.','err');return;}
+  d.published=false; const quizzes=getQuizzes(); quizzes.push(d); saveQuizzes(quizzes);
+  showQMsg('💾 Draft saved.','ok'); renderSavedQuizzes();
+}
+function showQMsg(m,t){const el=document.getElementById('qm-msg');el.textContent=m;el.className='form-msg '+t;setTimeout(()=>el.textContent='',2500);}
+function resetQM(){document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';questions=[];renderQMQuestions();}
+
+function loadQmQuizViewFilter(){
+  if(!activeClassId){ qmQuizViewFilter='__all__'; return; }
+  try{
+    var v=sessionStorage.getItem('prism_qm_quiz_view_filter_'+activeClassId);
+    qmQuizViewFilter=(v!=null&&v!=='')?v:'__all__';
+  }catch(e){ qmQuizViewFilter='__all__'; }
+}
+function saveQmQuizViewFilter(id){
+  qmQuizViewFilter=id;
+  try{ if(activeClassId) sessionStorage.setItem('prism_qm_quiz_view_filter_'+activeClassId,id); }catch(e){}
+}
+function populateQmQuizFilterSelect(quizzes){
+  var wrap=document.getElementById('qm-quiz-filter-wrap');
+  var sel=document.getElementById('qm-quiz-filter-select');
+  if(!wrap||!sel) return;
+  var sorted=quizzes.slice().sort(function(a,b){
+    return String(a.title||'').localeCompare(String(b.title||''),undefined,{sensitivity:'base'});
+  });
+  sel.innerHTML='';
+  var o0=document.createElement('option');
+  o0.value='__all__';
+  o0.textContent='All quizzes';
+  sel.appendChild(o0);
+  sorted.forEach(function(it){
+    var o=document.createElement('option');
+    o.value=String(it.id);
+    o.textContent=it.title||'Untitled';
+    sel.appendChild(o);
+  });
+  var ids=new Set(sorted.map(function(it){ return String(it.id); }));
+  if(qmQuizViewFilter!=='__all__'&&!ids.has(qmQuizViewFilter)){
+    qmQuizViewFilter='__all__';
+    saveQmQuizViewFilter('__all__');
+  }
+  sel.value=qmQuizViewFilter;
+  sel.onchange=function(){
+    saveQmQuizViewFilter(sel.value);
+    renderSavedQuizzes();
+  };
+  wrap.style.display=sorted.length?'flex':'none';
+}
+
+function renderSavedQuizzes(){
+  loadQmQuizViewFilter();
+  const list=document.getElementById('saved-quizzes');
+  const filterWrap=document.getElementById('qm-quiz-filter-wrap');
+  if(!activeClassId){
+    if(filterWrap) filterWrap.style.display='none';
+    list.innerHTML='<p style="font-size:.82rem;color:#9ca3af;text-align:center;padding:.5rem 0;">Select a class above.</p>';
+    return;
+  }
+  const quizzes=getQuizzes().filter(function(q){
+    return q.classId===activeClassId&&q.teacherId===TEACHER_ID&&qmItemMatchesSection(q);
+  });
+  populateQmQuizFilterSelect(quizzes);
+  if(!quizzes.length){
+    list.innerHTML='<p style="font-size:.82rem;color:#9ca3af;text-align:center;padding:.5rem 0;">No quizzes for this class.</p>';
+    return;
+  }
+  const displayQuizzes=qmQuizViewFilter==='__all__'?quizzes:quizzes.filter(function(q){ return String(q.id)===qmQuizViewFilter; });
+  if(!displayQuizzes.length){
+    list.innerHTML='<p style="font-size:.82rem;color:#9ca3af;text-align:center;padding:.5rem 0;">No quiz matches this filter. Choose <strong>All quizzes</strong> above.</p>';
+    return;
+  }
+  list.innerHTML=displayQuizzes.slice().reverse().map(q=>{
+    const logKey='prism_quiz_log_'+q.classId+'_'+q.id;
+    const log=JSON.parse(localStorage.getItem(logKey)||'[]');
+    const alerts=log.filter(e=>e.type==='tab-switch'||e.type==='abandon').length;
+    const alertBadge=alerts?`<span style="background:#fee2e2;color:#dc2626;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:.4rem;">⚠ ${alerts}</span>`:'';
+    var secLab = (q.target_section && String(q.target_section).trim()) ? ' · <span style="color:#059669;font-weight:700;">'+String(q.target_section).trim()+'</span>' : '';
+    var qid = JSON.stringify(q.id);
+    return `<div class="saved-q-item">
+      <div class="sq-icon">${q.type==='exam'?'📝':q.type==='activity'?'🎯':'🧪'}</div>
+      <div style="flex:1;min-width:0;"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${q.questions.length}Q · ${q.totalPoints}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
+      <div class="sq-actions">
+        <button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>
+        <button type="button" class="sq-del-btn" onclick="deleteQuiz(${qid})" title="Remove this quiz">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function deleteQuiz(id){
+  if(!confirm('Delete this quiz? Students will no longer see it.'))return;
+  try{
+    await PrismQuizzes.delete(id);
+  }catch(e){
+    showQMsg(e.message||'Could not delete quiz.','err');
+    return;
+  }
+  saveQuizzes(getQuizzes().filter(function(q){ return String(q.id)!==String(id); }));
+  await syncQuizzesFromApiForClass(activeClassId);
+  renderSavedQuizzes();
+}
+
+function viewQuizLog(quizId){
+  const quiz=getQuizzes().find(q=>q.id===quizId); if(!quiz)return;
+  const key='prism_quiz_log_'+quiz.classId+'_'+quiz.id;
+  const log=JSON.parse(localStorage.getItem(key)||'[]');
+  const existing=document.getElementById('quiz-log-modal'); if(existing)existing.remove();
+  const modal=document.createElement('div');
+  modal.id='quiz-log-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  const typeColors={'start':'#d1fae5','submit':'#dbeafe','tab-switch':'#fef3c7','abandon':'#fee2e2'};
+  const typeIcons={'start':'▶️','submit':'✅','tab-switch':'⚠️','abandon':'🚨'};
+  const rows=log.length?log.slice().reverse().map(e=>{
+    const t=new Date(e.time).toLocaleString();
+    const bg=typeColors[e.type]||'#f9fafb';
+    return `<div style="display:flex;gap:.8rem;align-items:flex-start;padding:.7rem .9rem;background:${bg};border-radius:10px;margin-bottom:.5rem;font-size:.83rem;">
+      <span style="font-size:1rem;flex-shrink:0;">${typeIcons[e.type]||'📌'}</span>
+      <div style="flex:1;"><div style="font-weight:700;color:#16132b;">${e.student} <span style="font-weight:400;color:#9ca3af;">(${e.studentId})</span></div>
+      <div style="color:#374151;margin:.15rem 0;">${e.detail}</div>
+      <div style="font-size:.75rem;color:#9ca3af;">${t}</div></div></div>`;
+  }).join(''):'<div style="text-align:center;color:#9ca3af;padding:2rem;">No activity recorded yet.</div>';
+  modal.innerHTML=`<div style="background:#fff;border-radius:20px;width:580px;max-width:94vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:1.8rem 2rem;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
+      <div><div style="font-family:DM Sans,sans-serif;font-size:1.15rem;font-weight:800;color:#16132b;">📋 Activity Log</div>
+      <div style="font-size:.82rem;color:#9ca3af;">${quiz.title}</div></div>
+      <button id="log-close-btn" style="background:#f0ecff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;">✕</button>
+    </div>${rows}</div>`;
+  document.body.appendChild(modal);
+  document.getElementById('log-close-btn').onclick=function(){modal.remove();};
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+}
+
+window.addEventListener('DOMContentLoaded', async function(){
+  try {
+    var ses = await fetch('/prism/api/auth.php?action=session',{credentials:'include'}).then(function(r){return r.json();});
+    if (!ses.loggedIn || !ses.user || ses.user.role !== 'teacher') {
+      window.location.replace('login.html');
+      return;
+    }
+    sessionStorage.setItem('prism_logged_in','true');
+    sessionStorage.setItem('prism_user_id', ses.user.id);
+    sessionStorage.setItem('prism_user_name', ses.user.name);
+    sessionStorage.setItem('prism_role', ses.user.role);
+    sessionStorage.setItem('prism_section', ses.user.section||'');
+    TEACHER_ID = ses.user.id;
+  } catch(e) {
+    window.location.replace('login.html');
+    return;
+  }
+  initSidebar('quizmaker');
+  try {
+    var apiClasses = await PrismClasses.getMyClasses();
+    var normalized = apiClasses.map(function(c){
+      return { id:c.id, subject:c.subject, color:c.color||'#7c3aed', code:c.code, teacher_id:c.teacher_id||TEACHER_ID };
+    });
+    localStorage.setItem('prism_classes_'+TEACHER_ID, JSON.stringify(normalized));
+    for (var i=0;i<normalized.length;i++) {
+      try {
+        var studs = await PrismClasses.getStudents(normalized[i].id);
+        localStorage.setItem('prism_students_'+normalized[i].id, JSON.stringify(
+          (studs||[]).map(function(s){ return { id:s.id, name:s.name, section:s.section||'' }; })
+        ));
+      } catch(e2) {}
+    }
+  } catch(e) { console.warn('quizmaker class sync', e); }
+  CLASSES = getClasses();
+  const sel = document.getElementById('class-select');
+  if(!CLASSES.length){
+    sel.innerHTML='<option>No classes yet — create one in My Classes</option>';
+    document.getElementById('saved-quizzes').innerHTML='<p style="font-size:.82rem;color:#9ca3af;text-align:center;padding:.5rem 0;">Create a class in My Classes first.</p>';
+    document.getElementById('qm-section-pills-wrap').style.display='none';
+    var qf=document.getElementById('qm-quiz-filter-wrap');
+    if(qf) qf.style.display='none';
+    updateQuizScopeBanner();
+    return;
+  }
+  const params = new URLSearchParams(window.location.search);
+  const urlClass = params.get('class');
+  const savedClass = sessionStorage.getItem('prism_teacher_active_class_id');
+  CLASSES.forEach(function(cls){
+    const opt=document.createElement('option');
+    opt.value=cls.id;
+    opt.textContent=typeof prismTeacherClassLabel==='function'?prismTeacherClassLabel(cls):(cls.subject||'Class');
+    if(cls.id===urlClass) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  if (urlClass && CLASSES.find(function(c){ return c.id===urlClass; })) activeClassId = urlClass;
+  else if (savedClass && CLASSES.find(function(c){ return c.id===savedClass; })) activeClassId = savedClass;
+  else activeClassId = CLASSES[0].id;
+  sel.value = activeClassId;
+  try { sessionStorage.setItem('prism_teacher_active_class_id', activeClassId); } catch (e) {}
+  qmLoadTargetSection(activeClassId);
+  loadQmQuizViewFilter();
+  await syncQuizzesFromApiForClass(activeClassId);
+  updateQuizScopeBanner();
+  renderQmSectionPills();
+  renderSavedQuizzes();
+  renderQMQuestions();
+});
+</script>
+</body>
+</html>

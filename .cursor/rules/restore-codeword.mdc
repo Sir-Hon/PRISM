@@ -1,0 +1,33 @@
+---
+description: PRISM quick assist
+alwaysApply: true
+---
+
+# `restore`
+
+**Chat:** Message is only `restore` (optional `@file`). Infer missing/broken code; match project style; fix. No pasted chunks required.
+
+**In code:** Add one line where you need help, then `@` that file in chat (tiny reply like `.` is fine):
+
+- HTML: `<!-- restore -->`
+- JS / PHP: `// restore`
+- CSS: `/* restore */`
+
+If a file contains that line, treat it like `restore`. Fix the file; **delete the marker line** when done.
+
+## Targeted Block Restore
+
+Use this when only one specific section was deleted.
+
+1. Delete the block.
+2. Put a marker exactly where the missing block should be:
+   - HTML: `<!-- restore:block -->`
+   - JS / PHP: `// restore:block`
+   - CSS: `/* restore:block */`
+3. Save file, then send tiny chat (`.` is fine) with `@that-file`.
+
+Agent behavior for `restore:block`:
+- Restore only the nearest missing section around the marker first.
+- Infer from surrounding lines, nearby functions, and matching patterns in sibling files.
+- Keep existing style and avoid unrelated edits.
+- Remove the marker after the fix.

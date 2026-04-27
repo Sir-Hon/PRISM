@@ -1,0 +1,575 @@
+/* ═══════════════════════════════════════════════════
+   PRISM PORTAL — portal.css
+   Shared layout: topbar + sidebar + main content
+   Used by: index.html, calendar.html, notes.html,
+            quizzes.html, call.html, profile.html
+   ═══════════════════════════════════════════════════ */
+
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --prism:        #7c3aed;
+  --prism-dark:   #6d28d9;
+  --prism-light:  #ede9fe;
+  --prism-mid:    #a78bfa;
+  --sidebar-bg:   #16122a;
+  --sidebar-hover:#26204a;
+  --sidebar-active:#342a62;
+  --bg:           #f0ecff;
+  --surface:      #ffffff;
+  --text:         #16132b;
+  --text-muted:   #6b7280;
+  --border:       #e4dffa;
+  --shadow:       0 4px 24px rgba(124,58,237,0.10);
+  --topbar-h:     64px;
+  --sidebar-w:    260px;
+}
+
+/* ── BASE ── */
+body {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  background: var(--bg) !important;
+  background-image: none !important;
+  background-attachment: unset !important;
+  color: var(--text);
+  min-height: 100vh;
+  padding-top: 0 !important;
+}
+
+body::before { display: none !important; }
+nav { display: none !important; }
+
+/* ── TOPBAR ── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--topbar-h);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 1.8rem;
+  gap: 1rem;
+  z-index: 300;
+  box-shadow: 0 2px 12px rgba(124,58,237,0.08);
+}
+
+.topbar-logo {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--prism);
+  letter-spacing: -0.5px;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-shrink: 0;
+}
+
+.topbar-logo-gem {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--prism), var(--prism-mid));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1rem;
+}
+
+.topbar-spacer { flex: 1; }
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.topbar-name {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.topbar-role-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--prism-light);
+  color: var(--prism);
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: capitalize;
+  border: 1px solid rgba(124,58,237,0.2);
+}
+
+.topbar-avatar {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--prism), var(--prism-mid));
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 800;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.topbar-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.topbar-avatar:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 0 3px rgba(124,58,237,0.25);
+}
+
+/* ── APP LAYOUT ── */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+  padding-top: var(--topbar-h);
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  min-width: var(--sidebar-w);
+  background: var(--sidebar-bg);
+  position: fixed;
+  top: var(--topbar-h);
+  left: 0;
+  bottom: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 1.5rem;
+}
+
+.sidebar::-webkit-scrollbar { width: 3px; }
+.sidebar::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.25); border-radius: 4px; }
+
+/* Sidebar user card — hidden (profile is in the top bar) */
+.sidebar-user-card {
+  display: none !important;
+}
+
+.sidebar-user-avatar {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--prism), var(--prism-mid));
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 1rem; font-weight: 800;
+  font-family: 'DM Sans', sans-serif;
+  flex-shrink: 0;
+  text-decoration: none;
+  overflow: hidden;
+}
+
+.sidebar-user-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.sidebar-user-info { overflow: hidden; }
+.sidebar-user-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f0f0f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sidebar-user-role {
+  font-size: 0.72rem;
+  color: var(--prism-mid);
+  text-transform: capitalize;
+  font-weight: 600;
+}
+
+/* Sidebar sections */
+.sidebar-section { padding: 0.5rem 0; }
+
+.sidebar-section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #4b5563;
+  padding: 0 1.3rem;
+  margin: 0.5rem 0 0.35rem;
+}
+
+.sidebar-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 0.5rem 1.1rem;
+}
+
+/* Sidebar nav links */
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.72rem 1.3rem;
+  color: #9ca3af;
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 500;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border-left: 3px solid transparent;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.sidebar-link:hover {
+  background: var(--sidebar-hover);
+  color: #e5e7eb;
+}
+
+.sidebar-link.active {
+  background: var(--sidebar-active);
+  color: #fff;
+  border-left-color: var(--prism-mid);
+  font-weight: 600;
+}
+
+/* Placeholder nav item (e.g. Organizations — not a link yet) */
+.sidebar-link-placeholder {
+  cursor: default;
+  pointer-events: none;
+  opacity: 0.55;
+}
+.sidebar-link-placeholder:hover {
+  background: transparent;
+  color: #9ca3af;
+}
+
+.sidebar-link .s-icon {
+  font-size: 1.05rem;
+  width: 22px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+/* ── DIAMOND CLASS ITEMS IN SIDEBAR ── */
+.sidebar-class-item {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.62rem 1.3rem;
+  color: #9ca3af;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  border-left: 3px solid transparent;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.sidebar-class-item:hover { background: var(--sidebar-hover); color: #e5e7eb; }
+.sidebar-class-item.active { background: var(--sidebar-active); color: #fff; border-left-color: var(--prism-mid); }
+
+/* Diamond SVG icon */
+.sidebar-diamond {
+  width: 14px; height: 14px;
+  flex-shrink: 0;
+  transform: rotate(0deg);
+}
+
+.sidebar-class-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+/* Logout button at bottom of sidebar */
+.sidebar-logout {
+  margin-top: auto;
+  padding: 0.72rem 1.3rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: 'DM Sans', sans-serif;
+  transition: color 0.15s, background 0.15s;
+  border-left: 3px solid transparent;
+}
+
+.sidebar-logout:hover { color: #f87171; background: rgba(239,68,68,0.06); }
+
+/* ── MAIN CONTENT ── */
+.main-content {
+  margin-left: var(--sidebar-w);
+  flex: 1;
+  padding: 2.2rem 2.5rem;
+  min-height: calc(100vh - var(--topbar-h));
+}
+
+/* ── PAGE HEADER ── */
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-header h1 {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 0.35rem;
+  letter-spacing: -0.5px;
+}
+
+.page-header p {
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── SHARED CARD STYLE ── */
+.portal-card {
+  background: var(--surface);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(124,58,237,0.08);
+}
+
+/* ── WIDE TABLES (records / grading / manage): horizontal swipe on phones ── */
+.prism-table-scroll {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+}
+
+.prism-table-scroll > table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: collapse;
+}
+
+/* ── DIAMOND ICON (for class cards) ── */
+.diamond-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.diamond-icon svg {
+  display: block;
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  from { transform: scale(0.88); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
+}
+
+/* ── MOBILE MENU (hamburger) ── */
+.topbar-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 0.4rem 0 0;
+  padding: 0;
+  border: none;
+  background: var(--prism-light);
+  border-radius: 10px;
+  color: var(--prism);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.15s;
+}
+
+.topbar-menu-btn:hover {
+  background: rgba(124, 58, 237, 0.18);
+}
+
+.topbar-menu-btn:active {
+  transform: scale(0.96);
+}
+
+.topbar-menu-btn[aria-expanded="true"] {
+  background: var(--prism);
+  color: #fff;
+}
+
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  top: var(--topbar-h);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 10, 30, 0.45);
+  z-index: 250;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.sidebar-backdrop.visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+body.sidebar-open {
+  overflow: hidden;
+}
+
+/* ── RESPONSIVE (narrow screens: drawer nav, full-width content) ── */
+@media (max-width: 1023px) {
+  .topbar-menu-btn {
+    display: flex !important;
+    position: relative;
+    z-index: 305;
+  }
+
+  .topbar {
+    padding: 0 0.85rem;
+    gap: 0.5rem;
+  }
+
+  /* Dark overlay when menu is open */
+  .sidebar-backdrop {
+    display: block !important;
+    top: var(--topbar-h);
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.28s ease, visibility 0.28s ease;
+  }
+
+  .sidebar-backdrop.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* Drawer: off-canvas by default so main uses full width */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 260;
+    width: min(var(--sidebar-w), 88vw);
+    min-width: min(var(--sidebar-w), 88vw);
+    box-shadow: none;
+  }
+
+  .sidebar.open,
+  body.sidebar-open .sidebar {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(0, 0, 0, 0.35);
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    padding: 1.15rem 1rem;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  /* Room for name: role is duplicated in the drawer user card */
+  .topbar-role-badge {
+    display: none;
+  }
+
+  .topbar-right {
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 0.5rem;
+  }
+
+  .topbar-name {
+    max-width: min(calc(100vw - 9.5rem), 320px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .topbar-logo {
+    font-size: 1.15rem;
+    min-width: 0;
+  }
+}
+
+/*
+ * Reinforced mobile layout (wins over any stale cache / edge flex issues).
+ * Sidebar off-canvas by default; main is always full width below 1024px.
+ */
+@media screen and (max-width: 1023px) {
+  html {
+    overflow-x: hidden;
+  }
+  body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+  .app-layout {
+    display: block !important;
+    width: 100%;
+    max-width: 100vw;
+    min-width: 0;
+  }
+  .main-content {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: max(1rem, env(safe-area-inset-left)) !important;
+    padding-right: max(1rem, env(safe-area-inset-right)) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+  }
+  /* Closed drawer: force off-canvas even if other rules fight */
+  body:not(.sidebar-open) .app-layout > aside.sidebar:not(.open) {
+    transform: translateX(-100%) !important;
+  }
+}

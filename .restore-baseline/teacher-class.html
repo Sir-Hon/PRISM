@@ -1,0 +1,1348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRISM — Subject workspace</title>
+  <link rel="icon" type="image/png" href="Prismcrys.png"/>
+  <link rel="stylesheet" href="portal.css?v=3"/>
+  <script src="portal-mobile.js?v=3" defer></script>
+  <style>
+    :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
+
+    .teacher-hero { border-radius:20px; padding:2.5rem; background:linear-gradient(135deg,#064e3b 0%,#065f46 50%,#10b981 100%); color:white; margin-bottom:2rem; position:relative; overflow:hidden; animation:fadeUp .4s ease; }
+    .teacher-hero::before { content:''; position:absolute; inset:0; background-image:repeating-linear-gradient(55deg,rgba(255,255,255,.04) 0,rgba(255,255,255,.04) 2px,transparent 2px,transparent 22px); }
+    .teacher-hero-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#6ee7b7; margin-bottom:.5rem; position:relative; }
+    .teacher-hero h1 { font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:800; margin-bottom:.35rem; position:relative; }
+    .teacher-hero p  { font-size:.95rem; color:rgba(255,255,255,.75); position:relative; }
+    .teacher-hero-gem { position:absolute; right:2rem; top:50%; transform:translateY(-50%); opacity:.12; font-size:7rem; pointer-events:none; }
+
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat-card { background:#fff; border-radius:16px; padding:1.2rem 1.4rem; box-shadow:0 4px 18px rgba(16,185,129,.09); border:1px solid rgba(16,185,129,.09); animation:fadeUp .4s ease both; }
+    .stat-card .sv { font-family:'DM Sans',sans-serif; font-size:1.9rem; font-weight:800; color:var(--t); }
+    .stat-card .sl { font-size:.78rem; color:#9ca3af; font-weight:600; margin-top:2px; }
+
+    /* TOP TABS — classes */
+    .class-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.38rem; box-shadow:0 4px 24px rgba(16,185,129,.10); margin-bottom:1.5rem; flex-wrap:wrap; overflow-x:auto; }
+    .class-tab { padding:.5rem 1.1rem; border-radius:10px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; transition:all .15s; white-space:nowrap; }
+    .class-tab:hover:not(.active) { background:var(--t-light); color:var(--t-dark); }
+    .class-tab.active { background:var(--t); color:white; }
+
+    /* SUB TABS — within a class */
+    .sub-tabs { display:flex; gap:.25rem; margin-bottom:1.5rem; border-bottom:2px solid #f0fdf4; padding-bottom:.4rem; flex-wrap:wrap; }
+    .sub-tab { padding:.45rem 1rem; border-radius:8px 8px 0 0; font-size:.88rem; font-weight:600; cursor:pointer; border:none; background:none; color:#9ca3af; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .sub-tab:hover:not(.active) { color:var(--t); }
+    .sub-tab.active { color:var(--t); border-bottom:2px solid var(--t); margin-bottom:-2px; }
+
+    .sub-panel { display:none; animation:fadeUp .2s ease; }
+    .sub-panel.active { display:block; }
+
+    /* shared card */
+    .t-card { background:#fff; border-radius:18px; padding:1.6rem; box-shadow:0 4px 24px rgba(16,185,129,.09); border:1px solid rgba(16,185,129,.08); margin-bottom:1.2rem; }
+    .t-card-title { font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:800; color:#16132b; margin-bottom:1rem; display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; }
+
+    /* stream */
+    .composer { border:1.5px solid #d1fae5; border-radius:12px; padding:1rem; background:#f0fdf4; width:100%; font-family:'DM Sans',sans-serif; font-size:.95rem; color:#16132b; outline:none; resize:vertical; min-height:85px; transition:border-color .2s; }
+    .composer:focus { border-color:var(--t); background:#fff; }
+    .composer-row { display:flex; gap:.6rem; margin-top:.8rem; align-items:center; flex-wrap:wrap; }
+    .t-select { border:1.5px solid #d1fae5; border-radius:9px; padding:.45rem .75rem; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#374151; outline:none; background:#fff; }
+    .t-btn { padding:.58rem 1.3rem; background:var(--t); color:white; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:700; cursor:pointer; transition:opacity .2s; }
+    .t-btn:hover { opacity:.85; }
+    .t-btn.outline { background:none; border:1.5px solid var(--t); color:var(--t-dark); }
+    .t-btn.outline:hover { background:var(--t-light); }
+    .t-btn.red { background:#ef4444; }
+
+    .stream-post { background:#fff; border-radius:14px; padding:1.2rem 1.4rem; margin-bottom:.9rem; box-shadow:0 2px 12px rgba(16,185,129,.07); border:1px solid rgba(16,185,129,.07); }
+    .post-header { display:flex; align-items:center; gap:.8rem; margin-bottom:.7rem; flex-wrap:wrap; }
+    .post-avatar { width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg,#10b981,#6ee7b7); color:white; display:flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; font-weight:800; font-size:.88rem; flex-shrink:0; }
+    .post-meta .post-author { font-size:.9rem; font-weight:700; color:#16132b; }
+    .post-meta .post-date   { font-size:.74rem; color:#9ca3af; }
+    .post-badge { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; }
+    .post-badge.announcement { background:#dbeafe; color:#1d4ed8; }
+    .post-badge.material     { background:#d1fae5; color:#065f46; }
+    .post-badge.assignment   { background:#fce7f3; color:#9d174d; }
+    .post-badge.quiz         { background:#ede9fe; color:#5b21b6; }
+    .post-body { font-size:.92rem; color:#374151; line-height:1.7; }
+    .post-del { margin-left:auto; background:none; border:none; color:#d1d5db; cursor:pointer; font-size:.88rem; padding:3px 7px; border-radius:7px; transition:all .15s; }
+    .post-del:hover { background:#fee2e2; color:#ef4444; }
+    .post-attach { display:inline-flex; align-items:center; gap:.4rem; margin-top:.7rem; background:#f0fdf4; padding:.4rem .85rem; border-radius:9px; font-size:.82rem; color:var(--t-dark); font-weight:600; border:1px solid #d1fae5; }
+
+    /* RECORDS */
+    .section-pills { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .section-pill  { padding:.38rem .9rem; border-radius:20px; border:1.5px solid #d1fae5; background:#fff; color:#6b7280; font-size:.82rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .section-pill:hover { border-color:var(--t); color:var(--t); }
+    .section-pill.active { background:var(--t); color:white; border-color:var(--t); }
+
+    .records-wrap { background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 4px 18px rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.08); }
+    .records-toolbar { display:flex; align-items:center; gap:.7rem; padding:1rem 1.3rem; border-bottom:1px solid #f0fdf4; flex-wrap:wrap; }
+    .rec-search { flex:1; min-width:180px; border:1.5px solid #d1fae5; border-radius:9px; padding:.55rem .9rem; font-family:'DM Sans',sans-serif; font-size:.88rem; color:#16132b; outline:none; background:#f0fdf4; transition:border-color .2s; }
+    .rec-search:focus { border-color:var(--t); background:#fff; }
+
+    table { width:100%; border-collapse:collapse; }
+    thead { background:#f0fdf4; }
+    th { padding:.8rem 1rem; font-size:.7rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.07em; text-align:left; border-bottom:1px solid #d1fae5; }
+    td { padding:.8rem 1rem; font-size:.88rem; color:#374151; border-bottom:1px solid #f9f9f9; vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:#f0fdf4; }
+
+    .g-input { width:65px; border:1.5px solid #d1fae5; border-radius:8px; padding:.32rem .5rem; font-size:.85rem; font-family:'DM Sans',sans-serif; text-align:center; color:#16132b; outline:none; background:#f0fdf4; transition:border-color .2s; }
+    .g-input:focus { border-color:var(--t); background:#fff; }
+    .g-badge { display:inline-block; font-size:.72rem; font-weight:700; padding:2px 8px; border-radius:20px; }
+    .gA{background:#d1fae5;color:#065f46;} .gB{background:#dbeafe;color:#1d4ed8;} .gC{background:#fef3c7;color:#92400e;} .gD{background:#fee2e2;color:#991b1b;} .gF{background:#f3f4f6;color:#6b7280;}
+
+    /* QUIZ MAKER */
+    .qm-layout { display:grid; grid-template-columns:1fr 320px; gap:1.4rem; }
+    @media(max-width:860px){ .qm-layout{grid-template-columns:1fr;} }
+    .qm-title { width:100%; border:none; border-bottom:2px solid #d1fae5; padding:.5rem 0; font-family:'DM Sans',sans-serif; font-size:1.5rem; font-weight:800; color:#16132b; outline:none; margin-bottom:1.4rem; background:transparent; }
+    .qm-title:focus { border-bottom-color:var(--t); }
+    .qm-title::placeholder { color:#d1d5db; }
+    .qm-field { margin-bottom:1rem; }
+    .qm-field label { display:block; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:.38rem; }
+    .qm-field input,.qm-field select,.qm-field textarea { width:100%; border:1.5px solid #d1fae5; border-radius:10px; padding:.6rem .85rem; font-size:.88rem; font-family:'DM Sans',sans-serif; color:#16132b; outline:none; background:#f0fdf4; transition:border-color .2s; }
+    .qm-field input:focus,.qm-field select:focus,.qm-field textarea:focus { border-color:var(--t); background:#fff; }
+
+    .q-card { background:#fafffe; border:2px solid #d1fae5; border-radius:14px; padding:1.3rem; margin-bottom:1rem; transition:border-color .2s; }
+    .q-card:hover { border-color:var(--t); }
+    .q-header { display:flex; align-items:center; gap:.6rem; margin-bottom:1rem; }
+    .q-num { width:28px; height:28px; background:var(--t); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:800; font-family:'DM Sans',sans-serif; flex-shrink:0; }
+    .q-type-sel { border:1.5px solid #d1fae5; border-radius:8px; padding:.3rem .65rem; font-size:.8rem; font-family:'DM Sans',sans-serif; color:#374151; outline:none; background:#fff; cursor:pointer; }
+    .q-pts { width:62px; border:1.5px solid #d1fae5; border-radius:8px; padding:.3rem .5rem; font-size:.8rem; font-family:'DM Sans',sans-serif; text-align:center; color:#374151; outline:none; background:#fff; }
+    .q-del { margin-left:auto; background:none; border:1px solid #fca5a5; color:#ef4444; width:28px; height:28px; border-radius:7px; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:.85rem; transition:all .15s; }
+    .q-del:hover { background:#ef4444; color:white; }
+    .q-text { width:100%; border:none; border-bottom:1.5px solid #e4dffa; padding:.45rem 0; font-size:.95rem; font-weight:600; color:#16132b; outline:none; font-family:'DM Sans',sans-serif; margin-bottom:1rem; background:transparent; transition:border-color .2s; }
+    .q-text:focus { border-bottom-color:var(--t); }
+    .q-text::placeholder { color:#d1d5db; font-weight:400; }
+
+    .mc-opts { display:flex; flex-direction:column; gap:.5rem; }
+    .mc-opt-row { display:flex; align-items:center; gap:.5rem; }
+    .mc-radio { accent-color:var(--t); width:15px; height:15px; flex-shrink:0; cursor:pointer; }
+    .mc-opt-inp { flex:1; border:1.5px solid #e4dffa; border-radius:8px; padding:.48rem .8rem; font-size:.85rem; font-family:'DM Sans',sans-serif; color:#16132b; outline:none; transition:border-color .2s; background:#fff; }
+    .mc-opt-inp:focus { border-color:var(--t); }
+    .mc-rm { background:none; border:none; color:#d1d5db; cursor:pointer; font-size:.95rem; transition:color .15s; }
+    .mc-rm:hover { color:#ef4444; }
+    .mc-add { background:none; border:1.5px dashed #d1fae5; color:var(--t); border-radius:8px; padding:.4rem .85rem; font-size:.8rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; margin-top:.3rem; transition:all .15s; width:100%; text-align:center; }
+    .mc-add:hover { background:var(--t-light); }
+    .tf-row { display:flex; gap:.6rem; }
+    .tf-btn { flex:1; padding:.6rem; border:2px solid #e4dffa; border-radius:10px; font-size:.88rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; background:#fff; color:#6b7280; transition:all .2s; text-align:center; }
+    .tf-btn.sel-true  { border-color:var(--t); background:var(--t-light); color:var(--t-dark); }
+    .tf-btn.sel-false { border-color:#ef4444; background:#fee2e2; color:#991b1b; }
+    .sa-ph { border:1.5px dashed #d1fae5; border-radius:8px; padding:.7rem 1rem; font-size:.85rem; color:#9ca3af; font-family:'DM Sans',sans-serif; background:var(--t-light); }
+
+    .add-q-btn { display:flex; align-items:center; justify-content:center; gap:.5rem; width:100%; padding:.8rem; border:2px dashed #d1fae5; border-radius:13px; background:none; color:var(--t); font-size:.9rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .2s; }
+    .add-q-btn:hover { background:var(--t-light); border-color:var(--t); }
+
+    .publish-btn { width:100%; padding:.8rem; background:linear-gradient(135deg,var(--t),var(--t-dark)); color:white; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:700; cursor:pointer; transition:opacity .2s,transform .15s; margin-bottom:.6rem; }
+    .publish-btn:hover { opacity:.9; transform:translateY(-1px); }
+    .draft-btn { width:100%; padding:.72rem; background:#f0fdf4; color:#374151; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:600; cursor:pointer; }
+
+    .saved-q-item { display:flex; align-items:center; gap:.7rem; padding:.7rem .9rem; border:1.5px solid #d1fae5; border-radius:10px; margin-bottom:.5rem; background:#f0fdf4; cursor:pointer; transition:all .15s; }
+    .saved-q-item:hover { border-color:var(--t); }
+    .sq-icon { width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg,var(--t),var(--t-dark)); display:flex; align-items:center; justify-content:center; font-size:.9rem; flex-shrink:0; }
+    .sq-title { font-weight:700; font-size:.85rem; color:#16132b; }
+    .sq-meta  { font-size:.72rem; color:#9ca3af; margin-top:1px; }
+
+    /* MATERIALS */
+    .mat-item { display:flex; align-items:center; gap:.9rem; padding:.9rem 1.1rem; border:1.5px solid #d1fae5; border-radius:12px; margin-bottom:.6rem; background:#f0fdf4; transition:all .15s; }
+    .mat-item:hover { border-color:var(--t); background:#fff; }
+    .mat-icon { width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+    .mat-icon.file     { background:#dbeafe; }
+    .mat-icon.link     { background:#fce7f3; }
+    .mat-icon.video    { background:#fee2e2; }
+    .mat-info { flex:1; }
+    .mat-title { font-weight:700; font-size:.9rem; color:#16132b; }
+    .mat-meta  { font-size:.75rem; color:#9ca3af; margin-top:2px; }
+    .mat-del { background:none; border:none; color:#d1d5db; cursor:pointer; font-size:.9rem; padding:3px 7px; border-radius:7px; transition:all .15s; }
+    .mat-del:hover { background:#fee2e2; color:#ef4444; }
+
+    /* ASSIGNMENTS */
+    .asgn-item { display:flex; align-items:center; gap:.9rem; padding:.9rem 1.1rem; border:1.5px solid #fce7f3; border-radius:12px; margin-bottom:.6rem; background:#fff5f9; transition:all .15s; }
+    .asgn-item:hover { border-color:#ec4899; }
+    .asgn-info { flex:1; }
+    .asgn-title { font-weight:700; font-size:.9rem; color:#16132b; }
+    .asgn-meta  { font-size:.75rem; color:#9ca3af; margin-top:2px; }
+    .asgn-due   { font-size:.78rem; font-weight:700; color:#9d174d; white-space:nowrap; }
+    .asgn-due.overdue { color:#ef4444; }
+
+    /* modal */
+    .m-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); backdrop-filter:blur(5px); z-index:500; align-items:center; justify-content:center; }
+    .m-overlay.active { display:flex; }
+    .m-box { background:#fff; border-radius:20px; padding:1.8rem; width:440px; max-width:94vw; box-shadow:0 20px 60px rgba(0,0,0,.18); animation:popIn .28s cubic-bezier(.34,1.56,.64,1); position:relative; max-height:90vh; overflow-y:auto; }
+    .m-box h3 { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:800; color:#16132b; margin-bottom:1.1rem; }
+    .m-close { position:absolute; top:.9rem; right:.9rem; background:#f0fdf4; border:none; width:29px; height:29px; border-radius:50%; cursor:pointer; color:var(--t-dark); display:flex; align-items:center; justify-content:center; font-size:.85rem; }
+    .m-close:hover { background:var(--t-light); }
+    .m-field { margin-bottom:.9rem; }
+    .m-field label { display:block; font-size:.7rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:.38rem; }
+    .m-field input,.m-field select,.m-field textarea { width:100%; border:1.5px solid #d1fae5; border-radius:10px; padding:.62rem .85rem; font-size:.88rem; font-family:'DM Sans',sans-serif; color:#16132b; outline:none; background:#f0fdf4; transition:border-color .2s; }
+    .m-field input:focus,.m-field select:focus,.m-field textarea:focus { border-color:var(--t); background:#fff; }
+    .m-actions { display:flex; gap:.6rem; margin-top:1.1rem; }
+    .m-btn { flex:1; padding:.62rem; border:none; border-radius:10px; font-size:.88rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .m-btn.primary { background:var(--t); color:white; }
+    .m-btn.ghost   { background:#f0fdf4; color:#374151; }
+    .form-msg { font-size:.82rem; margin-top:.5rem; min-height:1em; }
+    .form-msg.ok  { color:var(--t); }
+    .form-msg.err { color:#ef4444; }
+
+    @media(max-width:640px){ .stats-row{grid-template-columns:1fr 1fr;} }
+  </style>
+</head>
+<body>
+<script src="api.js"></script>
+
+<script>
+/* ── script.js inlined ── */
+// ═══════════════════════════════════════════════════════
+//  PRISM PORTAL — script.js  
+//  Auth guard + role-based access control
+// ═══════════════════════════════════════════════════════
+
+(async function() {
+  var data = await fetch(API_BASE + '/auth.php?action=session', {credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
+  if (!data.loggedIn) { window.location.replace('login.html'); return; }
+  var u = data.user;
+  if (['teacher'].indexOf(u.role) === -1) {
+    window.location.replace(u.role==='teacher'?'teacher.html':u.role==='admin'?'admin.html':'index.html');
+    return;
+  }
+  sessionStorage.setItem('prism_logged_in','true');
+  sessionStorage.setItem('prism_user_id',  u.id);
+  sessionStorage.setItem('prism_user_name',u.name);
+  sessionStorage.setItem('prism_role',     u.role);
+  sessionStorage.setItem('prism_section',  u.section||'');
+  if (typeof prismCacheUserProfile === 'function') prismCacheUserProfile(u);
+})();
+
+function getRoleHome(role) {
+  if (role === 'teacher') return 'teacher.html';
+  if (role === 'admin')   return 'admin.html';
+  return 'index.html';
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+function previewImage(event, imgId, placeholderId) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var img = document.getElementById(imgId);
+  var placeholder = document.getElementById(placeholderId);
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    img.src = e.target.result;
+    img.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+</script>
+<script>
+/* ── portal-sidebar.js inlined ── */
+/* portal-sidebar.js
+   Call initSidebar(activePage) after DOMContentLoaded.
+   Builds the correct sidebar nav for the logged-in role.
+*/
+
+var PORTAL_CLASSES = [
+  { id:'math101', subject:'Mathematics',        color:'#7c3aed' },
+  { id:'sci102',  subject:'Science & Tech',     color:'#0d9488' },
+  { id:'eng103',  subject:'English Comm.',      color:'#d97706' },
+  { id:'prog104', subject:'Programming',        color:'#2563eb' },
+  { id:'hist105', subject:'Philippine History', color:'#be123c' },
+  { id:'pe106',   subject:'Physical Education', color:'#15803d' },
+];
+
+var ROLE_NAV = {
+  student: [
+    { page:'home',     href:'index.html',    icon:'🏠', label:'Home' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'notes',    href:'notes.html',    icon:'📓', label:'Notes' },
+    { page:'quizzes',  href:'quizzes.html',  icon:'🧠', label:'Quizzes' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+  teacher: [
+    { page:'home',      href:'teacher.html',   icon:'🏠', label:'My Classes' },
+    { page:'quizmaker', href:'quizmaker.html', icon:'🧪', label:'Quiz Maker' },
+    { page:'records',   href:'records.html',   icon:'📋', label:'Records' },
+    { page:'grading',   href:'grading.html',   icon:'🎯', label:'Grading' },
+    { page:'calendar',  href:'calendar.html',  icon:'📅', label:'Calendar' },
+    { page:'call',      href:'call.html',      icon:'📞', label:'Organizations' },
+  ],
+  admin: [
+    { page:'home',     href:'admin.html',    icon:'🏠', label:'Dashboard' },
+    { page:'manage',   href:'manage.html',   icon:'👥', label:'Manage Users' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+};
+
+function diamondSVG(color, size) {
+  size = size || 14;
+  return '<svg class="sidebar-diamond" width="'+size+'" height="'+size+'" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="'+color+'" stroke="'+color+'" stroke-width="0.5" stroke-linejoin="round"/></svg>';
+}
+
+function initSidebar(activePage) {
+  var uid      = sessionStorage.getItem('prism_user_id') || '';
+  var profile  = JSON.parse(localStorage.getItem('prism_profile_' + uid) || '{}');
+  var userName = profile.name || sessionStorage.getItem('prism_user_name') || uid || 'User';
+  if (profile.name) sessionStorage.setItem('prism_user_name', profile.name);
+  var roleRaw  = sessionStorage.getItem('prism_role') || 'student';
+  var role     = String(roleRaw).toLowerCase().trim();
+  if (!ROLE_NAV[role]) role = 'student';
+  try { document.body.setAttribute('data-prism-role', role); } catch (e) {}
+  var initial  = userName.charAt(0).toUpperCase();
+
+  // ── TOPBAR LOGO — fix href and gem emoji ──
+  var logoLinks = document.querySelectorAll('.topbar-logo');
+  var homeHref  = role === 'admin' ? 'admin.html' : role === 'teacher' ? 'teacher.html' : 'index.html';
+  for (var li = 0; li < logoLinks.length; li++) {
+    logoLinks[li].href = homeHref;
+    var gem = logoLinks[li].querySelector('.topbar-logo-gem');
+    if (gem) {
+      gem.innerHTML = '<img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/>';
+    }
+  }
+
+  // ── TOPBAR ──
+  var tbName   = document.getElementById('topbar-name');
+  var tbRole   = document.getElementById('topbar-role');
+  var tbAvatar = document.getElementById('topbar-avatar');
+  if (tbName)   tbName.textContent   = userName;
+  if (tbRole) {
+    tbRole.textContent = role;
+    // Update badge color to match role
+    var roleColors = { student: '#7c3aed', teacher: '#10b981', admin: '#f59e0b' };
+    var roleBgs    = { student: '#ede9fe',  teacher: '#d1fae5',  admin: '#fef3c7'  };
+    tbRole.style.color      = roleColors[role] || '#7c3aed';
+    tbRole.style.background = roleBgs[role]    || '#ede9fe';
+    tbRole.style.borderColor = (roleColors[role] || '#7c3aed') + '33';
+  }
+  if (tbAvatar) {
+    if (profile.avatar) {
+      tbAvatar.innerHTML = '<img src="'+profile.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" alt=""/>';
+    } else {
+      tbAvatar.textContent = initial;
+    }
+  }
+
+  // ── USER CARD — hidden in CSS (profile is in the top bar) ──
+  var userCard = document.getElementById('sidebar-user-card');
+  if (userCard) userCard.innerHTML = '';
+
+  // ── NAV — replace the placeholder with the correct role nav ──
+  var placeholder = document.getElementById('sidebar-nav');
+  if (placeholder) {
+    var links = ROLE_NAV[role] || ROLE_NAV['student'];
+    var lbl   = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
+
+    var sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+
+    var secLbl = document.createElement('div');
+    secLbl.className = 'sidebar-section-label';
+    secLbl.textContent = lbl;
+    sec.appendChild(secLbl);
+
+    for (var i = 0; i < links.length; i++) {
+      var l = links[i];
+      if (l.placeholder) {
+        var sp = document.createElement('span');
+        sp.className = 'sidebar-link sidebar-link-placeholder';
+        sp.setAttribute('data-page', l.page);
+        sp.setAttribute('aria-disabled', 'true');
+        sp.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(sp);
+      } else {
+        var a = document.createElement('a');
+        a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
+        a.setAttribute('data-page', l.page);
+        a.href = l.href;
+        a.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(a);
+      }
+    }
+
+    sec.id = 'sidebar-nav';
+    placeholder.parentNode.replaceChild(sec, placeholder);
+  }
+
+  // ── MY CLASSES section ──
+  var classCont = document.getElementById('sidebar-classes');
+  if (classCont) {
+
+    // Hide the whole My Classes section for admins
+    if (role === 'admin') {
+      var node = classCont.parentNode;
+      while (node && !(node.className && node.className.indexOf('sidebar-section') !== -1)) {
+        node = node.parentNode;
+      }
+      if (node) node.style.display = 'none';
+      var prev = node && node.previousElementSibling;
+      if (prev && prev.className && prev.className.indexOf('sidebar-divider') !== -1) {
+        prev.style.display = 'none';
+      }
+      return;
+    }
+
+    // For students and teachers — show classes
+    // Update section label based on role
+    var classSection = classCont.parentNode;
+    if (classSection) {
+      var classLabel = classSection.querySelector('.sidebar-section-label');
+      if (classLabel) {
+        classLabel.textContent = role === 'teacher' ? 'Classes' : 'My Classes';
+      }
+    }
+
+    classCont.innerHTML = '';
+
+    if (role === 'teacher') {
+      // Teacher: show their created classes
+      var teacherId = sessionStorage.getItem('prism_user_id') || 'teacher';
+      var teacherClasses = JSON.parse(localStorage.getItem('prism_classes_'+teacherId)||'[]');
+      if (!teacherClasses.length) {
+        var emp = document.createElement('div');
+        emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp.textContent = 'No subjects yet';
+        classCont.appendChild(emp);
+      } else {
+        teacherClasses.forEach(function(cls) {
+          var btn = document.createElement('button');
+          btn.className = 'sidebar-class-item';
+          var sideLabel = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'Class');
+          btn.innerHTML = diamondSVG(cls.color||'#7c3aed', 13) +
+            '<span class="sidebar-class-name"></span>';
+          btn.querySelector('.sidebar-class-name').textContent = sideLabel;
+          btn.onclick = function() { window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id); };
+          classCont.appendChild(btn);
+        });
+      }
+    } else {
+      // Student: show joined classes
+      var studentId = sessionStorage.getItem('prism_user_id') || 'student';
+      var joinedRaw = JSON.parse(localStorage.getItem('prism_joined_'+studentId)||'{}');
+      var joinedList = Object.values(joinedRaw);
+      if (!joinedList.length) {
+        var emp2 = document.createElement('div');
+        emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp2.textContent = 'No classes joined yet';
+        classCont.appendChild(emp2);
+      } else {
+        var colors = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d'];
+        joinedList.forEach(function(entry, idx) {
+          (function(e, i) {
+            var btn = document.createElement('button');
+            btn.className = 'sidebar-class-item';
+            btn.innerHTML = diamondSVG(colors[i%colors.length], 13) +
+              '<span class="sidebar-class-name">'+e.subject+'</span>';
+            btn.onclick = function() {
+              if (typeof openClassDetail === 'function') {
+                openClassDetail(e.classId, e.teacherId, e.subject, colors[i%colors.length]);
+              } else {
+                window.location.href = 'index.html';
+              }
+            };
+            classCont.appendChild(btn);
+          })(entry, idx);
+        });
+      }
+    }
+  }
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+</script>
+
+<div class="topbar">
+  <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-right">
+    <span class="topbar-role-badge" id="topbar-role">teacher</span>
+    <span class="topbar-name" id="topbar-name"></span>
+    <a class="topbar-avatar" href="profile.html" id="topbar-avatar">T</a>
+  </div>
+</div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div id="sidebar-user-card" class="sidebar-user-card"></div>
+    <div id="sidebar-nav"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Classes</div>
+      <div id="sidebar-classes"></div>
+    </div>
+    <div style="margin-top:auto;padding-top:1rem;">
+      <div class="sidebar-divider"></div>
+      <button class="sidebar-logout" onclick="logout()"><span class="s-icon">🚪</span> Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <div class="teacher-hero" style="padding-bottom:2rem;">
+      <a href="teacher.html" style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;color:rgba(255,255,255,.9);text-decoration:none;margin-bottom:.75rem;opacity:.95;">← Back to announcements</a>
+      <div class="teacher-hero-label">Subject workspace</div>
+      <h1 id="tc-subject-title">Subject</h1>
+      <p id="tc-subject-desc">Upload materials and create assignments. Use the section filter so items reach the right students.</p>
+      <div class="teacher-hero-gem">📂</div>
+    </div>
+
+    <p id="tc-class-stats" style="font-size:.88rem;color:#6b7280;margin:-.5rem 0 1.25rem;font-weight:600;"></p>
+
+    <!-- JOIN CODE BAR -->
+    <div id="join-code-display" style="display:flex;align-items:center;gap:.5rem;background:#fff;border-radius:12px;padding:.6rem 1.2rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.12);flex-wrap:wrap;"></div>
+
+    <div id="teacher-class-scope-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.15rem;border-radius:14px;background:linear-gradient(135deg,#ecfdf5 0%,#f0fdf4 100%);border:1.5px solid #a7f3d0;font-size:.84rem;line-height:1.55;color:#065f46;"></div>
+
+    <div id="teacher-section-pills-wrap" style="display:none;margin-bottom:1rem;"></div>
+
+    <div id="class-content">
+      <div class="sub-tabs">
+        <button type="button" class="sub-tab active" onclick="switchSub('materials',this)">📚 Materials</button>
+        <button type="button" class="sub-tab" onclick="switchSub('assignments',this)">📝 Assignments</button>
+      </div>
+      <!-- ══ MATERIALS ══ -->
+      <div class="sub-panel active" id="sub-materials">
+        <div class="t-card">
+          <div class="t-card-title">➕ Add Material</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
+            <div class="m-field" style="margin:0;"><label>Title</label><input type="text" id="mat-title" placeholder="e.g. Week 1 Slides"/></div>
+            <div class="m-field" style="margin:0;"><label>Type</label>
+              <select id="mat-type" onchange="onMatTypeChange(this.value)">
+                <option value="file">📄 Upload File (PDF / PPT / DOCX…)</option>
+                <option value="link">🔗 Link / URL</option>
+                <option value="video">🎬 Video Link</option>
+              </select>
+            </div>
+          </div>
+          <div class="m-field" id="mat-file-row">
+            <label>File</label>
+            <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
+              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;">📎 Click to choose a file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, PPT, PPTX, DOCX, XLS, XLSX, images…</span></div>
+              <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;"></div>
+            </div>
+            <input type="file" id="mat-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.mp4,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
+          </div>
+          <div class="m-field" id="mat-url-row" style="display:none;"><label>URL</label><input type="text" id="mat-url" placeholder="e.g. https://…"/></div>
+          <div class="m-field"><label>Description (optional)</label><input type="text" id="mat-desc" placeholder="Brief description…"/></div>
+          <button class="t-btn" onclick="addMaterial()" id="mat-upload-btn">Upload Material</button>
+          <div class="form-msg" id="mat-msg"></div>
+        </div>
+        <div id="teacher-mat-filter-wrap" style="display:none;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:.65rem 1rem;background:#fff;border-radius:12px;border:1.5px solid #e4dffa;box-shadow:0 2px 10px rgba(124,58,237,.06);">
+          <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">View material</span>
+          <select id="teacher-mat-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
+        </div>
+        <div id="materials-list"></div>
+      </div>
+
+      <!-- ══ ASSIGNMENTS ══ -->
+      <div class="sub-panel" id="sub-assignments">
+        <div class="t-card">
+          <div class="t-card-title">➕ Create Assignment</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
+            <div class="m-field" style="margin:0;"><label>Title</label><input type="text" id="asgn-title" placeholder="e.g. Problem Set 1"/></div>
+            <div class="m-field" style="margin:0;"><label>Due Date</label><input type="date" id="asgn-due"/></div>
+          </div>
+          <div class="m-field" style="margin-bottom:.9rem;"><label>Points</label><input type="number" id="asgn-pts" placeholder="e.g. 50" min="1"/></div>
+          <div class="m-field" style="margin-bottom:.9rem;"><label>Type</label>
+            <select id="asgn-type"><option value="written">📝 Written</option><option value="project">🎯 Project</option><option value="lab">🔬 Lab</option><option value="oral">🎤 Oral</option></select>
+          </div>
+          <div class="m-field" style="margin-bottom:.9rem;">
+            <label>Instructions for students</label>
+            <p style="font-size:.78rem;color:#6b7280;margin:0 0 .45rem;line-height:1.45;">What should students do? (e.g. “Answer all parts in complete sentences.”) This appears at the top of the assignment for students.</p>
+            <textarea id="asgn-instructions" rows="6" placeholder="Example: Read chapter 3 and answer the questions below." style="width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:.6rem .85rem;font-size:.88rem;font-family:'DM Sans',sans-serif;color:#16132b;outline:none;background:#f0fdf4;resize:vertical;box-sizing:border-box;"></textarea>
+          </div>
+          <button class="t-btn" onclick="addAssignment()">Create Assignment</button>
+        </div>
+        <div id="teacher-asgn-filter-wrap" style="display:none;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:.65rem 1rem;background:#fff;border-radius:12px;border:1.5px solid #fce7f3;box-shadow:0 2px 10px rgba(236,72,153,.06);">
+          <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">View assignment</span>
+          <select id="teacher-asgn-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
+        </div>
+        <div id="assignments-list"></div>
+      </div>
+
+    </div><!-- /class-content -->
+  </main>
+</div>
+
+<script>
+/* ═══════════════════════════ DATA & STORAGE ═══════════════════════════ */
+
+var TEACHER_ID = ''; // set after auth resolves
+const CLASS_COLORS = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d','#0284c7','#9333ea','#dc2626','#d97706'];
+
+// ── API-backed data helpers ──
+var CLASSES = [];
+var _postsCache = [];
+var _materialsCache = {};
+var _assignmentsCache = {};
+
+function teacherQuizBelongsToClass(q, classId) {
+  return String(q.classId || q.class_id || '') === String(classId);
+}
+/** Same shape as quizmaker / student cache (incl. target_section). */
+function mapApiQuizRowToLocalTeacher(q, classId) {
+  let qs = q.questions;
+  if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (e) { qs = []; } }
+  const ts = q.target_section != null ? String(q.target_section).trim() : '';
+  return {
+    id: q.id,
+    classId: q.class_id || classId,
+    teacherId: q.teacher_id,
+    title: q.title,
+    type: q.type || 'quiz',
+    published: !!+q.published,
+    due: q.due_date || q.due || '',
+    due_time: q.due_time || '',
+    time: parseInt(q.time_limit, 10) || 0,
+    attempts: parseInt(q.attempts, 10) || 1,
+    totalPoints: parseInt(q.total_points, 10) || 0,
+    questions: qs || [],
+    target_section: ts,
+  };
+}
+/** Merge API quizzes into localStorage; keep unpublished local-only drafts; drop published rows deleted on server. */
+async function syncTeacherQuizzesFromApiForClass(classId) {
+  if (!classId || !TEACHER_ID) return;
+  try {
+    const list = await PrismQuizzes.get(classId);
+    const apiIds = new Set((list || []).map(r => String(r.id)));
+    const mapped = (list || []).map(q => mapApiQuizRowToLocalTeacher(q, classId));
+    const all = getQuizzes();
+    const otherClasses = all.filter(q => !teacherQuizBelongsToClass(q, classId));
+    const localSame = all.filter(q => teacherQuizBelongsToClass(q, classId));
+    const keepLocal = localSame.filter(q => {
+      if (apiIds.has(String(q.id))) return false;
+      if (!q.published) return true;
+      return false;
+    });
+    saveQuizzes(otherClasses.concat(mapped).concat(keepLocal));
+  } catch (e) {
+    console.warn('syncTeacherQuizzesFromApiForClass', e);
+  }
+}
+
+async function refreshClassData(classId) {
+  try {
+    const [posts, mats, asgns, students] = await Promise.all([
+      PrismPosts.get(classId),
+      PrismMaterials.get(classId),
+      PrismAssignments.get(classId),
+      PrismClasses.getStudents(classId),
+    ]);
+    _postsCache        = _postsCache.filter(p=>p.class_id!==classId && p.classId!==classId).concat(posts);
+    _materialsCache[classId]   = mats;
+    _assignmentsCache[classId] = asgns;
+    try {
+      const allA = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+      allA[classId] = asgns;
+      localStorage.setItem('prism_teacher_assignments', JSON.stringify(allA));
+      const allM = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
+      allM[classId] = mats;
+      localStorage.setItem('prism_teacher_materials', JSON.stringify(allM));
+    } catch (e) { /* ignore */ }
+    try {
+      const allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]');
+      const others = allPosts.filter(p => String(p.class_id) !== String(classId) && String(p.classId) !== String(classId));
+      const merged = (posts || []).map(p => {
+        const copy = Object.assign({}, p);
+        copy.classId = p.class_id || p.classId;
+        copy.quizId = p.quiz_id || p.quizId;
+        copy.teacherId = p.teacher_id || p.teacherId;
+        copy.date = p.created_at || p.date || new Date().toISOString();
+        return copy;
+      });
+      localStorage.setItem('prism_teacher_posts', JSON.stringify(others.concat(merged)));
+    } catch (e) { /* ignore */ }
+    await syncTeacherQuizzesFromApiForClass(classId);
+    // Keep students in localStorage for records.html compatibility
+    localStorage.setItem('prism_students_'+classId, JSON.stringify(
+      students.map(s=>({ id:s.id, name:s.name, section:s.section||'' }))
+    ));
+  } catch(e) { console.error('refreshClassData:', e); }
+}
+
+function getClasses()      { return CLASSES; }
+function saveClasses()     { /* handled by API */ }
+function getStudents(cid)  { return JSON.parse(localStorage.getItem('prism_students_'+cid)||'[]'); }
+function saveStudents()    { /* handled by API */ }
+function getPosts()        { return _postsCache; }
+function savePosts()       { /* handled by API */ }
+function getQuizzes()      { return JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]'); }
+function saveQuizzes(q)    { localStorage.setItem('prism_teacher_quizzes', JSON.stringify(q)); }
+function getMaterials()    { return _materialsCache; }
+function saveMaterials()   { /* handled by API */ }
+function getAssignments()  { return _assignmentsCache; }
+function saveAssignments() { /* handled by API */ }
+
+/* ── Join-code index: code → {classId, teacherId} ── */
+function getCodeIndex()   { return JSON.parse(localStorage.getItem('prism_join_codes')||'{}'); }
+function saveCodeIndex(v) { localStorage.setItem('prism_join_codes', JSON.stringify(v)); }
+
+/** Sync class list to localStorage so profile sidebar, quizmaker, and records see the same data as the API. */
+function persistTeacherClassesLocal() {
+  if (!TEACHER_ID) return;
+  const slim = CLASSES.map(c => ({
+    id: c.id,
+    subject: c.subject,
+    color: c.color || '#7c3aed',
+    code: c.code,
+    teacher_id: c.teacher_id || TEACHER_ID,
+  }));
+  localStorage.setItem('prism_classes_' + TEACHER_ID, JSON.stringify(slim));
+}
+
+function genJoinCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c='';
+  for(let i=0;i<6;i++) c+=chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+
+/* ── State ── */
+let activeClassId  = null;
+/** Workspace (materials & assignments): __all__ = whole class; else section label */
+let activeWorkspaceSection = '__all__';
+/** __all__ = list every assignment; else one assignment id (teacher assignments tab) */
+let teacherAssignmentViewFilter = '__all__';
+/** __all__ = list every material; else one material id (teacher materials tab) */
+let teacherMaterialViewFilter = '__all__';
+let activeSub      = 'materials';
+let activeSection  = 'all';
+let questions      = [];
+
+/* ═══════════════════════════ INIT ═══════════════════════════ */
+window.addEventListener('DOMContentLoaded', async () => {
+  const user = await prismAuthGuard(['teacher']);
+  if (!user) return;
+  TEACHER_ID = user.id;
+  if (typeof initSidebar === 'function') initSidebar('home');
+  document.querySelectorAll('.sidebar-link').forEach(function(a) { a.classList.remove('active'); });
+  await initTeacherClassPage();
+});
+
+async function initTeacherClassPage() {
+  const params = new URLSearchParams(window.location.search);
+  const urlClass = params.get('class');
+  if (!urlClass) {
+    window.location.replace('teacher.html');
+    return;
+  }
+  try {
+    CLASSES = await PrismClasses.getMyClasses();
+    const idx = {};
+    CLASSES.forEach(cls => { if (cls.code) idx[cls.code] = { classId: cls.id, teacherId: cls.teacher_id || TEACHER_ID, subject: cls.subject }; });
+    saveCodeIndex(idx);
+    persistTeacherClassesLocal();
+  } catch (e) {
+    console.error('initTeacherClassPage:', e);
+    CLASSES = [];
+  }
+  const cls = CLASSES.find(c => c.id === urlClass);
+  if (!cls) {
+    window.location.replace('teacher.html');
+    return;
+  }
+  activeClassId = urlClass;
+  try { sessionStorage.setItem('prism_teacher_active_class_id', activeClassId); } catch (e) {}
+  const titleEl = document.getElementById('tc-subject-title');
+  if (titleEl) {
+    titleEl.textContent = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'Subject');
+  }
+  await refreshClassData(activeClassId);
+  ensureWorkspacePanel();
+  loadWorkspaceSectionForClass(activeClassId);
+  loadTeacherAssignmentViewFilter();
+  loadTeacherMaterialViewFilter();
+  renderWorkspacePage();
+  bindMatDropZone();
+}
+
+/** Re-injected if #class-content is cleared. */
+const TEACHER_CLASS_CONTENT_HTML = `
+      <div class="sub-tabs">
+        <button type="button" class="sub-tab active" onclick="switchSub('materials',this)">📚 Materials</button>
+        <button type="button" class="sub-tab" onclick="switchSub('assignments',this)">📝 Assignments</button>
+      </div>
+      <div class="sub-panel active" id="sub-materials">
+        <div class="t-card">
+          <div class="t-card-title">➕ Add Material</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
+            <div class="m-field" style="margin:0;"><label>Title</label><input type="text" id="mat-title" placeholder="e.g. Week 1 Slides"/></div>
+            <div class="m-field" style="margin:0;"><label>Type</label>
+              <select id="mat-type" onchange="onMatTypeChange(this.value)">
+                <option value="file">📄 Upload File (PDF / PPT / DOCX…)</option>
+                <option value="link">🔗 Link / URL</option>
+                <option value="video">🎬 Video Link</option>
+              </select>
+            </div>
+          </div>
+          <div class="m-field" id="mat-file-row">
+            <label>File</label>
+            <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
+              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;">📎 Click to choose a file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, PPT, PPTX, DOCX, XLS, XLSX, images…</span></div>
+              <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;"></div>
+            </div>
+            <input type="file" id="mat-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.mp4,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
+          </div>
+          <div class="m-field" id="mat-url-row" style="display:none;"><label>URL</label><input type="text" id="mat-url" placeholder="e.g. https://…"/></div>
+          <div class="m-field"><label>Description (optional)</label><input type="text" id="mat-desc" placeholder="Brief description…"/></div>
+          <button class="t-btn" onclick="addMaterial()" id="mat-upload-btn">Upload Material</button>
+          <div class="form-msg" id="mat-msg"></div>
+        </div>
+        <div id="teacher-mat-filter-wrap" style="display:none;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:.65rem 1rem;background:#fff;border-radius:12px;border:1.5px solid #e4dffa;box-shadow:0 2px 10px rgba(124,58,237,.06);">
+          <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">View material</span>
+          <select id="teacher-mat-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
+        </div>
+        <div id="materials-list"></div>
+      </div>
+      <div class="sub-panel" id="sub-assignments">
+        <div class="t-card">
+          <div class="t-card-title">➕ Create Assignment</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
+            <div class="m-field" style="margin:0;"><label>Title</label><input type="text" id="asgn-title" placeholder="e.g. Problem Set 1"/></div>
+            <div class="m-field" style="margin:0;"><label>Due Date</label><input type="date" id="asgn-due"/></div>
+          </div>
+          <div class="m-field" style="margin-bottom:.9rem;"><label>Points</label><input type="number" id="asgn-pts" placeholder="e.g. 50" min="1"/></div>
+          <div class="m-field" style="margin-bottom:.9rem;"><label>Type</label>
+            <select id="asgn-type"><option value="written">📝 Written</option><option value="project">🎯 Project</option><option value="lab">🔬 Lab</option><option value="oral">🎤 Oral</option></select>
+          </div>
+          <div class="m-field" style="margin-bottom:.9rem;">
+            <label>Instructions for students</label>
+            <p style="font-size:.78rem;color:#6b7280;margin:0 0 .45rem;line-height:1.45;">What should students do? (e.g. “Answer all parts in complete sentences.”) This appears at the top of the assignment for students.</p>
+            <textarea id="asgn-instructions" rows="6" placeholder="Example: Read chapter 3 and answer the questions below." style="width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:.6rem .85rem;font-size:.88rem;font-family:'DM Sans',sans-serif;color:#16132b;outline:none;background:#f0fdf4;resize:vertical;box-sizing:border-box;"></textarea>
+          </div>
+          <button class="t-btn" onclick="addAssignment()">Create Assignment</button>
+        </div>
+        <div id="teacher-asgn-filter-wrap" style="display:none;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:.65rem 1rem;background:#fff;border-radius:12px;border:1.5px solid #fce7f3;box-shadow:0 2px 10px rgba(236,72,153,.06);">
+          <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">View assignment</span>
+          <select id="teacher-asgn-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
+        </div>
+        <div id="assignments-list"></div>
+      </div>`;
+
+function ensureWorkspacePanel() {
+  if (document.getElementById('materials-list')) return;
+  const wrap = document.getElementById('class-content');
+  if (!wrap) return;
+  wrap.innerHTML = TEACHER_CLASS_CONTENT_HTML;
+  activeSub = 'materials';
+  wrap.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('active'));
+  wrap.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
+  const subMat = document.getElementById('sub-materials');
+  if (subMat) subMat.classList.add('active');
+  const firstTab = wrap.querySelector('.sub-tabs .sub-tab');
+  if (firstTab) firstTab.classList.add('active');
+  bindMatDropZone();
+}
+
+function uniqueSectionsFromStudents(classId) {
+  const studs = getStudents(classId) || [];
+  const set = {};
+  studs.forEach(s => {
+    const sec = (s.section || '').trim();
+    if (sec) set[sec] = true;
+  });
+  return Object.keys(set).sort();
+}
+function loadWorkspaceSectionForClass(classId) {
+  try {
+    let v = sessionStorage.getItem('prism_teacher_workspace_section_' + classId);
+    if (v == null || v === '') {
+      v = sessionStorage.getItem('prism_teacher_target_section_' + classId);
+      if (v != null && v !== '') {
+        sessionStorage.setItem('prism_teacher_workspace_section_' + classId, v);
+      }
+    }
+    const secs = uniqueSectionsFromStudents(classId);
+    if (v == null || v === '' || v === '__all__') {
+      activeWorkspaceSection = '__all__';
+      return;
+    }
+    if (secs.indexOf(v) >= 0) {
+      activeWorkspaceSection = v;
+      return;
+    }
+  } catch (e) { /* ignore */ }
+  activeWorkspaceSection = '__all__';
+}
+function itemMatchesWorkspaceSectionFilter(item) {
+  const t = (item && item.target_section != null) ? String(item.target_section).trim() : '';
+  if (activeWorkspaceSection === '__all__') return true;
+  if (!t) return true;
+  return t === activeWorkspaceSection;
+}
+function getWorkspaceTargetSectionForApi() {
+  if (activeWorkspaceSection === '__all__') return null;
+  return activeWorkspaceSection;
+}
+function renderWorkspaceSectionPills() {
+  const wrap = document.getElementById('teacher-section-pills-wrap');
+  if (!wrap) return;
+  const cls = CLASSES.find(c => c.id === activeClassId);
+  if (!cls) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  let sections = uniqueSectionsFromStudents(activeClassId);
+  if (activeWorkspaceSection !== '__all__' && sections.indexOf(activeWorkspaceSection) < 0) {
+    sections = [...sections, activeWorkspaceSection].sort();
+  }
+  wrap.style.display = 'block';
+  let html = '<div style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.45rem;">Materials &amp; assignments — filter by section</div>'
+    + '<div class="section-pills">';
+  html += '<button type="button" class="section-pill' + (activeWorkspaceSection === '__all__' ? ' active' : '') + '" data-sec="__all__">All Sections</button>';
+  sections.forEach(sec => {
+    const esc = String(sec).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    html += '<button type="button" class="section-pill' + (activeWorkspaceSection === sec ? ' active' : '') + '" data-sec="' + esc + '">' + esc + '</button>';
+  });
+  html += '</div><p style="font-size:.74rem;color:#6b7280;margin:.5rem 0 0;line-height:1.45;">New uploads and assignments use the section you pick here. Announcements use a separate filter on the <a href="teacher.html" style="color:#059669;font-weight:700;">announcements</a> page.</p>';
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('.section-pill').forEach(btn => {
+    btn.onclick = function() {
+      activeWorkspaceSection = btn.getAttribute('data-sec') || '__all__';
+      try { sessionStorage.setItem('prism_teacher_workspace_section_' + activeClassId, activeWorkspaceSection); } catch (e) {}
+      renderWorkspaceSectionPills();
+      renderMaterials(); renderAssignments();
+    };
+  });
+}
+
+function renderWorkspacePage() {
+  const cls = CLASSES.find(c=>c.id===activeClassId);
+  if (!cls) return;
+  renderMaterials();
+  renderAssignments();
+  const stEl = document.getElementById('tc-class-stats');
+  if (stEl) {
+    const nStud = getStudents(activeClassId).length;
+    const mats = getMaterials()[activeClassId] || [];
+    const asgn = getAssignments()[activeClassId] || [];
+    stEl.textContent = nStud + ' student' + (nStud === 1 ? '' : 's') + ' · ' + mats.length + ' material' + (mats.length === 1 ? '' : 's') + ' · ' + asgn.length + ' assignment' + (asgn.length === 1 ? '' : 's');
+  }
+  const scopeEl = document.getElementById('teacher-class-scope-banner');
+  if (scopeEl) {
+    const subj = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'This class');
+    const safe = String(subj).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    scopeEl.style.display = 'block';
+    scopeEl.innerHTML = '<strong style="font-family:DM Sans,sans-serif;font-size:.92rem;">Workspace: ' + safe + '</strong>'
+      + '<span style="display:block;margin-top:.4rem;opacity:.95;font-weight:500;">Materials and assignments for this subject. <a href="teacher.html" style="color:#059669;font-weight:700;">Post announcements</a> from the main teacher page.</span>';
+  }
+  loadWorkspaceSectionForClass(activeClassId);
+  renderWorkspaceSectionPills();
+  const jcEl = document.getElementById('join-code-display');
+  if (jcEl) {
+    const jc = (cls.code || '').replace(/'/g, "\\'");
+    jcEl.innerHTML = `
+      <span style="font-size:.78rem;color:#9ca3af;margin-right:.5rem;">Join Code:</span>
+      <span style="font-family:'DM Sans',sans-serif;font-size:1.1rem;font-weight:800;color:#10b981;letter-spacing:.1em;">${cls.code || '—'}</span>
+      <button type="button" onclick="copyJoinCode('${jc}', this)" style="margin-left:.6rem;background:none;border:1.5px solid #d1fae5;border-radius:7px;padding:2px 9px;font-size:.75rem;font-weight:700;color:#065f46;cursor:pointer;">Copy</button>
+      <button onclick="regenJoinCode('${cls.id}')" style="margin-left:.3rem;background:none;border:1.5px solid #fde68a;border-radius:7px;padding:2px 9px;font-size:.75rem;font-weight:700;color:#92400e;cursor:pointer;">New Code</button>
+    `;
+  }
+}
+
+function switchSub(name, btn) {
+  activeSub = name;
+  document.querySelectorAll('.sub-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('sub-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+function copyJoinCode(code, btn) {
+  const el = btn || (typeof event !== 'undefined' ? event.target : null);
+  navigator.clipboard.writeText(code).then(()=>{
+    if (!el) return;
+    const orig = el.textContent;
+    el.textContent='Copied!'; el.style.color='#10b981';
+    setTimeout(()=>{el.textContent=orig;el.style.color='';},1800);
+  });
+}
+
+async function regenJoinCode(classId) {
+  if (!confirm('Generate a new join code? The old code will stop working.')) return;
+  const cls = CLASSES.find(c=>c.id===classId);
+  if (!cls) return;
+  const oldCode = cls.code;
+  const newCode = genJoinCode();
+  try {
+    const res = await fetch(API_BASE + '/classes.php?action=regen_code', {
+      method:'POST', credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ class_id: classId, code: newCode })
+    });
+    const j = await res.json().catch(()=>({}));
+    if (j.error) throw new Error(j.error);
+    cls.code = String(j.code || newCode).toUpperCase();
+  } catch(e) {
+    alert(e.message || 'Could not update join code on the server.');
+    return;
+  }
+  const idx = getCodeIndex();
+  delete idx[oldCode];
+  idx[cls.code] = { classId, teacherId:TEACHER_ID, subject:cls.subject };
+  saveCodeIndex(idx);
+  persistTeacherClassesLocal();
+  renderWorkspacePage();
+}
+
+/* ═══════════════════════════ RECORDS (stubs) ═══════════════════════════ */
+function renderSectionPills(){ /* moved to records.html */ }
+function setSection(sec) { activeSection=sec; renderSectionPills(); renderRecords(); }
+
+function calcGWA(rec) {
+  const q=parseFloat(rec.quiz)||0,a=parseFloat(rec.activity)||0,m=parseFloat(rec.midterm)||0,f=parseFloat(rec.final)||0;
+  if(!q&&!a&&!m&&!f) return null;
+  return ((q*.2)+(a*.2)+(m*.3)+(f*.3)).toFixed(1);
+}
+function gradeInfo(gwa) {
+  if(gwa===null) return{l:'—',c:'gF'};
+  const s=parseFloat(gwa);
+  if(s>=90)return{l:'A',c:'gA'};if(s>=80)return{l:'B',c:'gB'};
+  if(s>=75)return{l:'C',c:'gC'};if(s>=60)return{l:'D',c:'gD'};
+  return{l:'F',c:'gF'};
+}
+
+function getRecords()    { return JSON.parse(localStorage.getItem('prism_student_records')||'{}'); }
+function saveRecords(r)  { localStorage.setItem('prism_student_records',JSON.stringify(r)); }
+
+function renderRecords(){ /* moved to records.html */ }
+function updateRec(key,field,val){const r=getRecords();if(!r[key])r[key]={};r[key][field]=val;saveRecords(r);renderRecords();}
+
+/* ═══════════════════════════ QUIZ MAKER ═══════════════════════════ */
+function addQuestion(pre) {
+  const q=pre||{id:Date.now().toString(),type:'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true'};
+  questions.push(q); renderQMQuestions();
+}
+function removeQuestion(id){questions=questions.filter(q=>q.id!==id);renderQMQuestions();}
+function renderQMQuestions(){ /* moved to quizmaker.html */ }
+function renderOpts(q){
+  if(q.type==='mc')return`<div class="mc-opts">${q.options.map((o,i)=>`
+    <div class="mc-opt-row">
+      <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
+      <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
+      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})">✕</button>`:''}
+    </div>`).join('')}
+    ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
+  </div>`;
+  if(q.type==='tf')return`<div class="tf-row">
+    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')">✅ True</button>
+    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')">❌ False</button>
+  </div>`;
+  if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
+  if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;
+  return '';
+}
+function changeQType(id,type){const q=questions.find(x=>x.id===id);if(!q)return;q.type=type;if(type==='mc'&&(!q.options||!q.options.length))q.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];if(type==='tf')q.tfAnswer=q.tfAnswer||'true';document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function updateQ(id,f,v){const q=questions.find(x=>x.id===id);if(q)q[f]=f==='points'?parseInt(v)||1:v;}
+function updateOpt(id,i,v){const q=questions.find(x=>x.id===id);if(q&&q.options[i])q.options[i].text=v;}
+function setCorrect(id,i){const q=questions.find(x=>x.id===id);if(!q)return;q.options.forEach((o,j)=>o.correct=j===i);}
+function addOpt(id){const q=questions.find(x=>x.id===id);if(!q||q.options.length>=6)return;q.options.push({text:'',correct:false});document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function removeOpt(id,i){const q=questions.find(x=>x.id===id);if(!q||q.options.length<=2)return;q.options.splice(i,1);if(!q.options.some(o=>o.correct))q.options[0].correct=true;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function setTF(id,v){const q=questions.find(x=>x.id===id);if(!q)return;q.tfAnswer=v;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function getQMData(){ return null; /* moved to quizmaker.html */ }
+function publishQuiz(){ /* moved to quizmaker.html */ }
+function saveDraft(){ /* moved to quizmaker.html */ }
+function showQMsg(m,t){ console.log('QM:',m); }
+function resetQM(){ questions=[]; }
+function renderSavedQuizzes(){ /* moved to quizmaker.html */ }
+async function deleteQuiz(id){if(!confirm('Delete this quiz?'))return;try{await PrismQuizzes.delete(id);}catch(e){alert(e.message||'Could not delete quiz.');return;}saveQuizzes(getQuizzes().filter(q=>q.id!==id));renderSavedQuizzes();}
+
+/* ═══════════════════════════ MATERIALS ═══════════════════════════ */
+var _matFileData = null;
+
+function onMatTypeChange(val) {
+  document.getElementById('mat-file-row').style.display = val === 'file' ? 'block' : 'none';
+  document.getElementById('mat-url-row').style.display  = val !== 'file' ? 'block' : 'none';
+  _matFileData = null;
+  document.getElementById('mat-file-chosen').style.display = 'none';
+  document.getElementById('mat-drop-label').style.display  = 'block';
+}
+
+function onMatFileChosen(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 15 * 1024 * 1024) { alert('File too large. Max 15 MB.'); input.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    _matFileData = { name: file.name, base64: e.target.result, mime: file.type };
+    document.getElementById('mat-drop-label').style.display = 'none';
+    const chosen = document.getElementById('mat-file-chosen');
+    chosen.style.display = 'block';
+    chosen.textContent = '✅ ' + file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+    if (!document.getElementById('mat-title').value.trim())
+      document.getElementById('mat-title').value = file.name.replace(/\.[^.]+$/,'');
+  };
+  reader.readAsDataURL(file);
+}
+
+function bindMatDropZone() {
+  const zone = document.getElementById('mat-drop-zone');
+  if (!zone) return;
+  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.style.borderColor='#10b981'; });
+  zone.addEventListener('dragleave', function(){ zone.style.borderColor='#d1fae5'; });
+  zone.addEventListener('drop', function(e){
+    e.preventDefault(); zone.style.borderColor='#d1fae5';
+    const file = e.dataTransfer.files[0];
+    if (file) { const inp=document.getElementById('mat-file-input'); if(inp){ inp.files=e.dataTransfer.files; onMatFileChosen(inp); } }
+  });
+}
+
+function showMatMsg(msg,type){ const el=document.getElementById('mat-msg'); el.textContent=msg; el.className='form-msg '+type; setTimeout(()=>el.textContent='',3000); }
+
+async function addMaterial(){
+  const title = document.getElementById('mat-title').value.trim();
+  const type  = document.getElementById('mat-type').value;
+  if (!title) { showMatMsg('Please enter a title.','err'); return; }
+  let url='', fileData=null;
+  if (type==='file') {
+    if (!_matFileData) { showMatMsg('Please choose a file to upload.','err'); return; }
+    fileData=_matFileData; url=_matFileData.name;
+  } else {
+    url=document.getElementById('mat-url').value.trim();
+    if (!url) { showMatMsg('Please enter a URL.','err'); return; }
+  }
+  const btn=document.getElementById('mat-upload-btn');
+  btn.disabled=true; btn.textContent='Saving…';
+  try {
+    const matRes = await PrismMaterials.add({
+      class_id:activeClassId, title, type, url,
+      fileData: fileData,
+      desc:document.getElementById('mat-desc').value.trim(),
+      target_section: getWorkspaceTargetSectionForApi(),
+    });
+    const streamAttach = (type === 'file' && matRes.file_path) ? matRes.file_path : url;
+    // Also post to stream (attachment = download URL for files on server, else link/filename)
+    await PrismPosts.add({
+      class_id:activeClassId, teacherId:TEACHER_ID, type:'material',
+      body:'New material: "'+title+'"', attachment: streamAttach,
+      author:sessionStorage.getItem('prism_user_name')||'Teacher',
+      target_section: getWorkspaceTargetSectionForApi(),
+    });
+    document.getElementById('mat-title').value=''; document.getElementById('mat-desc').value='';
+    if(document.getElementById('mat-url')) document.getElementById('mat-url').value='';
+    document.getElementById('mat-file-input').value=''; _matFileData=null;
+    document.getElementById('mat-file-chosen').style.display='none';
+    document.getElementById('mat-drop-label').style.display='block';
+    await refreshClassData(activeClassId);
+    renderMaterials(); renderWorkspacePage();
+    showMatMsg('✅ Material uploaded!','ok');
+  } catch(e) { showMatMsg(e.message||'Upload failed.','err'); }
+  finally { btn.disabled=false; btn.textContent='Upload Material'; }
+}
+
+function renderMaterials(){
+  loadTeacherMaterialViewFilter();
+  const m=getMaterials(),list=document.getElementById('materials-list'),raw=(m[activeClassId]||[]);
+  const items=raw.filter(itemMatchesWorkspaceSectionFilter);
+  populateTeacherMaterialFilterSelect(items);
+  if(!list) return;
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-size:.9rem;">No materials yet. Add one above.</div>';return;}
+  const displayItems=teacherMaterialViewFilter==='__all__'?items:items.filter(it=>String(it.id)===teacherMaterialViewFilter);
+  if(!displayItems.length){
+    list.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-size:.9rem;">No material matches this filter. Choose <strong>All materials</strong> above.</div>';
+    return;
+  }
+  const icons={file:'📄',link:'🔗',video:'🎬'};
+  const typeLabel={file:'File',link:'Link',video:'Video'};
+  const bgColor={file:'background:#dbeafe;',link:'background:#fce7f3;',video:'background:#fee2e2;'};
+  list.innerHTML=displayItems.map(it=>{
+    const secTag = (it.target_section && String(it.target_section).trim()) ? '<span style="font-size:.68rem;font-weight:700;color:#059669;margin-left:.35rem;">· '+String(it.target_section).trim()+'</span>' : '';
+    let actionBtn='';
+    // file_path = server path, file_data = base64 fallback
+    if(it.type==='file' && it.file_path){
+      var prevT=typeof prismCanPreviewInBrowser==='function'&&prismCanPreviewInBrowser(it.mime_type,it.file_name);
+      actionBtn='<a href="'+it.file_path+'" target="_blank" rel="noopener" style="background:#10b981;border:none;color:white;padding:.38rem .9rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;">'+(prevT?'👁 View':'🔗 Open')+'</a>'
+        +'<a href="'+it.file_path+'" download style="background:#ecfdf5;color:#065f46;padding:.38rem .9rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;margin-left:.35rem;">⬇ Save</a>';
+    } else if(it.type==='file' && it.file_data){
+      actionBtn='<button onclick="downloadMaterial(\''+it.id+'\')" style="background:#10b981;border:none;color:white;padding:.38rem .9rem;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;white-space:nowrap;">⬇ Download</button>';
+    } else if(it.url && (it.url.startsWith('http') || it.url.startsWith('/'))){
+      const isDl = it.type==='file';
+      actionBtn='<a href="'+it.url+'" target="_blank" rel="noopener" '+(isDl?'download ':'')+'style="background:#6366f1;border:none;color:white;padding:.38rem .9rem;border-radius:8px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;">'+(isDl?'⬇ Download':'🔗 Open')+'</a>';
+    }
+    return '<div class="mat-item">'
+      +'<div class="mat-icon" style="'+(bgColor[it.type]||'')+'">'+(icons[it.type]||'📄')+'</div>'
+      +'<div class="mat-info"><div class="mat-title">'+it.title+'</div>'
+      +'<div class="mat-meta">'+(typeLabel[it.type]||'File')+' · '+it.url+(it.description?' · '+it.description:'')+secTag+' · '+new Date(it.created_at||it.date).toLocaleDateString()+'</div></div>'
+      +actionBtn
+      +'<button class="mat-del" onclick="deleteMaterial(\''+it.id+'\')">🗑</button>'
+      +'</div>';
+  }).join('');
+}
+
+function downloadMaterial(id){
+  const items=getMaterials()[activeClassId]||[];
+  const it=items.find(x=>x.id===id);
+  if(!it||!it.file_data)return;
+  const a=document.createElement('a'); a.href=it.file_data; a.download=it.file_name||it.title;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+async function deleteMaterial(id){
+  try {
+    await PrismMaterials.delete(id);
+    await refreshClassData(activeClassId);
+    renderMaterials(); renderWorkspacePage();
+  } catch(e){ alert(e.message||'Failed to delete material.'); }
+}
+
+/* ═══════════════════════════ ASSIGNMENTS ═══════════════════════════ */
+async function addAssignment(){
+  const title=document.getElementById('asgn-title').value.trim();
+  if(!title){alert('Title is required.');return;}
+  const due=document.getElementById('asgn-due').value;
+  try {
+    await PrismAssignments.add({
+      class_id:activeClassId, title,
+      due: due||null,
+      due_time: null,
+      pts:document.getElementById('asgn-pts').value,
+      type:document.getElementById('asgn-type').value,
+      instructions:document.getElementById('asgn-instructions').value.trim(),
+      target_section: getWorkspaceTargetSectionForApi(),
+    });
+    const dueLine = due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(due) : due;
+    await PrismPosts.add({
+      class_id:activeClassId, teacherId:TEACHER_ID, type:'assignment',
+      body:'New assignment: "'+title+'"'+(due?' · Due '+dueLine:''),
+      author:sessionStorage.getItem('prism_user_name')||'Teacher',
+      target_section: getWorkspaceTargetSectionForApi(),
+    });
+    ['asgn-title','asgn-pts','asgn-instructions','asgn-due'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    await refreshClassData(activeClassId);
+    renderAssignments(); renderWorkspacePage();
+  } catch(e){ alert(e.message||'Failed to create assignment.'); }
+}
+
+function renderAssignments(){
+  loadTeacherAssignmentViewFilter();
+  const a=getAssignments(),list=document.getElementById('assignments-list'),raw=(a[activeClassId]||[]);
+  const items=raw.filter(itemMatchesWorkspaceSectionFilter);
+  populateTeacherAssignmentFilterSelect(items);
+  if(!list) return;
+  if(!items.length){list.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-size:.9rem;">No assignments yet. Create one above.</div>';return;}
+  const displayItems=teacherAssignmentViewFilter==='__all__'?items:items.filter(it=>String(it.id)===teacherAssignmentViewFilter);
+  if(!displayItems.length){
+    list.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-size:.9rem;">No assignment matches this filter. Choose <strong>All assignments</strong> above.</div>';
+    return;
+  }
+  const typeIcons={written:'📝',project:'🎯',lab:'🔬',oral:'🎤'};
+  list.innerHTML=displayItems.map(it=>{
+    const dStr = it.due_date||it.due||'';
+    const overdue = dStr && typeof prismIsPastDue === 'function' ? prismIsPastDue(dStr, null) : false;
+    const dueDisp = dStr && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(dStr) : dStr;
+    return '<div class="asgn-item">'
+      +'<div style="font-size:1.4rem;">'+(typeIcons[it.type]||'📝')+'</div>'
+      +'<div class="asgn-info"><div class="asgn-title">'+it.title+'</div>'
+      +'<div class="asgn-meta">'+(it.points||it.pts?((it.points||it.pts)+' pts · '):'')+((it.target_section&&String(it.target_section).trim())?('<span style="color:#059669;font-weight:700;">'+String(it.target_section).trim()+'</span> · '):'')+(it.instructions?it.instructions.slice(0,60)+'…':'')+'</div></div>'
+      +(dStr?'<div class="asgn-due'+(overdue?' overdue':'')+'">'+( overdue?'⚠ ':'' )+'Due '+dueDisp+'</div>':'')
+      +'<a href="grading.html" style="font-size:.72rem;color:#7c3aed;font-weight:700;white-space:nowrap;text-decoration:none;" title="View submissions and enter scores">🎯 Grading →</a>'
+      +'<button class="mat-del" onclick="deleteAssignment(\''+it.id+'\')">🗑</button>'
+      +'</div>';
+  }).join('');
+}
+
+async function deleteAssignment(id){
+  try {
+    await PrismAssignments.delete(id);
+    await refreshClassData(activeClassId);
+    renderAssignments(); renderWorkspacePage();
+  } catch(e){ alert(e.message||'Failed to delete assignment.'); }
+}
+
+function loadTeacherAssignmentViewFilter() {
+  if (!activeClassId) { teacherAssignmentViewFilter = '__all__'; return; }
+  try {
+    const v = sessionStorage.getItem('prism_teacher_asgn_view_filter_' + activeClassId);
+    teacherAssignmentViewFilter = (v != null && v !== '') ? v : '__all__';
+  } catch (e) { teacherAssignmentViewFilter = '__all__'; }
+}
+function saveTeacherAssignmentViewFilter(id) {
+  teacherAssignmentViewFilter = id;
+  try {
+    if (activeClassId) sessionStorage.setItem('prism_teacher_asgn_view_filter_' + activeClassId, id);
+  } catch (e) { /* ignore */ }
+}
+function populateTeacherAssignmentFilterSelect(items) {
+  const wrap = document.getElementById('teacher-asgn-filter-wrap');
+  const sel = document.getElementById('teacher-asgn-filter-select');
+  if (!wrap || !sel) return;
+  const sorted = items.slice().sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' }));
+  sel.innerHTML = '';
+  const o0 = document.createElement('option');
+  o0.value = '__all__';
+  o0.textContent = 'All assignments';
+  sel.appendChild(o0);
+  sorted.forEach(it => {
+    const o = document.createElement('option');
+    o.value = String(it.id);
+    o.textContent = it.title || 'Untitled';
+    sel.appendChild(o);
+  });
+  const ids = new Set(sorted.map(it => String(it.id)));
+  if (teacherAssignmentViewFilter !== '__all__' && !ids.has(teacherAssignmentViewFilter)) {
+    teacherAssignmentViewFilter = '__all__';
+    saveTeacherAssignmentViewFilter('__all__');
+  }
+  sel.value = teacherAssignmentViewFilter;
+  sel.onchange = () => {
+    saveTeacherAssignmentViewFilter(sel.value);
+    renderAssignments();
+  };
+  wrap.style.display = sorted.length ? 'flex' : 'none';
+}
+
+function loadTeacherMaterialViewFilter() {
+  if (!activeClassId) { teacherMaterialViewFilter = '__all__'; return; }
+  try {
+    const v = sessionStorage.getItem('prism_teacher_mat_view_filter_' + activeClassId);
+    teacherMaterialViewFilter = (v != null && v !== '') ? v : '__all__';
+  } catch (e) { teacherMaterialViewFilter = '__all__'; }
+}
+function saveTeacherMaterialViewFilter(id) {
+  teacherMaterialViewFilter = id;
+  try {
+    if (activeClassId) sessionStorage.setItem('prism_teacher_mat_view_filter_' + activeClassId, id);
+  } catch (e) { /* ignore */ }
+}
+function populateTeacherMaterialFilterSelect(items) {
+  const wrap = document.getElementById('teacher-mat-filter-wrap');
+  const sel = document.getElementById('teacher-mat-filter-select');
+  if (!wrap || !sel) return;
+  const sorted = items.slice().sort((a, b) => String(a.title || '').localeCompare(String(b.title || ''), undefined, { sensitivity: 'base' }));
+  sel.innerHTML = '';
+  const o0 = document.createElement('option');
+  o0.value = '__all__';
+  o0.textContent = 'All materials';
+  sel.appendChild(o0);
+  sorted.forEach(it => {
+    const o = document.createElement('option');
+    o.value = String(it.id);
+    o.textContent = it.title || 'Untitled';
+    sel.appendChild(o);
+  });
+  const ids = new Set(sorted.map(it => String(it.id)));
+  if (teacherMaterialViewFilter !== '__all__' && !ids.has(teacherMaterialViewFilter)) {
+    teacherMaterialViewFilter = '__all__';
+    saveTeacherMaterialViewFilter('__all__');
+  }
+  sel.value = teacherMaterialViewFilter;
+  sel.onchange = () => {
+    saveTeacherMaterialViewFilter(sel.value);
+    renderMaterials();
+  };
+  wrap.style.display = sorted.length ? 'flex' : 'none';
+}
+
+</script>
+
+</body>
+</html>

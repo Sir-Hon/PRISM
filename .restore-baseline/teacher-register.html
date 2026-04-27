@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRISM — Teacher Registration</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root { --prism:#7c3aed; --prism-dark:#6d28d9; --prism-mid:#a78bfa; --teacher:#10b981; --teacher-dark:#059669; }
+    body {
+      min-height:100vh; background:#0a0a0f;
+      display:flex; align-items:center; justify-content:center;
+      font-family:'DM Sans',sans-serif; padding:2rem 1rem;
+    }
+    body::before {
+      content:''; position:fixed; inset:0;
+      background:
+        radial-gradient(ellipse 55% 45% at 20% 30%,rgba(16,185,129,.10) 0%,transparent 60%),
+        radial-gradient(ellipse 45% 40% at 80% 70%,rgba(124,58,237,.08) 0%,transparent 60%);
+      z-index:0; pointer-events:none;
+    }
+    .page { position:relative; z-index:1; width:100%; max-width:500px; }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes popIn { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
+
+    .page-header { text-align:center; margin-bottom:1.8rem; animation:fadeUp .5s ease both; }
+    .logo { display:inline-flex; align-items:center; gap:.55rem; margin-bottom:.6rem; text-decoration:none; }
+    .logo-gem { width:32px; height:32px; background:linear-gradient(135deg,var(--prism),var(--prism-mid)); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
+    .logo-text { font-family:'DM Sans',sans-serif; font-size:1.5rem; font-weight:800; color:#f0f0f5; letter-spacing:-.5px; }
+    .page-title { font-family:'DM Sans',sans-serif; font-size:1.65rem; font-weight:800; color:#f0f0f5; margin-bottom:.3rem; }
+    .page-sub { font-size:.84rem; color:#6b7280; }
+
+    .teacher-badge { display:inline-flex; align-items:center; gap:.4rem; background:rgba(16,185,129,.12); border:1px solid rgba(16,185,129,.3); color:#6ee7b7; border-radius:20px; padding:4px 14px; font-size:.78rem; font-weight:700; margin-bottom:1.4rem; }
+
+    .reg-card { background:#13131a; border:1.5px solid #22222e; border-radius:24px; padding:2rem 1.8rem; animation:fadeUp .5s ease .1s both; }
+
+    .notice { background:rgba(16,185,129,.07); border:1px solid rgba(16,185,129,.2); border-radius:12px; padding:.8rem 1rem; margin-bottom:1.4rem; font-size:.8rem; color:#9ca3af; line-height:1.6; }
+    .notice strong { color:#6ee7b7; }
+
+    /* Invite code step */
+    .step { display:none; }
+    .step.active { display:block; animation:fadeUp .4s ease; }
+
+    .step-indicator { display:flex; align-items:center; gap:.5rem; margin-bottom:1.5rem; }
+    .step-dot { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:.8rem; font-weight:800; font-family:'DM Sans',sans-serif; transition:all .3s; flex-shrink:0; }
+    .step-dot.done    { background:var(--teacher); color:white; }
+    .step-dot.current { background:rgba(16,185,129,.2); color:var(--teacher); border:2px solid var(--teacher); }
+    .step-dot.pending { background:#1a1a24; color:#4b5563; border:2px solid #22222e; }
+    .step-line { flex:1; height:2px; background:#22222e; }
+    .step-line.done { background:var(--teacher); }
+
+    .invite-input-wrap { position:relative; margin-bottom:1rem; }
+    .invite-input { width:100%; background:#0e0e16; border:2px solid #22222e; border-radius:14px; padding:1rem 1.2rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:700; letter-spacing:.12em; outline:none; text-align:center; transition:border-color .2s; text-transform:uppercase; }
+    .invite-input:focus { border-color:var(--teacher); }
+    .invite-input.valid  { border-color:var(--teacher); background:rgba(16,185,129,.05); }
+    .invite-input.error  { border-color:#ef4444; background:rgba(239,68,68,.05); }
+    .invite-hint { font-size:.75rem; text-align:center; color:#6b7280; margin-bottom:1.2rem; }
+    .invite-hint a { color:var(--prism-mid); text-decoration:none; }
+    .invite-hint a:hover { text-decoration:underline; }
+
+    .verify-btn { width:100%; padding:.8rem; border:none; border-radius:12px; background:var(--teacher); color:#fff; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:700; cursor:pointer; transition:opacity .2s; }
+    .verify-btn:hover { opacity:.85; }
+    .verify-btn.loading { opacity:.55; pointer-events:none; }
+    .verify-msg { font-size:.8rem; text-align:center; margin-top:.6rem; min-height:1.1em; }
+    .verify-msg.error { color:#f87171; }
+    .verify-msg.success { color:#34d399; }
+
+    .fields-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .field.full { grid-column:1/-1; }
+    .field label { display:block; font-size:.73rem; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.42rem; }
+    .field input { width:100%; background:#0e0e16; border:1.5px solid #22222e; border-radius:10px; padding:.7rem .9rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:.9rem; outline:none; transition:border-color .2s; }
+    .field input:focus { border-color:var(--teacher); }
+    .field input.read-only { opacity:.6; pointer-events:none; }
+
+    .pw-wrap { position:relative; }
+    .pw-toggle { position:absolute; right:.75rem; top:50%; transform:translateY(-50%); background:none; border:none; color:#6b7280; cursor:pointer; font-size:.95rem; padding:0; }
+
+    .submit-btn { width:100%; padding:.82rem; border:none; border-radius:12px; background:var(--teacher); color:#fff; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:700; cursor:pointer; margin-top:1.5rem; transition:opacity .2s,transform .15s; }
+    .submit-btn:hover { opacity:.88; transform:translateY(-1px); }
+    .submit-btn.loading { opacity:.55; pointer-events:none; }
+
+    .msg { font-size:.8rem; margin-top:.7rem; text-align:center; min-height:1em; }
+    .msg.error { color:#f87171; }
+    .msg.success { color:#34d399; }
+
+    .success-screen { display:none; flex-direction:column; align-items:center; text-align:center; gap:.7rem; padding:.5rem 0; animation:fadeUp .4s ease; }
+    .check-icon { width:64px; height:64px; background:rgba(16,185,129,.12); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin-bottom:.3rem; }
+    .success-screen h3 { font-family:'DM Sans',sans-serif; font-size:1.25rem; font-weight:800; color:#f0f0f5; }
+    .success-screen p  { font-size:.84rem; color:#9ca3af; line-height:1.65; margin:0; }
+    .id-box { background:#0e0e16; border:1px solid #22222e; border-radius:10px; padding:.55rem 1.4rem; font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:700; color:var(--teacher); letter-spacing:.05em; margin:.2rem 0; }
+    .go-btn { width:100%; padding:.78rem; border:none; border-radius:12px; background:var(--teacher); color:#fff; font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:700; cursor:pointer; margin-top:.5rem; }
+
+    .login-link { text-align:center; margin-top:1.2rem; font-size:.82rem; color:#6b7280; animation:fadeUp .5s ease .2s both; }
+    .login-link a { color:var(--prism-mid); font-weight:600; text-decoration:none; }
+    .login-link a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+<script src="api.js"></script>
+<div class="page">
+  <div class="page-header">
+    <a class="logo" href="login.html"><div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div><span class="logo-text">PRISM</span></a>
+    <h1 class="page-title">Teacher Registration</h1>
+    <p class="page-sub">Use your invite code to create a teacher account</p>
+  </div>
+
+  <div class="reg-card" id="reg-card">
+    <!-- Step indicator -->
+    <div class="step-indicator">
+      <div class="step-dot current" id="dot-1">1</div>
+      <div class="step-line" id="line-1"></div>
+      <div class="step-dot pending" id="dot-2">2</div>
+    </div>
+
+    <!-- STEP 1: Verify invite code -->
+    <div class="step active" id="step-1">
+      <div class="notice">
+        <strong>Invite code required.</strong> Teacher accounts require a valid invite code generated by the portal administrator. Contact your admin if you don't have one.
+      </div>
+      <!-- dummy hidden inputs trick browsers into autofilling these instead of the real field -->
+      <input type="text" name="username" style="display:none" aria-hidden="true" tabindex="-1"/>
+      <input type="password" name="password" style="display:none" aria-hidden="true" tabindex="-1"/>
+      <input class="invite-input" id="invite-code-input" name="prism_ic_x9z2" value="" maxlength="7" autocomplete="new-password" autocorrect="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXXXX" oninput="formatInviteInput(this)"/>
+      <p class="invite-hint">Enter the 7-character invite code from your admin. <a href="login.html">Already have an account?</a></p>
+      <button class="verify-btn" id="verify-btn" onclick="verifyInviteCode()">Verify Code →</button>
+      <div class="verify-msg" id="verify-msg"></div>
+    </div>
+
+    <!-- STEP 2: Fill in details -->
+    <div class="step" id="step-2">
+      <div class="notice" id="code-success-notice"></div>
+      <div class="fields-grid" id="reg-form">
+        <div class="field"><label>First Name</label><input type="text" id="f-firstname" placeholder="e.g. Maria" autocomplete="off"/></div>
+        <div class="field"><label>Last Name</label><input type="text" id="f-lastname" placeholder="e.g. Santos" autocomplete="off"/></div>
+        <div class="field full">
+          <label>Teacher ID / Username</label>
+          <input type="text" id="f-id" placeholder="e.g. 2024-00005" autocomplete="off"/>
+          <p style="font-size:.7rem;color:#6b7280;margin-top:.25rem;">This will be your login username.</p>
+        </div>
+        <div class="field full"><label>Department / Subject Area</label><input type="text" id="f-section" placeholder="e.g. College of Engineering" autocomplete="off"/></div>
+        <div class="field full">
+          <label>Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="f-pw" placeholder="Create a password (min. 6 chars)"/>
+            <button class="pw-toggle" type="button" onclick="togglePw('f-pw',this)">👁</button>
+          </div>
+        </div>
+        <div class="field full">
+          <label>Confirm Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="f-pw2" placeholder="Re-enter your password"/>
+            <button class="pw-toggle" type="button" onclick="togglePw('f-pw2',this)">👁</button>
+          </div>
+        </div>
+      </div>
+      <button class="submit-btn" id="reg-btn" onclick="handleRegister()">Create Teacher Account</button>
+      <div class="msg" id="reg-msg"></div>
+    </div>
+
+    <!-- Success -->
+    <div class="success-screen" id="success-screen">
+      <div class="check-icon">✅</div>
+      <h3>Welcome to PRISM!</h3>
+      <p>Your teacher account has been created.<br/>Your login ID is:</p>
+      <div class="id-box" id="success-id"></div>
+      <p style="font-size:.76rem;">Save your ID — you'll need it every time you log in as a teacher.</p>
+      <button class="go-btn" onclick="window.location.href='login.html'">Go to Login →</button>
+    </div>
+  </div>
+
+  <p class="login-link">Already have an account? <a href="login.html">Sign in here</a></p>
+</div>
+
+<script>
+  if (sessionStorage.getItem('prism_logged_in') === 'true') {
+    window.location.replace(sessionStorage.getItem('prism_role') === 'teacher' ? 'teacher.html' : 'index.html');
+  }
+
+  const DEFAULT_IDS = ['admin001','2024-00001','2024-00002','2024-00003','2024-00004','2024-10001','2024-10002','2024-10003','2024-10004'];
+  let verifiedCode = null;
+  let verifiedRole = null;
+
+  // Force clear invite input on load — prevents browser autofill showing cached code
+  function clearInviteInput() {
+    const el = document.getElementById('invite-code-input');
+    if (el) { el.value = ''; el.removeAttribute('value'); }
+  }
+  window.addEventListener('DOMContentLoaded', clearInviteInput);
+  // Also clear after short delays — some browsers autofill after DOMContentLoaded
+  setTimeout(clearInviteInput, 100);
+  setTimeout(clearInviteInput, 400);
+
+  function formatInviteInput(el) {
+    el.value = el.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7);
+    el.classList.remove('valid', 'error');
+  }
+
+  function togglePw(id, btn) {
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+  }
+
+  async function verifyInviteCode() {
+    const inputCode = document.getElementById('invite-code-input').value.trim().toUpperCase().replace(/-/g,'');
+    const msg = document.getElementById('verify-msg');
+    const btn = document.getElementById('verify-btn');
+    const el  = document.getElementById('invite-code-input');
+
+    if (!inputCode || inputCode.length !== 7) { msg.textContent = 'Please enter the full 7-character invite code.'; msg.className = 'verify-msg error'; return; }
+
+    btn.classList.add('loading'); btn.textContent = 'Verifying…';
+
+    try {
+      // Just store the code for use in registration — actual validation happens server-side
+      btn.classList.remove('loading'); btn.textContent = 'Verify Code →';
+      el.classList.add('valid');
+      verifiedCode = inputCode;
+      msg.textContent = '✅ Code accepted!'; msg.className = 'verify-msg success';
+
+      setTimeout(() => {
+        document.getElementById('step-1').classList.remove('active');
+        document.getElementById('step-2').classList.add('active');
+        document.getElementById('dot-1').className = 'step-dot done'; document.getElementById('dot-1').textContent = '✓';
+        document.getElementById('line-1').className = 'step-line done';
+        document.getElementById('dot-2').className = 'step-dot current';
+        document.getElementById('code-success-notice').innerHTML = '<strong style="color:#6ee7b7;">✅ Code accepted.</strong> Fill in your details to complete registration as a <strong>teacher</strong>.';
+        document.getElementById('f-firstname').focus();
+      }, 700);
+    } catch(e) {
+      btn.classList.remove('loading'); btn.textContent = 'Verify Code →';
+      el.classList.add('error');
+      msg.textContent = e.message || 'Invalid code.'; msg.className = 'verify-msg error';
+    }
+  }
+
+  function showMsg(t, type) { const el = document.getElementById('reg-msg'); el.textContent = t; el.className = 'msg ' + type; }
+
+  async function handleRegister() {
+    const fn  = document.getElementById('f-firstname').value.trim();
+    const ln  = document.getElementById('f-lastname').value.trim();
+    const id  = document.getElementById('f-id').value.trim();
+    const pw  = document.getElementById('f-pw').value;
+    const pw2 = document.getElementById('f-pw2').value;
+
+    if (!fn)           { showMsg('Please enter your first name.','error'); return; }
+    if (!ln)           { showMsg('Please enter your last name.','error'); return; }
+    if (!id)           { showMsg('Please enter your teacher ID.','error'); return; }
+    if (id.length < 4) { showMsg('ID must be at least 4 characters.','error'); return; }
+    if (!pw)           { showMsg('Please create a password.','error'); return; }
+    if (pw.length < 6) { showMsg('Password must be at least 6 characters.','error'); return; }
+    if (pw !== pw2)    { showMsg('Passwords do not match.','error'); return; }
+
+    const btn = document.getElementById('reg-btn');
+    btn.classList.add('loading'); btn.textContent = 'Creating account…';
+
+    try {
+      await PrismAuth.registerTeacher(id, pw, fn + ' ' + ln, verifiedCode);
+      document.getElementById('reg-form').style.display = 'none';
+      btn.style.display = 'none';
+      document.getElementById('reg-msg').style.display = 'none';
+      document.getElementById('code-success-notice').style.display = 'none';
+      document.getElementById('success-id').textContent = id;
+      document.getElementById('success-screen').style.display = 'flex';
+    } catch(e) {
+      btn.classList.remove('loading'); btn.textContent = 'Create Teacher Account';
+      showMsg(e.message || 'Registration failed. Please try again.', 'error');
+    }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (document.getElementById('step-1').classList.contains('active')) verifyInviteCode();
+      else if (document.getElementById('step-2').classList.contains('active')) handleRegister();
+    }
+  });
+</script>
+</body>
+</html>

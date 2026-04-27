@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- No descriptive title — intentionally vague -->
+  <title>PRISM — Portal Setup</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+  <script src="api.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --prism:#7c3aed; --prism-mid:#a78bfa;
+      --admin:#f59e0b; --admin-dark:#d97706; --admin-light:rgba(245,158,11,.12);
+    }
+
+    body {
+      min-height:100vh; background:#0a0a0f;
+      display:flex; align-items:center; justify-content:center;
+      font-family:'DM Sans',sans-serif; padding:2rem 1rem;
+    }
+
+    body::before {
+      content:''; position:fixed; inset:0;
+      background:
+        radial-gradient(ellipse 55% 40% at 15% 30%, rgba(245,158,11,.08) 0%, transparent 60%),
+        radial-gradient(ellipse 40% 35% at 85% 70%, rgba(124,58,237,.07) 0%, transparent 60%);
+      z-index:0; pointer-events:none;
+    }
+
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes popIn  { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
+    @keyframes shake  { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-8px)} 40%,80%{transform:translateX(8px)} }
+
+    .page { position:relative; z-index:1; width:100%; max-width:480px; }
+
+    /* ── HEADER ── */
+    .page-header { text-align:center; margin-bottom:1.8rem; animation:fadeUp .5s ease both; }
+    .logo { display:inline-flex; align-items:center; gap:.55rem; margin-bottom:.7rem; text-decoration:none; }
+    .logo-gem {
+      width:34px; height:34px;
+      background:linear-gradient(135deg,var(--admin),var(--admin-dark));
+      border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;
+    }
+    .logo-text { font-family:'DM Sans',sans-serif; font-size:1.5rem; font-weight:800; color:#f0f0f5; letter-spacing:-.5px; }
+    .page-title { font-family:'DM Sans',sans-serif; font-size:1.6rem; font-weight:800; color:#f0f0f5; margin-bottom:.3rem; }
+    .page-sub   { font-size:.83rem; color:#6b7280; }
+
+    .admin-badge {
+      display:inline-flex; align-items:center; gap:.4rem;
+      background:var(--admin-light); border:1px solid rgba(245,158,11,.3);
+      color:#fcd34d; border-radius:20px; padding:4px 14px;
+      font-size:.78rem; font-weight:700; margin-bottom:1.4rem;
+    }
+
+    /* ── CARD ── */
+    .reg-card {
+      background:#13131a; border:1.5px solid #22222e; border-radius:24px;
+      padding:2rem 1.8rem; animation:fadeUp .5s ease .1s both;
+    }
+
+    /* ── STEP INDICATOR ── */
+    .step-indicator { display:flex; align-items:center; gap:.5rem; margin-bottom:1.6rem; }
+    .step-dot {
+      width:28px; height:28px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center;
+      font-size:.8rem; font-weight:800; font-family:'DM Sans',sans-serif;
+      transition:all .3s; flex-shrink:0;
+    }
+    .step-dot.done    { background:var(--admin); color:#1a1000; }
+    .step-dot.current { background:var(--admin-light); color:var(--admin); border:2px solid var(--admin); }
+    .step-dot.pending { background:#1a1a24; color:#4b5563; border:2px solid #22222e; }
+    .step-line { flex:1; height:2px; background:#22222e; }
+    .step-line.done { background:var(--admin); }
+
+    /* ── STEPS ── */
+    .step { display:none; }
+    .step.active { display:block; animation:fadeUp .35s ease; }
+
+    /* ── SECURITY NOTICE ── */
+    .security-notice {
+      background:rgba(245,158,11,.06); border:1px solid rgba(245,158,11,.2);
+      border-radius:12px; padding:.9rem 1.1rem; margin-bottom:1.4rem;
+      font-size:.8rem; color:#9ca3af; line-height:1.65;
+    }
+    .security-notice strong { color:#fcd34d; }
+    .security-notice .threat-row { display:flex; align-items:flex-start; gap:.5rem; margin-top:.5rem; font-size:.75rem; color:#6b7280; }
+    .threat-row span { color:#f59e0b; flex-shrink:0; }
+
+    /* ── INPUT GROUP ── */
+    .input-group { margin-bottom:1.1rem; }
+    .input-group label {
+      display:block; font-size:.73rem; font-weight:600; color:#9ca3af;
+      text-transform:uppercase; letter-spacing:.09em; margin-bottom:.45rem;
+    }
+    .input-wrap { position:relative; }
+    .field-input {
+      width:100%; background:#0e0e16; border:1.5px solid #22222e;
+      border-radius:11px; padding:.75rem 1rem; color:#f0f0f5;
+      font-family:'DM Sans',sans-serif; font-size:.92rem;
+      outline:none; transition:border-color .2s, background .2s;
+    }
+    .field-input:focus { border-color:var(--admin); background:#110f00; }
+    .field-input.valid { border-color:#22c55e; background:rgba(34,197,94,.04); }
+    .field-input.err   { border-color:#ef4444; animation:shake .4s ease; }
+    .field-input.code-style {
+      font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:700;
+      letter-spacing:.15em; text-align:center; text-transform:uppercase;
+    }
+    .pw-eye {
+      position:absolute; right:.85rem; top:50%; transform:translateY(-50%);
+      background:none; border:none; color:#6b7280; cursor:pointer; font-size:.95rem;
+    }
+    .pw-eye:hover { color:#d1d5db; }
+    .field-hint { font-size:.7rem; color:#6b7280; margin-top:.28rem; }
+
+    /* passphrase strength bar */
+    .pp-strength { margin-top:.4rem; display:none; }
+    .pp-bar { height:3px; border-radius:4px; background:#22222e; overflow:hidden; }
+    .pp-fill { height:100%; border-radius:4px; transition:width .3s,background .3s; width:0; }
+    .pp-label { font-size:.68rem; margin-top:.22rem; color:#6b7280; }
+
+    /* ── VERIFY BUTTON ── */
+    .action-btn {
+      width:100%; padding:.8rem; border:none; border-radius:12px;
+      background:linear-gradient(135deg,var(--admin),var(--admin-dark));
+      color:#0a0500; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:800;
+      cursor:pointer; transition:opacity .2s, transform .15s; margin-top:.4rem;
+    }
+    .action-btn:hover   { opacity:.88; transform:translateY(-1px); }
+    .action-btn.loading { opacity:.55; pointer-events:none; }
+
+    /* ── FEEDBACK ── */
+    .feedback { font-size:.8rem; text-align:center; margin-top:.6rem; min-height:1.1em; }
+    .feedback.err  { color:#f87171; }
+    .feedback.ok   { color:#4ade80; }
+
+    /* ── FIELDS GRID ── */
+    .fields-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .fg-full     { grid-column:1/-1; }
+
+    /* ── ATTEMPTS TRACKER ── */
+    .attempts-bar {
+      display:flex; gap:.35rem; margin-bottom:1.2rem;
+    }
+    .attempt-pip {
+      flex:1; height:4px; border-radius:4px; background:#22222e;
+      transition:background .3s;
+    }
+    .attempt-pip.used { background:#ef4444; }
+
+    /* ── LOCKOUT SCREEN ── */
+    .lockout-screen {
+      display:none; flex-direction:column; align-items:center;
+      text-align:center; gap:.8rem; padding:.5rem 0;
+    }
+    .lockout-screen.active { display:flex; animation:fadeUp .4s ease; }
+    .lockout-icon { font-size:3rem; margin-bottom:.3rem; }
+
+    /* ── SUCCESS ── */
+    .success-screen {
+      display:none; flex-direction:column; align-items:center;
+      text-align:center; gap:.7rem; padding:.5rem 0;
+    }
+    .success-screen.active { display:flex; animation:popIn .4s cubic-bezier(.34,1.56,.64,1); }
+    .check-ring {
+      width:70px; height:70px;
+      background:var(--admin-light); border:2px solid var(--admin);
+      border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:2rem;
+      margin-bottom:.3rem;
+    }
+    .success-screen h3 { font-family:'DM Sans',sans-serif; font-size:1.25rem; font-weight:800; color:#f0f0f5; }
+    .success-screen p  { font-size:.84rem; color:#9ca3af; line-height:1.65; margin:0; }
+    .id-box {
+      background:#0e0e16; border:1px solid #2a2a1a;
+      border-radius:10px; padding:.55rem 1.4rem;
+      font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:700;
+      color:var(--admin); letter-spacing:.05em; margin:.2rem 0;
+    }
+    .go-btn {
+      width:100%; padding:.78rem; border:none; border-radius:12px;
+      background:linear-gradient(135deg,var(--admin),var(--admin-dark));
+      color:#0a0500; font-family:'DM Sans',sans-serif; font-size:.95rem;
+      font-weight:800; cursor:pointer; margin-top:.5rem; transition:opacity .2s;
+    }
+    .go-btn:hover { opacity:.88; }
+
+    /* ── AUDIT LOG STRIP ── */
+    .audit-strip {
+      background:rgba(245,158,11,.04); border:1px solid rgba(245,158,11,.1);
+      border-radius:10px; padding:.65rem 1rem; margin-top:1.2rem;
+      font-size:.72rem; color:#6b7280; line-height:1.6;
+    }
+    .audit-strip strong { color:#9ca3af; }
+
+    .back-link { text-align:center; margin-top:1.2rem; font-size:.82rem; color:#6b7280; animation:fadeUp .5s ease .2s both; }
+    .back-link a { color:#9ca3af; text-decoration:none; font-weight:600; }
+    .back-link a:hover { color:#f0f0f5; }
+  </style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-header">
+    <a class="logo" href="login.html">
+      <div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>
+      <span class="logo-text">PRISM</span>
+    </a>
+    <h1 class="page-title">Admin Registration</h1>
+    <p class="page-sub">Restricted access — authorized personnel only</p>
+  </div>
+
+  <div class="reg-card" id="reg-card">
+    <div style="text-align:center"><span class="admin-badge">🛡️ Admin Account</span></div>
+
+    <!-- Step dots -->
+    <div class="step-indicator">
+      <div class="step-dot current" id="dot-1">1</div>
+      <div class="step-line" id="line-1"></div>
+      <div class="step-dot pending" id="dot-2">2</div>
+      <div class="step-line" id="line-2"></div>
+      <div class="step-dot pending" id="dot-3">3</div>
+    </div>
+
+    <!-- Attempt pips -->
+    <div class="attempts-bar" id="attempts-bar">
+      <div class="attempt-pip" id="pip-1"></div>
+      <div class="attempt-pip" id="pip-2"></div>
+      <div class="attempt-pip" id="pip-3"></div>
+      <div class="attempt-pip" id="pip-4"></div>
+      <div class="attempt-pip" id="pip-5"></div>
+    </div>
+
+    <!-- ══ STEP 1: Invite Code ══ -->
+    <div class="step active" id="step-1">
+      <div class="security-notice">
+        <strong>🔒 Restricted registration.</strong> This page is for portal administrators only. Two credentials are required:
+        <div class="threat-row"><span>①</span> An admin-role invite code generated inside the portal</div>
+        <div class="threat-row"><span>②</span> The portal-wide admin passphrase set by your admin</div>
+        Unauthorized attempts are tracked.
+      </div>
+
+      <div class="input-group">
+        <label>Admin Invite Code</label>
+        <input class="field-input code-style" id="invite-input"
+               placeholder="XXXX-XXXX-XXXX" maxlength="14"
+               oninput="fmtCode(this)" autocomplete="off"/>
+        <div class="field-hint">12-character code provided by your administrator. Admin-role codes only.</div>
+      </div>
+
+      <button class="action-btn" id="btn-step1" onclick="verifyCode()">Verify Invite Code →</button>
+      <div class="feedback" id="fb-step1"></div>
+    </div>
+
+    <!-- ══ STEP 2: Portal Passphrase ══ -->
+    <div class="step" id="step-2">
+      <div class="security-notice">
+        <strong>🔑 Step 2 of 3:</strong> Enter the portal passphrase. This is set by your administrator in the portal management panel. It is <strong>not</strong> the same as any account password.
+      </div>
+
+      <div class="input-group">
+        <label>Portal Admin Passphrase</label>
+        <div class="input-wrap">
+          <input class="field-input" type="password" id="passphrase-input"
+                 placeholder="Enter the passphrase…" autocomplete="off"/>
+          <button class="pw-eye" type="button" onclick="toggleEye('passphrase-input',this)">👁</button>
+        </div>
+        <div class="field-hint">Case-sensitive. Ask your admin if you don't have it.</div>
+      </div>
+
+      <button class="action-btn" id="btn-step2" onclick="verifyPassphrase()">Verify Passphrase →</button>
+      <div class="feedback" id="fb-step2"></div>
+    </div>
+
+    <!-- ══ STEP 3: Account Details ══ -->
+    <div class="step" id="step-3">
+      <div class="security-notice" id="s3-notice"></div>
+
+      <div class="fields-grid">
+        <div class="input-group"><label>First Name</label><input class="field-input" type="text" id="fn" placeholder="Juan" autocomplete="off"/></div>
+        <div class="input-group"><label>Last Name</label><input class="field-input" type="text" id="ln" placeholder="Dela Cruz" autocomplete="off"/></div>
+        <div class="input-group fg-full">
+          <label>Admin ID / Username</label>
+          <input class="field-input" type="text" id="uid" placeholder="e.g. admin002" autocomplete="off"/>
+          <div class="field-hint">This will be your login username. Must be unique.</div>
+        </div>
+        <div class="input-group fg-full">
+          <label>Department / Office</label>
+          <input class="field-input" type="text" id="dept" placeholder="e.g. IT Department" autocomplete="off"/>
+        </div>
+        <div class="input-group fg-full">
+          <label>Password</label>
+          <div class="input-wrap">
+            <input class="field-input" type="password" id="pw1" placeholder="Minimum 8 characters" oninput="checkPwStrength()"/>
+            <button class="pw-eye" type="button" onclick="toggleEye('pw1',this)">👁</button>
+          </div>
+          <div class="pp-strength" id="pp-strength">
+            <div class="pp-bar"><div class="pp-fill" id="pp-fill"></div></div>
+            <div class="pp-label" id="pp-label"></div>
+          </div>
+        </div>
+        <div class="input-group fg-full">
+          <label>Confirm Password</label>
+          <div class="input-wrap">
+            <input class="field-input" type="password" id="pw2" placeholder="Re-enter password" oninput="checkConfirm()"/>
+            <button class="pw-eye" type="button" onclick="toggleEye('pw2',this)">👁</button>
+          </div>
+        </div>
+      </div>
+
+      <button class="action-btn" id="btn-step3" onclick="createAdmin()">Create Admin Account</button>
+      <div class="feedback" id="fb-step3"></div>
+
+      <div class="audit-strip">
+        <strong>🔍 Audit notice:</strong> Admin account creations are logged with timestamp, IP approximation, and invite code used. This registration is traceable.
+      </div>
+    </div>
+
+    <!-- ══ LOCKOUT ══ -->
+    <div class="lockout-screen" id="lockout-screen">
+      <div class="lockout-icon">🔒</div>
+      <h3 style="font-family:'DM Sans',sans-serif;font-size:1.2rem;font-weight:800;color:#f0f0f5;">Too Many Attempts</h3>
+      <p style="font-size:.85rem;color:#6b7280;max-width:300px;line-height:1.65;">This registration page has been locked after too many failed attempts. Please contact your administrator.</p>
+      <a href="login.html" style="margin-top:.5rem;color:#9ca3af;font-size:.82rem;text-decoration:none;">← Return to login</a>
+    </div>
+
+    <!-- ══ SUCCESS ══ -->
+    <div class="success-screen" id="success-screen">
+      <div class="check-ring">🛡️</div>
+      <h3>Admin Account Created</h3>
+      <p>Your administrator account has been registered.<br/>Your login ID is:</p>
+      <div class="id-box" id="success-id"></div>
+      <p style="font-size:.76rem;">This account has elevated privileges. Keep your credentials secure.</p>
+      <button class="go-btn" onclick="window.location.href='login.html'">Go to Login →</button>
+    </div>
+
+  </div>
+
+  <p class="back-link"><a href="login.html">← Back to login</a></p>
+</div>
+
+<script>
+  /* ── Redirect if already logged in ── */
+  if (sessionStorage.getItem('prism_logged_in') === 'true') {
+    window.location.replace(sessionStorage.getItem('prism_role') === 'admin' ? 'manage.html' : 'login.html');
+  }
+
+  /* ── State ── */
+  const MAX_TOTAL_ATTEMPTS = 5;
+  let totalAttempts = parseInt(sessionStorage.getItem('prism_admin_reg_attempts') || '0');
+  let verifiedCode  = null;
+  let currentStep   = 1;
+
+  const DEFAULT_IDS = ['admin001','2024-00001','2024-00002','2024-00003','2024-00004',
+                       '2024-10001','2024-10002','2024-10003','2024-10004'];
+
+  /* ── On load: check if already locked ── */
+  window.addEventListener('DOMContentLoaded', () => {
+    updatePips();
+    if (totalAttempts >= MAX_TOTAL_ATTEMPTS) showLockout();
+  });
+
+  /* ── Attempt tracking ── */
+  function recordAttempt() {
+    totalAttempts++;
+    sessionStorage.setItem('prism_admin_reg_attempts', totalAttempts);
+    updatePips();
+    if (totalAttempts >= MAX_TOTAL_ATTEMPTS) {
+      setTimeout(showLockout, 600);
+      return true; // locked
+    }
+    return false;
+  }
+
+  function updatePips() {
+    for (let i = 1; i <= 5; i++) {
+      const pip = document.getElementById('pip-' + i);
+      if (pip) pip.classList.toggle('used', i <= totalAttempts);
+    }
+  }
+
+  function showLockout() {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.getElementById('attempts-bar').style.display = 'none';
+    document.getElementById('step-indicator') && (document.getElementById('step-indicator').style.display = 'none');
+    document.querySelector('.step-indicator').style.display = 'none';
+    document.getElementById('lockout-screen').classList.add('active');
+  }
+
+  /* ── Helpers ── */
+  function fmtCode(el) {
+    let v = el.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    if (v.length > 4) v = v.slice(0,4)+'-'+v.slice(4);
+    if (v.length > 9) v = v.slice(0,9)+'-'+v.slice(9);
+    el.value = v.slice(0,14);
+    el.classList.remove('valid','err');
+  }
+
+  function toggleEye(id, btn) {
+    const el = document.getElementById(id);
+    el.type = el.type === 'password' ? 'text' : 'password';
+    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+  }
+
+  function setFb(id, msg, type) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.className = 'feedback ' + type;
+  }
+
+  function stepToNext(from, to) {
+    document.getElementById('step-' + from).classList.remove('active');
+    document.getElementById('dot-' + from).className = 'step-dot done';
+    document.getElementById('dot-' + from).textContent = '✓';
+    if (from < 3) {
+      document.getElementById('line-' + from).className = 'step-line done';
+    }
+    document.getElementById('dot-' + to).className = 'step-dot current';
+    document.getElementById('step-' + to).classList.add('active');
+    currentStep = to;
+  }
+
+  /* ── STEP 1: Invite Code ── */
+  function verifyCode() {
+    const raw = document.getElementById('invite-input').value.trim().toUpperCase();
+    const el  = document.getElementById('invite-input');
+    const btn = document.getElementById('btn-step1');
+
+    if (raw.length < 14) { setFb('fb-step1','Enter the full 12-character code.','err'); el.classList.add('err'); setTimeout(()=>el.classList.remove('err'),600); return; }
+
+    btn.classList.add('loading'); btn.textContent = 'Verifying…';
+
+    setTimeout(() => {
+      btn.classList.remove('loading'); btn.textContent = 'Verify Invite Code →';
+
+      const codes = JSON.parse(localStorage.getItem('prism_invite_codes') || '[]');
+      const code  = codes.find(c => c.code.toUpperCase() === raw);
+
+      if (!code) {
+        el.classList.add('err'); setTimeout(()=>el.classList.remove('err'),600);
+        setFb('fb-step1','❌ Invalid invite code.','err');
+        if (recordAttempt()) return;
+        return;
+      }
+      if (code.used) {
+        el.classList.add('err');
+        setFb('fb-step1','❌ This code has already been used.','err');
+        if (recordAttempt()) return;
+        return;
+      }
+      if (code.expires && Date.now() > code.expires) {
+        el.classList.add('err');
+        setFb('fb-step1','❌ This code has expired.','err');
+        if (recordAttempt()) return;
+        return;
+      }
+      if (code.role !== 'admin') {
+        el.classList.add('err');
+        setFb('fb-step1','❌ This code is not for an admin account.','err');
+        if (recordAttempt()) return;
+        return;
+      }
+
+      // Valid admin code
+      verifiedCode = raw;
+      el.classList.add('valid');
+      setFb('fb-step1','✅ Code verified — proceed to passphrase.','ok');
+      setTimeout(() => stepToNext(1, 2), 700);
+    }, 700);
+  }
+
+  /* ── STEP 2: Portal Passphrase ── */
+  function verifyPassphrase() {
+    const input = document.getElementById('passphrase-input').value;
+    const el    = document.getElementById('passphrase-input');
+    const btn   = document.getElementById('btn-step2');
+
+    if (!input.trim()) { setFb('fb-step2','Please enter the passphrase.','err'); return; }
+
+    btn.classList.add('loading'); btn.textContent = 'Verifying…';
+
+    setTimeout(() => {
+      btn.classList.remove('loading'); btn.textContent = 'Verify Passphrase →';
+
+      const storedPP = localStorage.getItem('prism_admin_passphrase');
+
+      if (!storedPP) {
+        // No passphrase has been set — block registration
+        el.classList.add('err'); setTimeout(()=>el.classList.remove('err'),600);
+        setFb('fb-step2','❌ No admin passphrase has been configured. Ask your administrator to set one in the portal.','err');
+        if (recordAttempt()) return;
+        return;
+      }
+
+      if (input !== storedPP) {
+        el.classList.add('err'); setTimeout(()=>el.classList.remove('err'),600);
+        const left = MAX_TOTAL_ATTEMPTS - totalAttempts - 1;
+        setFb('fb-step2',`❌ Incorrect passphrase. ${left > 0 ? left+' attempt'+(left!==1?'s':'')+' remaining.' : 'Last attempt.'}`, 'err');
+        if (recordAttempt()) return;
+        el.value = '';
+        return;
+      }
+
+      el.classList.add('valid');
+      setFb('fb-step2','✅ Passphrase accepted.','ok');
+
+      document.getElementById('s3-notice').innerHTML =
+        '<strong style="color:#fcd34d;">✅ Both credentials verified.</strong> Complete your account details below.';
+
+      setTimeout(() => stepToNext(2, 3), 700);
+    }, 600);
+  }
+
+  /* ── STEP 3: Create Account ── */
+  function checkPwStrength() {
+    const pw = document.getElementById('pw1').value;
+    const wrap = document.getElementById('pp-strength');
+    if (!pw) { wrap.style.display='none'; return; }
+    wrap.style.display = 'block';
+    let s = 0;
+    if (pw.length >= 8)  s++;
+    if (pw.length >= 12) s++;
+    if (/[A-Z]/.test(pw)) s++;
+    if (/[0-9]/.test(pw)) s++;
+    if (/[^A-Za-z0-9]/.test(pw)) s++;
+    const L = [
+      {pct:'20%',c:'#ef4444',t:'Very weak'},
+      {pct:'40%',c:'#f97316',t:'Weak'},
+      {pct:'60%',c:'#f59e0b',t:'Fair'},
+      {pct:'80%',c:'#84cc16',t:'Strong'},
+      {pct:'100%',c:'#22c55e',t:'Very strong'}
+    ];
+    const l = L[Math.min(s-1,4)] || L[0];
+    document.getElementById('pp-fill').style.width = l.pct;
+    document.getElementById('pp-fill').style.background = l.c;
+    document.getElementById('pp-label').textContent = l.t;
+    document.getElementById('pp-label').style.color = l.c;
+  }
+
+  function checkConfirm() {
+    const pw  = document.getElementById('pw1').value;
+    const el  = document.getElementById('pw2');
+    if (!el.value) { el.className='field-input'; return; }
+    el.classList.toggle('valid', pw === el.value);
+    el.classList.toggle('err',   pw !== el.value);
+  }
+
+  function createAdmin() {
+    const fn   = document.getElementById('fn').value.trim();
+    const ln   = document.getElementById('ln').value.trim();
+    const uid  = document.getElementById('uid').value.trim();
+    const dept = document.getElementById('dept').value.trim();
+    const pw1  = document.getElementById('pw1').value;
+    const pw2  = document.getElementById('pw2').value;
+    const btn  = document.getElementById('btn-step3');
+
+    if (!fn)           { setFb('fb-step3','First name is required.','err'); return; }
+    if (!ln)           { setFb('fb-step3','Last name is required.','err'); return; }
+    if (!uid || uid.length < 4) { setFb('fb-step3','ID must be at least 4 characters.','err'); return; }
+    if (!dept)         { setFb('fb-step3','Department / office is required.','err'); return; }
+    if (!pw1 || pw1.length < 8) { setFb('fb-step3','Password must be at least 8 characters.','err'); return; }
+    if (pw1 !== pw2)   { setFb('fb-step3','Passwords do not match.','err'); return; }
+
+    // Uniqueness check
+    const stored = JSON.parse(localStorage.getItem('prism_accounts') || '[]');
+    const allIds = [...DEFAULT_IDS, ...stored.map(a => a.id.toLowerCase())];
+    if (allIds.includes(uid.toLowerCase())) {
+      setFb('fb-step3','That ID is already in use. Choose a different one.','err');
+      return;
+    }
+
+    btn.classList.add('loading'); btn.textContent = 'Creating account…';
+
+    // Mark invite code as used
+    const codes = JSON.parse(localStorage.getItem('prism_invite_codes') || '[]');
+    const ci = codes.findIndex(c => c.code.toUpperCase() === verifiedCode);
+    if (ci !== -1) {
+      codes[ci].used = true;
+      codes[ci].usedBy = fn + ' ' + ln + ' (' + uid + ')';
+      codes[ci].usedAt = new Date().toISOString();
+    }
+    localStorage.setItem('prism_invite_codes', JSON.stringify(codes));
+
+    // Log the creation attempt
+    const auditLog = JSON.parse(localStorage.getItem('prism_admin_audit') || '[]');
+    auditLog.push({
+      event:     'admin_registration',
+      name:      fn + ' ' + ln,
+      id:        uid,
+      inviteCode:verifiedCode,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent.slice(0,80),
+    });
+    localStorage.setItem('prism_admin_audit', JSON.stringify(auditLog));
+
+    // Create account
+    stored.push({
+      id: uid, password: pw1, role: 'admin',
+      name: fn + ' ' + ln, section: dept,
+      source: 'invite-registered',
+      inviteCode: verifiedCode,
+      registered: new Date().toISOString()
+    });
+    localStorage.setItem('prism_accounts', JSON.stringify(stored));
+
+    // Clear session attempt counter on success
+    sessionStorage.removeItem('prism_admin_reg_attempts');
+
+    setTimeout(() => {
+      document.querySelector('.step-indicator').style.display = 'none';
+      document.getElementById('attempts-bar').style.display = 'none';
+      document.getElementById('step-3').classList.remove('active');
+      document.getElementById('success-id').textContent = uid;
+      document.getElementById('success-screen').classList.add('active');
+    }, 700);
+  }
+
+  /* ── Enter key support ── */
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    if (currentStep === 1) verifyCode();
+    else if (currentStep === 2) verifyPassphrase();
+    else if (currentStep === 3) createAdmin();
+  });
+</script>
+</body>
+</html>

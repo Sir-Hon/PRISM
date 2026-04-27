@@ -1,0 +1,1605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRISM — Student Dashboard</title>
+  <link rel="icon" type="image/png" href="Prismcrys.png"/>
+  <link rel="stylesheet" href="portal.css?v=3"/>
+  <script src="portal-mobile.js?v=3" defer></script>
+  <style>
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+    .student-hero {
+      border-radius:20px; padding:2.8rem 2.5rem;
+      background:linear-gradient(135deg,#1e1b2e 0%,#3b2f6e 50%,#7c3aed 100%);
+      color:white; margin-bottom:2rem; position:relative; overflow:hidden; animation:fadeUp .4s ease;
+    }
+    .student-hero::before { content:''; position:absolute; inset:0; background-image:repeating-linear-gradient(60deg,rgba(255,255,255,.04) 0,rgba(255,255,255,.04) 2px,transparent 2px,transparent 24px); }
+    .hero-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#c4b5fd; margin-bottom:.5rem; position:relative; }
+    .student-hero h1 { font-family:'DM Sans',sans-serif; font-size:2.1rem; font-weight:800; margin-bottom:.4rem; line-height:1.2; position:relative; }
+    .student-hero p  { font-size:.95rem; color:rgba(255,255,255,.75); max-width:520px; position:relative; }
+    .hero-gem { position:absolute; right:2.5rem; top:50%; transform:translateY(-50%); opacity:.12; font-size:8rem; pointer-events:none; }
+
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat-card { background:#fff; border-radius:16px; padding:1.2rem 1.4rem; box-shadow:0 4px 18px rgba(124,58,237,.09); border:1px solid rgba(124,58,237,.09); animation:fadeUp .4s ease both; }
+    .stat-card .sv { font-family:'DM Sans',sans-serif; font-size:1.9rem; font-weight:800; color:#7c3aed; }
+    .stat-card .sl { font-size:.78rem; color:#9ca3af; font-weight:600; margin-top:2px; }
+
+    .section-heading { font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:800; color:#16132b; margin-bottom:1.2rem; display:flex; align-items:center; gap:.5rem; }
+
+    .join-bar { background:#fff; border-radius:16px; padding:1.2rem 1.5rem; box-shadow:0 4px 18px rgba(124,58,237,.09); border:1px solid rgba(124,58,237,.09); margin-bottom:2rem; display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; animation:fadeUp .4s ease; }
+    .join-input { flex:1; min-width:160px; border:1.5px solid #e4dffa; border-radius:10px; padding:.65rem 1rem; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:700; letter-spacing:.12em; color:#16132b; outline:none; text-transform:uppercase; transition:border-color .2s; }
+    .join-input:focus { border-color:#7c3aed; }
+    .join-btn { padding:.65rem 1.4rem; background:linear-gradient(135deg,#7c3aed,#6d28d9); color:white; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.92rem; font-weight:700; cursor:pointer; white-space:nowrap; }
+    .join-btn:hover { opacity:.88; }
+    .join-msg { font-size:.82rem; width:100%; }
+    .join-msg.ok  { color:#10b981; }
+    .join-msg.err { color:#ef4444; }
+
+    .classes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:1.3rem; margin-bottom:2.5rem; }
+    .class-card { background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.08); cursor:pointer; transition:transform .22s,box-shadow .22s; animation:fadeUp .4s ease both; }
+    .class-card:hover { transform:translateY(-5px); box-shadow:0 12px 36px rgba(124,58,237,.18); }
+    .class-card-bar  { height:7px; }
+    .class-card-body { padding:1.4rem; }
+    .class-icon  { font-size:2rem; margin-bottom:.6rem; }
+    .class-name  { font-family:'DM Sans',sans-serif; font-size:1.05rem; font-weight:800; color:#16132b; margin-bottom:.35rem; }
+    .class-code  { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:.5rem; }
+    .class-teacher { font-size:.82rem; color:#9ca3af; }
+    .leave-btn { margin-top:.8rem; padding:.38rem .8rem; background:none; border:1px solid #fecaca; color:#ef4444; border-radius:8px; font-size:.75rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .leave-btn:hover { background:#fee2e2; }
+
+    /* Class detail */
+    /* Class view: fixed panel; one scroll — header, banner & tabs scroll away with content */
+    .student-main-wrap { position:relative; min-height:calc(100vh - var(--topbar-h)); }
+    .class-view-overlay {
+      position:fixed;
+      left:var(--sidebar-w);
+      right:0;
+      top:var(--topbar-h);
+      bottom:0;
+      z-index:250;
+      background:#f0ecff;
+      animation:fadeUp .25s ease;
+      overflow-x:hidden;
+      overflow-y:auto;
+      -webkit-overflow-scrolling:touch;
+      max-height:calc(100vh - var(--topbar-h));
+    }
+    .class-view-overlay::-webkit-scrollbar { width:6px; }
+    .class-view-overlay::-webkit-scrollbar-thumb { background:rgba(124,58,237,.25); border-radius:4px; }
+    @media screen and (max-width:1023px) {
+      .class-view-overlay { left:0; }
+    }
+    .class-view-topbar {
+      height:64px; background:#fff;
+      border-bottom:1px solid #e4dffa;
+      display:flex; align-items:center;
+      padding:0 1.8rem; gap:1rem;
+      box-shadow:0 2px 8px rgba(124,58,237,.08);
+    }
+    .class-view-back {
+      width:36px; height:36px; border-radius:50%;
+      background:none; border:none; cursor:pointer;
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.1rem; color:#6b7280; transition:background .15s;
+    }
+    .class-view-back:hover { background:#f0ecff; }
+    .class-view-title { font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:800; color:#16132b; }
+    .class-view-sub   { font-size:.82rem; color:#9ca3af; }
+    .class-view-banner {
+      height:200px; position:relative;
+      display:flex; align-items:flex-end; padding:1.5rem 2rem;
+      overflow:hidden;
+    }
+    .class-view-banner::before {
+      content:''; position:absolute; inset:0;
+      background-image:repeating-linear-gradient(60deg,rgba(255,255,255,.06) 0,rgba(255,255,255,.06) 2px,transparent 2px,transparent 28px);
+    }
+    .class-view-banner-content { position:relative; color:white; }
+    .class-view-name   { font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:800; line-height:1.2; }
+    .class-view-teacher{ font-size:.95rem; opacity:.85; margin-top:.3rem; }
+    .class-view-code   { 
+      position:absolute; right:2rem; bottom:1.5rem;
+      background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.3);
+      border-radius:12px; padding:.5rem 1.1rem; color:white;
+      font-size:.8rem; font-weight:600;
+    }
+    .class-view-tabs {
+      background:#fff; border-bottom:2px solid #e4dffa;
+      display:flex; gap:0; padding:0 2rem;
+    }
+    .class-view-tab {
+      padding:.85rem 1.4rem; border:none; background:none;
+      font-family:'DM Sans',sans-serif; font-size:.92rem; font-weight:600;
+      color:#9ca3af; cursor:pointer; border-bottom:3px solid transparent;
+      margin-bottom:-2px; transition:all .15s; white-space:nowrap;
+    }
+    .class-view-tab:hover:not(.active) { color:#7c3aed; background:#faf8ff; }
+    .class-view-tab.active { color:#7c3aed; border-bottom-color:#7c3aed; }
+    .class-view-body {
+      padding:2rem;
+    }
+    .class-view-content { width:100%; max-width:none; margin:0; padding:0 .25rem; box-sizing:border-box; }
+
+    /* Stream */
+    .stream-post { background:#faf9ff; border-radius:14px; padding:1.1rem 1.3rem; margin-bottom:.8rem; border:1px solid #f0ecff; }
+    .post-header { display:flex; align-items:center; gap:.7rem; margin-bottom:.6rem; flex-wrap:wrap; }
+    .post-avatar { width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#10b981,#059669); color:white; display:flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; font-weight:800; font-size:.82rem; flex-shrink:0; }
+    .post-meta .post-author { font-size:.88rem; font-weight:700; color:#16132b; }
+    .post-meta .post-date   { font-size:.72rem; color:#9ca3af; }
+    .post-badge { font-size:.68rem; font-weight:700; padding:2px 8px; border-radius:20px; text-transform:uppercase; }
+    .post-badge.announcement { background:#dbeafe; color:#1d4ed8; }
+    .post-badge.material     { background:#d1fae5; color:#065f46; }
+    .post-badge.assignment   { background:#fce7f3; color:#9d174d; }
+    .post-badge.quiz         { background:#ede9fe; color:#5b21b6; }
+    .post-body { font-size:.92rem; color:#374151; line-height:1.7; }
+    .post-attach { display:inline-flex; align-items:center; gap:.4rem; margin-top:.7rem; background:#f0fdf4; padding:.4rem .85rem; border-radius:9px; font-size:.82rem; color:#065f46; font-weight:600; border:1px solid #d1fae5; }
+
+    /* Quiz items */
+    .quiz-item { display:flex; align-items:center; gap:1rem; padding:.9rem 1.1rem; border:1.5px solid #e4dffa; border-radius:12px; margin-bottom:.6rem; background:#faf9ff; flex-wrap:wrap; }
+    .quiz-item-info { flex:1; min-width:0; }
+    .quiz-item-title { font-weight:700; font-size:.92rem; color:#16132b; }
+    .quiz-item-meta  { font-size:.75rem; color:#9ca3af; margin-top:.2rem; }
+    .take-btn { padding:.45rem 1rem; background:linear-gradient(135deg,#7c3aed,#6d28d9); color:white; border:none; border-radius:9px; font-size:.82rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
+    .take-btn.done { background:#d1fae5; color:#065f46; pointer-events:none; }
+
+    /* Assignment items */
+    .asgn-item { display:flex; align-items:center; gap:.9rem; padding:.9rem 1.1rem; border:1.5px solid #fce7f3; border-radius:12px; margin-bottom:.6rem; background:#fff5f9; flex-wrap:wrap; }
+    .asgn-info { flex:1; min-width:0; }
+    .asgn-title { font-weight:700; font-size:.9rem; color:#16132b; }
+    .asgn-meta  { font-size:.75rem; color:#9ca3af; margin-top:2px; }
+    .asgn-due   { font-size:.78rem; font-weight:700; color:#9d174d; white-space:nowrap; }
+    .asgn-due.overdue { color:#ef4444; }
+
+    /* Assignment tab: one block per assignment name — expand to see submission, then Open for full view */
+    .student-asgn-acc { border:1.5px solid #fbcfe8; border-radius:12px; margin-bottom:.65rem; background:#fffafd; overflow:hidden; }
+    .student-asgn-acc > summary { list-style:none; display:flex; align-items:center; gap:.9rem; padding:.9rem 1.1rem; cursor:pointer; user-select:none; }
+    .student-asgn-acc > summary::-webkit-details-marker { display:none; }
+    .student-asgn-acc > summary::after { content:'▸'; margin-left:auto; font-size:.72rem; color:#9ca3af; flex-shrink:0; transition:transform .18s; }
+    .student-asgn-acc[open] > summary::after { content:'▾'; }
+    .student-asgn-acc-body { padding:0 1.1rem 1rem; border-top:1px solid #fce7f3; background:linear-gradient(180deg,#fff 0%,#fffafd 100%); }
+    .student-asgn-acc-hint { font-size:.72rem; color:#9ca3af; margin-bottom:.55rem; padding-top:.75rem; }
+
+    .mat-item { display:flex; align-items:center; gap:.9rem; padding:.9rem 1.1rem; border:1.5px solid #e4dffa; border-radius:12px; margin-bottom:.6rem; background:#faf9ff; }
+    .mat-icon-box { width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; }
+    .mat-info { flex:1; min-width:0; }
+    .mat-title { font-weight:700; font-size:.9rem; color:#16132b; }
+    .mat-meta  { font-size:.75rem; color:#9ca3af; margin-top:2px; }
+
+    .student-asgn-modal-overlay { position:fixed; inset:0; background:rgba(22,19,43,.55); z-index:10050; display:flex; align-items:flex-start; justify-content:center; padding:1.2rem; overflow-y:auto; box-sizing:border-box; }
+    .student-asgn-modal { background:#fff; border-radius:16px; max-width:620px; width:100%; margin:auto; box-shadow:0 20px 50px rgba(0,0,0,.2); padding:1.25rem 1.35rem 1.4rem; position:relative; border:1px solid #fce7f3; }
+    /* Attachments (Classroom-style) */
+    .gc-files-section { background:#f1f3f4; border-radius:12px; padding:.85rem 1rem; margin-top:.55rem; }
+    .gc-files-label { font-size:.72rem; font-weight:700; color:#5f6368; letter-spacing:.06em; text-transform:uppercase; margin-bottom:.65rem; }
+    .gc-attach-card { display:flex; align-items:stretch; gap:0; background:#fff; border-radius:10px; border:1px solid #dadce0; margin-bottom:.5rem; overflow:hidden; transition:box-shadow .15s; }
+    .gc-attach-card:last-child { margin-bottom:0; }
+    .gc-attach-card:hover { box-shadow:0 1px 6px rgba(60,64,67,.15); }
+    .gc-attach-bar { width:4px; flex-shrink:0; background:#1a73e8; }
+    .gc-attach-preview { width:100px; min-height:76px; flex-shrink:0; background:#e8eaed; display:flex; align-items:center; justify-content:center; overflow:hidden; cursor:pointer; }
+    .gc-attach-preview img { width:100%; height:100%; max-height:104px; object-fit:cover; }
+    .gc-attach-preview.gc-doc { cursor:pointer; font-size:1.85rem; }
+    .gc-attach-body { flex:1; min-width:0; padding:.65rem .85rem; display:flex; flex-direction:column; justify-content:center; gap:.35rem; }
+    .gc-attach-name { font-size:.86rem; font-weight:600; color:#202124; word-break:break-word; line-height:1.35; }
+    .gc-attach-actions { display:flex; flex-wrap:wrap; gap:.45rem; align-items:center; }
+    .gc-attach-open { padding:.28rem .75rem; border-radius:6px; border:1px solid #dadce0; background:#fff; font-size:.74rem; font-weight:600; color:#1a73e8; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .gc-attach-open:hover { background:#f8f9fa; }
+    .gc-attach-dl { font-size:.72rem; font-weight:600; color:#5f6368; text-decoration:none; }
+    .gc-attach-dl:hover { color:#1a73e8; text-decoration:underline; }
+    .gc-link-row { display:flex; align-items:stretch; gap:0; background:#fff; border:1px solid #dadce0; border-radius:10px; margin-bottom:.5rem; overflow:hidden; }
+    .gc-link-row .gc-attach-bar { width:4px; flex-shrink:0; background:#1a73e8; }
+    .gc-link-body { flex:1; min-width:0; padding:.65rem .85rem; }
+    .gc-link-body a { font-size:.82rem; font-weight:600; color:#1a73e8; word-break:break-all; }
+    .student-asgn-modal-close { position:absolute; top:.65rem; right:.65rem; width:2rem; height:2rem; border:none; border-radius:10px; background:#f3f4f6; color:#374151; font-size:1.15rem; line-height:1; cursor:pointer; font-weight:700; }
+    .student-asgn-modal-close:hover { background:#e5e7eb; }
+
+    .bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
+    @media(max-width:860px){ .bottom-grid{ grid-template-columns:1fr; } }
+    @media(max-width:640px){ .stats-row{ grid-template-columns:1fr 1fr; } }
+    .empty-state { text-align:center; padding:2rem; color:#9ca3af; font-size:.9rem; }
+    .panel-card { background:#fff; border-radius:18px; padding:1.4rem; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.08); }
+
+    .dash-events-list { min-height: 2.5rem; }
+    .dash-ev-row { display: flex; align-items: stretch; gap: 0.75rem; padding: 0.55rem 0; border-bottom: 1px solid #f0ecff; }
+    .dash-ev-row:last-child { border-bottom: none; }
+    .dash-ev-bar { width: 4px; border-radius: 3px; flex-shrink: 0; }
+    .dash-ev-title { font-weight: 700; font-size: 0.9rem; color: #16132b; }
+    .dash-ev-meta { font-size: 0.78rem; color: #9ca3af; margin-top: 0.15rem; }
+
+    /* Quiz modal */
+        .qz-overlay.active { display:flex; }
+                    .qz-opt:hover { border-color:#a78bfa; background:#f5f3ff; }
+    .qz-opt.selected { border-color:#7c3aed; background:#ede9fe; }
+      </style>
+</head>
+<body>
+<script src="api.js"></script>
+
+<script>
+/* ── script.js inlined ── */
+// ═══════════════════════════════════════════════════════
+//  PRISM PORTAL — script.js  
+//  Auth guard + role-based access control
+// ═══════════════════════════════════════════════════════
+
+(async function() {
+  var data = await fetch(API_BASE + '/auth.php?action=session', {credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
+  if (!data.loggedIn) { window.location.replace('login.html'); return; }
+  var u = data.user;
+  if (['student'].indexOf(u.role) === -1) {
+    window.location.replace(u.role==='teacher'?'teacher.html':u.role==='admin'?'admin.html':'index.html');
+    return;
+  }
+  sessionStorage.setItem('prism_logged_in','true');
+  sessionStorage.setItem('prism_user_id',  u.id);
+  sessionStorage.setItem('prism_user_name',u.name);
+  sessionStorage.setItem('prism_role',     u.role);
+  sessionStorage.setItem('prism_section',  u.section||'');
+  if (typeof prismCacheUserProfile === 'function') prismCacheUserProfile(u);
+})();
+
+function getRoleHome(role) {
+  if (role === 'teacher') return 'teacher.html';
+  if (role === 'admin')   return 'admin.html';
+  return 'index.html';
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+function previewImage(event, imgId, placeholderId) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var img = document.getElementById(imgId);
+  var placeholder = document.getElementById(placeholderId);
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    img.src = e.target.result;
+    img.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+</script>
+<script>
+/* ── portal-sidebar.js inlined ── */
+/* portal-sidebar.js
+   Call initSidebar(activePage) after DOMContentLoaded.
+   Builds the correct sidebar nav for the logged-in role.
+*/
+
+// Class list is now dynamic (loaded from localStorage)
+
+var ROLE_NAV = {
+  student: [
+    { page:'home',     href:'index.html',    icon:'🏠', label:'Home' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'notes',    href:'notes.html',    icon:'📓', label:'Notes' },
+    { page:'quizzes',  href:'quizzes.html',  icon:'🧠', label:'Quizzes' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+  teacher: [
+    { page:'home',      href:'teacher.html',   icon:'🏠', label:'My Classes' },
+    { page:'quizmaker', href:'quizmaker.html', icon:'🧪', label:'Quiz Maker' },
+    { page:'records',   href:'records.html',   icon:'📋', label:'Records' },
+    { page:'grading',   href:'grading.html',   icon:'🎯', label:'Grading' },
+    { page:'calendar',  href:'calendar.html',  icon:'📅', label:'Calendar' },
+    { page:'call',      href:'call.html',      icon:'📞', label:'Organizations' },
+  ],
+  admin: [
+    { page:'home',     href:'admin.html',    icon:'🏠', label:'Dashboard' },
+    { page:'manage',   href:'manage.html',   icon:'👥', label:'Manage Users' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+};
+
+function diamondSVG(color, size) {
+  size = size || 14;
+  return '<svg class="sidebar-diamond" width="'+size+'" height="'+size+'" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="'+color+'" stroke="'+color+'" stroke-width="0.5" stroke-linejoin="round"/></svg>';
+}
+
+function initSidebar(activePage) {
+  var uid      = sessionStorage.getItem('prism_user_id') || '';
+  var profile  = JSON.parse(localStorage.getItem('prism_profile_' + uid) || '{}');
+  var userName = profile.name || sessionStorage.getItem('prism_user_name') || uid || 'User';
+  // Keep sessionStorage in sync so other reads are current
+  if (profile.name) sessionStorage.setItem('prism_user_name', profile.name);
+  var roleRaw  = sessionStorage.getItem('prism_role') || 'student';
+  var role     = String(roleRaw).toLowerCase().trim();
+  if (!ROLE_NAV[role]) role = 'student';
+  try { document.body.setAttribute('data-prism-role', role); } catch (e) {}
+  var initial  = userName.charAt(0).toUpperCase();
+
+  // ── TOPBAR LOGO — fix href and gem emoji ──
+  var logoLinks = document.querySelectorAll('.topbar-logo');
+  var homeHref  = role === 'admin' ? 'admin.html' : role === 'teacher' ? 'teacher.html' : 'index.html';
+  for (var li = 0; li < logoLinks.length; li++) {
+    logoLinks[li].href = homeHref;
+    var gem = logoLinks[li].querySelector('.topbar-logo-gem');
+    if (gem) {
+      gem.innerHTML = '<img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/>';
+    }
+  }
+
+  // ── TOPBAR ──
+  var tbName   = document.getElementById('topbar-name');
+  var tbRole   = document.getElementById('topbar-role');
+  var tbAvatar = document.getElementById('topbar-avatar');
+  if (tbName)   tbName.textContent   = userName;
+  if (tbRole) {
+    tbRole.textContent = role;
+    // Update badge color to match role
+    var roleColors = { student: '#7c3aed', teacher: '#10b981', admin: '#f59e0b' };
+    var roleBgs    = { student: '#ede9fe',  teacher: '#d1fae5',  admin: '#fef3c7'  };
+    tbRole.style.color      = roleColors[role] || '#7c3aed';
+    tbRole.style.background = roleBgs[role]    || '#ede9fe';
+    tbRole.style.borderColor = (roleColors[role] || '#7c3aed') + '33';
+  }
+  if (tbAvatar) {
+    if (profile.avatar) {
+      tbAvatar.innerHTML = '<img src="'+profile.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" alt=""/>';
+    } else {
+      tbAvatar.textContent = initial;
+    }
+  }
+
+  // ── USER CARD — hidden in CSS (profile is in the top bar) ──
+  var userCard = document.getElementById('sidebar-user-card');
+  if (userCard) userCard.innerHTML = '';
+
+  // ── NAV — replace the placeholder with the correct role nav ──
+  var placeholder = document.getElementById('sidebar-nav');
+  if (placeholder) {
+    var links = ROLE_NAV[role] || ROLE_NAV['student'];
+    var lbl   = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
+
+    var sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+
+    var secLbl = document.createElement('div');
+    secLbl.className = 'sidebar-section-label';
+    secLbl.textContent = lbl;
+    sec.appendChild(secLbl);
+
+    for (var i = 0; i < links.length; i++) {
+      var l = links[i];
+      if (l.placeholder) {
+        var sp = document.createElement('span');
+        sp.className = 'sidebar-link sidebar-link-placeholder';
+        sp.setAttribute('data-page', l.page);
+        sp.setAttribute('aria-disabled', 'true');
+        sp.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(sp);
+      } else {
+        var a = document.createElement('a');
+        a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
+        a.setAttribute('data-page', l.page);
+        a.href = l.href;
+        a.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(a);
+      }
+    }
+
+    sec.id = 'sidebar-nav';
+    placeholder.parentNode.replaceChild(sec, placeholder);
+  }
+
+  // ── MY CLASSES section ──
+  var classCont = document.getElementById('sidebar-classes');
+  if (classCont) {
+
+    // Hide the whole My Classes section for admins
+    if (role === 'admin') {
+      var node = classCont.parentNode;
+      while (node && !(node.className && node.className.indexOf('sidebar-section') !== -1)) {
+        node = node.parentNode;
+      }
+      if (node) node.style.display = 'none';
+      var prev = node && node.previousElementSibling;
+      if (prev && prev.className && prev.className.indexOf('sidebar-divider') !== -1) {
+        prev.style.display = 'none';
+      }
+      return;
+    }
+
+    // For students and teachers — show classes
+    // Update section label based on role
+    var classSection = classCont.parentNode;
+    if (classSection) {
+      var classLabel = classSection.querySelector('.sidebar-section-label');
+      if (classLabel) {
+        classLabel.textContent = role === 'teacher' ? 'Classes' : 'My Classes';
+      }
+    }
+
+    classCont.innerHTML = '';
+
+    if (role === 'teacher') {
+      // Teacher: show their created classes
+      var teacherId = sessionStorage.getItem('prism_user_id') || 'teacher';
+      var teacherClasses = JSON.parse(localStorage.getItem('prism_classes_'+teacherId)||'[]');
+      if (!teacherClasses.length) {
+        var emp = document.createElement('div');
+        emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp.textContent = 'No subjects yet';
+        classCont.appendChild(emp);
+      } else {
+        teacherClasses.forEach(function(cls) {
+          var btn = document.createElement('button');
+          btn.className = 'sidebar-class-item';
+          btn.innerHTML = diamondSVG(cls.color||'#7c3aed', 13) +
+            '<span class="sidebar-class-name">'+cls.subject+'</span>';
+          btn.onclick = function() { window.location.href = 'teacher.html'; };
+          classCont.appendChild(btn);
+        });
+      }
+    } else {
+      // Student: show joined classes
+      var studentId = sessionStorage.getItem('prism_user_id') || 'student';
+      var joinedRaw = JSON.parse(localStorage.getItem('prism_joined_'+studentId)||'{}');
+      var joinedList = Object.values(joinedRaw);
+      if (!joinedList.length) {
+        var emp2 = document.createElement('div');
+        emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp2.textContent = 'No classes joined yet';
+        classCont.appendChild(emp2);
+      } else {
+        var colors = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d'];
+        joinedList.forEach(function(entry, idx) {
+          (function(e, i) {
+            var btn = document.createElement('button');
+            btn.className = 'sidebar-class-item';
+            btn.innerHTML = diamondSVG(colors[i%colors.length], 13) +
+              '<span class="sidebar-class-name">'+e.subject+'</span>';
+            btn.onclick = function() {
+              if (typeof openClassDetail === 'function') {
+                openClassDetail(e.classId, e.teacherId, e.subject, colors[i%colors.length]);
+              } else {
+                window.location.href = 'index.html';
+              }
+            };
+            classCont.appendChild(btn);
+          })(entry, idx);
+        });
+      }
+    }
+  }
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+</script>
+<div class="topbar">
+  <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-right">
+    <span class="topbar-role-badge" id="topbar-role"></span>
+    <span class="topbar-name" id="topbar-name"></span>
+    <a class="topbar-avatar" href="profile.html" id="topbar-avatar">U</a>
+  </div>
+</div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div id="sidebar-user-card" class="sidebar-user-card"></div>
+    <div id="sidebar-nav"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">My Classes</div>
+      <div id="sidebar-classes"></div>
+    </div>
+    <div style="margin-top:auto;padding-top:1rem;">
+      <div class="sidebar-divider"></div>
+      <button class="sidebar-logout" onclick="logout()"><span class="s-icon">🚪</span> Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content student-main-wrap" id="student-main-wrap">
+
+    <div class="student-hero">
+      <div class="hero-label">Student Portal</div>
+      <h1 id="student-greeting">Welcome back! 👋</h1>
+      <p>View your classes, assignments, materials and quizzes from your teachers.</p>
+      <div class="hero-gem">💎</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-card" style="animation-delay:.05s"><div class="sv" id="stat-classes">0</div><div class="sl">Joined Classes</div></div>
+      <div class="stat-card" style="animation-delay:.1s"><div class="sv" id="stat-quizzes">0</div><div class="sl">Quizzes</div></div>
+      <div class="stat-card" style="animation-delay:.15s"><div class="sv" id="stat-assignments">0</div><div class="sl">Assignments</div></div>
+      <div class="stat-card" style="animation-delay:.2s"><div class="sv" id="stat-materials">0</div><div class="sl">Materials</div></div>
+    </div>
+
+    <div class="section-heading">📅 Incoming events</div>
+    <div class="panel-card" style="margin-bottom:2rem;">
+      <div id="dash-events-list" class="dash-events-list"></div>
+      <div style="text-align:right;margin-top:.65rem;"><a href="calendar.html" style="font-size:.82rem;font-weight:600;color:#7c3aed;text-decoration:none;">Open calendar →</a></div>
+    </div>
+
+    <!-- JOIN CLASS BAR -->
+    <div class="join-bar">
+      <span style="font-size:.9rem;font-weight:700;color:#16132b;white-space:nowrap;">+ Join a Class</span>
+      <input class="join-input" id="join-code-input" placeholder="ENTER CODE" maxlength="6" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')joinClass()"/>
+      <button class="join-btn" onclick="joinClass()">Join →</button>
+      <div class="join-msg" id="join-msg"></div>
+    </div>
+
+    <!-- MY CLASSES GRID -->
+    <div class="section-heading">📚 My Classes</div>
+    <div id="classes-area"><div class="empty-state">No classes yet — enter a join code from your teacher above.</div></div>
+
+    <!-- BOTTOM: announcements + activity -->
+    <div class="bottom-grid" style="margin-top:2rem;">
+      <div>
+        <div class="section-heading">📢 Portal Announcements</div>
+        <div class="panel-card"><div id="ann-feed"><div class="empty-state">No announcements yet.</div></div></div>
+      </div>
+      <div>
+        <div class="section-heading">🔔 Recent Activity</div>
+        <div class="panel-card"><div id="activity-feed"><div class="empty-state">No recent activity.</div></div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+  </div>
+</div>
+
+
+
+<script>
+// ── Student dashboard data layer: localStorage mirrors the API so buildPanel / stream work without refetching every frame.
+//     Keys: prism_joined_*, prism_teacher_posts (flat array), prism_teacher_materials (by class id), etc.
+
+var STUDENT_ID   = sessionStorage.getItem('prism_user_id')   || 'student';
+var _studentProfile = JSON.parse(localStorage.getItem('prism_profile_' + (sessionStorage.getItem('prism_user_id')||'')) || '{}');
+var STUDENT_NAME = _studentProfile.name || sessionStorage.getItem('prism_user_name') || 'Student';
+if (_studentProfile.name) sessionStorage.setItem('prism_user_name', _studentProfile.name);
+var CLASS_ICONS  = ['📐','🔬','📖','💻','🏛️','⚽','🎨','🧪','🌐','📊'];
+var activeDetailId = null;
+var currentQuiz    = null;
+var userAnswers    = [];
+
+function getJoinedClasses()   { return JSON.parse(localStorage.getItem('prism_joined_'+STUDENT_ID)||'{}'); }
+function saveJoinedClasses(v) { localStorage.setItem('prism_joined_'+STUDENT_ID, JSON.stringify(v)); }
+function getCodeIndex()       { return JSON.parse(localStorage.getItem('prism_join_codes')||'{}'); }
+function getTeacherClasses(t) { return JSON.parse(localStorage.getItem('prism_classes_'+t)||'[]'); }
+function getPosts()           { return JSON.parse(localStorage.getItem('prism_teacher_posts')||'[]'); }
+function getTeacherQuizzes()  { return JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]'); }
+function getMaterials()       { return JSON.parse(localStorage.getItem('prism_teacher_materials')||'{}'); }
+function getAssignments()     { return JSON.parse(localStorage.getItem('prism_teacher_assignments')||'{}'); }
+function getScores()          { return JSON.parse(localStorage.getItem('prism_quiz_scores_'+STUDENT_ID)||'{}'); }
+function saveScores(v)        { localStorage.setItem('prism_quiz_scores_'+STUDENT_ID, JSON.stringify(v)); }
+
+function getTeacherProfile(teacherId) {
+  var profile  = JSON.parse(localStorage.getItem('prism_profile_'+teacherId)||'{}');
+  var accounts = JSON.parse(localStorage.getItem('prism_accounts')||'[]');
+  var account  = accounts.find(function(a){ return a.id===teacherId; }) || {};
+  return { name: profile.name || account.name || teacherId, avatar: profile.avatar || null };
+}
+function buildTeacherChip(teacherId) {
+  var p = getTeacherProfile(teacherId);
+  var av = p.avatar
+    ? '<img src="'+p.avatar+'" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"/>'
+    : '<div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,#10b981,#6ee7b7);display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;color:white;flex-shrink:0;">'+p.name.charAt(0).toUpperCase()+'</div>';
+  return av+'<span style="font-size:.82rem;color:#6b7280;">'+p.name+'</span>';
+}
+function buildTeacherChipInline(teacherId) {
+  var p = getTeacherProfile(teacherId);
+  var av = p.avatar
+    ? '<img src="'+p.avatar+'" style="width:22px;height:22px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:.35rem;"/>'
+    : '<span style="display:inline-flex;width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,#10b981,#6ee7b7);align-items:center;justify-content:center;font-size:.62rem;font-weight:800;color:white;vertical-align:middle;margin-right:.35rem;">'+p.name.charAt(0).toUpperCase()+'</span>';
+  return av + p.name;
+}
+
+function fmtDashEvTime(t) {
+  if (!t) return '';
+  var p = String(t).split(':');
+  var hr = parseInt(p[0], 10) || 0;
+  var m = p[1] != null ? p[1] : '00';
+  return ((hr % 12) || 12) + ':' + m + (hr >= 12 ? ' PM' : ' AM');
+}
+function escDash(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function renderDashboardIncomingEvents() {
+  var el = document.getElementById('dash-events-list');
+  if (!el) return;
+  var raw = [];
+  try { raw = JSON.parse(localStorage.getItem('prism_events') || '[]'); } catch (e) { raw = []; }
+  var todayStr = new Date().toISOString().split('T')[0];
+  var upcoming = raw.filter(function(e) { return e.date >= todayStr; })
+    .sort(function(a, b) {
+      var c = a.date.localeCompare(b.date);
+      return c !== 0 ? c : String(a.time || '').localeCompare(String(b.time || ''));
+    })
+    .slice(0, 8);
+  if (!upcoming.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:1rem 0;">No upcoming events. Add events on the calendar.</div>';
+    return;
+  }
+  el.innerHTML = upcoming.map(function(ev) {
+    var dl = new Date(ev.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    var bar = ev.color || '#6d28d9';
+    return '<div class="dash-ev-row"><div class="dash-ev-bar" style="background:' + bar + '"></div><div><div class="dash-ev-title">' + escDash(ev.title || 'Event') + '</div><div class="dash-ev-meta">' + escDash(dl) + (ev.time ? ' · ' + fmtDashEvTime(ev.time) : '') + '</div></div></div>';
+  }).join('');
+}
+
+window.addEventListener('DOMContentLoaded', async function() {
+  // Load fresh user data from API session
+  try {
+    var sessionData = await fetch(API_BASE + '/auth.php?action=session',{credentials:'include'}).then(r=>r.json());
+    if (sessionData.loggedIn && sessionData.user) {
+      var u = sessionData.user;
+      sessionStorage.setItem('prism_user_id',   u.id);
+      sessionStorage.setItem('prism_user_name', u.name);
+      sessionStorage.setItem('prism_role',      u.role);
+      sessionStorage.setItem('prism_section',   u.section||'');
+      STUDENT_ID   = u.id;
+      STUDENT_NAME = u.name;
+      // Also load classes data from API and cache to localStorage
+      await loadClassDataFromAPI();
+    }
+  } catch(e) { console.warn('API session check failed:', e); }
+
+  try {
+    if (typeof PrismEvents !== 'undefined' && PrismEvents.get) {
+      var apiEv = await PrismEvents.get();
+      var mapped = apiEv.map(function(e) {
+        return { id: e.id, title: e.title, date: e.event_date, time: e.event_time || '', notes: e.notes || '', color: e.color || '#6d28d9', alarm: e.alarm };
+      });
+      localStorage.setItem('prism_events', JSON.stringify(mapped));
+    }
+  } catch (evErr) { console.warn('Events sync:', evErr); }
+
+  if (typeof initSidebar === 'function') initSidebar('home');
+  var hour = new Date().getHours();
+  var g = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  document.getElementById('student-greeting').textContent = g + ', ' + STUDENT_NAME + '! 👋';
+  renderClasses();
+  renderStats();
+  await renderAnnouncements();
+  renderActivity();
+  renderDashboardIncomingEvents();
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      var ov = document.getElementById('class-view-overlay');
+      if (ov) closeClassView();
+    }
+  });
+});
+
+/** After login: pull enrollments, then for each class fetch posts/materials/assignments/quizzes and merge into the same LS keys the legacy UI expects. */
+async function loadClassDataFromAPI() {
+  try {
+    // Load joined classes from API
+    var classesData = await fetch(API_BASE + '/classes.php?action=mine',{credentials:'include'}).then(r=>r.json());
+    if (!classesData.classes) return;
+    // Build joined map (id → { classId, teacherId, subject, … }) and persist at end
+    var joined = {};
+    for (var cls of classesData.classes) {
+      joined[cls.id] = { classId:cls.id, teacherId:cls.teacher_id, subject:cls.subject, joinedAt:cls.joined_at||'' };
+      // Cache teacher profile for chip display
+      var teacherProfile = { name: cls.teacher_name||cls.teacher_id, avatar: cls.teacher_avatar||null };
+      localStorage.setItem('prism_profile_'+cls.teacher_id, JSON.stringify(teacherProfile));
+      // Load posts, materials, assignments for this class
+      var [posts, mats, asgns, quzRes] = await Promise.all([
+        fetch(API_BASE + '/content.php?action=get_posts&class_id='+encodeURIComponent(cls.id),{credentials:'include'}).then(r=>r.json()).catch(()=>({posts:[]})),
+        fetch(API_BASE + '/content.php?action=get_materials&class_id='+encodeURIComponent(cls.id),{credentials:'include'}).then(r=>r.json()).catch(()=>({materials:[]})),
+        fetch(API_BASE + '/content.php?action=get_assignments&class_id='+encodeURIComponent(cls.id),{credentials:'include'}).then(r=>r.json()).catch(()=>({assignments:[]})),
+        fetch(API_BASE + '/quizzes.php?action=get&class_id='+encodeURIComponent(cls.id),{credentials:'include'}).then(r=>r.json()).catch(()=>({quizzes:[]})),
+      ]);
+      // Merge: drop old rows for this class id, then append API rows (keeps other classes’ cached posts)
+      var allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts')||'[]').filter(function(p){ return String(p.classId||p.class_id||'')!==String(cls.id); });
+      (posts.posts||[]).forEach(function(p){
+        p.classId = p.class_id || p.classId;
+        p.quizId = p.quiz_id || p.quizId;
+        p.date = p.created_at || p.date || new Date().toISOString();
+        allPosts.push(p);
+      });
+      localStorage.setItem('prism_teacher_posts', JSON.stringify(allPosts));
+      var allQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]').filter(function(q){ return String(q.classId||q.class_id||'')!==String(cls.id); });
+      (quzRes.quizzes||[]).forEach(function(q){
+        var qs = q.questions;
+        if (typeof qs === 'string') { try { qs = JSON.parse(qs||'[]'); } catch(x){ qs = []; } }
+        allQz.push({
+          id: q.id,
+          classId: q.class_id || cls.id,
+          teacherId: q.teacher_id,
+          title: q.title,
+          type: q.type || 'quiz',
+          published: !!+q.published,
+          due: q.due_date || q.due || '',
+          due_time: q.due_time || '',
+          time: parseInt(q.time_limit,10) || 0,
+          attempts: parseInt(q.attempts,10) || 1,
+          totalPoints: parseInt(q.total_points,10) || 0,
+          questions: qs || [],
+        });
+      });
+      localStorage.setItem('prism_teacher_quizzes', JSON.stringify(allQz));
+      var allMats = JSON.parse(localStorage.getItem('prism_teacher_materials')||'{}');
+      allMats[cls.id] = (mats.materials||[]).map(function(m){ return Object.assign({}, m, { desc: m.description||m.desc||'' }); });
+      localStorage.setItem('prism_teacher_materials', JSON.stringify(allMats));
+      var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments')||'{}');
+      allAsgns[cls.id] = (asgns.assignments||[]).map(function(a){
+        return normalizeAssignmentForUI(Object.assign({}, a, {
+          due: a.due_date||a.due||'',
+          due_time: '',
+          pts: a.points||a.pts||0,
+        }));
+      });
+      localStorage.setItem('prism_teacher_assignments', JSON.stringify(allAsgns));
+      try {
+        var mineSubs = await PrismSubmissions.getMineForClass(cls.id);
+        localStorage.setItem('prism_asgn_mine_'+STUDENT_ID+'_'+cls.id, JSON.stringify(mineSubs));
+      } catch (eSub) {}
+    }
+    localStorage.setItem('prism_joined_'+STUDENT_ID, JSON.stringify(joined));
+  } catch(e) { console.warn('loadClassDataFromAPI failed:', e); }
+}
+
+/**
+ * Refresh one class after opening it: same merge pattern as loadClassDataFromAPI but only for `classId`
+ * (new posts/quizzes/materials without reloading the whole dashboard).
+ */
+async function syncStudentClassContent(classId) {
+  var cid = String(classId);
+  try {
+    var posts, mats, asgns, quzRes;
+    try {
+      var res = await Promise.all([
+        fetch(API_BASE + '/content.php?action=get_posts&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { posts: [] }; }),
+        fetch(API_BASE + '/content.php?action=get_materials&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { materials: [] }; }),
+        fetch(API_BASE + '/content.php?action=get_assignments&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { assignments: [] }; }),
+        fetch(API_BASE + '/quizzes.php?action=get&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { quizzes: [] }; }),
+      ]);
+      posts = res[0]; mats = res[1]; asgns = res[2]; quzRes = res[3];
+    } catch (e) { return; }
+    var allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]').filter(function(p) { return String(p.classId || p.class_id) !== cid; });
+    (posts.posts || []).forEach(function(p) {
+      p.classId = p.class_id || p.classId;
+      p.quizId = p.quiz_id || p.quizId;
+      p.date = p.created_at || p.date || new Date().toISOString();
+      allPosts.push(p);
+    });
+    localStorage.setItem('prism_teacher_posts', JSON.stringify(allPosts));
+    var allQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]').filter(function(q) { return String(q.classId || q.class_id) !== cid; });
+    (quzRes.quizzes || []).forEach(function(q) {
+      var qs = q.questions;
+      if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
+      allQz.push({
+        id: q.id,
+        classId: q.class_id || cid,
+        teacherId: q.teacher_id,
+        title: q.title,
+        type: q.type || 'quiz',
+        published: !!+q.published,
+        due: q.due_date || q.due || '',
+        due_time: q.due_time || '',
+        time: parseInt(q.time_limit, 10) || 0,
+        attempts: parseInt(q.attempts, 10) || 1,
+        totalPoints: parseInt(q.total_points, 10) || 0,
+        questions: qs || [],
+      });
+    });
+    localStorage.setItem('prism_teacher_quizzes', JSON.stringify(allQz));
+    var allMats = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
+    allMats[cid] = (mats.materials || []).map(function(m) { return Object.assign({}, m, { desc: m.description || m.desc || '' }); });
+    localStorage.setItem('prism_teacher_materials', JSON.stringify(allMats));
+    var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+    allAsgns[cid] = (asgns.assignments || []).map(function(a) {
+      return normalizeAssignmentForUI(Object.assign({}, a, {
+        due: a.due_date || a.due || '',
+        due_time: '',
+        pts: a.points || a.pts || 0,
+      }));
+    });
+    localStorage.setItem('prism_teacher_assignments', JSON.stringify(allAsgns));
+    try {
+      var mineSubs = await PrismSubmissions.getMineForClass(cid);
+      localStorage.setItem('prism_asgn_mine_' + STUDENT_ID + '_' + cid, JSON.stringify(mineSubs));
+    } catch (eSub) { /* ignore */ }
+  } catch (e) { console.warn('syncStudentClassContent:', e); }
+}
+
+/** POST join code → cache profile + joined map → reload all class content from API. */
+async function joinClass() {
+  var code = document.getElementById('join-code-input').value.trim().toUpperCase();
+  if (!code || code.length < 4) { showJoinMsg('Enter a valid join code.', 'err'); return; }
+  try {
+    var data = await PrismClasses.join(code);
+    var cls  = data.class;
+    // Cache teacher profile
+    localStorage.setItem('prism_profile_'+cls.teacher_id, JSON.stringify({ name: data.teacher_name||cls.teacher_id, avatar: data.teacher_avatar||null }));
+    // Update local joined map
+    var joined = getJoinedClasses();
+    joined[cls.id] = { classId:cls.id, teacherId:cls.teacher_id, subject:cls.subject, joinedAt:new Date().toISOString() };
+    saveJoinedClasses(joined);
+    document.getElementById('join-code-input').value = '';
+    showJoinMsg('✅ Joined "' + cls.subject + '"!', 'ok');
+    await loadClassDataFromAPI();
+    renderClasses(); renderStats();
+    if (typeof initSidebar === 'function') initSidebar('home');
+  } catch(e) {
+    showJoinMsg(e.message || 'Invalid code — check with your teacher.', 'err');
+  }
+}
+
+/** API leave + remove from local joined map; close class overlay if it was showing this class. */
+async function leaveClass(classId) {
+  if (!confirm('Leave this class? You can rejoin with the code later.')) return;
+  try {
+    await PrismClasses.leave(classId);
+  } catch(e) { console.warn('API leave failed:', e); }
+  var joined = getJoinedClasses();
+  delete joined[classId];
+  saveJoinedClasses(joined);
+  if (activeDetailId === classId) closeClassView();
+  renderClasses(); renderStats();
+  if (typeof initSidebar === 'function') initSidebar('home');
+}
+
+function showJoinMsg(msg, type) {
+  var el = document.getElementById('join-msg');
+  el.textContent = msg; el.className = 'join-msg ' + type;
+  setTimeout(function(){ el.textContent = ''; }, 3000);
+}
+
+function renderClasses() {
+  var joined  = getJoinedClasses();
+  var entries = Object.values(joined);
+  var area    = document.getElementById('classes-area');
+  if (!entries.length) {
+    area.innerHTML = '<div class="empty-state">No classes yet — enter a join code from your teacher above.</div>';
+    return;
+  }
+  var frag = document.createDocumentFragment();
+  var grid = document.createElement('div');
+  grid.className = 'classes-grid';
+  entries.forEach(function(entry, i) {
+    var info  = getTeacherClasses(entry.teacherId).find(function(c){ return c.id===entry.classId; });
+    var color = info ? info.color : '#7c3aed';
+    var icon  = CLASS_ICONS[i % CLASS_ICONS.length];
+    var card  = document.createElement('div');
+    card.className = 'class-card';
+    card.style.animationDelay = (i*0.06)+'s';
+    if (activeDetailId === entry.classId) card.style.boxShadow = '0 0 0 3px '+color+',0 12px 36px rgba(0,0,0,.12)';
+    card.innerHTML = '<div class="class-card-bar" style="background:'+color+'"></div>'
+      + '<div class="class-card-body">'
+      + '<div class="class-icon">'+icon+'</div>'
+      + '<div class="class-name">'+entry.subject+'</div>'
+      + (info && info.code ? '<div class="class-code">'+info.code+'</div>' : '')
+      + '<div class="class-teacher" style="display:flex;align-items:center;gap:.45rem;">'
+      + buildTeacherChip(entry.teacherId)
+      + '</div>'
+      + '<button class="leave-btn" id="leave-'+entry.classId+'">Leave Class</button>'
+      + '</div>';
+    card.querySelector('.leave-btn').addEventListener('click', function(e) {
+      e.stopPropagation();
+      leaveClass(entry.classId);
+    });
+    card.addEventListener('click', function() {
+      openClassDetail(entry.classId, entry.teacherId, entry.subject, color);
+    });
+    grid.appendChild(card);
+  });
+  frag.appendChild(grid);
+  area.innerHTML = '';
+  area.appendChild(frag);
+}
+
+/** Opens the fixed overlay (stream / assignments / materials), syncs that class from API, injects HTML, default tab = stream. */
+async function openClassDetail(classId, teacherId, subject, color) {
+  activeDetailId = classId;
+  renderClasses(); // update highlight on class cards
+
+  await syncStudentClassContent(classId);
+
+  var info = getTeacherClasses(teacherId).find(function(c){ return c.id===classId; });
+  var code = info ? info.code : '';
+
+  // Build overlay (fixed to main column; see CSS)
+  var overlay = document.createElement('div');
+  overlay.className = 'class-view-overlay';
+  overlay.id = 'class-view-overlay';
+
+  overlay.innerHTML =
+    '<div class="class-view-topbar">'
+    + '<button class="class-view-back" onclick="closeClassView()" title="Back">←</button>'
+    + '<div>'
+    + '<div class="class-view-title">' + subject + '</div>'
+    + '<div class="class-view-sub" style="display:flex;align-items:center;gap:.4rem;">' + buildTeacherChipInline(teacherId) + (code ? '  ·  📋 ' + code : '') + '</div>'
+    + '</div>'
+    + '</div>'
+    + '<div class="class-view-banner" style="background:linear-gradient(135deg,' + color + ' 0%,' + shadeColor(color,-40) + ' 100%)">'
+    + '<div class="class-view-banner-content">'
+    + '<div class="class-view-name">' + subject + '</div>'
+    + '<div class="class-view-teacher" style="display:flex;align-items:center;gap:.5rem;opacity:.9;">' + buildTeacherChipInline(teacherId) + '</div>'
+    + '</div>'
+    + (code ? '<div class="class-view-code">📋 ' + code + '</div>' : '')
+    + '</div>'
+    + '<div class="class-view-tabs">'
+    + '<button class="class-view-tab active" data-tab="stream">📢 Stream</button>'
+    + '<button class="class-view-tab" data-tab="asgn">📝 Assignments</button>'
+    + '<button class="class-view-tab" data-tab="materials">📚 Materials</button>'
+    + '</div>'
+    + '<div class="class-view-body"><div class="class-view-content" id="class-panel-content"></div></div>';
+
+  // Remove any existing overlay
+  var existing = document.getElementById('class-view-overlay');
+  if (existing) existing.remove();
+
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+
+  // Tabs replace #class-panel-content via buildPanel(tab, classId)
+  overlay.querySelectorAll('.class-view-tab').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      overlay.querySelectorAll('.class-view-tab').forEach(function(t){ t.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('class-panel-content').innerHTML = buildPanel(btn.dataset.tab, classId);
+        });
+  });
+
+  // Render initial stream
+  document.getElementById('class-panel-content').innerHTML = buildPanel('stream', classId);
+}
+
+/** Darken/lighten a #RRGGBB for banner gradient (second arg shifts each RGB channel by `amt`, negative = darker). */
+function shadeColor(hex, amt) {
+  try {
+    var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+    r = Math.max(0,Math.min(255,r+amt));
+    g = Math.max(0,Math.min(255,g+amt));
+    b = Math.max(0,Math.min(255,b+amt));
+    return '#' + r.toString(16).padStart(2,'0') + g.toString(16).padStart(2,'0') + b.toString(16).padStart(2,'0');
+  } catch(e) { return hex; }
+}
+
+function closeClassView() {
+  closeStudentAssignmentModal();
+  var overlay = document.getElementById('class-view-overlay');
+  if (overlay) overlay.remove();
+  document.body.style.overflow = '';
+  activeDetailId = null;
+  renderClasses();
+}
+
+function buildPanel(tab, classId) {
+  if (tab === 'stream')    return buildStreamPanel(classId);
+  if (tab === 'asgn')      return buildAsgnPanel(classId);
+  if (tab === 'materials') return buildMaterialsPanel(classId);
+  return '';
+}
+
+
+
+
+/** Link stream post text/attachment fields to a material record (title match, then url/file_path). */
+function resolveStudentStreamMaterial(classId, p) {
+  if (p.type !== 'material') return null;
+  var items = getMaterials()[classId] || [];
+  var tm = p.body && p.body.match(/New material: "([^"]+)"/);
+  if (tm) {
+    var found = items.find(function(it) { return it.title === tm[1]; });
+    if (found) return found;
+  }
+  var att = (p.attachment || '').trim();
+  return items.find(function(it) {
+    return it.url === att || it.file_name === att || (it.file_path && it.file_path === att);
+  }) || null;
+}
+
+/** View/Download HTML for materials: server path, base64 cache, or raw URL in attachment. */
+function streamMaterialActionsStudent(classId, p) {
+  if (p.type !== 'material') return '';
+  var mat = resolveStudentStreamMaterial(classId, p);
+  var att = (p.attachment || '').trim();
+  var btn = 'display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .95rem;border-radius:10px;font-size:.82rem;font-weight:700;text-decoration:none;';
+  var row = 'margin-top:.8rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;';
+  if (mat && mat.file_path) {
+    var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
+    var view = '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(prev?'👁 View':'🔗 Open')+'</button>';
+    var save = '<a href="'+mat.file_path+'" download="'+prismEscAttr(mat.file_name||'file')+'" style="'+btn+'background:#ede9fe;color:#5b21b6;">⬇ Save</a>';
+    return '<div style="'+row+'">'+view+save+'</div>';
+  }
+  if (mat && mat.file_data) {
+    var p2 = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
+    var viewB = '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(p2?'👁 View':'🔗 Open')+'</button>';
+    var dl = '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:#ede9fe;color:#5b21b6;border:none;cursor:pointer;">⬇ Save</button>';
+    return '<div style="'+row+'">'+viewB+dl+'</div>';
+  }
+  if (mat && mat.url && (mat.url.indexOf('http') === 0 || mat.url.charAt(0) === '/')) {
+    var isFile = mat.type === 'file';
+    return '<div style="'+row+'"><a href="'+mat.url+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">🔗 Open in new tab</a></div>';
+  }
+  if (att.indexOf('http') === 0 || att.charAt(0) === '/') {
+    if (att.charAt(0) === '/') {
+      return '<div style="'+row+'"><button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(att)+',"","")\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">🔗 Open</button></div>';
+    }
+    return '<div style="'+row+'"><a href="'+att+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">🔗 Open</a></div>';
+  }
+  return '';
+}
+
+function downloadStudentMaterial(classId, id) {
+  var items = getMaterials()[classId] || [];
+  var it = items.find(function(x) { return x.id === id; });
+  if (!it || !it.file_data) return;
+  var a = document.createElement('a');
+  a.href = it.file_data;
+  a.download = it.file_name || it.title || 'download';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+function previewStudentMaterialBlob(classId, id) {
+  var items = getMaterials()[classId] || [];
+  var it = items.find(function(x) { return x.id === id; });
+  if (!it || !it.file_data) return;
+  var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
+  if (!prev) { downloadStudentMaterial(classId, id); return; }
+  // data: URL → Blob → object URL so preview MIME matches (revoked after a few minutes)
+  fetch(it.file_data)
+    .then(function(r) { return r.blob(); })
+    .then(function(blob) {
+      var type = it.mime_type || blob.type;
+      if (!type || type === 'application/octet-stream') {
+        var ext = (String(it.file_name || '').split('.').pop() || '').toLowerCase();
+        if (ext === 'pdf') type = 'application/pdf';
+        else if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'webp') type = 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
+      }
+      var b = type ? new Blob([blob], { type: type }) : blob;
+      var u = URL.createObjectURL(b);
+      var w = window.open(u, '_blank', 'noopener');
+      if (!w) {
+        URL.revokeObjectURL(u);
+        alert('Pop-up blocked — allow pop-ups for this site to preview files.');
+        return;
+      }
+      setTimeout(function() { URL.revokeObjectURL(u); }, 180000);
+    })
+    .catch(function() {
+      var w = window.open('', '_blank', 'noopener');
+      if (w) w.location = it.file_data;
+    });
+}
+
+function prismEscAttr(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+function prismEscHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function asgnDomId(id) { return String(id).replace(/[^a-zA-Z0-9_-]/g, '_'); }
+/** Normalize API/localStorage assignment row (snake_case + occasional camelCase). */
+function normalizeAssignmentForUI(a) {
+  if (!a) return a;
+  var o = Object.assign({}, a);
+  o.attach_url = String(o.attach_url || o.attachUrl || '').trim();
+  o.attach_file_path = String(o.attach_file_path || o.attachFilePath || '').trim();
+  o.attach_file_name = String(o.attach_file_name || o.attachFileName || '').trim();
+  o.attach_mime = String(o.attach_mime || o.attachMime || '').trim();
+  o.target_section = o.target_section != null ? String(o.target_section).trim() : '';
+  o.instructions = o.instructions != null ? o.instructions : '';
+  if (!o.due) o.due = o.due_date || '';
+  if (o.pts == null && o.points != null) o.pts = o.points;
+  return o;
+}
+function getSubmissionMap(classId) {
+  try {
+    var raw = localStorage.getItem('prism_asgn_mine_'+STUDENT_ID+'_'+classId);
+    var rows = raw ? JSON.parse(raw) : [];
+    var m = {};
+    (rows || []).forEach(function(r) {
+      var aid = r.assignment_id != null ? String(r.assignment_id) : (r.assignmentId != null ? String(r.assignmentId) : '');
+      if (aid) m[aid] = r;
+    });
+    return m;
+  } catch (e) { return {}; }
+}
+
+function studentAbsUploadUrl(path) {
+  if (!path) return '';
+  var s = String(path);
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.charAt(0) === '/') return (window.location.origin || '') + s;
+  try { return new URL(s, window.location.href).href; } catch (e) { return s; }
+}
+function studentIsImageMime(mime, name) {
+  var m = String(mime || '').toLowerCase();
+  if (m.indexOf('image/') === 0) return true;
+  var ext = (String(name || '').split('.').pop() || '').toLowerCase();
+  return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].indexOf(ext) >= 0;
+}
+/** Your work — Classroom-style “Files attached” + thumbnails. */
+function studentSubmissionFilesHtml(sub) {
+  if (!sub) return '';
+  var parts = [];
+  if (sub.link_url && String(sub.link_url).trim()) {
+    var lu = prismEscAttr(String(sub.link_url).trim());
+    parts.push('<div class="gc-files-section"><div class="gc-files-label">Link attached</div>'
+      + '<div class="gc-link-row"><div class="gc-attach-bar"></div><div class="gc-link-body"><a href="' + lu + '" target="_blank" rel="noopener">' + lu + '</a></div></div></div>');
+  }
+  var items = [];
+  var parsed = null;
+  try {
+    if (sub.attachments_json != null && sub.attachments_json !== '') {
+      var raw = sub.attachments_json;
+      if (typeof raw === 'string') {
+        var t = raw.trim();
+        parsed = t ? JSON.parse(t) : [];
+      } else if (Array.isArray(raw)) {
+        parsed = raw;
+      }
+    }
+  } catch (e) { parsed = null; }
+  var hasList = Array.isArray(parsed) && parsed.length > 0;
+  if (hasList) {
+    parsed.forEach(function(a) {
+      if (a && a.path) items.push({ path: a.path, mime: a.mime || '', name: a.name || 'file' });
+    });
+  }
+  if (!items.length && sub.file_path) {
+    items.push({ path: sub.file_path, mime: sub.mime_type || '', name: sub.file_name || 'file' });
+  }
+  var inlineCount = 0;
+  if (hasList) parsed.forEach(function(a) { if (a && a.inline) inlineCount++; });
+
+  var fileCards = [];
+  items.forEach(function(it) {
+    var path = it.path, mime = it.mime, name = it.name || 'file';
+    var urlAbs = studentAbsUploadUrl(path);
+    var isImg = studentIsImageMime(mime, name);
+    var oj = 'onclick=\'prismOpenMaterialUrl(' + JSON.stringify(path) + ',' + JSON.stringify(mime) + ',' + JSON.stringify(name) + ')\'';
+    var thumb;
+    if (isImg && urlAbs) {
+      thumb = '<div class="gc-attach-preview" ' + oj + ' title="Open"><img src="' + prismEscAttr(urlAbs) + '" alt=""/></div>';
+    } else {
+      var ext = (name.split('.').pop() || '').toLowerCase();
+      var em = '📄';
+      if (ext === 'pdf') em = '📕';
+      else if (['png', 'jpg', 'jpeg', 'gif', 'webp'].indexOf(ext) >= 0) em = '🖼';
+      else if (['doc', 'docx'].indexOf(ext) >= 0) em = '📘';
+      else if (['ppt', 'pptx'].indexOf(ext) >= 0) em = '📙';
+      else if (['xls', 'xlsx', 'csv'].indexOf(ext) >= 0) em = '📊';
+      else if (['zip', 'rar', '7z'].indexOf(ext) >= 0) em = '🗜';
+      thumb = '<div class="gc-attach-preview gc-doc" ' + oj + ' title="Open">' + em + '</div>';
+    }
+    fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div>' + thumb
+      + '<div class="gc-attach-body"><div class="gc-attach-name">' + prismEscHtml(name) + '</div>'
+      + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open" ' + oj + '>Open</button>'
+      + '<a class="gc-attach-dl" href="' + prismEscAttr(studentAbsUploadUrl(path)) + '" download="' + prismEscAttr(name) + '">Download</a></div></div></div>');
+  });
+  if (sub.file_data && !items.length) {
+    var fn = prismEscHtml(sub.file_name || 'Submitted file');
+    fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc">📎</div>'
+      + '<div class="gc-attach-body"><div class="gc-attach-name">' + fn + '</div>'
+      + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open student-sub-dl-btn">Download</button></div></div></div>');
+  } else if (inlineCount > 0 && !items.length && !sub.file_data) {
+    parsed.forEach(function(a) {
+      if (a && a.inline) {
+        fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc">📎</div>'
+          + '<div class="gc-attach-body"><div class="gc-attach-name">' + prismEscHtml(a.name || 'file') + '</div>'
+          + '<div class="gc-attach-actions"><span style="font-size:.72rem;color:#5f6368;">No separate file on server</span></div></div></div>');
+      }
+    });
+  }
+  if (fileCards.length) {
+    var n = fileCards.length;
+    parts.push('<div class="gc-files-section"><div class="gc-files-label">Files attached' + (n > 1 ? ' · ' + n : '') + '</div>' + fileCards.join('') + '</div>');
+  }
+  return parts.join('');
+}
+/** Submit note/link to API, reload class data, refresh open overlay panel if still on this class. */
+async function submitStudentAssignment(classId, asgnId) {
+  var sid = asgnDomId(asgnId);
+  var noteEl = document.getElementById('asgn-note-'+sid);
+  var linkEl = document.getElementById('asgn-link-'+sid);
+  var note = noteEl ? noteEl.value.trim() : '';
+  var linkUrl = linkEl ? linkEl.value.trim() : '';
+  var prev = getSubmissionMap(classId)[String(asgnId)];
+  var hasExistingFiles = prev && (prev.file_path || prev.file_data || (prev.attachments_json && String(prev.attachments_json).trim() && String(prev.attachments_json).trim() !== '[]'));
+  if (!note && !linkUrl && !hasExistingFiles) {
+    alert('Add a written response or a link.');
+    return;
+  }
+  var payload = { assignment_id: asgnId, class_id: classId, note: note, link_url: linkUrl };
+  try {
+    await PrismSubmissions.submit(payload);
+    alert('Work submitted.');
+    closeStudentAssignmentModal();
+    await loadClassDataFromAPI();
+    var ov = document.getElementById('class-view-overlay');
+    if (ov && activeDetailId === classId) {
+      var activeTab = ov.querySelector('.class-view-tab.active');
+      var tab = activeTab ? activeTab.dataset.tab : 'asgn';
+      var el = document.getElementById('class-panel-content');
+      if (el) el.innerHTML = buildPanel(tab, classId);
+    }
+  } catch (err) {
+    alert(err.message || 'Could not submit.');
+  }
+}
+
+function postsNewestFirstStudent(arr) {
+  return arr.slice().sort(function(a, b) {
+    var ta = new Date(a.created_at || a.date || 0).getTime();
+    var tb = new Date(b.created_at || b.date || 0).getTime();
+    return tb - ta;
+  });
+}
+
+function postBelongsToStudentClass(p, classId) {
+  var cid = String(classId);
+  var pc = String(p.classId != null ? p.classId : (p.class_id != null ? p.class_id : ''));
+  return pc === cid;
+}
+
+/** Stream tab: posts newest-first; quiz posts match quiz row by id or title; material posts get View/Download. */
+function buildStreamPanel(classId) {
+  var posts = postsNewestFirstStudent(getPosts().filter(function(p){ return postBelongsToStudentClass(p, classId); }));
+  if (!posts.length) return '<div class="empty-state">No posts in this class yet.</div>';
+  var scores = getScores();
+  var allQuizzes = getTeacherQuizzes().filter(function(q){ return q.classId===classId && q.published; });
+  return posts.map(function(p) {
+    var dl = new Date(p.date || p.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    // For quiz-type posts, find matching quiz and render a Take Quiz button
+    var quizActionHtml = '';
+    if (p.type === 'quiz') {
+      var matchedQuiz = null;
+      if (p.quizId) {
+        matchedQuiz = allQuizzes.find(function(q){ return q.id === p.quizId; });
+      }
+      // Fallback: match by title extracted from post body for old posts
+      if (!matchedQuiz) {
+        var titleMatch = p.body && p.body.match(/New quiz: "([^"]+)"/);
+        if (titleMatch) {
+          matchedQuiz = allQuizzes.find(function(q){ return q.title === titleMatch[1]; });
+        }
+      }
+      if (matchedQuiz) {
+        var done    = scores[matchedQuiz.id] !== undefined;
+        var qDue    = matchedQuiz.due || matchedQuiz.due_date || '';
+        var overdue = qDue && typeof prismIsPastDue === 'function' && prismIsPastDue(qDue, matchedQuiz.due_time) && !done;
+        if (done) {
+          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn done" disabled>Completed ✓ · Score: '+scores[matchedQuiz.id]+'/'+matchedQuiz.totalPoints+'</button></div>';
+        } else if (overdue) {
+          quizActionHtml = '<div style="margin-top:.8rem;"><button type="button" class="take-btn" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;" onclick="alert(\'This quiz is past its due date. Please contact your teacher if you need an extension.\')">Past deadline — tap for info</button></div>';
+        } else {
+          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn" onclick="window.location.href=\'quizzes.html\'">🧪 Take Quiz →</button></div>';
+        }
+      }
+    }
+    var materialActionHtml = streamMaterialActionsStudent(classId, p);
+    return '<div class="stream-post">'
+      + '<div class="post-header">'
+      + '<div class="post-avatar">'+(p.author||'T').charAt(0)+'</div>'
+      + '<div class="post-meta"><div class="post-author">'+(p.author||'Teacher')+'</div><div class="post-date">'+dl+'</div></div>'
+      + '<span class="post-badge '+p.type+'">'+p.type+'</span>'
+      + '</div>'
+      + '<div class="post-body">'+p.body+'</div>'
+      + (p.attachment && p.type !== 'announcement' ? '<div class="post-attach">📎 '+p.attachment+'</div>' : '')
+      + materialActionHtml
+      + quizActionHtml
+      + '</div>';
+  }).join('');
+}
+
+function closeStudentAssignmentModal() {
+  if (window.__studentAsgnModalEsc) {
+    document.removeEventListener('keydown', window.__studentAsgnModalEsc);
+    window.__studentAsgnModalEsc = null;
+  }
+  var el = document.getElementById('student-asgn-modal-overlay');
+  if (el) el.remove();
+  document.body.style.overflow = '';
+}
+
+/** Assignment modal: refresh row from API (instructions/attachments), merge into LS, then build modal DOM. */
+async function openStudentAssignmentModal(classId, asgnId) {
+  var aid = String(asgnId);
+  var items = (getAssignments()[classId] || []);
+  var a = items.find(function(x) { return String(x.id) === aid; });
+  if (!a) return;
+  try {
+    // Fresh copy so teacher edits after page load still show
+    var res = await fetch(API_BASE + '/content.php?action=get_assignments&class_id=' + encodeURIComponent(classId), { credentials: 'include' });
+    var text = await res.text();
+    var data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      data = {};
+    }
+    if (data.assignments && data.assignments.length) {
+      var fresh = data.assignments.find(function(x) { return String(x.id) === aid; });
+      if (fresh) {
+        a = normalizeAssignmentForUI(Object.assign({}, a, fresh));
+        var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+        var list = allAsgns[classId] || [];
+        var ix = list.findIndex(function(x) { return String(x.id) === aid; });
+        if (ix >= 0) list[ix] = Object.assign({}, list[ix], a);
+        else list.push(a);
+        allAsgns[classId] = list;
+        localStorage.setItem('prism_teacher_assignments', JSON.stringify(allAsgns));
+      }
+    }
+  } catch (e) {
+    console.warn('openStudentAssignmentModal: refresh from API failed', e);
+  }
+  a = normalizeAssignmentForUI(a);
+  closeStudentAssignmentModal();
+  var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, null);
+  var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due) : a.due;
+  var sid = asgnDomId(a.id);
+  var subMap = getSubmissionMap(classId);
+  var sub = subMap[String(a.id)];
+  var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
+  var existingFilesBlock = '';
+  if (hasSub && (sub.file_path || sub.file_data || sub.link_url || (sub.attachments_json && String(sub.attachments_json).trim() && String(sub.attachments_json).trim() !== '[]'))) {
+    existingFilesBlock = '<div style="margin:.55rem 0 0;">'
+      + '<p style="font-size:.72rem;color:#6b7280;margin:0 0 .5rem;line-height:1.45;">Your submission:</p>'
+      + studentSubmissionFilesHtml(sub)
+      + '</div>';
+  }
+  var inst = prismEscHtml(a.instructions || '');
+  var instructionsBlock = '';
+  if (inst) {
+    instructionsBlock = '<div style="margin-top:.65rem;">'
+      + '<div style="font-size:.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem;">Instructions</div>'
+      + '<div style="font-size:.88rem;color:#374151;line-height:1.55;white-space:pre-wrap;">' + inst + '</div></div>';
+  }
+  var title = prismEscHtml(a.title || '');
+  var icons = { written: '📝', project: '🎯', lab: '🔬', oral: '🎤' };
+  var teacherRefInner = '';
+  if (a.attach_url) {
+    var au = String(a.attach_url).trim();
+    var hrefAu = /^https?:\/\//i.test(au) ? au : ('https://' + au);
+    var vidEmb = typeof prismVideoEmbedFromUrl === 'function' ? prismVideoEmbedFromUrl(hrefAu) : null;
+    if (vidEmb && vidEmb.embed) {
+      teacherRefInner += '<div style="margin:.35rem 0 0;">'
+        + '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;background:#0f172a;margin-bottom:.5rem;">'
+        + '<iframe src="' + prismEscAttr(vidEmb.embed) + '" title="Reference video" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>'
+        + '<a href="' + prismEscAttr(hrefAu) + '" target="_blank" rel="noopener" style="font-size:.8rem;font-weight:700;color:#7c3aed;">🔗 Open video in new tab</a></div>';
+    } else {
+      teacherRefInner += '<div style="margin:.35rem 0 0;"><a href="' + prismEscAttr(hrefAu) + '" target="_blank" rel="noopener" style="font-size:.85rem;font-weight:700;color:#7c3aed;word-break:break-all;">🔗 ' + prismEscHtml(au.length > 72 ? au.slice(0, 72) + '…' : au) + '</a></div>';
+    }
+  }
+  var attachPath = String(a.attach_file_path || '').trim();
+  if (attachPath) {
+    var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(a.attach_mime, a.attach_file_name);
+    teacherRefInner += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0 0;align-items:center;"><span style="font-size:.75rem;color:#64748b;font-weight:600;">Teacher file</span>'
+      + '<button type="button" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(attachPath) + ',' + JSON.stringify(a.attach_mime || '') + ',' + JSON.stringify(a.attach_file_name || '') + ')\' style="padding:.35rem .8rem;border-radius:9px;background:#7c3aed;color:#fff;font-size:.76rem;font-weight:700;border:none;cursor:pointer;">' + (prev ? '👁 View' : '🔗 Open') + '</button>'
+      + '<a href="' + prismEscAttr(studentAbsUploadUrl(attachPath)) + '" download="' + prismEscAttr(a.attach_file_name || 'file') + '" style="padding:.35rem .8rem;border-radius:9px;background:#ede9fe;color:#5b21b6;font-size:.76rem;font-weight:700;text-decoration:none;">⬇ Save</a></div>';
+  }
+  var teacherRef = '';
+  if (teacherRefInner) {
+    teacherRef = '<div style="margin-top:.85rem;padding:.85rem 1rem;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;">'
+      + '<div style="font-size:.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.45rem;">Reference materials</div>'
+      + teacherRefInner + '</div>';
+  }
+  var submitBlock = '';
+  if (overdue) {
+    submitBlock = '<div style="font-size:.78rem;color:#991b1b;margin-top:.75rem;padding-top:.65rem;border-top:1px dashed #fecdd3;">Deadline passed — contact your teacher if you need to submit late.</div>';
+  } else {
+    var statusLine = '';
+    if (hasSub && sub.submitted_at) {
+      statusLine = '<div style="font-size:.8rem;color:#059669;font-weight:700;margin:.65rem 0 .35rem;">✅ Turned in · ' + new Date(sub.submitted_at).toLocaleString() + '</div>';
+    }
+    submitBlock = statusLine
+      + existingFilesBlock
+      + '<div style="margin-top:.5rem;padding-top:.75rem;border-top:1px solid #fce7f3;">'
+      + '<div style="font-size:.72rem;font-weight:700;color:#9d174d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem;">Turn in</div>'
+      + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…" style="width:100%;min-height:90px;border:1.5px solid #fce7f3;border-radius:10px;padding:.65rem .85rem;font-size:.88rem;font-family:inherit;resize:vertical;box-sizing:border-box;">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
+      + '<input type="url" id="asgn-link-' + sid + '" placeholder="Paste a link (article, Google Doc, video…)" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '" style="width:100%;margin-top:.5rem;border:1.5px solid #fce7f3;border-radius:10px;padding:.5rem .85rem;font-size:.85rem;box-sizing:border-box;"/>'
+      + '<button type="button" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\' style="margin-top:.85rem;padding:.58rem 1.5rem;background:linear-gradient(135deg,#ec4899,#be185d);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.9rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Submit work</button>'
+      + '</div>';
+  }
+  var inner = '<div class="student-asgn-modal" role="dialog" aria-modal="true" aria-labelledby="student-asgn-modal-title">'
+    + '<button type="button" class="student-asgn-modal-close" onclick="closeStudentAssignmentModal()" aria-label="Close">×</button>'
+    + '<div style="display:flex;align-items:flex-start;gap:.75rem;padding-right:1.5rem;">'
+    + '<div style="font-size:1.45rem;flex-shrink:0;">' + (icons[a.type] || '📝') + '</div>'
+    + '<div style="flex:1;min-width:0;">'
+    + '<div id="student-asgn-modal-title" style="font-family:DM Sans,sans-serif;font-weight:800;font-size:1.05rem;color:#16132b;">' + title + '</div>'
+    + '<div style="font-size:.8rem;color:#6b7280;margin-top:.25rem;">' + (a.pts ? a.pts + ' points · ' : '') + (a.due ? 'Due ' + dueLine : 'No due date') + '</div>'
+    + instructionsBlock
+    + teacherRef
+    + submitBlock
+    + '</div></div></div>';
+  var overlay = document.createElement('div');
+  overlay.id = 'student-asgn-modal-overlay';
+  overlay.className = 'student-asgn-modal-overlay';
+  overlay.innerHTML = inner;
+  overlay.addEventListener('click', function(e) {
+    if (e.target === overlay) closeStudentAssignmentModal();
+  });
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  if (hasSub && sub.file_data) {
+    overlay.querySelectorAll('.student-sub-dl-btn').forEach(function(dlBtn) {
+      dlBtn.onclick = function() {
+        var ax = document.createElement('a');
+        ax.href = sub.file_data;
+        ax.download = sub.file_name || 'submission';
+        document.body.appendChild(ax);
+        ax.click();
+        document.body.removeChild(ax);
+      };
+    });
+  }
+  window.__studentAsgnModalEsc = function(e) {
+    if (e.key === 'Escape') closeStudentAssignmentModal();
+  };
+  document.addEventListener('keydown', window.__studentAsgnModalEsc);
+}
+
+function buildAsgnPanel(classId) {
+  var raw = (getAssignments()[classId] || []);
+  if (!raw.length) return '<div class="empty-state">No assignments yet.</div>';
+  var items = raw.map(function(x) { return normalizeAssignmentForUI(x); }).sort(function(a, b) {
+    var ta = (a.title || '').toLowerCase();
+    var tb = (b.title || '').toLowerCase();
+    if (ta !== tb) return ta.localeCompare(tb);
+    return String(a.id).localeCompare(String(b.id));
+  });
+  var icons = { written: '📝', project: '🎯', lab: '🔬', oral: '🎤' };
+  var bgs = { written: '#fce7f3', project: '#fef3c7', lab: '#dbeafe', oral: '#e0e7ff' };
+  var subMap = getSubmissionMap(classId);
+  var btnStyle = 'padding:.38rem .85rem;border:1.5px solid #fbcfe8;border-radius:9px;font-size:.78rem;font-weight:700;white-space:nowrap;background:linear-gradient(135deg,#ec4899,#be185d);color:#fff;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;';
+  return items.map(function(a) {
+    var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, null);
+    var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due) : a.due;
+    var sub = subMap[String(a.id)];
+    var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
+    var title = prismEscHtml(a.title || 'Untitled');
+    var metaParts = [];
+    if (a.pts) metaParts.push(a.pts + ' pts');
+    metaParts.push(a.due ? 'Due ' + dueLine : 'No due date');
+    if (overdue) metaParts.push('Past due');
+    else if (hasSub) metaParts.push('Turned in');
+    var meta = metaParts.join(' · ');
+    var filesHtml = hasSub ? studentSubmissionFilesHtml(sub) : '';
+    var innerSub = '';
+    if (!hasSub) {
+      innerSub = '<p style="font-size:.82rem;color:#9ca3af;margin:0;line-height:1.5;">You have not turned anything in yet. Use <strong>Open</strong> below for instructions and submit.</p>';
+    } else {
+      if (filesHtml) innerSub += filesHtml;
+      if (sub.note && String(sub.note).trim()) {
+        innerSub += '<div style="margin-top:' + (filesHtml ? '.65' : '0') + 'rem;"><div style="font-size:.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem;">Written response</div>'
+          + '<div style="font-size:.85rem;color:#374151;line-height:1.55;white-space:pre-wrap;padding:.65rem .85rem;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;">' + prismEscHtml(sub.note) + '</div></div>';
+      }
+      if (!filesHtml && !(sub.note && String(sub.note).trim())) {
+        innerSub += '<p style="font-size:.82rem;color:#059669;margin:0;">✅ Submitted' + (sub.submitted_at ? ' · ' + new Date(sub.submitted_at).toLocaleString() : '') + '</p>';
+      }
+    }
+    var openOnclick = 'event.stopPropagation();openStudentAssignmentModal(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')';
+    return '<details class="student-asgn-acc">'
+      + '<summary>'
+      + '<div class="mat-icon-box" style="background:' + (bgs[a.type] || '#fce7f3') + '">' + (icons[a.type] || '📝') + '</div>'
+      + '<div class="mat-info"><div class="mat-title">' + title + '</div>'
+      + '<div class="mat-meta">' + prismEscHtml(meta) + '</div></div>'
+      + '</summary>'
+      + '<div class="student-asgn-acc-body">'
+      + '<div class="student-asgn-acc-hint">Your submission for this assignment · <strong>Open</strong> for instructions &amp; teacher files</div>'
+      + innerSub
+      + '<div style="margin-top:.85rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;">'
+      + '<button type="button" onclick=\'' + openOnclick + '\' style="' + btnStyle + '">Open</button>'
+      + '</div>'
+      + '</div>'
+      + '</details>';
+  }).join('');
+}
+
+function buildMaterialsPanel(classId) {
+  var items = (getMaterials()[classId]||[]);
+  if (!items.length) return '<div class="empty-state">No materials uploaded yet.</div>';
+  var icons={file:'📄',link:'🔗',video:'🎬'};
+  var bgs  ={file:'#dbeafe',link:'#fce7f3',video:'#fee2e2'};
+  var btnStyle = 'padding:.38rem .85rem;border:1.5px solid #e4dffa;border-radius:9px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;';
+  return items.map(function(it) {
+    var meta = (it.url || '') + (it.desc ? ' · ' + it.desc : '');
+    var action = '';
+    if (it.type === 'file' && it.file_path) {
+      var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
+      action = '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(it.file_path)+','+JSON.stringify(it.mime_type||'')+','+JSON.stringify(it.file_name||'')+')\' style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;cursor:pointer;">'+(prev?'👁 View':'🔗 Open')+'</button>'
+        + '<a href="'+it.file_path+'" download="'+prismEscAttr(it.file_name||'file')+'" style="'+btnStyle+'background:#faf9ff;color:#6d28d9;">⬇ Save</a>';
+    } else if (it.type === 'file' && it.file_data) {
+      var p2 = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
+      action = '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+it.id+'\')" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;cursor:pointer;">'+(p2?'👁 View':'🔗 Open')+'</button>'
+        + '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+it.id+'\')" style="'+btnStyle+'cursor:pointer;background:#faf9ff;color:#6d28d9;">⬇ Save</button>';
+    } else if (it.url && (it.url.indexOf('http') === 0 || it.url.charAt(0) === '/')) {
+      action = '<a href="'+it.url+'" target="_blank" rel="noopener" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">🔗 Open in new tab</a>';
+    } else {
+      action = '<a href="'+(it.url||'#')+'" target="_blank" rel="noopener" style="'+btnStyle+'background:none;color:#7c3aed;">Open</a>';
+    }
+    return '<div class="mat-item">'
+      + '<div class="mat-icon-box" style="background:'+(bgs[it.type]||'#f5f3ff')+'">'+(icons[it.type]||'📄')+'</div>'
+      + '<div class="mat-info"><div class="mat-title">'+it.title+'</div>'
+      + '<div class="mat-meta">'+meta+'</div></div>'
+      + '<div style="display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;">'+action+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+
+
+function renderStats() {
+  var joined   = getJoinedClasses();
+  var classIds = Object.keys(joined);
+  document.getElementById('stat-classes').textContent = classIds.length;
+  var qCount=0, aCount=0, mCount=0;
+  classIds.forEach(function(cid) {
+    getTeacherQuizzes().filter(function(q){ return q.classId===cid && q.published; }).forEach(function(){ qCount++; });
+    (getAssignments()[cid]||[]).forEach(function(){ aCount++; });
+    (getMaterials()[cid]||[]).forEach(function(){ mCount++; });
+  });
+  document.getElementById('stat-quizzes').textContent     = qCount;
+  document.getElementById('stat-assignments').textContent = aCount;
+  document.getElementById('stat-materials').textContent   = mCount;
+}
+
+async function renderAnnouncements() {
+  var feed = document.getElementById('ann-feed');
+  if (!feed) return;
+  var anns = [];
+  try {
+    if (typeof PrismAdmin !== 'undefined' && PrismAdmin.getAnnouncements) {
+      anns = await PrismAdmin.getAnnouncements();
+    }
+  } catch (e) { console.warn('Portal announcements:', e); }
+  if (!anns.length) {
+    feed.innerHTML = '<div class="empty-state">No portal announcements yet.</div>';
+    return;
+  }
+  try { localStorage.setItem('prism_admin_announcements', JSON.stringify(anns)); } catch (e) {}
+  var typeCls = { portal:'background:#fef3c7;color:#92400e;', alert:'background:#fee2e2;color:#991b1b;', info:'background:#dbeafe;color:#1d4ed8;' };
+  var typeIco = { portal:'📢', alert:'🚨', info:'ℹ️' };
+  feed.innerHTML = anns.slice(0, 5).map(function(a) {
+    var rawDate = a.created_at || a.date;
+    var dl = rawDate ? new Date(rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    var t = a.type || 'portal';
+    var pill = '<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:.4rem;' + (typeCls[t] || typeCls.portal) + '">' + (typeIco[t] || '📢') + '</span>';
+    var text = String(a.text == null ? '' : a.text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return '<div style="display:flex;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
+      + '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">' + String(a.author || 'A').charAt(0) + '</div>'
+      + '<div><div style="font-size:.88rem;font-weight:700;color:#16132b;">' + String(a.author || 'Admin').replace(/</g, '&lt;') + pill + ' <span style="font-size:.74rem;color:#9ca3af;">' + dl + '</span></div>'
+      + '<div style="font-size:.88rem;color:#374151;line-height:1.65;margin-top:.25rem;">' + text + '</div></div></div>';
+  }).join('');
+}
+
+function renderActivity() {
+  var joined   = getJoinedClasses();
+  var classIds = Object.keys(joined).map(function(id) { return String(id); });
+  var posts    = postsNewestFirstStudent(getPosts().filter(function(p) {
+    var pc = String(p.classId != null ? p.classId : (p.class_id != null ? p.class_id : ''));
+    return classIds.indexOf(pc) !== -1;
+  }));
+  var feed     = document.getElementById('activity-feed');
+  if (!posts.length) { feed.innerHTML = '<div class="empty-state">No activity from your classes yet.</div>'; return; }
+  var cfg = { announcement:{bg:'#ede9fe',icon:'📢'}, material:{bg:'#d1fae5',icon:'📚'}, assignment:{bg:'#fce7f3',icon:'📝'}, quiz:{bg:'#dbeafe',icon:'🧪'} };
+  feed.innerHTML = posts.slice(0,8).map(function(p) {
+    var c    = cfg[p.type] || {bg:'#f5f3ff',icon:'📌'};
+    var dl   = new Date(p.date || p.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
+    var pk = String(p.classId != null ? p.classId : (p.class_id != null ? p.class_id : ''));
+    var subj = joined[pk] ? joined[pk].subject : '';
+    return '<div style="display:flex;align-items:flex-start;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
+      + '<div style="width:34px;height:34px;border-radius:9px;background:'+c.bg+';display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">'+c.icon+'</div>'
+      + '<div style="flex:1;min-width:0;"><div style="font-size:.88rem;font-weight:600;color:#16132b;line-height:1.4;">'+(p.body.length>65?p.body.slice(0,65)+'…':p.body)+'</div>'
+      + '<div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;">'+(subj?subj+' · ':'')+dl+'</div></div></div>';
+  }).join('');
+}
+
+</script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Prism Portal — Login</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --prism: #7c3aed; --prism-dark: #6d28d9; --prism-mid: #a78bfa; --student: #6366f1; --teacher: #10b981; --admin: #f59e0b; }
+
+    body { min-height:100vh; background:#0a0a0f; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; overflow-x:hidden; }
+    body::before { content:''; position:fixed; inset:0; background: radial-gradient(ellipse 60% 50% at 20% 30%,rgba(124,58,237,.14) 0%,transparent 60%), radial-gradient(ellipse 50% 40% at 80% 70%,rgba(16,185,129,.08) 0%,transparent 60%), radial-gradient(ellipse 40% 35% at 60% 10%,rgba(99,102,241,.10) 0%,transparent 55%); z-index:0; pointer-events:none; }
+
+    .wrapper { position:relative; z-index:1; text-align:center; padding:2rem 1rem; width:100%; max-width:860px; }
+
+    @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+
+    .logo { display:inline-flex; align-items:center; gap:.65rem; margin-bottom:.5rem; }
+    .logo-gem {
+      width:40px; height:40px; border-radius:11px; overflow:hidden;
+      display:flex; align-items:center; justify-content:center; font-size:1.2rem;
+      box-shadow:
+        0 0 0 1px rgba(167,139,250,.35),
+        0 0 20px rgba(124,58,237,.35),
+        0 0 40px rgba(34,211,238,.12);
+      filter: drop-shadow(0 2px 8px rgba(124,58,237,.25));
+    }
+    .logo-gem img { border-radius:11px; }
+    @keyframes crystal-shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .title-row {
+      font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:800; letter-spacing:-0.02em;
+      display:inline-flex; align-items:baseline; flex-wrap:wrap; justify-content:center; gap:0;
+    }
+    .logo-crystal {
+      display:inline-block;
+      font-weight:800;
+      letter-spacing:0.07em;
+      background: linear-gradient(
+        118deg,
+        #faf5ff 0%,
+        #ddd6fe 14%,
+        #a78bfa 32%,
+        #7c3aed 48%,
+        #22d3ee 62%,
+        #c4b5fd 80%,
+        #f5f3ff 100%
+      );
+      background-size: 220% auto;
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      animation: crystal-shimmer 10s ease-in-out infinite;
+      filter: drop-shadow(0 0 14px rgba(167, 139, 250, 0.45)) drop-shadow(0 0 32px rgba(34, 211, 238, 0.14));
+    }
+    .title-portal {
+      font-weight:600;
+      font-size:0.62em;
+      letter-spacing:0.2em;
+      color: rgba(229, 231, 235, 0.42);
+      text-transform: uppercase;
+    }
+    .subtitle { font-size:.9rem; color:#6b7280; margin-bottom:2.5rem; }
+
+    /* ── ROLE CARDS ── */
+    .cards { display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap; margin-bottom:1.8rem; }
+
+    .card { width:220px; background:#13131a; border:1.5px solid #22222e; border-radius:20px; padding:1.8rem 1.3rem 1.4rem; cursor:pointer; transition:transform .25s,border-color .25s,box-shadow .25s; display:flex; flex-direction:column; align-items:center; gap:.8rem; animation:fadeUp .5s ease both; }
+    .card:nth-child(1) { animation-delay:.05s; }
+    .card:nth-child(2) { animation-delay:.12s; }
+    .card:nth-child(3) { animation-delay:.19s; }
+    .card:hover { transform:translateY(-6px); }
+    .card.student:hover { border-color:var(--student); box-shadow:0 20px 50px rgba(99,102,241,.2); }
+    .card.teacher:hover { border-color:var(--teacher); box-shadow:0 20px 50px rgba(16,185,129,.2); }
+    .card.admin:hover   { border-color:var(--admin);   box-shadow:0 20px 50px rgba(245,158,11,.2); }
+
+    .card-icon { width:68px; height:68px; border-radius:18px; display:flex; align-items:center; justify-content:center; font-size:1.8rem; }
+    .card.student .card-icon { background:rgba(99,102,241,.12); }
+    .card.teacher .card-icon { background:rgba(16,185,129,.12); }
+    .card.admin   .card-icon { background:rgba(245,158,11,.12); }
+
+    .card-label { font-family:'DM Sans',sans-serif; font-size:1.05rem; font-weight:700; color:#e5e7eb; }
+    .card-desc  { font-size:.76rem; color:#4b5563; text-align:center; line-height:1.5; }
+
+    .card-btn { margin-top:.3rem; width:100%; padding:.6rem; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.87rem; font-weight:600; cursor:pointer; transition:opacity .2s; color:#fff; }
+    .card-btn:hover { opacity:.85; }
+    .card.student .card-btn { background:var(--student); }
+    .card.teacher .card-btn { background:var(--teacher); }
+    .card.admin   .card-btn { background:var(--admin); }
+
+    .register-row { font-size:.83rem; color:#6b7280; margin-bottom:.3rem; }
+    .register-row a { color:var(--prism-mid); text-decoration:none; font-weight:600; }
+    .register-row a:hover { text-decoration:underline; }
+    .register-row.teacher-row a { color:#6ee7b7; }
+
+    /* ── MODAL ── */
+    .overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.72); backdrop-filter:blur(7px); z-index:100; align-items:center; justify-content:center; }
+    .overlay.active { display:flex; }
+    /* iOS/WebKit: backdrop-filter + early programmatic focus can break digit entry until refocus */
+    @media (hover:none) and (pointer:coarse) {
+      .overlay { backdrop-filter:none; background:rgba(0,0,0,.82); }
+    }
+
+    .modal { background:#13131a; border:1px solid #2a2a3a; border-radius:24px; padding:2.2rem 2rem 1.8rem; width:360px; max-width:93vw; position:relative; animation:popIn .3s cubic-bezier(.34,1.56,.64,1); isolation:isolate; transform:translateZ(0); }
+    @keyframes popIn { from { transform:scale(.85); opacity:0; } to { transform:scale(1); opacity:1; } }
+
+    .modal-close { position:absolute; top:1rem; right:1rem; background:#1e1e2a; border:none; color:#9ca3af; width:30px; height:30px; border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+    .modal-close:hover { background:#2a2a38; color:#e5e7eb; }
+
+    .modal-role-badge { display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:3px 10px; border-radius:20px; margin-bottom:.7rem; }
+    .modal-title { font-family:'DM Sans',sans-serif; font-size:1.35rem; font-weight:800; color:#f0f0f5; margin-bottom:.25rem; }
+    .modal-sub   { font-size:.8rem; color:#6b7280; margin-bottom:1.6rem; }
+
+    .field { margin-bottom:1.1rem; }
+    .field label { display:block; font-size:.75rem; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.45rem; }
+    .field input { width:100%; background:#0e0e16; border:1.5px solid #22222e; border-radius:10px; padding:.72rem 1rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:.92rem; outline:none; transition:border-color .2s; }
+    .field input:focus { border-color:var(--modal-accent,var(--prism)); }
+
+    .pw-wrap { position:relative; }
+    .pw-toggle { position:absolute; right:.75rem; top:50%; transform:translateY(-50%); background:none; border:none; color:#6b7280; cursor:pointer; font-size:.95rem; padding:0; }
+    .pw-toggle:hover { color:#d1d5db; }
+
+    .modal-submit { width:100%; padding:.78rem; border:none; border-radius:12px; background:var(--modal-accent,var(--prism)); color:#fff; font-family:'DM Sans',sans-serif; font-size:.97rem; font-weight:700; cursor:pointer; margin-top:.4rem; transition:opacity .2s; }
+    .modal-submit:hover { opacity:.85; }
+    .modal-submit.loading { opacity:.6; pointer-events:none; }
+
+    .error-msg { color:#f87171; font-size:.8rem; margin-top:.55rem; text-align:center; min-height:1.1em; }
+
+    .access-note { background:rgba(255,255,255,.04); border-radius:10px; padding:.6rem .85rem; margin-bottom:1rem; font-size:.75rem; color:#6b7280; line-height:1.55; border:1px solid #1e1e2a; }
+    .access-note strong { color:#9ca3af; }
+
+    .footer { margin-top:2rem; font-size:.75rem; color:#374151; }
+
+    
+  </style>
+</head>
+<body>
+<script src="api.js"></script>
+<div class="wrapper">
+  <div class="logo">
+    <div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>
+    <span class="title-row"><span class="logo-crystal">PRISM</span><span class="title-portal"> Portal</span></span>
+  </div>
+  <p class="subtitle">Select your role to sign in</p>
+
+  <div class="cards">
+    <div class="card student">
+      <div class="card-icon">🎓</div>
+      <span class="card-label">Student</span>
+      <p class="card-desc">Access classes, grades, and assignments.</p>
+      <button class="card-btn" onclick="openModal('student')">Login as Student</button>
+    </div>
+    <div class="card teacher">
+      <div class="card-icon">📚</div>
+      <span class="card-label">Teacher</span>
+      <p class="card-desc">Manage classes, student records, and quizzes.</p>
+      <button class="card-btn" onclick="openModal('teacher')">Login as Teacher</button>
+    </div>
+    <div class="card admin">
+      <div class="card-icon">🛡️</div>
+      <span class="card-label">Admin</span>
+      <p class="card-desc">Manage portal users and settings.</p>
+      <button class="card-btn" onclick="openModal('admin')">Login as Admin</button>
+    </div>
+  </div>
+
+  <p class="register-row">New student? <a href="register.html">Create a student account here</a></p>
+  <p class="register-row teacher-row">New teacher? <a href="teacher-register.html">Register with your invite code</a></p>
+  <p class="footer">© 2026 Prism Portal · CTU Daanbantayan</p>
+</div>
+
+<!-- Login Modal -->
+<div class="overlay" id="modal-overlay">
+  <div class="modal" id="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-role-badge" id="modal-badge"></div>
+    <h2 class="modal-title" id="modal-title"></h2>
+    <p class="modal-sub"  id="modal-sub"></p>
+    <div class="access-note" id="access-note"></div>
+    <form id="login-form" action="#" autocomplete="on" onsubmit="event.preventDefault(); handleLogin(); return false;">
+    <div class="field">
+      <label for="input-id">ID Number</label>
+      <input type="text" id="input-id" name="prism_id" placeholder="" inputmode="text" enterkeyhint="next"
+        autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false"/>
+    </div>
+    <div class="field">
+      <label for="input-pw">Password</label>
+      <div class="pw-wrap">
+        <input type="password" id="input-pw" name="password" placeholder="Enter your password" autocomplete="current-password" enterkeyhint="go"/>
+        <button class="pw-toggle" type="button" onclick="togglePw()" aria-label="Show or hide password">👁</button>
+      </div>
+    </div>
+    <button type="submit" class="modal-submit" id="submit-btn">Sign In</button>
+    </form>
+    <div class="error-msg" id="login-error"></div>
+  </div>
+</div>
+
+<script>
+  // ── ALWAYS clear session on login page — script.js no longer redirects away ──
+  sessionStorage.clear();
+  // Also destroy any stale PHP session server-side (fire-and-forget)
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'}).catch(()=>{});
+
+  const ROLE_CONFIG = {
+    student: {
+      label: '🎓 Student', accent: '#6366f1',
+      badgeBg: 'rgba(99,102,241,.15)', badgeColor: '#a5b4fc',
+      placeholder: 'e.g. 2024-10123',
+      note: '<strong>Students only.</strong> Use your student ID number. If you don\'t have an account yet, register first.'
+    },
+    teacher: {
+      label: '📚 Teacher', accent: '#10b981',
+      badgeBg: 'rgba(16,185,129,.15)', badgeColor: '#6ee7b7',
+      placeholder: 'e.g. 2024-00001',
+      note: '<strong>Teachers only.</strong> Use your teacher ID. New teacher? <a href="teacher-register.html" style="color:#6ee7b7;">Register with your invite code.</a>'
+    },
+    admin: {
+      label: '🛡️ Admin', accent: '#f59e0b',
+      badgeBg: 'rgba(245,158,11,.15)', badgeColor: '#fcd34d',
+      placeholder: 'e.g. admin001',
+      note: '<strong>Administrators only.</strong> Unauthorized access attempts are logged. Use your assigned admin credentials.'
+    },
+  };
+
+  let currentRole = 'student';
+  let attempts = { student: 0, teacher: 0, admin: 0 };
+  const MAX_ATTEMPTS = 5;
+
+  function openModal(role) {
+    currentRole = role;
+    const cfg = ROLE_CONFIG[role];
+    const badge = document.getElementById('modal-badge');
+    badge.textContent = cfg.label;
+    badge.style.background = cfg.badgeBg;
+    badge.style.color = cfg.badgeColor;
+    document.getElementById('modal-title').textContent = cfg.label.replace(/^\S+\s/, '') + ' Login';
+    document.getElementById('modal-sub').textContent   = `Enter your ${role} credentials to continue`;
+    document.getElementById('access-note').innerHTML   = cfg.note;
+    document.getElementById('modal-box').style.setProperty('--modal-accent', cfg.accent);
+    document.getElementById('input-id').placeholder    = cfg.placeholder;
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('input-id').value = '';
+    document.getElementById('input-pw').value = '';
+    document.getElementById('input-pw').type  = 'password';
+    const btn = document.getElementById('submit-btn');
+    btn.textContent = 'Sign In'; btn.classList.remove('loading');
+    if (attempts[role] >= MAX_ATTEMPTS) {
+      btn.disabled = true; btn.style.opacity = '0.4';
+      document.getElementById('login-error').textContent = 'Too many failed attempts. Please refresh the page.';
+    } else { btn.disabled = false; btn.style.opacity = ''; }
+    document.getElementById('modal-overlay').classList.add('active');
+    var inputId = document.getElementById('input-id');
+    function focusId() {
+      try { inputId.focus({ preventScroll: true }); } catch (err) { inputId.focus(); }
+    }
+    requestAnimationFrame(function () {
+      requestAnimationFrame(focusId);
+    });
+    setTimeout(focusId, 320);
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+    document.getElementById('login-error').textContent = '';
+  }
+
+  function togglePw() {
+    const el = document.getElementById('input-pw');
+    const btn = document.querySelector('.pw-toggle');
+    el.type = el.type === 'password' ? 'text' : 'password';
+    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+  }
+
+  function showError(msg) { document.getElementById('login-error').textContent = msg; }
+
+  function friendlyLoginErr(e) {
+    const m = (e && e.message) ? String(e.message) : 'Something went wrong.';
+    if (m.includes('<!DOCTYPE') || m.includes('<html') || m.length > 160) {
+      return 'Could not reach the login service. Open Prism from the same folder as usual (e.g. http://localhost/prism/login.html).';
+    }
+    return m;
+  }
+
+  async function handleLogin() {
+    const id = document.getElementById('input-id').value.trim();
+    const pw = document.getElementById('input-pw').value;
+    if (!id) { showError('Please enter your ID number.'); return; }
+    if (!pw) { showError('Please enter your password.'); return; }
+
+    if (attempts[currentRole] >= MAX_ATTEMPTS) {
+      showError('Too many failed attempts. Please refresh the page to try again.');
+      return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.classList.add('loading'); btn.textContent = 'Signing in…';
+
+    try {
+      const data = await PrismAuth.login(id, pw, currentRole);
+      if (data.role === 'teacher')    window.location.href = 'teacher.html';
+      else if (data.role === 'admin') window.location.href = 'admin.html';
+      else                            window.location.href = 'index.html';
+    } catch (e) {
+      btn.classList.remove('loading'); btn.textContent = 'Sign In';
+      attempts[currentRole]++;
+      const left = MAX_ATTEMPTS - attempts[currentRole];
+      if (left <= 0) {
+        showError('Too many failed attempts. Please refresh the page to try again.');
+        btn.disabled = true; btn.style.opacity = '0.4';
+      } else {
+        showError(friendlyLoginErr(e) + ' ' + left + ' attempt' + (left !== 1 ? 's' : '') + ' remaining.');
+      }
+    }
+  }
+
+  document.getElementById('modal-overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key !== 'Enter' || !document.getElementById('modal-overlay').classList.contains('active')) return;
+    var t = e.target;
+    if (t && t.id === 'input-id') {
+      e.preventDefault();
+      document.getElementById('input-pw').focus();
+      return;
+    }
+    handleLogin();
+  });
+</script>
+</body>
+</html>

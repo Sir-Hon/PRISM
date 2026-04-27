@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8"/>
+ <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+ <title>PRISM My Profile</title>
+ <link rel="icon" type="image/png" href="Prismcrys.png"/>
+ <link rel="stylesheet" href="portal.css?v=3"/>
+ <script src="portal-mobile.js?v=3" defer></script>
+ <style>
+ @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+ @keyframes popIn { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
+ @keyframes fillBar { from{width:0} to{width:var(--w)} }
+ @keyframes countUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+ /* PROFILE HERO */
+ .profile-hero {
+ background: linear-gradient(135deg, #16122a 0%, #2d1f5e 50%, #4c2889 100%);
+ border-radius: 22px;
+ padding: 2.8rem 2.5rem 2.2rem;
+ color: white;
+ position: relative;
+ overflow: hidden;
+ margin-bottom: 1.8rem;
+ animation: fadeUp .45s ease;
+ }
+
+ .profile-hero::before {
+ content: '';
+ position: absolute; inset: 0;
+ background-image: repeating-linear-gradient(60deg,
+ rgba(255,255,255,.04) 0, rgba(255,255,255,.04) 2px,
+ transparent 2px, transparent 28px);
+ }
+
+ .profile-hero-inner {
+ position: relative; z-index: 1;
+ display: flex; align-items: flex-end; gap: 2rem; flex-wrap: wrap;
+ }
+
+ /* Avatar with camera edit button */
+ .profile-avatar-wrap { position: relative; flex-shrink: 0; }
+
+ .profile-avatar {
+ width: 110px; height: 110px;
+ border-radius: 50%;
+ background: linear-gradient(135deg, #7c3aed, #a78bfa);
+ display: flex; align-items: center; justify-content: center;
+ font-family: 'DM Sans', sans-serif;
+ font-size: 2.8rem; font-weight: 800;
+ color: white;
+ border: 4px solid rgba(255,255,255,.25);
+ box-shadow: 0 8px 30px rgba(0,0,0,.3);
+ overflow: hidden;
+ cursor: pointer;
+ transition: transform .2s, box-shadow .2s;
+ }
+ .profile-avatar:hover { transform: scale(1.04); box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+ .profile-avatar img { width:100%; height:100%; object-fit:cover; display:none; }
+
+ .avatar-edit-btn {
+ position: absolute; bottom: 4px; right: 4px;
+ width: 30px; height: 30px; border-radius: 50%;
+ background: #7c3aed; border: 2px solid white;
+ color: white; font-size: .8rem;
+ display: flex; align-items: center; justify-content: center;
+ cursor: pointer; transition: background .2s;
+ }
+ .avatar-edit-btn:hover { background: #6d28d9; }
+ #avatar-upload { display: none; }
+
+ /* Profile info */
+ .profile-info { flex: 1; min-width: 200px; }
+
+ .profile-name {
+ font-family: 'DM Sans', sans-serif;
+ font-size: 2rem; font-weight: 800;
+ margin-bottom: .4rem; line-height: 1.2;
+ }
+
+ .profile-id {
+ font-size: .92rem; color: rgba(255,255,255,.6);
+ font-family: monospace; margin-bottom: .8rem;
+ }
+
+ .profile-badges { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+
+ .p-badge {
+ font-size: .75rem; font-weight: 700;
+ padding: 4px 13px; border-radius: 20px;
+ backdrop-filter: blur(6px);
+ }
+ .p-badge.role { background: rgba(124,58,237,.4); border: 1px solid rgba(167,139,250,.4); color: #ddd6fe; }
+ .p-badge.section { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2); color: rgba(255,255,255,.85); }
+ .p-badge.standing { background: rgba(16,185,129,.25); border: 1px solid rgba(16,185,129,.4); color: #6ee7b7; }
+
+ /* Stats row inside hero */
+ .hero-stats {
+ display: flex; gap: 1.8rem; flex-wrap: wrap;
+ padding-top: 1.4rem; margin-top: 1.4rem;
+ border-top: 1px solid rgba(255,255,255,.12);
+ width: 100%;
+ }
+
+ .hero-stat { text-align: center; }
+ .hero-stat .hs-val { font-family:'DM Sans',sans-serif; font-size:1.8rem; font-weight:800; color:white; line-height:1; }
+ .hero-stat .hs-lbl { font-size:.75rem; color:rgba(255,255,255,.55); margin-top:.3rem; text-transform:uppercase; letter-spacing:.06em; }
+
+ /* Edit profile btn */
+ .edit-profile-btn {
+ position: absolute; top: 1.5rem; right: 1.8rem; z-index: 2;
+ background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+ color: white; padding: .5rem 1.2rem; border-radius: 20px;
+ font-size: .88rem; font-weight: 600; cursor: pointer;
+ font-family: 'DM Sans', sans-serif;
+ transition: background .2s;
+ display: flex; align-items: center; gap: .4rem;
+ }
+ .edit-profile-btn:hover { background: rgba(255,255,255,.22); }
+
+ /* GRID LAYOUT */
+ .profile-grid {
+ display: grid;
+ grid-template-columns: 320px 1fr;
+ gap: 1.5rem;
+ align-items: start;
+ }
+
+ @media(max-width:900px) { .profile-grid { grid-template-columns: 1fr; } }
+
+ /* CARDS */
+ .p-card {
+ background: #fff;
+ border-radius: 18px;
+ box-shadow: 0 4px 24px rgba(124,58,237,.09);
+ border: 1px solid rgba(124,58,237,.08);
+ overflow: hidden;
+ animation: fadeUp .4s ease both;
+ }
+ .p-card:nth-child(1){animation-delay:.05s}
+ .p-card:nth-child(2){animation-delay:.10s}
+ .p-card:nth-child(3){animation-delay:.15s}
+ .p-card:nth-child(4){animation-delay:.20s}
+ .p-card:nth-child(5){animation-delay:.25s}
+
+ .p-card-header {
+ padding: 1.2rem 1.5rem .8rem;
+ border-bottom: 1px solid #f0ecff;
+ display: flex; align-items: center; justify-content: space-between;
+ }
+ .p-card-title {
+ font-family: 'DM Sans', sans-serif;
+ font-size: 1rem; font-weight: 800; color: #16132b;
+ display: flex; align-items: center; gap: .5rem;
+ }
+ .p-card-body { padding: 1.2rem 1.5rem; }
+
+ /* INFO LIST */
+ .info-row {
+ display: flex; align-items: flex-start;
+ gap: .9rem; padding: .65rem 0;
+ border-bottom: 1px solid #f9f8ff;
+ }
+ .info-row:last-child { border-bottom: none; }
+ .info-icon { font-size: 1.1rem; flex-shrink: 0; width: 24px; text-align: center; margin-top: .1rem; }
+ .info-label { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #c4b5fd; margin-bottom: .15rem; }
+ .info-value { font-size: .95rem; font-weight: 600; color: #16132b; }
+ .info-value.editable-field { cursor: text; border-bottom: 1.5px dashed #e4dffa; padding-bottom: 1px; transition: border-color .2s; }
+ .info-value.editable-field:focus { outline: none; border-bottom-color: #7c3aed; }
+
+ /* SUBJECT PROGRESS */
+ .subject-row { margin-bottom: 1.1rem; }
+ .subject-row:last-child { margin-bottom: 0; }
+
+ .subject-label-row {
+ display: flex; align-items: center; justify-content: space-between;
+ margin-bottom: .45rem;
+ }
+
+ .subject-name-dot {
+ display: flex; align-items: center; gap: .55rem;
+ font-size: .92rem; font-weight: 700; color: #16132b;
+ }
+
+ .subj-diamond {
+ flex-shrink: 0;
+ }
+
+ .subject-pct { font-size: .82rem; font-weight: 700; color: #7c3aed; }
+
+ .progress-track {
+ height: 8px; background: #f0ecff; border-radius: 10px; overflow: hidden;
+ }
+ .progress-fill {
+ height: 100%; border-radius: 10px;
+ animation: fillBar .9s ease forwards;
+ --w: 0%;
+ }
+
+ /* QUIZ STATUS */
+ .quiz-status-list { display: flex; flex-direction: column; gap: .65rem; }
+
+ .qz-row {
+ display: flex; align-items: center; gap: .9rem;
+ padding: .85rem 1rem;
+ border-radius: 13px;
+ border: 1.5px solid #f0ecff;
+ background: #faf9ff;
+ transition: border-color .18s;
+ cursor: pointer;
+ }
+ .qz-row:hover { border-color: #c4b5fd; }
+
+ .qz-dot {
+ width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0;
+ }
+
+ .qz-info { flex: 1; overflow: hidden; }
+ .qz-info .qz-name { font-size: .92rem; font-weight: 700; color: #16132b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+ .qz-info .qz-sub { font-size: .76rem; color: #9ca3af; margin-top: 1px; }
+
+ .qz-score-badge {
+ font-size: .78rem; font-weight: 700; padding: 4px 11px;
+ border-radius: 20px; white-space: nowrap; flex-shrink: 0;
+ }
+ .qz-score-badge.done { background: #d1fae5; color: #065f46; }
+ .qz-score-badge.missed { background: #fee2e2; color: #991b1b; }
+ .qz-score-badge.pending { background: #fef3c7; color: #92400e; }
+ .qz-score-badge.overdue { background: #fee2e2; color: #991b1b; }
+
+ /* ASSIGNMENTS */
+ .asgn-list { display: flex; flex-direction: column; gap: .6rem; }
+
+ .asgn-row {
+ display: flex; align-items: center; gap: .9rem;
+ padding: .82rem 1rem; border-radius: 13px;
+ border: 1.5px solid #f0ecff; background: #faf9ff;
+ cursor: pointer; transition: border-color .18s;
+ }
+ .asgn-row:hover { border-color: #c4b5fd; }
+ .asgn-row.overdue { border-color: #fecaca; background: #fff5f5; }
+
+ .asgn-icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+ .asgn-info { flex: 1; overflow: hidden; }
+ .asgn-info .asgn-title { font-size: .92rem; font-weight: 700; color: #16132b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+ .asgn-info .asgn-subject { font-size: .76rem; color: #9ca3af; }
+ .asgn-due { font-size: .78rem; font-weight: 700; white-space: nowrap; }
+ .asgn-due.ok { color: #7c3aed; }
+ .asgn-due.overdue { color: #ef4444; }
+
+ /* ACTIVITY FEED */
+ .activity-feed { display: flex; flex-direction: column; }
+
+ .activity-item {
+ display: flex; gap: 1rem; padding: .9rem 0;
+ border-bottom: 1px solid #f9f8ff;
+ }
+ .activity-item:last-child { border-bottom: none; }
+
+ .activity-icon-wrap {
+ width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+ display: flex; align-items: center; justify-content: center;
+ font-size: 1rem;
+ }
+
+ .activity-text { flex: 1; }
+ .activity-text .act-main { font-size: .92rem; color: #374151; line-height: 1.45; }
+ .activity-text .act-main strong { color: #16132b; font-weight: 700; }
+ .activity-text .act-time { font-size: .76rem; color: #c4b5fd; margin-top: .2rem; }
+
+ /* SUMMARY STAT CHIPS */
+ .stat-chips { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+
+ .stat-chip {
+ background: #faf9ff; border-radius: 14px;
+ border: 1.5px solid #f0ecff;
+ padding: 1.1rem 1rem;
+ text-align: center;
+ }
+ .stat-chip .sc-val { font-family:'DM Sans',sans-serif; font-size:1.6rem; font-weight:800; color:#7c3aed; line-height:1; }
+ .stat-chip .sc-lbl { font-size:.75rem; color:#9ca3af; margin-top:.3rem; font-weight:600; }
+ .stat-chip.red .sc-val { color:#ef4444; }
+ .stat-chip.green .sc-val { color:#10b981; }
+ .stat-chip.amber .sc-val { color:#d97706; }
+
+ /* EDIT MODAL */
+ .edit-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(6px); z-index:600; align-items:center; justify-content:center; }
+ .edit-overlay.active { display:flex; }
+
+ .edit-modal {
+ background:#fff; border-radius:22px; padding:2.2rem;
+ width:440px; max-width:92vw;
+ box-shadow:0 24px 70px rgba(0,0,0,.2);
+ animation:popIn .28s cubic-bezier(.34,1.56,.64,1);
+ }
+ .edit-modal h3 { font-family:'DM Sans',sans-serif; font-size:1.3rem; font-weight:800; color:#16132b; margin-bottom:1.4rem; }
+
+ .edit-field { margin-bottom:1.1rem; }
+ .edit-field label { display:block; font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#9ca3af; margin-bottom:.45rem; }
+ .edit-field input, .edit-field select, .edit-field textarea {
+ width:100%; border:1.5px solid #e4dffa; border-radius:11px;
+ padding:.72rem 1rem; font-size:.95rem; font-family:'DM Sans',sans-serif;
+ color:#16132b; outline:none; transition:border-color .2s; background:#faf9ff;
+ }
+ .edit-field input:focus, .edit-field select:focus, .edit-field textarea:focus { border-color:#7c3aed; background:#fff; }
+ .edit-field textarea { resize:vertical; min-height:80px; }
+
+ .edit-actions { display:flex; gap:.7rem; margin-top:1.4rem; }
+ .edit-btn { flex:1; padding:.72rem; border:none; border-radius:12px; font-size:.95rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:opacity .2s; }
+ .edit-btn.save { background:#7c3aed; color:white; }
+ .edit-btn.cancel { background:#f0ecff; color:#555; }
+ .edit-btn:hover { opacity:.88; }
+
+ /* Scrollable right column */
+ .profile-right { display:flex; flex-direction:column; gap:1.5rem; }
+
+ /* empty states */
+ .p-empty { text-align:center; padding:1.8rem 1rem; color:#c4b5fd; font-size:.92rem; }
+ .p-empty .p-empty-icon { font-size:2rem; margin-bottom:.5rem; }
+
+ /* view all link */
+ .view-all-link { font-size:.8rem; font-weight:700; color:#7c3aed; text-decoration:none; }
+ .view-all-link:hover { text-decoration:underline; }
+ </style>
+</head>
+<body>
+<script src="api.js"></script>
+
+<script>
+/* ── script.js inlined ── */
+// ═══════════════════════════════════════════════════════
+//  PRISM PORTAL — script.js  
+//  Auth guard + role-based access control
+// ═══════════════════════════════════════════════════════
+
+(async function () {
+  var raw = window.location.pathname.split('/').pop();
+  var currentPage = (raw || 'index.html').split('?')[0].split('#')[0];
+  if (!currentPage || currentPage === '') currentPage = 'index.html';
+
+  var PUBLIC_PAGES = ['login.html', 'register.html', 'teacher-register.html', 'admin-register.html'];
+  if (PUBLIC_PAGES.indexOf(currentPage) !== -1) {
+    try {
+      var sd = await fetch(API_BASE + '/auth.php?action=session', { credentials: 'include' }).then(function (r) { return r.json(); });
+      if (sd.loggedIn && sd.user) {
+        window.location.replace(getRoleHome(sd.user.role));
+      }
+    } catch (e) {}
+    return;
+  }
+
+  try {
+    var data = await fetch(API_BASE + '/auth.php?action=session', { credentials: 'include' }).then(function (r) { return r.json(); });
+    if (!data.loggedIn || !data.user) {
+      window.location.replace('login.html');
+      return;
+    }
+    var u = data.user;
+    if (currentPage === 'profile.html' && ['student', 'teacher', 'admin'].indexOf(u.role) === -1) {
+      window.location.replace(getRoleHome(u.role));
+      return;
+    }
+    sessionStorage.setItem('prism_logged_in', 'true');
+    sessionStorage.setItem('prism_user_id', u.id);
+    sessionStorage.setItem('prism_user_name', u.name);
+    sessionStorage.setItem('prism_role', u.role);
+    sessionStorage.setItem('prism_section', u.section || '');
+  } catch (e) {
+    window.location.replace('login.html');
+    return;
+  }
+
+  window.addEventListener('load', function () {
+    var userName = sessionStorage.getItem('prism_user_name') || sessionStorage.getItem('prism_user_id') || 'User';
+    var userRole = sessionStorage.getItem('prism_role') || '';
+    var tbRole = document.getElementById('topbar-role');
+    var tbAv = document.getElementById('topbar-avatar');
+    if (tbRole) tbRole.textContent = userRole;
+    if (tbAv) tbAv.textContent = userName.charAt(0).toUpperCase();
+  });
+})();
+
+// ── HELPERS ──
+function getRoleHome(role) {
+  if (role === 'teacher') return 'teacher.html';
+  if (role === 'admin')   return 'admin.html';
+  return 'index.html';
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+function previewImage(event, imgId, placeholderId) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var img = document.getElementById(imgId);
+  var placeholder = document.getElementById(placeholderId);
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    img.src = e.target.result;
+    img.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+</script>
+<script>
+/* ── portal-sidebar.js inlined ── */
+/* portal-sidebar.js
+   Call initSidebar(activePage) after DOMContentLoaded.
+   Builds the correct sidebar nav for the logged-in role.
+*/
+
+// Class list is now dynamic (loaded from localStorage)
+
+var ROLE_NAV = {
+  student: [
+    { page:'home',     href:'index.html',    icon:'🏠', label:'Home' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'notes',    href:'notes.html',    icon:'📓', label:'Notes' },
+    { page:'quizzes',  href:'quizzes.html',  icon:'🧠', label:'Quizzes' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+  teacher: [
+    { page:'home',      href:'teacher.html',   icon:'🏠', label:'My Classes' },
+    { page:'quizmaker', href:'quizmaker.html', icon:'🧪', label:'Quiz Maker' },
+    { page:'records',   href:'records.html',   icon:'📋', label:'Records' },
+    { page:'grading',   href:'grading.html',   icon:'🎯', label:'Grading' },
+    { page:'calendar',  href:'calendar.html',  icon:'📅', label:'Calendar' },
+    { page:'call',      href:'call.html',      icon:'📞', label:'Organizations' },
+  ],
+  admin: [
+    { page:'home',     href:'admin.html',    icon:'🏠', label:'Dashboard' },
+    { page:'manage',   href:'manage.html',   icon:'👥', label:'Manage Users' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+};
+
+function diamondSVG(color, size) {
+  size = size || 14;
+  return '<svg class="sidebar-diamond" width="'+size+'" height="'+size+'" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="'+color+'" stroke="'+color+'" stroke-width="0.5" stroke-linejoin="round"/></svg>';
+}
+
+function initSidebar(activePage) {
+  var userName = sessionStorage.getItem('prism_user_name') || sessionStorage.getItem('prism_user_id') || 'User';
+  var roleRaw  = sessionStorage.getItem('prism_role') || 'student';
+  var role     = String(roleRaw).toLowerCase().trim();
+  if (!ROLE_NAV[role]) role = 'student';
+  try { document.body.setAttribute('data-prism-role', role); } catch (e) {}
+  var initial  = userName.charAt(0).toUpperCase();
+
+  // ── TOPBAR LOGO — fix href and gem emoji ──
+  var logoLinks = document.querySelectorAll('.topbar-logo');
+  var homeHref  = role === 'admin' ? 'admin.html' : role === 'teacher' ? 'teacher.html' : 'index.html';
+  for (var li = 0; li < logoLinks.length; li++) {
+    logoLinks[li].href = homeHref;
+    var gem = logoLinks[li].querySelector('.topbar-logo-gem');
+    if (gem) {
+      gem.innerHTML = '<img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/>';
+    }
+  }
+
+  // ── TOPBAR ──
+  var tbName   = document.getElementById('topbar-name');
+  var tbRole   = document.getElementById('topbar-role');
+  var tbAvatar = document.getElementById('topbar-avatar');
+  if (tbName)   tbName.textContent   = userName;
+  if (tbRole) {
+    tbRole.textContent = role;
+    // Update badge color to match role
+    var roleColors = { student: '#7c3aed', teacher: '#10b981', admin: '#f59e0b' };
+    var roleBgs    = { student: '#ede9fe',  teacher: '#d1fae5',  admin: '#fef3c7'  };
+    tbRole.style.color      = roleColors[role] || '#7c3aed';
+    tbRole.style.background = roleBgs[role]    || '#ede9fe';
+    tbRole.style.borderColor = (roleColors[role] || '#7c3aed') + '33';
+  }
+  if (tbAvatar) tbAvatar.textContent = initial;
+
+  // ── USER CARD — hidden in CSS (profile is in the top bar) ──
+  var userCard = document.getElementById('sidebar-user-card');
+  if (userCard) userCard.innerHTML = '';
+
+  // ── NAV — replace the placeholder with the correct role nav ──
+  var placeholder = document.getElementById('sidebar-nav');
+  if (placeholder) {
+    var links = ROLE_NAV[role] || ROLE_NAV['student'];
+    var lbl   = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
+
+    var sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+
+    var secLbl = document.createElement('div');
+    secLbl.className = 'sidebar-section-label';
+    secLbl.textContent = lbl;
+    sec.appendChild(secLbl);
+
+    for (var i = 0; i < links.length; i++) {
+      var l = links[i];
+      if (l.placeholder) {
+        var sp = document.createElement('span');
+        sp.className = 'sidebar-link sidebar-link-placeholder';
+        sp.setAttribute('data-page', l.page);
+        sp.setAttribute('aria-disabled', 'true');
+        sp.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(sp);
+      } else {
+        var a = document.createElement('a');
+        a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
+        a.setAttribute('data-page', l.page);
+        a.href = l.href;
+        a.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(a);
+      }
+    }
+
+    sec.id = 'sidebar-nav';
+    placeholder.parentNode.replaceChild(sec, placeholder);
+  }
+
+  // ── MY CLASSES section ──
+  var classCont = document.getElementById('sidebar-classes');
+  if (classCont) {
+
+    // Hide the whole My Classes section for admins
+    if (role === 'admin') {
+      var node = classCont.parentNode;
+      while (node && !(node.className && node.className.indexOf('sidebar-section') !== -1)) {
+        node = node.parentNode;
+      }
+      if (node) node.style.display = 'none';
+      var prev = node && node.previousElementSibling;
+      if (prev && prev.className && prev.className.indexOf('sidebar-divider') !== -1) {
+        prev.style.display = 'none';
+      }
+      return;
+    }
+
+    // For students and teachers — show classes
+    // Update section label based on role
+    var classSection = classCont.parentNode;
+    if (classSection) {
+      var classLabel = classSection.querySelector('.sidebar-section-label');
+      if (classLabel) {
+        classLabel.textContent = role === 'teacher' ? 'Classes' : 'My Classes';
+      }
+    }
+
+    classCont.innerHTML = '';
+
+    if (role === 'teacher') {
+      // Teacher: show their created classes
+      var teacherId = sessionStorage.getItem('prism_user_id') || 'teacher';
+      var teacherClasses = JSON.parse(localStorage.getItem('prism_classes_'+teacherId)||'[]');
+      if (!teacherClasses.length) {
+        var emp = document.createElement('div');
+        emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp.textContent = 'No subjects yet';
+        classCont.appendChild(emp);
+      } else {
+        teacherClasses.forEach(function(cls) {
+          var btn = document.createElement('button');
+          btn.className = 'sidebar-class-item';
+          btn.innerHTML = diamondSVG(cls.color||'#7c3aed', 13) +
+            '<span class="sidebar-class-name">'+cls.subject+'</span>';
+          btn.onclick = function() { window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id); };
+          classCont.appendChild(btn);
+        });
+      }
+    } else {
+      // Student: show joined classes
+      var studentId = sessionStorage.getItem('prism_user_id') || 'student';
+      var joinedRaw = JSON.parse(localStorage.getItem('prism_joined_'+studentId)||'{}');
+      var joinedList = Object.values(joinedRaw);
+      if (!joinedList.length) {
+        var emp2 = document.createElement('div');
+        emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp2.textContent = 'No classes joined yet';
+        classCont.appendChild(emp2);
+      } else {
+        var colors = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d'];
+        joinedList.forEach(function(entry, idx) {
+          (function(e, i) {
+            var btn = document.createElement('button');
+            btn.className = 'sidebar-class-item';
+            btn.innerHTML = diamondSVG(colors[i%colors.length], 13) +
+              '<span class="sidebar-class-name">'+e.subject+'</span>';
+            btn.onclick = function() {
+              if (typeof openClassDetail === 'function') {
+                openClassDetail(e.classId, e.teacherId, e.subject, colors[i%colors.length]);
+              } else {
+                window.location.href = 'index.html';
+              }
+            };
+            classCont.appendChild(btn);
+          })(entry, idx);
+        });
+      }
+    }
+  }
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+</script>
+
+<!-- TOPBAR -->
+<div class="topbar">
+ <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
+ <div class="topbar-spacer"></div>
+ <div class="topbar-right">
+ <span class="topbar-role-badge" id="topbar-role"></span>
+ <span class="topbar-name" id="topbar-name"></span>
+ <a class="topbar-avatar" href="profile.html" id="topbar-avatar">U</a>
+ </div>
+</div>
+
+<div class="app-layout">
+
+ <!-- SIDEBAR -->
+ <aside class="sidebar">
+ <div id="sidebar-user-card" class="sidebar-user-card"></div>
+ <div id="sidebar-nav"></div>
+ <div class="sidebar-divider"></div>
+ <div class="sidebar-section">
+ <div class="sidebar-section-label">My Classes</div>
+ <div id="sidebar-classes"></div>
+ </div>
+ <div style="margin-top:auto;padding-top:1rem;">
+ <div class="sidebar-divider"></div>
+ <button class="sidebar-logout" onclick="logout()"><span class="s-icon">🚪</span> Logout</button>
+ </div>
+ </aside>
+
+ <!-- MAIN -->
+ <main class="main-content">
+
+ <!-- HERO -->
+ <div class="profile-hero" id="profile-hero">
+ <button class="edit-profile-btn" onclick="openEditModal()">✏️ Edit Profile</button>
+ <div class="profile-hero-inner">
+
+ <div class="profile-avatar-wrap">
+ <div class="profile-avatar" id="profile-avatar-display" onclick="document.getElementById('avatar-upload').click()">
+ <img id="avatar-img" src="" alt=""/>
+ <span id="avatar-initial">U</span>
+ </div>
+ <div class="avatar-edit-btn" onclick="document.getElementById('avatar-upload').click()"></div>
+ <input type="file" id="avatar-upload" accept="image/*" onchange="handleAvatarUpload(event)"/>
+ </div>
+
+ <div class="profile-info">
+ <div class="profile-name" id="display-name">Loading</div>
+ <div class="profile-id" id="display-id"></div>
+ <div class="profile-badges">
+ <span class="p-badge role" id="display-role">student</span>
+ <span class="p-badge section" id="display-section"></span>
+ <span class="p-badge standing" id="display-standing">Good Standing</span>
+ </div>
+ <div id="display-bio" style="font-size:.92rem;color:rgba(255,255,255,.7);max-width:480px;line-height:1.65;"></div>
+ </div>
+
+ <div class="hero-stats" id="hero-stats">
+ <!-- filled by JS -->
+ </div>
+ </div>
+ </div>
+
+ <!-- BODY GRID -->
+ <div class="profile-grid">
+
+ <!-- LEFT COLUMN -->
+ <div style="display:flex;flex-direction:column;gap:1.5rem;">
+
+ <!-- Personal Info -->
+ <div class="p-card">
+ <div class="p-card-header">
+ <div class="p-card-title">👤 Personal Info</div>
+ </div>
+ <div class="p-card-body">
+ <div class="info-row">
+ <div class="info-icon">👤</div>
+ <div><div class="info-label">Full Name</div><div class="info-value" id="info-name"></div></div>
+ </div>
+ <div class="info-row">
+ <div class="info-icon">🪪</div>
+ <div><div class="info-label">ID</div><div class="info-value" id="info-id" style="font-family:monospace"></div></div>
+ </div>
+ <div class="info-row">
+ <div class="info-icon">🎓</div>
+ <div><div class="info-label">Role</div><div class="info-value" id="info-role"></div></div>
+ </div>
+ <div class="info-row">
+ <div class="info-icon">🏫</div>
+ <div><div class="info-label">Section / Dept.</div><div class="info-value" id="info-section"></div></div>
+ </div>
+ <div class="info-row">
+ <div class="info-icon">📅</div>
+ <div><div class="info-label">Member Since</div><div class="info-value" id="info-since"></div></div>
+ </div>
+ </div>
+ </div>
+
+ <!-- Subject Progress -->
+ <div class="p-card">
+ <div class="p-card-header">
+ <div class="p-card-title">📊 Subject Progress</div>
+ </div>
+ <div class="p-card-body" id="subject-progress">
+ <!-- filled by JS -->
+ </div>
+ </div>
+
+ <!-- Quick Stats -->
+ <div class="p-card">
+ <div class="p-card-header">
+ <div class="p-card-title">⚡ Quick Stats</div>
+ </div>
+ <div class="p-card-body">
+ <div class="stat-chips" id="stat-chips">
+ <!-- filled by JS -->
+ </div>
+ </div>
+ </div>
+
+ </div>
+
+ <!-- RIGHT COLUMN -->
+ <div class="profile-right">
+
+ <!-- Quiz Performance -->
+ <div class="p-card">
+ <div class="p-card-header">
+ <div class="p-card-title">🧪 Quiz Performance</div>
+ <a class="view-all-link" href="quizzes.html">View All </a>
+ </div>
+ <div class="p-card-body">
+ <div class="quiz-status-list" id="quiz-status-list">
+ <!-- filled by JS -->
+ </div>
+ </div>
+ </div>
+
+ <!-- Pending & Overdue Assignments -->
+ <div class="p-card">
+ <div class="p-card-header">
+ <div class="p-card-title">📝 Assignments</div>
+ <a class="view-all-link" href="index.html">Go to Classes </a>
+ </div>
+ <div class="p-card-body">
+ <div class="asgn-list" id="asgn-list">
+ <!-- filled by JS -->
+ </div>
+ </div>
+ </div>
+
+ <!-- Recent Activity -->
+ <div class="p-card">
+ <div class="p-card-header">
+ <div class="p-card-title">🔔 Recent Activity</div>
+ </div>
+ <div class="p-card-body" style="padding-top:.5rem;padding-bottom:.5rem;">
+ <div class="activity-feed" id="activity-feed">
+ <!-- filled by JS -->
+ </div>
+ </div>
+ </div>
+
+ </div>
+ </div>
+
+ </main>
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div class="edit-overlay" id="edit-overlay">
+ <div class="edit-modal">
+ <h3>✏️ Edit Profile</h3>
+ <div class="edit-field"><label>Display Name</label><input type="text" id="edit-name" placeholder="Your full name"/></div>
+ <div class="edit-field"><label>Section / Program</label><input type="text" id="edit-section" placeholder="e.g. BSIT 1-A"/></div>
+ <div class="edit-field"><label>About Me / Bio</label><textarea id="edit-bio" placeholder="Write a short bio about yourself"></textarea></div>
+ <div class="edit-actions">
+ <button class="edit-btn cancel" onclick="closeEditModal()">Cancel</button>
+ <button class="edit-btn save" onclick="saveProfile()">Save Changes</button>
+ </div>
+ </div>
+</div>
+
+
+
+<script>
+// 
+// DATA mirrors what's in quizzes.html
+// 
+function getAllQuizzes() {
+  var studentId = sessionStorage.getItem('prism_user_id') || 'student';
+  var joined    = JSON.parse(localStorage.getItem('prism_joined_' + studentId) || '{}');
+  var classIds  = Object.keys(joined);
+  var all       = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
+  // Return only published quizzes for classes this student has joined
+  return all.filter(function(q) { return q.published && classIds.indexOf(q.classId) !== -1; })
+            .map(function(q) {
+              return {
+                id: q.id,
+                subject: q.subjectName || q.classId,
+                subjectColor: q.subjectColor || '#7c3aed',
+                title: q.title,
+                due: q.due || '',
+                status: 'pending',
+                points: q.totalPoints || 0,
+                total: q.questions ? q.questions.length : 0
+              };
+            });
+}
+var ALL_QUIZZES = getAllQuizzes();
+
+function getClasswork() {
+  var uid  = sessionStorage.getItem('prism_user_id') || 'student';
+  var role = sessionStorage.getItem('prism_role') || 'student';
+  if (role !== 'student') return [];
+  var joined   = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}');
+  var classIds = Object.keys(joined);
+  var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+  var today    = new Date().toISOString().split('T')[0];
+  var result   = [];
+  classIds.forEach(function(cid) {
+    var entry = joined[cid];
+    (allAsgns[cid] || []).forEach(function(a) {
+      result.push({
+        subject: entry.subject, subjectColor: '#7c3aed',
+        title: a.title, due: a.due || '',
+        status: a.due && a.due < today ? 'overdue' : 'pending',
+        type: a.type || 'assignment'
+      });
+    });
+  });
+  return result;
+}
+var ALL_CLASSWORK = getClasswork();
+
+function getSubjectList() {
+  var uid = sessionStorage.getItem('prism_user_id') || 'student';
+  var role = sessionStorage.getItem('prism_role') || 'student';
+  if (role !== 'student') return [];
+  var joined = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}');
+  return Object.values(joined).map(function(e, i) {
+    var col = e.color;
+    if (!col) {
+      var info = JSON.parse(localStorage.getItem('prism_classes_' + e.teacherId) || '[]')
+                   .find(function(cl){ return cl.id === e.classId; });
+      col = info ? info.color : '#7c3aed';
+    }
+    var asgns = (JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}')[e.classId] || []).length;
+    return { id: e.classId, subject: e.subject, color: col || '#7c3aed', tasks: asgns||1, done: 0 };
+  });
+}
+var SUBJECT_LIST = getSubjectList();
+
+// 
+// PROFILE DATA (localStorage)
+// 
+function getProfileKey() {
+  var uid = sessionStorage.getItem('prism_user_id') || 'guest';
+  return 'prism_profile_' + uid;
+}
+function loadProfile() {
+  // Still use localStorage as a local cache for fast rendering
+  return JSON.parse(localStorage.getItem(getProfileKey()) || '{}');
+}
+function saveProfileData(data) {
+  localStorage.setItem(getProfileKey(), JSON.stringify(data));
+}
+
+// 
+// INIT
+// 
+window.addEventListener('DOMContentLoaded', async () => {
+ const user = await prismAuthGuard();
+ if (!user) return;
+ initSidebar('profile');
+
+ // Load profile from API
+ let apiProfile = {};
+ try { apiProfile = await PrismProfile.get() || {}; } catch(e) {}
+
+ const userId = user.id;
+ const role   = user.role;
+
+ // Sync class rosters from DB so stats match teacher portal / quizmaker
+ window.__prismProfileTeacherSubjects = undefined;
+ window.__prismProfileTeacherStudents = undefined;
+ window.__prismProfileAdminT = undefined;
+ window.__prismProfileAdminS = undefined;
+ try {
+   if (role === 'student') {
+     const mine = await PrismClasses.getMyClasses();
+     const joined = {};
+     mine.forEach(function (c) {
+       joined[c.id] = {
+         classId: c.id,
+         teacherId: c.teacher_id,
+         subject: c.subject,
+         color: c.color,
+         joinedAt: c.joined_at || new Date().toISOString()
+       };
+     });
+     localStorage.setItem('prism_joined_' + userId, JSON.stringify(joined));
+   } else if (role === 'teacher') {
+     const mine = await PrismClasses.getMyClasses();
+     let totalStu = 0;
+     for (const c of mine) {
+       try {
+         const studs = await PrismClasses.getStudents(c.id);
+         totalStu += (studs && studs.length) ? studs.length : 0;
+       } catch (e) {}
+     }
+     window.__prismProfileTeacherSubjects = mine.length;
+     window.__prismProfileTeacherStudents = totalStu;
+     localStorage.setItem('prism_classes_' + userId, JSON.stringify(mine.map(function (c) {
+       return { id: c.id, subject: c.subject, color: c.color || '#7c3aed', code: c.code, teacher_id: c.teacher_id };
+     })));
+   } else if (role === 'admin') {
+     const allU = await PrismAdmin.getAllUsers();
+     window.__prismProfileAdminT = allU.filter(function (x) { return x.role === 'teacher'; }).length;
+     window.__prismProfileAdminS = allU.filter(function (x) { return x.role === 'student'; }).length;
+   }
+ } catch (e) { console.warn('profile class sync:', e); }
+
+ // Merge API data with local cache
+ const saved = loadProfile();
+ const profile = {
+   name:    apiProfile.name    || saved.name    || user.name    || userId,
+   id:      userId,
+   role:    role,
+   section: apiProfile.section || saved.section || user.section || sessionStorage.getItem('prism_section') || '',
+   email:   apiProfile.email   || saved.email   || '',
+   bio:     apiProfile.bio     || saved.bio     || '',
+   since:   apiProfile.member_since ? new Date(apiProfile.member_since).toLocaleDateString('en-US',{year:'numeric',month:'long'}) : (saved.since || new Date().toLocaleDateString('en-US',{year:'numeric',month:'long'})),
+   avatar:  apiProfile.avatar  || saved.avatar  || null,
+ };
+
+ // Cache locally for sidebar/other pages
+ saveProfileData(profile);
+ sessionStorage.setItem('prism_user_name', profile.name);
+ sessionStorage.setItem('prism_section', profile.section);
+
+ if (profile.avatar) {
+   const img = document.getElementById('avatar-img');
+   img.src = profile.avatar; img.style.display = 'block';
+   document.getElementById('avatar-initial').style.display = 'none';
+ }
+
+ renderHero(profile);
+ renderInfoCard(profile);
+ SUBJECT_LIST = getSubjectList();
+ ALL_CLASSWORK = getClasswork();
+ ALL_QUIZZES = getAllQuizzes();
+ renderSubjectProgress();
+ renderQuizStatus();
+ renderAssignments();
+ renderActivity(profile);
+ renderQuickStats();
+});
+
+// 
+// HERO
+// 
+function renderHero(profile) {
+ const initial = profile.name.charAt(0).toUpperCase();
+ document.getElementById('avatar-initial').textContent = initial;
+ document.getElementById('display-name').textContent = profile.name;
+ document.getElementById('display-id').textContent = ' ' + profile.id;
+ document.getElementById('display-role').textContent = profile.role;
+ document.getElementById('display-section').textContent= profile.section;
+
+ if (profile.bio) {
+ document.getElementById('display-bio').textContent = profile.bio;
+ }
+
+ // Standing based on role
+  var standingEl = document.getElementById('display-standing');
+  var roleForStanding = sessionStorage.getItem('prism_role') || 'student';
+  if (roleForStanding === 'teacher') {
+    standingEl.textContent = '📚 Educator';
+    standingEl.style.background = 'rgba(16,185,129,.25)';
+    standingEl.style.color = '#6ee7b7';
+  } else if (roleForStanding === 'admin') {
+    standingEl.textContent = '🛡️ Administrator';
+    standingEl.style.background = 'rgba(245,158,11,.25)';
+    standingEl.style.color = '#fcd34d';
+  } else {
+    var overdueCount = ALL_CLASSWORK.filter(function(cc){ return cc.status === 'overdue'; }).length;
+    if (overdueCount === 0) { standingEl.textContent = '✅ Good Standing'; standingEl.style.background = 'rgba(16,185,129,.25)'; standingEl.style.color = '#6ee7b7'; }
+    else if (overdueCount <= 2) { standingEl.textContent = '⚠️ At Risk'; standingEl.style.background = 'rgba(245,158,11,.25)'; standingEl.style.color = '#fcd34d'; }
+    else { standingEl.textContent = '🚨 Needs Attention'; standingEl.style.background = 'rgba(239,68,68,.25)'; standingEl.style.color = '#fca5a5'; }
+  }
+
+ // Hero stats
+ const scores = JSON.parse(localStorage.getItem('prism_quiz_scores_' + (sessionStorage.getItem('prism_user_id')||'student')) || '{}');
+ const completed = Object.keys(scores).length;
+ const pending = ALL_CLASSWORK.filter(c => c.status === 'pending').length;
+ const overdue = ALL_CLASSWORK.filter(c => c.status === 'overdue').length;
+ const classes = SUBJECT_LIST.length;
+
+   var role2 = sessionStorage.getItem('prism_role') || 'student';
+  var uid2  = sessionStorage.getItem('prism_user_id') || '';
+  var heroEl = document.getElementById('hero-stats');
+  if (role2 === 'teacher') {
+    var tClasses  = JSON.parse(localStorage.getItem('prism_classes_'+uid2)||'[]');
+    var tStudents = (typeof window.__prismProfileTeacherStudents === 'number')
+      ? window.__prismProfileTeacherStudents
+      : tClasses.reduce(function(a,cl){ return a+(JSON.parse(localStorage.getItem('prism_students_'+cl.id)||'[]')).length; },0);
+    var tClassCount = (typeof window.__prismProfileTeacherSubjects === 'number')
+      ? window.__prismProfileTeacherSubjects : tClasses.length;
+    var tQuizzes  = JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]').filter(function(q){ return q.teacherId===uid2; }).length;
+    var tPosts    = JSON.parse(localStorage.getItem('prism_teacher_posts')||'[]').filter(function(p){ return p.teacherId===uid2; }).length;
+    heroEl.innerHTML =
+      '<div class="hero-stat"><div class="hs-val">'+tClassCount+'</div><div class="hs-lbl">Subjects</div></div>'+
+      '<div class="hero-stat"><div class="hs-val">'+tStudents+'</div><div class="hs-lbl">Students</div></div>'+
+      '<div class="hero-stat"><div class="hs-val">'+tQuizzes+'</div><div class="hs-lbl">Quizzes</div></div>'+
+      '<div class="hero-stat"><div class="hs-val">'+tPosts+'</div><div class="hs-lbl">Posts</div></div>';
+  } else if (role2 === 'admin') {
+    var allAcc = JSON.parse(localStorage.getItem('prism_accounts')||'[]');
+    var adT = (typeof window.__prismProfileAdminT === 'number') ? window.__prismProfileAdminT : allAcc.filter(function(a){return a.role==='teacher';}).length;
+    var adS = (typeof window.__prismProfileAdminS === 'number') ? window.__prismProfileAdminS : allAcc.filter(function(a){return a.role==='student';}).length;
+    heroEl.innerHTML =
+      '<div class="hero-stat"><div class="hs-val">'+adT+'</div><div class="hs-lbl">Teachers</div></div>'+
+      '<div class="hero-stat"><div class="hs-val">'+adS+'</div><div class="hs-lbl">Students</div></div>';
+  } else {
+    heroEl.innerHTML =
+      '<div class="hero-stat"><div class="hs-val">'+classes+'</div><div class="hs-lbl">Subjects</div></div>'+
+      '<div class="hero-stat"><div class="hs-val">'+completed+'</div><div class="hs-lbl">Quizzes Done</div></div>'+
+      '<div class="hero-stat"><div class="hs-val">'+pending+'</div><div class="hs-lbl">Pending Tasks</div></div>'+
+      '<div class="hero-stat"><div class="hs-val"'+(overdue?' style="color:#fca5a5"':'')+'>'+overdue+'</div><div class="hs-lbl">Overdue</div></div>';
+  }
+}
+
+// 
+// INFO CARD
+// 
+function renderInfoCard(profile) {
+ document.getElementById('info-name').textContent = profile.name;
+ document.getElementById('info-id').textContent = profile.id;
+ document.getElementById('info-role').textContent = profile.role.charAt(0).toUpperCase() + profile.role.slice(1);
+ document.getElementById('info-section').textContent = profile.section;
+ document.getElementById('info-since').textContent = profile.since;
+}
+
+// 
+// SUBJECT PROGRESS
+// 
+function renderSubjectProgress() {
+  var role = sessionStorage.getItem('prism_role') || 'student';
+  var container = document.getElementById('subject-progress');
+  if (!container) return;
+  SUBJECT_LIST = getSubjectList();
+  if (role !== 'student' || !SUBJECT_LIST.length) {
+    container.innerHTML = '<div style="text-align:center;padding:1.5rem;color:#9ca3af;font-size:.9rem;">'
+      + (role !== 'student' ? 'Subject progress is only shown for students.' : 'Join a class to see your subjects here.')
+      + '</div>';
+    return;
+  }
+  container.innerHTML = SUBJECT_LIST.map(function(s) {
+    var pct = s.tasks > 0 ? Math.round((s.done / s.tasks) * 100) : 0;
+    return '<div class="subject-row" style="margin-bottom:1rem;">'
+      + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.35rem;">'
+      + '<div style="display:flex;align-items:center;gap:.5rem;font-size:.9rem;font-weight:600;color:#16132b;">'
+      + '<div style="width:10px;height:10px;border-radius:50%;background:'+s.color+';flex-shrink:0;"></div>'+s.subject+'</div>'
+      + '<span style="font-size:.78rem;color:#9ca3af;">'+pct+'%</span></div>'
+      + '<div style="height:8px;background:#f0ecff;border-radius:20px;overflow:hidden;">'
+      + '<div style="height:100%;width:'+pct+'%;background:'+s.color+';border-radius:20px;transition:width .6s ease;"></div>'
+      + '</div></div>';
+  }).join('');
+}
+
+// 
+// QUIZ STATUS
+// 
+function renderQuizStatus() {
+  var role = sessionStorage.getItem('prism_role') || 'student';
+  var uid  = sessionStorage.getItem('prism_user_id') || 'student';
+  var container = document.getElementById('quiz-status-list');
+  if (!container) return;
+
+  if (role !== 'student') {
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">🧪</div><div>Quiz status is shown for students.</div></div>';
+    return;
+  }
+
+  var scores   = JSON.parse(localStorage.getItem('prism_quiz_scores_' + uid) || '{}');
+  var joined   = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}');
+  var classIds = Object.keys(joined);
+  var quizzes  = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]')
+                   .filter(function(q){ return q.published && classIds.indexOf(q.classId)!==-1; });
+  var today    = new Date().toISOString().split('T')[0];
+
+  if (!quizzes.length) {
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">🧪</div><div>No quizzes assigned yet.</div></div>';
+    return;
+  }
+
+  container.innerHTML = quizzes.slice(0,8).map(function(q) {
+    var isDone    = scores[q.id] !== undefined;
+    var isOverdue = !isDone && q.due && q.due < today;
+    var badge  = isDone ? '✅ Done' : isOverdue ? '⚠ Overdue' : '⏳ Pending';
+    var badgeBg= isDone ? '#d1fae5' : isOverdue ? '#fee2e2' : '#fef3c7';
+    var badgeC = isDone ? '#065f46' : isOverdue ? '#991b1b' : '#92400e';
+    return '<div style="display:flex;align-items:center;gap:.8rem;padding:.75rem 0;border-bottom:1px solid #f5f3ff;">'
+      + '<div style="width:34px;height:34px;border-radius:9px;background:'+badgeBg+';display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;">🧪</div>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-weight:700;font-size:.88rem;color:#16132b;">'+q.title+'</div>'
+      + '<div style="font-size:.74rem;color:#9ca3af;">'+(q.subjectName||'')+(q.due?' · Due '+q.due:'')+(isDone?' · Score: '+scores[q.id]+'/'+q.totalPoints:'')+'</div>'
+      + '</div>'
+      + '<span style="font-size:.72rem;font-weight:700;padding:3px 9px;border-radius:20px;background:'+badgeBg+';color:'+badgeC+';">'+badge+'</span>'
+      + '</div>';
+  }).join('');
+}
+
+// 
+// ASSIGNMENTS
+// 
+function renderAssignments() {
+  var role = sessionStorage.getItem('prism_role') || 'student';
+  var container = document.getElementById('asgn-list');
+  if (!container) return;
+  if (role !== 'student') {
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">📋</div><div>Assignments are shown for students.</div></div>';
+    return;
+  }
+  ALL_CLASSWORK = getClasswork();
+  var today    = new Date().toISOString().split('T')[0];
+  var combined = ALL_CLASSWORK.filter(function(a){ return a.status==='overdue'||a.status==='pending'; }).slice(0,8);
+  if (!combined.length) {
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">✅</div><div>No pending assignments.</div></div>';
+    return;
+  }
+  var icons = {assignment:'📝',project:'🎯',lab:'🔬',oral:'🎤'};
+  container.innerHTML = combined.map(function(a) {
+    var overdue = a.status === 'overdue';
+    return '<div class="asgn-row" style="display:flex;align-items:center;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
+      + '<div style="width:36px;height:36px;border-radius:10px;background:'+(overdue?'#fee2e2':'#ede9fe')+';display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">'+(icons[a.type]||'📝')+'</div>'
+      + '<div style="flex:1;min-width:0;">'
+      + '<div style="font-weight:700;font-size:.9rem;color:#16132b;">'+a.title+'</div>'
+      + '<div style="font-size:.75rem;color:#9ca3af;">'+a.subject+'</div>'
+      + '</div>'
+      + (a.due ? '<div style="font-size:.75rem;font-weight:700;white-space:nowrap;color:'+(overdue?'#ef4444':'#9ca3af')+'">'+(overdue?'⚠ Overdue':'Due '+a.due)+'</div>' : '')
+      + '</div>';
+  }).join('');
+}
+
+// 
+// ACTIVITY FEED
+// 
+function renderActivity(profile) {
+  var role = sessionStorage.getItem('prism_role') || 'student';
+  var container = document.getElementById('activity-list');
+  if (!container) return;
+  if (role !== 'student') {
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">📊</div><div>Activity is shown for students.</div></div>';
+    return;
+  }
+  var uid      = sessionStorage.getItem('prism_user_id') || 'student';
+  var joined   = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}');
+  var classIds = Object.keys(joined);
+  var posts    = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]')
+                   .filter(function(p){ return classIds.indexOf(p.classId) !== -1; });
+  var notes    = JSON.parse(localStorage.getItem('prism_notebooks') || '[]');
+  var events   = JSON.parse(localStorage.getItem('prism_events') || '[]');
+  var scores   = JSON.parse(localStorage.getItem('prism_quiz_scores_'+uid) || '{}');
+
+  var activities = [];
+  // Quiz completions
+  Object.keys(scores).forEach(function(qid) {
+    var q = JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]').find(function(x){ return x.id===qid; });
+    if (q) activities.push({ icon:'🧪', color:'#ede9fe', text:'Completed: '+q.title, sub:'Score: '+scores[qid]+'/'+q.totalPoints, ts: Date.now()-1000 });
+  });
+  // Recent posts from classes
+  posts.slice(-5).forEach(function(p) {
+    var subj = joined[p.classId] ? joined[p.classId].subject : '';
+    activities.push({ icon:'📢', color:'#dbeafe', text:p.body.slice(0,60)+(p.body.length>60?'…':''), sub:subj, ts: new Date(p.date).getTime() });
+  });
+  // Notes
+  notes.slice(-3).forEach(function(n) {
+    activities.push({ icon:'📓', color:'#fef3c7', text:'Note: '+(n.title||'Untitled'), sub:(n.notes||[]).length+' notes', ts: Date.now()-2000 });
+  });
+  activities.sort(function(a,b){ return b.ts-a.ts; });
+  if (!activities.length) {
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">📭</div><div>No recent activity yet.</div></div>';
+    return;
+  }
+  container.innerHTML = activities.slice(0,8).map(function(a) {
+    return '<div style="display:flex;align-items:flex-start;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
+      + '<div style="width:34px;height:34px;border-radius:9px;background:'+a.color+';display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">'+a.icon+'</div>'
+      + '<div style="flex:1;min-width:0;"><div style="font-size:.88rem;font-weight:600;color:#16132b;line-height:1.4;">'+a.text+'</div>'
+      + '<div style="font-size:.75rem;color:#9ca3af;margin-top:.1rem;">'+a.sub+'</div></div></div>';
+  }).join('');
+}
+
+// 
+// QUICK STATS
+// 
+function renderQuickStats() {
+  var role = sessionStorage.getItem('prism_role') || 'student';
+  var uid  = sessionStorage.getItem('prism_user_id') || 'student';
+
+  if (role === 'teacher') {
+    var classes   = JSON.parse(localStorage.getItem('prism_classes_' + uid) || '[]');
+    var allPosts  = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]');
+    var allQuizzes= JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
+    var myStudents = (typeof window.__prismProfileTeacherStudents === 'number')
+      ? window.__prismProfileTeacherStudents
+      : classes.reduce(function(n, cls) {
+          return n + (JSON.parse(localStorage.getItem('prism_students_'+cls.id)||'[]')).length;
+        }, 0);
+    var subjCount = (typeof window.__prismProfileTeacherSubjects === 'number')
+      ? window.__prismProfileTeacherSubjects : classes.length;
+    var stats = [
+      { icon:'📚', label:'Subjects', val: subjCount },
+      { icon:'👩‍🎓', label:'Students', val: myStudents },
+      { icon:'🧪', label:'Quizzes', val: allQuizzes.filter(function(q){ return q.teacherId===uid; }).length },
+      { icon:'📢', label:'Posts', val: allPosts.filter(function(p){ return p.teacherId===uid; }).length },
+    ];
+    renderStatCards(stats);
+    return;
+  }
+
+  if (role === 'admin') {
+    var allAccounts = JSON.parse(localStorage.getItem('prism_accounts') || '[]');
+    var stats = [
+      { icon:'👨‍🏫', label:'Teachers', val: (typeof window.__prismProfileAdminT === 'number') ? window.__prismProfileAdminT : allAccounts.filter(function(a){ return a.role==='teacher'; }).length },
+      { icon:'🎓',  label:'Students', val: (typeof window.__prismProfileAdminS === 'number') ? window.__prismProfileAdminS : allAccounts.filter(function(a){ return a.role==='student'; }).length },
+      { icon:'🔑',  label:'Invite Codes', val: JSON.parse(localStorage.getItem('prism_invite_codes')||'[]').filter(function(c){ return !c.used; }).length },
+    ];
+    renderStatCards(stats);
+    return;
+  }
+
+  // Student stats
+  var scores    = JSON.parse(localStorage.getItem('prism_quiz_scores_' + uid) || '{}');
+  var joined    = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}');
+  var classIds  = Object.keys(joined);
+  var allQuizzes2 = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]')
+                    .filter(function(q){ return q.published && classIds.indexOf(q.classId)!==-1; });
+  var done    = Object.keys(scores).length;
+  var pending = allQuizzes2.filter(function(q){ return scores[q.id]===undefined; }).length;
+  var notes   = JSON.parse(localStorage.getItem('prism_notebooks') || '[]').length;
+  var stats = [
+    { icon:'🧪', label:'Quizzes Done',    val: done },
+    { icon:'📋', label:'Pending Quizzes', val: pending },
+    { icon:'📚', label:'Classes Joined',  val: classIds.length },
+    { icon:'📓', label:'Notebooks',       val: notes },
+  ];
+  renderStatCards(stats);
+}
+
+function renderStatCards(stats) {
+  var el = document.getElementById('stat-chips');
+  if (!el) return;
+  el.innerHTML = stats.map(function(s) {
+    return '<div class="stat-chip">'
+      + '<div class="sc-val">'+s.val+'</div>'
+      + '<div class="sc-lbl">'+s.icon+' '+s.label+'</div>'
+      + '</div>';
+  }).join('');
+}
+
+// 
+// AVATAR UPLOAD
+// 
+function downscaleAvatarDataUrl(dataUrl, maxDim, quality, done) {
+ var img = new Image();
+ img.onload = function() {
+   var w = img.width, h = img.height;
+   if (!w || !h) { done(dataUrl); return; }
+   if (w <= maxDim && h <= maxDim) { done(dataUrl); return; }
+   var scale = maxDim / Math.max(w, h);
+   w = Math.round(w * scale);
+   h = Math.round(h * scale);
+   var c = document.createElement('canvas');
+   c.width = w;
+   c.height = h;
+   var ctx = c.getContext('2d');
+   ctx.drawImage(img, 0, 0, w, h);
+   done(c.toDataURL('image/jpeg', quality));
+ };
+ img.onerror = function() { done(dataUrl); };
+ img.src = dataUrl;
+}
+
+function handleAvatarUpload(event) {
+ const file = event.target.files[0];
+ if (!file) return;
+ if (file.size > 8 * 1024 * 1024) {
+   alert('Image is too large. Please choose one under 8 MB.');
+   event.target.value = '';
+   return;
+ }
+ const reader = new FileReader();
+ reader.onload = function(e) {
+   const raw = e.target.result;
+   downscaleAvatarDataUrl(raw, 512, 0.88, async function(dataUrl) {
+     const img = document.getElementById('avatar-img');
+     img.src = dataUrl;
+     img.style.display = 'block';
+     document.getElementById('avatar-initial').style.display = 'none';
+
+     const saved = loadProfile();
+     const userId = sessionStorage.getItem('prism_user_id') || '';
+     const name = saved.name || sessionStorage.getItem('prism_user_name') || userId;
+     const section = saved.section || sessionStorage.getItem('prism_section') || '';
+     const bio = saved.bio || '';
+     saved.avatar = dataUrl;
+     saveProfileData(saved);
+     if (typeof prismCacheUserProfile === 'function') {
+       prismCacheUserProfile({ id: userId, name: name, avatar: dataUrl });
+     }
+     try {
+       await PrismProfile.save({ name: name, section: section, email: '', bio: bio, avatar: dataUrl });
+     } catch (err) {
+       console.warn('Avatar server sync failed:', err);
+       alert('Photo updated on this device only. Could not save to the server: ' + (err && err.message ? err.message : 'try a smaller image or check PHP upload/body limits.'));
+     }
+     initSidebar('profile');
+   });
+ };
+ reader.readAsDataURL(file);
+ event.target.value = '';
+}
+
+// 
+// EDIT MODAL
+// 
+function openEditModal() {
+ const saved = loadProfile();
+ const userId = sessionStorage.getItem('prism_user_id') || '';
+ const userName = sessionStorage.getItem('prism_user_name') || userId || 'Student';
+ document.getElementById('edit-name').value = saved.name || userName;
+ document.getElementById('edit-section').value = saved.section || 'BSIT 1-A';
+ document.getElementById('edit-bio').value = saved.bio || '';
+ document.getElementById('edit-overlay').classList.add('active');
+}
+
+function closeEditModal() {
+ document.getElementById('edit-overlay').classList.remove('active');
+}
+
+async function saveProfile() {
+ const name    = document.getElementById('edit-name').value.trim();
+ const section = document.getElementById('edit-section').value.trim();
+ const bio     = document.getElementById('edit-bio').value.trim();
+
+ if (!name) { alert('Name cannot be empty.'); return; }
+
+ try {
+   await PrismProfile.save({ name, section, email: '', bio });
+ } catch(e) { console.warn('API save failed, saving locally only:', e.message); }
+
+ // Update local cache and sessionStorage
+ const saved = loadProfile();
+ saved.name = name; saved.section = section; saved.email = ''; saved.bio = bio;
+ saved.since = saved.since || new Date().toLocaleDateString('en-US',{year:'numeric',month:'long'});
+ saveProfileData(saved);
+ sessionStorage.setItem('prism_user_name', name);
+ sessionStorage.setItem('prism_section', section);
+
+ // Sync name into class rosters
+ const role   = sessionStorage.getItem('prism_role') || 'student';
+ const userId = sessionStorage.getItem('prism_user_id') || '';
+ if (role === 'student' && userId) {
+   const joined = JSON.parse(localStorage.getItem('prism_joined_' + userId) || '{}');
+   Object.keys(joined).forEach(function(classId) {
+     const roster = JSON.parse(localStorage.getItem('prism_students_' + classId) || '[]');
+     let changed = false;
+     roster.forEach(function(s) {
+       if (s.id === userId) { s.name = name; s.section = section || s.section; changed = true; }
+     });
+     if (changed) localStorage.setItem('prism_students_' + classId, JSON.stringify(roster));
+   });
+ }
+
+ closeEditModal();
+ const profile = { ...saved, id: userId, role };
+ renderHero(profile);
+ renderInfoCard(profile);
+ initSidebar('profile');
+}
+
+document.getElementById('edit-overlay').addEventListener('click', function(e) {
+ if (e.target === this) closeEditModal();
+});
+</script>
+
+</body>
+</html>

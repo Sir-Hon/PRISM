@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRISM — Organizations</title>
+  <link rel="icon" type="image/png" href="Prismcrys.png"/>
+  <link rel="stylesheet" href="portal.css?v=3"/>
+  <script src="portal-mobile.js?v=3" defer></script>
+  <style>
+    @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── HERO BANNER ── */
+    .org-hero {
+      border-radius:20px; padding:3rem 2.5rem;
+      background:linear-gradient(135deg,#1e1b2e 0%,#3b2f6e 50%,#6d28d9 100%);
+      color:white; margin-bottom:2.2rem; position:relative; overflow:hidden;
+      animation:fadeUp .4s ease;
+    }
+    .org-hero::before {
+      content:''; position:absolute; inset:0;
+      background-image:repeating-linear-gradient(60deg,rgba(255,255,255,.04) 0,rgba(255,255,255,.04) 2px,transparent 2px,transparent 24px);
+    }
+    .org-hero-label { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#a78bfa; margin-bottom:.7rem; position:relative; }
+    .org-hero h1    { font-family:'DM Sans',sans-serif; font-size:2.4rem; font-weight:800; margin-bottom:.6rem; line-height:1.2; position:relative; }
+    .org-hero p     { font-size:1rem; color:rgba(255,255,255,.75); max-width:560px; line-height:1.7; position:relative; }
+    .org-hero-gem   { position:absolute; right:2.5rem; top:50%; transform:translateY(-50%); opacity:.15; font-size:8rem; pointer-events:none; }
+
+    /* ── SECTION HEADING ── */
+    .section-heading { font-family:'DM Sans',sans-serif; font-size:1.4rem; font-weight:800; color:#16132b; margin-bottom:1.4rem; display:flex; align-items:center; gap:.6rem; }
+
+    /* ── ORG CARDS ── */
+    .orgs-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1.4rem; margin-bottom:2.5rem; }
+
+    .org-card {
+      background:#fff; border-radius:18px; overflow:hidden;
+      box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.09);
+      cursor:pointer; transition:transform .22s,box-shadow .22s;
+      animation:fadeUp .4s ease both;
+    }
+    .org-card:hover { transform:translateY(-5px); box-shadow:0 12px 36px rgba(124,58,237,.18); }
+
+    .org-card-banner { height:8px; }
+    .org-card-body   { padding:1.5rem; }
+
+    .org-icon   { font-size:2.4rem; margin-bottom:.7rem; }
+    .org-name   { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:800; color:#16132b; margin-bottom:.4rem; }
+    .org-desc   { font-size:.92rem; color:#6b7280; line-height:1.65; margin-bottom:1.1rem; }
+    .org-meta   { display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .org-tag    { font-size:.75rem; font-weight:700; padding:4px 11px; border-radius:20px; }
+
+    .org-members { display:flex; align-items:center; gap:.5rem; }
+    .org-avatars { display:flex; }
+    .org-avatar  { width:30px; height:30px; border-radius:50%; background:linear-gradient(135deg,#7c3aed,#a78bfa); color:white; display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:800; font-family:'DM Sans',sans-serif; border:2px solid #fff; margin-left:-8px; }
+    .org-avatar:first-child { margin-left:0; }
+    .org-members-count { font-size:.82rem; color:#9ca3af; font-weight:600; }
+
+    .join-btn { display:block; width:100%; padding:.68rem; border:none; border-radius:12px; font-size:.95rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .2s; margin-top:1rem; }
+    .join-btn.member  { background:#ede9fe; color:#7c3aed; }
+    .join-btn.join    { background:linear-gradient(135deg,#7c3aed,#6d28d9); color:white; }
+    .join-btn.member:hover { background:#e4dffa; }
+    .join-btn.join:hover   { opacity:.9; transform:translateY(-1px); }
+
+    /* Org list is preview-only until real enrollment exists */
+    .orgs-grid--join-placeholder .org-card {
+      cursor: default;
+    }
+    .orgs-grid--join-placeholder .org-card:hover {
+      transform: none;
+      box-shadow: 0 4px 24px rgba(124,58,237,.10);
+    }
+    .join-btn.join--placeholder,
+    .join-btn.join--placeholder:disabled {
+      background: #e5e7eb !important;
+      color: #6b7280 !important;
+      cursor: not-allowed !important;
+      opacity: 1;
+    }
+
+    /* ── PUBLICATION SECTION ── */
+    .publication-card {
+      background:#fff; border-radius:18px; padding:2rem;
+      box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.09);
+      animation:fadeUp .4s ease;
+    }
+
+    .pub-header { display:flex; align-items:center; gap:1.3rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .pub-logo   { width:70px; height:70px; border-radius:16px; background:linear-gradient(135deg,#1e1b2e,#3b2f6e); display:flex; align-items:center; justify-content:center; font-size:2rem; flex-shrink:0; }
+    .pub-info h2  { font-family:'DM Sans',sans-serif; font-size:1.3rem; font-weight:800; color:#16132b; margin-bottom:.3rem; }
+    .pub-info p   { font-size:.9rem; color:#6b7280; margin:0; }
+    .pub-info .pub-tags { display:flex; gap:.5rem; margin-top:.5rem; flex-wrap:wrap; }
+
+    .articles-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.1rem; }
+
+    /* Publication previews — not linked yet */
+    .articles-grid .article-card {
+      border-radius:14px; border:1.5px solid #f0ecff; padding:1.2rem;
+      cursor: default; pointer-events: none; user-select: none;
+      background:#faf9ff;
+    }
+    .articles-grid .article-card:hover {
+      border-color:#f0ecff; background:#faf9ff;
+    }
+    .article-type   { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:#a78bfa; margin-bottom:.5rem; }
+    .article-title  { font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:800; color:#16132b; line-height:1.35; margin-bottom:.5rem; }
+    .article-teaser { font-size:.88rem; color:#6b7280; line-height:1.6; margin-bottom:.8rem; }
+    .article-meta   { font-size:.78rem; color:#c4b5fd; }
+  </style>
+</head>
+<body>
+<script src="api.js"></script>
+
+<script>
+/* ── script.js inlined ── */
+// ═══════════════════════════════════════════════════════
+//  PRISM PORTAL — script.js  
+//  Auth guard + role-based access control
+// ═══════════════════════════════════════════════════════
+
+(async function() {
+  var data = await fetch('/prism/api/auth.php?action=session', {credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
+  if (!data.loggedIn) { window.location.replace('login.html'); return; }
+  var u = data.user;
+  if (['student','teacher','admin'].indexOf(u.role) === -1) {
+    window.location.replace(u.role==='teacher'?'teacher.html':u.role==='admin'?'admin.html':'index.html');
+    return;
+  }
+  sessionStorage.setItem('prism_logged_in','true');
+  sessionStorage.setItem('prism_user_id',  u.id);
+  sessionStorage.setItem('prism_user_name',u.name);
+  sessionStorage.setItem('prism_role',     u.role);
+  sessionStorage.setItem('prism_section',  u.section||'');
+})();
+
+function getRoleHome(role) {
+  if (role === 'teacher') return 'teacher.html';
+  if (role === 'admin')   return 'admin.html';
+  return 'index.html';
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch('/prism/api/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+function previewImage(event, imgId, placeholderId) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var img = document.getElementById(imgId);
+  var placeholder = document.getElementById(placeholderId);
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    img.src = e.target.result;
+    img.style.display = 'block';
+    if (placeholder) placeholder.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+</script>
+<script>
+/* ── portal-sidebar.js inlined ── */
+/* portal-sidebar.js
+   Call initSidebar(activePage) after DOMContentLoaded.
+   Builds the correct sidebar nav for the logged-in role.
+*/
+
+var PORTAL_CLASSES = [
+  { id:'math101', subject:'Mathematics',        color:'#7c3aed' },
+  { id:'sci102',  subject:'Science & Tech',     color:'#0d9488' },
+  { id:'eng103',  subject:'English Comm.',      color:'#d97706' },
+  { id:'prog104', subject:'Programming',        color:'#2563eb' },
+  { id:'hist105', subject:'Philippine History', color:'#be123c' },
+  { id:'pe106',   subject:'Physical Education', color:'#15803d' },
+];
+
+var ROLE_NAV = {
+  student: [
+    { page:'home',     href:'index.html',    icon:'🏠', label:'Home' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'notes',    href:'notes.html',    icon:'📓', label:'Notes' },
+    { page:'quizzes',  href:'quizzes.html',  icon:'🧠', label:'Quizzes' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+  teacher: [
+    { page:'home',      href:'teacher.html',   icon:'🏠', label:'My Classes' },
+    { page:'quizmaker', href:'quizmaker.html', icon:'🧪', label:'Quiz Maker' },
+    { page:'records',   href:'records.html',   icon:'📋', label:'Records' },
+    { page:'grading',   href:'grading.html',   icon:'🎯', label:'Grading' },
+    { page:'calendar',  href:'calendar.html',  icon:'📅', label:'Calendar' },
+    { page:'call',      href:'call.html',      icon:'📞', label:'Organizations' },
+  ],
+  admin: [
+    { page:'home',     href:'admin.html',    icon:'🏠', label:'Dashboard' },
+    { page:'manage',   href:'manage.html',   icon:'👥', label:'Manage Users' },
+    { page:'calendar', href:'calendar.html', icon:'📅', label:'Calendar' },
+    { page:'call',     href:'call.html',     icon:'📞', label:'Organizations' },
+  ],
+};
+
+function diamondSVG(color, size) {
+  size = size || 14;
+  return '<svg class="sidebar-diamond" width="'+size+'" height="'+size+'" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="'+color+'" stroke="'+color+'" stroke-width="0.5" stroke-linejoin="round"/></svg>';
+}
+
+function initSidebar(activePage) {
+  var uid      = sessionStorage.getItem('prism_user_id') || '';
+  var profile  = JSON.parse(localStorage.getItem('prism_profile_' + uid) || '{}');
+  var userName = profile.name || sessionStorage.getItem('prism_user_name') || uid || 'User';
+  if (profile.name) sessionStorage.setItem('prism_user_name', profile.name);
+  var roleRaw  = sessionStorage.getItem('prism_role') || 'student';
+  var role     = String(roleRaw).toLowerCase().trim();
+  if (!ROLE_NAV[role]) role = 'student';
+  try { document.body.setAttribute('data-prism-role', role); } catch (e) {}
+  var initial  = userName.charAt(0).toUpperCase();
+
+  // ── TOPBAR LOGO — fix href and gem emoji ──
+  var logoLinks = document.querySelectorAll('.topbar-logo');
+  var homeHref  = role === 'admin' ? 'admin.html' : role === 'teacher' ? 'teacher.html' : 'index.html';
+  for (var li = 0; li < logoLinks.length; li++) {
+    logoLinks[li].href = homeHref;
+    var gem = logoLinks[li].querySelector('.topbar-logo-gem');
+    if (gem) {
+      gem.innerHTML = '<img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/>';
+    }
+  }
+
+  // ── TOPBAR ──
+  var tbName   = document.getElementById('topbar-name');
+  var tbRole   = document.getElementById('topbar-role');
+  var tbAvatar = document.getElementById('topbar-avatar');
+  if (tbName)   tbName.textContent   = userName;
+  if (tbRole) {
+    tbRole.textContent = role;
+    // Update badge color to match role
+    var roleColors = { student: '#7c3aed', teacher: '#10b981', admin: '#f59e0b' };
+    var roleBgs    = { student: '#ede9fe',  teacher: '#d1fae5',  admin: '#fef3c7'  };
+    tbRole.style.color      = roleColors[role] || '#7c3aed';
+    tbRole.style.background = roleBgs[role]    || '#ede9fe';
+    tbRole.style.borderColor = (roleColors[role] || '#7c3aed') + '33';
+  }
+  if (tbAvatar) {
+    if (profile.avatar) {
+      tbAvatar.innerHTML = '<img src="'+profile.avatar+'" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" alt=""/>';
+    } else {
+      tbAvatar.textContent = initial;
+    }
+  }
+
+  // ── USER CARD — hidden in CSS (profile is in the top bar) ──
+  var userCard = document.getElementById('sidebar-user-card');
+  if (userCard) userCard.innerHTML = '';
+
+  // ── NAV — replace the placeholder with the correct role nav ──
+  var placeholder = document.getElementById('sidebar-nav');
+  if (placeholder) {
+    var links = ROLE_NAV[role] || ROLE_NAV['student'];
+    var lbl   = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
+
+    var sec = document.createElement('div');
+    sec.className = 'sidebar-section';
+
+    var secLbl = document.createElement('div');
+    secLbl.className = 'sidebar-section-label';
+    secLbl.textContent = lbl;
+    sec.appendChild(secLbl);
+
+    for (var i = 0; i < links.length; i++) {
+      var l = links[i];
+      if (l.placeholder) {
+        var sp = document.createElement('span');
+        sp.className = 'sidebar-link sidebar-link-placeholder';
+        sp.setAttribute('data-page', l.page);
+        sp.setAttribute('aria-disabled', 'true');
+        sp.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(sp);
+      } else {
+        var a = document.createElement('a');
+        a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
+        a.setAttribute('data-page', l.page);
+        a.href = l.href;
+        a.innerHTML = '<span class="s-icon">'+l.icon+'</span> '+l.label;
+        sec.appendChild(a);
+      }
+    }
+
+    sec.id = 'sidebar-nav';
+    placeholder.parentNode.replaceChild(sec, placeholder);
+  }
+
+  // ── MY CLASSES section ──
+  var classCont = document.getElementById('sidebar-classes');
+  if (classCont) {
+
+    // Hide the whole My Classes section for admins
+    if (role === 'admin') {
+      var node = classCont.parentNode;
+      while (node && !(node.className && node.className.indexOf('sidebar-section') !== -1)) {
+        node = node.parentNode;
+      }
+      if (node) node.style.display = 'none';
+      var prev = node && node.previousElementSibling;
+      if (prev && prev.className && prev.className.indexOf('sidebar-divider') !== -1) {
+        prev.style.display = 'none';
+      }
+      return;
+    }
+
+    // For students and teachers — show classes
+    // Update section label based on role
+    var classSection = classCont.parentNode;
+    if (classSection) {
+      var classLabel = classSection.querySelector('.sidebar-section-label');
+      if (classLabel) {
+        classLabel.textContent = role === 'teacher' ? 'Classes' : 'My Classes';
+      }
+    }
+
+    classCont.innerHTML = '';
+
+    if (role === 'teacher') {
+      // Teacher: show their created classes
+      var teacherId = sessionStorage.getItem('prism_user_id') || 'teacher';
+      var teacherClasses = JSON.parse(localStorage.getItem('prism_classes_'+teacherId)||'[]');
+      if (!teacherClasses.length) {
+        var emp = document.createElement('div');
+        emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp.textContent = 'No subjects yet';
+        classCont.appendChild(emp);
+      } else {
+        teacherClasses.forEach(function(cls) {
+          var btn = document.createElement('button');
+          btn.className = 'sidebar-class-item';
+          btn.innerHTML = diamondSVG(cls.color||'#7c3aed', 13) +
+            '<span class="sidebar-class-name">'+cls.subject+'</span>';
+          btn.onclick = function() { window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id); };
+          classCont.appendChild(btn);
+        });
+      }
+    } else {
+      // Student: show joined classes
+      var studentId = sessionStorage.getItem('prism_user_id') || 'student';
+      var joinedRaw = JSON.parse(localStorage.getItem('prism_joined_'+studentId)||'{}');
+      var joinedList = Object.values(joinedRaw);
+      if (!joinedList.length) {
+        var emp2 = document.createElement('div');
+        emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+        emp2.textContent = 'No classes joined yet';
+        classCont.appendChild(emp2);
+      } else {
+        var colors = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d'];
+        joinedList.forEach(function(entry, idx) {
+          (function(e, i) {
+            var btn = document.createElement('button');
+            btn.className = 'sidebar-class-item';
+            btn.innerHTML = diamondSVG(colors[i%colors.length], 13) +
+              '<span class="sidebar-class-name">'+e.subject+'</span>';
+            btn.onclick = function() {
+              if (typeof openClassDetail === 'function') {
+                openClassDetail(e.classId, e.teacherId, e.subject, colors[i%colors.length]);
+              } else {
+                window.location.href = 'index.html';
+              }
+            };
+            classCont.appendChild(btn);
+          })(entry, idx);
+        });
+      }
+    }
+  }
+}
+
+function logout() {
+  if (!confirm('Are you sure you want to log out?')) return;
+  fetch('/prism/api/auth.php?action=logout', {method:'POST', credentials:'include'})
+    .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
+}
+
+</script>
+
+<div class="topbar">
+  <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-right">
+    <span class="topbar-role-badge" id="topbar-role"></span>
+    <span class="topbar-name" id="topbar-name"></span>
+    <a class="topbar-avatar" href="profile.html" id="topbar-avatar">U</a>
+  </div>
+</div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div id="sidebar-user-card" class="sidebar-user-card"></div>
+    <div id="sidebar-nav"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">My Classes</div>
+      <div id="sidebar-classes"></div>
+    </div>
+    <div style="margin-top:auto;padding-top:1rem;">
+      <div class="sidebar-divider"></div>
+      <button class="sidebar-logout" onclick="logout()"><span class="s-icon">🚪</span> Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
+
+    <div class="org-hero">
+      <div class="org-hero-label">Student Life</div>
+      <h1>Organizations &amp; Clubs</h1>
+      <p>Connect, collaborate, and grow with your fellow students through CTU Daanbantayan's student organizations.</p>
+      <div class="org-hero-gem">💎</div>
+    </div>
+
+    <div class="section-heading">🏛️ Student Organizations</div>
+
+    <div class="orgs-grid" id="orgs-grid"></div>
+
+    <div class="section-heading">📰 The Modern Fisher</div>
+
+    <div class="publication-card">
+      <div class="pub-header">
+        <div class="pub-logo">✒️</div>
+        <div class="pub-info">
+          <h2>The Modern Fisher</h2>
+          <p>The official student publication of CTU Daanbantayan Campus</p>
+          <div class="pub-tags">
+            <span class="org-tag" style="background:#ede9fe;color:#7c3aed;">Publication</span>
+            <span class="org-tag" style="background:#d1fae5;color:#065f46;">Official</span>
+          </div>
+        </div>
+      </div>
+      <div class="articles-grid" id="articles-grid"></div>
+    </div>
+
+  </main>
+</div>
+
+
+
+<script>
+
+  const ORGS = [
+    { id:'ssg',  icon:'🏛️', name:'Supreme Student Government', desc:'The highest governing body of student affairs. Represents all students in policy-making and organizes campus-wide events.', color:'#7c3aed', tags:[{l:'Governance',c:'#ede9fe',t:'#7c3aed'}], members:['A','B','C','D','E'] },
+    { id:'jpia', icon:'📊', name:'JPIA — Junior Phil. Inst. of Accountants', desc:'Organization for accountancy and business students. Hosts seminars, review sessions, and competitions.', color:'#2563eb', tags:[{l:'Accountancy',c:'#dbeafe',t:'#1d4ed8'}], members:['A','B','C'] },
+    { id:'css',  icon:'💻', name:'Computer Students Society', desc:'For IT and CS students passionate about technology, programming, and digital innovation. Regular hackathons and workshops.', color:'#0d9488', tags:[{l:'IT / CS',c:'#d1fae5',t:'#065f46'}], members:['A','B','C','D'] },
+    { id:'envi', icon:'🌱', name:'Environmental Awareness Club', desc:'Dedicated to promoting sustainability, environmental education, and campus beautification projects.', color:'#15803d', tags:[{l:'Environment',c:'#dcfce7',t:'#15803d'}], members:['A','B','C'] },
+    { id:'arts', icon:'🎨', name:'Arts & Culture Guild', desc:'Celebrates Filipino arts, music, dance, and culture. Organizes cultural shows and represents the campus in competitions.', color:'#be123c', tags:[{l:'Arts',c:'#ffe4e6',t:'#be123c'}], members:['A','B','C','D','E'] },
+    { id:'red',  icon:'❤️', name:'Red Cross Youth', desc:'CTU chapter of the Philippine Red Cross Youth. Trains in first aid, disaster preparedness, and community service.', color:'#dc2626', tags:[{l:'Humanitarian',c:'#fee2e2',t:'#dc2626'}], members:['A','B','C'] },
+  ];
+
+  const ARTICLES = [
+    { type:'News', title:'CTU Daanbantayan Launches New PRISM Portal', teaser:'The campus unveils its new digital learning portal, PRISM, designed to streamline student access to academic resources.', date:'Mar 12, 2026' },
+    { type:'Feature', title:'The Fishermen Who Code', teaser:'A look into how BSIT students are blending maritime heritage with modern technology skills.', date:'Mar 8, 2026' },
+    { type:'Editorial', title:'Digital Literacy in Rural Campuses', teaser:'Why internet access and digital tools are as critical as textbooks in today\'s education landscape.', date:'Mar 5, 2026' },
+    { type:'Sports', title:'CTU Wins Regional Volleyball Championship', teaser:'The CTU Daanbantayan women\'s volleyball team clinched the regional title in a thrilling five-set match.', date:'Feb 28, 2026' },
+    { type:'Opinion', title:'Making the Most of Online Learning', teaser:'Students share their tips and strategies for staying productive and engaged in hybrid classes.', date:'Feb 22, 2026' },
+    { type:'Campus Life', title:'Fiesta ni CTU: A Week of Celebration', teaser:'Highlights from the annual campus fiesta featuring cultural performances, food stalls, and talent shows.', date:'Feb 15, 2026' },
+  ];
+
+  /** Set true when org enrollment is implemented server-side */
+  const ORG_JOIN_ENABLED = false;
+
+  let membership = JSON.parse(localStorage.getItem('prism_org_membership') || '{}');
+
+  function renderOrgs() {
+    const grid = document.getElementById('orgs-grid');
+    grid.className = ORG_JOIN_ENABLED ? 'orgs-grid' : 'orgs-grid orgs-grid--join-placeholder';
+    grid.innerHTML = '';
+    ORGS.forEach((org, i) => {
+      const isMember = !!membership[org.id];
+      const card = document.createElement('div');
+      card.className = 'org-card';
+      card.style.animationDelay = (i * 0.06) + 's';
+      let joinHtml;
+      if (ORG_JOIN_ENABLED) {
+        joinHtml = `<button type="button" class="join-btn ${isMember ? 'member' : 'join'}" onclick="toggleMembership('${org.id}',this)">${isMember ? '✅ Joined' : 'Join Organization'}</button>`;
+      } else {
+        joinHtml = '<button type="button" class="join-btn join join--placeholder" disabled title="Organization sign-up is not available yet">Coming soon</button>';
+      }
+      card.innerHTML = `
+        <div class="org-card-banner" style="background:${org.color}"></div>
+        <div class="org-card-body">
+          <div class="org-icon">${org.icon}</div>
+          <div class="org-name">${org.name}</div>
+          <div class="org-desc">${org.desc}</div>
+          <div class="org-meta">${org.tags.map(t=>`<span class="org-tag" style="background:${t.c};color:${t.t}">${t.l}</span>`).join('')}</div>
+          <div class="org-members">
+            <div class="org-avatars">${org.members.map((m,j)=>`<div class="org-avatar" style="background:linear-gradient(135deg,${org.color},${shadeColor(org.color,40)})">${m}</div>`).join('')}</div>
+            <span class="org-members-count">${org.members.length}${ORG_JOIN_ENABLED && isMember ? '+1' : ''} members</span>
+          </div>
+          ${joinHtml}
+        </div>`;
+      grid.appendChild(card);
+    });
+  }
+
+  function toggleMembership(id, btn) {
+    if (!ORG_JOIN_ENABLED) return;
+    membership[id] = !membership[id];
+    localStorage.setItem('prism_org_membership', JSON.stringify(membership));
+    renderOrgs();
+  }
+
+  function renderArticles() {
+    const grid = document.getElementById('articles-grid');
+    const colors = { News:'#dbeafe', Feature:'#ede9fe', Editorial:'#fce7f3', Sports:'#d1fae5', Opinion:'#fef3c7', 'Campus Life':'#f0fdf4' };
+    const tcolors= { News:'#1d4ed8', Feature:'#7c3aed', Editorial:'#9d174d', Sports:'#065f46', Opinion:'#92400e', 'Campus Life':'#15803d' };
+    grid.innerHTML = ARTICLES.map(a => `
+      <div class="article-card">
+        <div class="article-type" style="color:${tcolors[a.type]||'#a78bfa'}">${a.type}</div>
+        <div class="article-title">${a.title}</div>
+        <div class="article-teaser">${a.teaser}</div>
+        <div class="article-meta">📅 ${a.date}</div>
+      </div>`).join('');
+  }
+
+  function shadeColor(hex, amount) {
+    try { let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); r=Math.min(255,r+amount);g=Math.min(255,g+amount);b=Math.min(255,b+amount); return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`; } catch(e){return hex;}
+  }
+
+  renderOrgs();
+  renderArticles();
+</script>
+
+
+<script>
+  window.addEventListener('DOMContentLoaded', function() {
+    if (typeof initSidebar === 'function') initSidebar('call');
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*.swo
+
+# User-uploaded files (create uploads/ on server; don't commit binary uploads)
+uploads/*
+!uploads/.gitkeep
+
+# Optional local DB config (use instead of editing api/config.php in deploy)
+api/config.local.php
