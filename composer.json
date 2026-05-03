@@ -1,7 +1,0 @@
-{
-    "name": "prism/portal",
-    "description": "PRISM Portal",
-    "require": {
-        "php": ">=8.0"
-    }
-}
