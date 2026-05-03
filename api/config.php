@@ -6,11 +6,25 @@
 
 ob_start();
 
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');       // Change if you set a MySQL password in XAMPP
-define('DB_PASS', '');           // Default XAMPP has no password
-define('DB_NAME', 'prism_db');
-define('DB_PORT', 3306);
+// Optional production DB (InfinityFree, etc.): upload api/config.local.php with your real host/user/pass/db — not committed to git.
+if (is_readable(__DIR__ . '/config.local.php')) {
+    require __DIR__ . '/config.local.php';
+}
+if (!defined('DB_HOST')) {
+    define('DB_HOST', 'localhost');
+}
+if (!defined('DB_USER')) {
+    define('DB_USER', 'root');       // Change if you set a MySQL password in XAMPP
+}
+if (!defined('DB_PASS')) {
+    define('DB_PASS', '');           // Default XAMPP has no password
+}
+if (!defined('DB_NAME')) {
+    define('DB_NAME', 'prism_db');
+}
+if (!defined('DB_PORT')) {
+    define('DB_PORT', 3306);
+}
 
 // Upload directory (relative to htdocs/prism/)
 define('UPLOAD_DIR', __DIR__ . '/../uploads/');
