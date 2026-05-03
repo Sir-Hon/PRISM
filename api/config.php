@@ -11,19 +11,19 @@ if (is_readable(__DIR__ . '/config.local.php')) {
     require __DIR__ . '/config.local.php';
 }
 if (!defined('DB_HOST')) {
-    define('DB_HOST', 'localhost');
+    define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
 }
 if (!defined('DB_USER')) {
-    define('DB_USER', 'root');       // Change if you set a MySQL password in XAMPP
+    define('DB_USER', getenv('DB_USER') ?: 'root');
 }
 if (!defined('DB_PASS')) {
-    define('DB_PASS', '');           // Default XAMPP has no password
+    define('DB_PASS', getenv('DB_PASS') ?: '');
 }
 if (!defined('DB_NAME')) {
-    define('DB_NAME', 'prism_db');
+    define('DB_NAME', getenv('DB_NAME') ?: 'prism_db');
 }
 if (!defined('DB_PORT')) {
-    define('DB_PORT', 3306);
+    define('DB_PORT', (int) (getenv('DB_PORT') ?: 3306));
 }
 
 // Upload directory (relative to htdocs/prism/)

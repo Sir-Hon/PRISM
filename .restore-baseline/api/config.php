@@ -6,11 +6,17 @@
 
 ob_start();
 
-define('DB_HOST', 'localhost');
-define('DB_USER', 'root');       // Change if you set a MySQL password in XAMPP
-define('DB_PASS', '');           // Default XAMPP has no password
-define('DB_NAME', 'prism_db');
-define('DB_PORT', 3306);
+// Optional production DB override via config.local.php
+if (is_readable(__DIR__ . '/config.local.php')) {
+    require __DIR__ . '/config.local.php';
+}
+
+// Fall back to environment variables (Railway), then XAMPP defaults
+if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
+if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: 'root');
+if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: '');
+if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'prism_db');
+if (!defined('DB_PORT')) define('DB_PORT', (int)(getenv('DB_PORT') ?: 3306));
 
 // Upload directory (relative to htdocs/prism/)
 define('UPLOAD_DIR', __DIR__ . '/../uploads/');
@@ -131,10 +137,6 @@ function prism_assert_student_enrolled(PDO $db, string $studentId, string $class
     }
 }
 
-/**
- * Read access to class-scoped content: teacher owns class, or student is enrolled.
- * Other roles are denied.
- */
 /** Null/empty = visible to all sections in the class. */
 function prism_target_section_from_body(array $b): ?string {
     $t = trim((string) ($b['target_section'] ?? ''));
@@ -177,12 +179,10 @@ function prism_assert_class_access(PDO $db, array $user, string $classId): void 
     $role = $user['role'] ?? '';
     if ($role === 'teacher') {
         prism_assert_teacher_owns_class($db, $user['id'], $classId);
-
         return;
     }
     if ($role === 'student') {
         prism_assert_student_enrolled($db, $user['id'], $classId);
-
         return;
     }
     fail('Forbidden', 403);
@@ -200,7 +200,6 @@ function prism_due_end_datetime(?string $date, $time = null): ?string {
     if (strlen($t) === 5 && preg_match('/^\d{2}:\d{2}$/', $t)) {
         $t .= ':00';
     }
-
     return $date . ' ' . $t;
 }
 
@@ -209,7 +208,6 @@ function prism_is_past_deadline(?string $date, $time = null): bool {
     if (!$end) {
         return false;
     }
-
     return date('Y-m-d H:i:s') > $end;
 }
 
@@ -230,6 +228,5 @@ function prism_table_has_column(PDO $db, string $table, string $column): bool {
     } catch (PDOException $e) {
         $cache[$key] = false;
     }
-
     return $cache[$key];
 }
