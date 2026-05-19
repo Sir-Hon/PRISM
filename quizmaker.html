@@ -79,7 +79,7 @@
 <script>
 (function(){
 (async function(){
-  var data = await fetch('/prism/api/auth.php?action=session',{credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
+  var data = await fetch(API_BASE + '/auth.php?action=session',{credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
   if(!data.loggedIn){window.location.replace('login.html');return;}
   var u=data.user;
   if(u.role!=='teacher'){window.location.replace(u.role==='admin'?'admin.html':'index.html');return;}
@@ -300,7 +300,7 @@ function initSidebar(activePage) {
 
 function logout() {
   if (!confirm('Are you sure you want to log out?')) return;
-  fetch('/prism/api/auth.php?action=logout', {method:'POST', credentials:'include'})
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
     .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
 }
 </script>
@@ -787,7 +787,7 @@ function viewQuizLog(quizId){
 
 window.addEventListener('DOMContentLoaded', async function(){
   try {
-    var ses = await fetch('/prism/api/auth.php?action=session',{credentials:'include'}).then(function(r){return r.json();});
+    var ses = await fetch(API_BASE + '/auth.php?action=session',{credentials:'include'}).then(function(r){return r.json();});
     if (!ses.loggedIn || !ses.user || ses.user.role !== 'teacher') {
       window.location.replace('login.html');
       return;

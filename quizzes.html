@@ -132,7 +132,7 @@
 // ═══════════════════════════════════════════════════════
 
 (async function() {
-  var data = await fetch('/prism/api/auth.php?action=session', {credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
+  var data = await fetch(API_BASE + '/auth.php?action=session', {credentials:'include'}).then(r=>r.json()).catch(()=>({loggedIn:false}));
   if (!data.loggedIn) { window.location.replace('login.html'); return; }
   var u = data.user;
   if (['student'].indexOf(u.role) === -1) {
@@ -154,7 +154,7 @@ function getRoleHome(role) {
 
 function logout() {
   if (!confirm('Are you sure you want to log out?')) return;
-  fetch('/prism/api/auth.php?action=logout', {method:'POST', credentials:'include'})
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
     .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
 }
 
@@ -380,7 +380,7 @@ function initSidebar(activePage) {
 
 function logout() {
   if (!confirm('Are you sure you want to log out?')) return;
-  fetch('/prism/api/auth.php?action=logout', {method:'POST', credentials:'include'})
+  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'})
     .finally(function() { sessionStorage.clear(); window.location.href = 'login.html'; });
 }
 
