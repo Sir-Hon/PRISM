@@ -8,15 +8,11 @@
  * ═══════════════════════════════════════════════════════
  */
 
+/**
+ * Resolve /{app}/api from the loaded api.js URL (most reliable), then fall back to the page path.
+ * Wrong base → 404 HTML instead of JSON (“Server returned a page instead of JSON”).
+ */
 (function prismResolveApiBase() {
-  // On Railway (not localhost), API is at /api directly
-  if (window.location.hostname !== 'localhost' &&
-      window.location.hostname !== '127.0.0.1') {
-    window.__PRISM_API_BASE__ = '/api';
-    return;
-  }
-
-  // Local XAMPP — detect from script path
   let base = '';
   try {
     const cur = document.currentScript;
@@ -25,8 +21,9 @@
       const cut = path.lastIndexOf('/api.js');
       if (cut !== -1) base = path.slice(0, cut) + '/api';
     }
-  } catch (e) { /* ignore */ }
-
+  } catch (e) {
+    /* ignore */
+  }
   if (!base) {
     try {
       const scripts = document.getElementsByTagName('script');
@@ -40,9 +37,10 @@
           break;
         }
       }
-    } catch (e2) { /* ignore */ }
+    } catch (e2) {
+      /* ignore */
+    }
   }
-
   if (!base) {
     let p = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
     const last = p.split('/').pop() || '';
@@ -52,10 +50,8 @@
     if (!p || p === '/') p = '';
     base = (p ? p : '') + '/api';
   }
-
   window.__PRISM_API_BASE__ = base;
 })();
-
 const API_BASE = window.__PRISM_API_BASE__;
 
 function prismFriendlyApiParseError(text) {
@@ -66,6 +62,7 @@ function prismFriendlyApiParseError(text) {
   return t ? t.slice(0, 200) : 'Invalid response from server';
 }
 
+// ── Low-level fetch helper ──────────────────────────────
 function prismApiRootPrefix() {
   if (typeof window !== 'undefined' && window.location && window.location.origin) {
     return window.location.origin + (API_BASE.startsWith('/') ? API_BASE : '/' + API_BASE);
@@ -73,6 +70,7 @@ function prismApiRootPrefix() {
   return API_BASE;
 }
 
+/** POST/GET JSON to `{base}/{endpoint}.php?action={action}`; `data.error` or non-JSON body throws. */
 async function apiCall(endpoint, action, method = 'GET', body = null) {
   const url = `${prismApiRootPrefix()}/${endpoint}.php?action=${action}`;
   const opts = {
@@ -99,6 +97,7 @@ async function apiCall(endpoint, action, method = 'GET', body = null) {
   }
 }
 
+// GET helper with query params
 async function apiGet(endpoint, action, params = {}) {
   let url = `${prismApiRootPrefix()}/${endpoint}.php?action=${action}`;
   for (const [k,v] of Object.entries(params)) url += `&${k}=${encodeURIComponent(v)}`;
@@ -115,6 +114,7 @@ async function apiGet(endpoint, action, params = {}) {
   return data;
 }
 
+/** Local deadline instant (ms). Empty time = 23:59:59 on that date. */
 function prismDueEndMs(dateStr, timeStr) {
   if (!dateStr) return null;
   let t = timeStr != null && String(timeStr).trim() !== '' ? String(timeStr).trim() : '23:59:59';
@@ -123,13 +123,11 @@ function prismDueEndMs(dateStr, timeStr) {
   const ms = new Date(dateStr + 'T' + t).getTime();
   return Number.isFinite(ms) ? ms : null;
 }
-
 function prismIsPastDue(dateStr, timeStr) {
   const end = prismDueEndMs(dateStr, timeStr);
   if (end === null) return false;
   return Date.now() > end;
 }
-
 function prismFormatDueLine(dateStr, timeStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T12:00:00');
@@ -146,17 +144,20 @@ function prismFormatDueLine(dateStr, timeStr) {
   return ds + ' · ' + h12 + ':' + mm + ' ' + am;
 }
 
+/** Assignment due display — date only (no time of day). */
 function prismFormatAssignmentDue(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T12:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/** Teacher UI: class name in dropdowns/sidebar (subject only — join code stays on My Classes / join bar). */
 function prismTeacherClassLabel(c) {
   if (!c) return '';
   return String(c.subject || '').trim() || 'Class';
 }
 
+/** Open uploaded file in a new tab with correct MIME (avoids forced download from /uploads/). */
 function prismOpenMaterialUrl(url, mime, fileName) {
   if (!url) return;
   let m = mime || '';
@@ -191,6 +192,7 @@ function prismOpenMaterialUrl(url, mime, fileName) {
       return;
     }
   } catch (e) { /* fall through to fetch */ }
+  // Same-origin file: fetch as blob + openObjectURL so Content-Type is correct (raw /uploads/ URL often downloads)
   fetch(abs, { credentials: 'same-origin' })
     .then((r) => {
       if (!r.ok) throw new Error();
@@ -219,6 +221,10 @@ function prismOpenMaterialUrl(url, mime, fileName) {
     });
 }
 
+/**
+ * If pageUrl is a YouTube or Vimeo watch URL, returns { type, embed } for an iframe src.
+ * Otherwise returns null (caller shows a plain link).
+ */
 function prismVideoEmbedFromUrl(pageUrl) {
   if (!pageUrl || typeof pageUrl !== 'string') return null;
   const s = pageUrl.trim();
@@ -241,6 +247,7 @@ function prismVideoEmbedFromUrl(pageUrl) {
   return null;
 }
 
+/** PDF/images/text/video open in a new tab; others download. */
 function prismCanPreviewInBrowser(mime, fileName) {
   const ext = ((fileName || '').split('.').pop() || '').toLowerCase();
   if (['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'txt', 'html', 'htm', 'mp4', 'webm', 'mov'].indexOf(ext) >= 0) return true;
@@ -273,6 +280,7 @@ function prismCacheUserProfile(user) {
 const PrismAuth = {
   async login(id, password, role) {
     const data = await apiCall('auth', 'login', 'POST', { id, password, role });
+    // Store in sessionStorage for legacy code compatibility
     sessionStorage.setItem('prism_logged_in', 'true');
     sessionStorage.setItem('prism_user_id',   data.id);
     sessionStorage.setItem('prism_user_name', data.name);
@@ -318,26 +326,31 @@ const PrismClasses = {
     const data = await apiGet('classes', 'mine');
     return data.classes || [];
   },
+
   async create(subject, color) {
     return await apiCall('classes', 'create', 'POST', { subject, color });
   },
+
   async join(code) {
     return await apiCall('classes', 'join', 'POST', { code });
   },
+
   async leave(class_id) {
     return await apiCall('classes', 'leave', 'POST', { class_id });
   },
+
   async getStudents(class_id) {
     const data = await apiGet('classes', 'students', { class_id });
     return data.students || [];
   },
+
   async delete(class_id) {
     return await apiCall('classes', 'delete', 'DELETE', { class_id });
   },
 };
 
 // ══════════════════════════════════════════════════════
-//  POSTS
+//  POSTS (stream)
 // ══════════════════════════════════════════════════════
 const PrismPosts = {
   async get(class_id) {
@@ -482,7 +495,7 @@ const PrismProfile = {
 };
 
 // ══════════════════════════════════════════════════════
-//  EVENTS
+//  EVENTS (calendar)
 // ══════════════════════════════════════════════════════
 const PrismEvents = {
   async get() {
@@ -525,8 +538,11 @@ const PrismAdmin = {
 };
 
 // ══════════════════════════════════════════════════════
-//  AUTH GUARD
+//  SESSION GUARD (replaces script.js auth check)
+//  Call this at the top of each page instead of the
+//  old localStorage-based guard.
 // ══════════════════════════════════════════════════════
+/** Ensures session + role; wrong role → redirect to that role’s home page. */
 async function prismAuthGuard(allowedRoles = []) {
   try {
     const { loggedIn, user } = await PrismAuth.checkSession();
@@ -546,6 +562,9 @@ async function prismAuthGuard(allowedRoles = []) {
   }
 }
 
+// Sync session user (name + avatar) into localStorage before page initSidebar runs.
+// Student pages often use fetch(session) without prismCacheUserProfile; teachers hit checkSession instead.
+// Runs synchronously on DOMContentLoaded so handlers registered later see an updated prism_profile_* cache.
 (function prismSyncProfileCacheBeforeInit() {
   if (typeof document === 'undefined' || !document.addEventListener) return;
   document.addEventListener(
@@ -568,4 +587,4 @@ async function prismAuthGuard(allowedRoles = []) {
   );
 })();
 
-console.log('[PRISM] api.js loaded — API base:', window.__PRISM_API_BASE__);
+console.log('[PRISM] api.js loaded — XAMPP backend mode active');
