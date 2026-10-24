@@ -1,8 +1,7 @@
 /** Page script for login.html — keep HTML in the .html file. */
-// ── ALWAYS clear session on login page — script.js no longer redirects away ──
-  sessionStorage.clear();
-  // Also destroy any stale PHP session server-side (fire-and-forget)
-  fetch(API_BASE + '/auth.php?action=logout', {method:'POST', credentials:'include'}).catch(()=>{});
+// Clear the client cache only. Do not POST logout here — a false redirect
+// to login.html would destroy a still-valid server session.
+try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
 
   const ROLE_CONFIG = {
     student: {

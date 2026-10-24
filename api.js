@@ -858,12 +858,40 @@ const PrismAdmin = {
 // ══════════════════════════════════════════════════════
 let __prismAuthPromise = null;
 
+function prismCachedSessionUser() {
+  const id = sessionStorage.getItem('prism_user_id') || '';
+  const role = sessionStorage.getItem('prism_role') || '';
+  if (!id || !role) return null;
+  return {
+    id: id,
+    name: sessionStorage.getItem('prism_user_name') || id,
+    role: role,
+    section: sessionStorage.getItem('prism_section') || '',
+  };
+}
+
 async function prismAuthGuard(allowedRoles = []) {
   try {
     if (!__prismAuthPromise) {
       __prismAuthPromise = PrismAuth.checkSession();
     }
-    const { loggedIn, user } = await __prismAuthPromise;
+    let data;
+    try {
+      data = await __prismAuthPromise;
+    } catch (e) {
+      __prismAuthPromise = null;
+      try {
+        __prismAuthPromise = PrismAuth.checkSession();
+        data = await __prismAuthPromise;
+      } catch (e2) {
+        const cached = prismCachedSessionUser();
+        if (cached) return cached;
+        window.location.replace('login.html');
+        return null;
+      }
+    }
+    const loggedIn = data && data.loggedIn;
+    const user = data && data.user;
     if (!loggedIn || !user) {
       window.location.replace('login.html');
       return null;
@@ -876,6 +904,8 @@ async function prismAuthGuard(allowedRoles = []) {
     return user;
   } catch (e) {
     __prismAuthPromise = null;
+    const cached = prismCachedSessionUser();
+    if (cached) return cached;
     window.location.replace('login.html');
     return null;
   }

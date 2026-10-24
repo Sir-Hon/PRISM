@@ -20,7 +20,7 @@ if ($method === 'POST' && $action === 'login') {
     if (!in_array($role, ['student', 'teacher', 'admin'], true)) fail('Incorrect credentials', 401);
 
     $db   = getDB();
-    $stmt = $db->prepare('SELECT id, password, role, name, section, avatar FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
+    $stmt = $db->prepare('SELECT id, password, role, name, section FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
     $stmt->execute([$id, $role]);
     $user = $stmt->fetch();
 
@@ -43,6 +43,7 @@ if ($method === 'POST' && $action === 'login') {
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['role']    = $user['role'];
     $_SESSION['name']    = $user['name'];
+    $_SESSION['section'] = $user['section'] ?? '';
     unset($_SESSION['csrf_token']);
     $csrf = prism_csrf_token();
 
@@ -51,7 +52,6 @@ if ($method === 'POST' && $action === 'login') {
         'role'       => $user['role'],
         'name'       => $user['name'],
         'section'    => $user['section'],
-        'avatar'     => $user['avatar'],
         'csrf_token' => $csrf,
     ]);
 }
@@ -67,16 +67,26 @@ if ($method === 'GET' && $action === 'session') {
     if (empty($_SESSION['user_id'])) {
         ok(['loggedIn' => false]);
     }
-    $db   = getDB();
-    $stmt = $db->prepare('SELECT id, role, name, section, (avatar IS NOT NULL AND avatar != "") AS has_avatar FROM users WHERE id = ?');
-    $stmt->execute([$_SESSION['user_id']]);
-    $user = $stmt->fetch();
-    if (!$user) {
-        prism_logout_session();
-        ok(['loggedIn' => false]);
+    $user = [
+        'id'      => (string) $_SESSION['user_id'],
+        'role'    => (string) ($_SESSION['role'] ?? ''),
+        'name'    => (string) ($_SESSION['name'] ?? ''),
+        'section' => (string) ($_SESSION['section'] ?? ''),
+    ];
+    try {
+        $db   = getDB();
+        $stmt = $db->prepare('SELECT id, role, name, section FROM users WHERE id = ?');
+        $stmt->execute([$_SESSION['user_id']]);
+        $row = $stmt->fetch();
+        if ($row) {
+            $user = $row;
+            $_SESSION['role']    = $row['role'];
+            $_SESSION['name']    = $row['name'];
+            $_SESSION['section'] = $row['section'] ?? '';
+        }
+    } catch (Throwable $e) {
+        error_log('PRISM session lookup: ' . $e->getMessage());
     }
-    $user['has_avatar'] = !empty($user['has_avatar']);
-    unset($user['avatar']);
     ok(['loggedIn' => true, 'user' => $user, 'csrf_token' => prism_csrf_token()]);
 }
 
