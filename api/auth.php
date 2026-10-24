@@ -3,21 +3,24 @@
 require_once 'config.php';
 setHeaders();
 startSession();
+prism_guard_mutating_request(['login', 'register', 'register_teacher', 'logout']);
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 
 // ── LOGIN ──────────────────────────────────────────────
 if ($method === 'POST' && $action === 'login') {
+    prism_rate_limit('login', 8, 900);
     $b    = getBody();
     $id   = trim($b['id']       ?? '');
-    $pw   = trim($b['password'] ?? '');
+    $pw   = $b['password'] ?? '';
     $role = trim($b['role']     ?? '');
 
-    if (!$id || !$pw || !$role) fail('Missing credentials');
+    if (!$id || $pw === '' || !$role) fail('Missing credentials');
+    if (!in_array($role, ['student', 'teacher', 'admin'], true)) fail('Incorrect credentials', 401);
 
     $db   = getDB();
-    $stmt = $db->prepare('SELECT * FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
+    $stmt = $db->prepare('SELECT id, password, role, name, section, avatar FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
     $stmt->execute([$id, $role]);
     $user = $stmt->fetch();
 
@@ -26,11 +29,9 @@ if ($method === 'POST' && $action === 'login') {
     $hash = $user['password'];
     $valid = false;
 
-    // Support both hashed and plain-text passwords (plain-text auto-upgrades to hash)
     if (password_verify($pw, $hash)) {
         $valid = true;
-    } elseif ($pw === $hash) {
-        // Plain text match — upgrade to hash immediately
+    } elseif (hash_equals((string) $hash, (string) $pw)) {
         $valid = true;
         $newHash = password_hash($pw, PASSWORD_DEFAULT);
         $db->prepare('UPDATE users SET `password` = ? WHERE id = ?')->execute([$newHash, $user['id']]);
@@ -38,22 +39,26 @@ if ($method === 'POST' && $action === 'login') {
 
     if (!$valid) fail('Incorrect credentials', 401);
 
+    session_regenerate_id(true);
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['role']    = $user['role'];
     $_SESSION['name']    = $user['name'];
+    unset($_SESSION['csrf_token']);
+    $csrf = prism_csrf_token();
 
     ok([
-        'id'      => $user['id'],
-        'role'    => $user['role'],
-        'name'    => $user['name'],
-        'section' => $user['section'],
-        'avatar'  => $user['avatar'],
+        'id'         => $user['id'],
+        'role'       => $user['role'],
+        'name'       => $user['name'],
+        'section'    => $user['section'],
+        'avatar'     => $user['avatar'],
+        'csrf_token' => $csrf,
     ]);
 }
 
 // ── LOGOUT ─────────────────────────────────────────────
 if ($method === 'POST' && $action === 'logout') {
-    session_destroy();
+    prism_logout_session();
     ok();
 }
 
@@ -63,15 +68,21 @@ if ($method === 'GET' && $action === 'session') {
         ok(['loggedIn' => false]);
     }
     $db   = getDB();
-    $stmt = $db->prepare('SELECT id, role, name, section, avatar FROM users WHERE id = ?');
+    $stmt = $db->prepare('SELECT id, role, name, section, (avatar IS NOT NULL AND avatar != "") AS has_avatar FROM users WHERE id = ?');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
-    if (!$user) { session_destroy(); ok(['loggedIn' => false]); }
-    ok(['loggedIn' => true, 'user' => $user]);
+    if (!$user) {
+        prism_logout_session();
+        ok(['loggedIn' => false]);
+    }
+    $user['has_avatar'] = !empty($user['has_avatar']);
+    unset($user['avatar']);
+    ok(['loggedIn' => true, 'user' => $user, 'csrf_token' => prism_csrf_token()]);
 }
 
 // ── REGISTER STUDENT ───────────────────────────────────
 if ($method === 'POST' && $action === 'register') {
+    prism_rate_limit('register', 6, 900);
     $b       = getBody();
     $id      = trim($b['id']       ?? '');
     $pw      = trim($b['password'] ?? '');
@@ -94,6 +105,7 @@ if ($method === 'POST' && $action === 'register') {
 
 // ── REGISTER TEACHER (with invite code) ────────────────
 if ($method === 'POST' && $action === 'register_teacher') {
+    prism_rate_limit('register_teacher', 6, 900);
     $b    = getBody();
     $id   = trim($b['id']          ?? '');
     $pw   = trim($b['password']    ?? '');

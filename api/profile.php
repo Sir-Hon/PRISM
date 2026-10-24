@@ -14,8 +14,11 @@ $db     = getDB();
 
 if ($action === 'get') {
     $uid = $_GET['user_id'] ?? $user['id'];
-    // Only allow fetching others' profiles for avatar/name (teacher lookup)
-    $stmt = $db->prepare('SELECT id, name, section, avatar, email, bio, role, member_since FROM users WHERE id = ?');
+    if ($uid === $user['id'] || $user['role'] === 'admin') {
+        $stmt = $db->prepare('SELECT id, name, section, avatar, email, bio, role, member_since FROM users WHERE id = ?');
+    } else {
+        $stmt = $db->prepare('SELECT id, name, role, avatar FROM users WHERE id = ?');
+    }
     $stmt->execute([$uid]);
     ok(['profile' => $stmt->fetch() ?: null]);
 }
@@ -104,7 +107,8 @@ if ($action === 'get_all_users') {
         $stmt = $db->query('SELECT id, name, role, section, email FROM users ORDER BY role, name');
         ok(['users' => $stmt->fetchAll()]);
     } catch (PDOException $e) {
-        fail('Could not load users: ' . $e->getMessage(), 500);
+        error_log('get_all_users: ' . $e->getMessage());
+        fail('Could not load users', 500);
     }
 }
 
@@ -116,7 +120,8 @@ if ($method === 'POST' && $action === 'delete_user') {
     try {
         $db->prepare('DELETE FROM users WHERE id = ?')->execute([$del_id]);
     } catch (PDOException $e) {
-        fail('Could not delete user (they may still own data). ' . $e->getMessage(), 500);
+        error_log('delete_user: ' . $e->getMessage());
+        fail('Could not delete user (they may still own data).', 500);
     }
     ok();
 }

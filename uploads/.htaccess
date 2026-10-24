@@ -1,0 +1,10 @@
+# Serve uploaded class files, but never run them as PHP.
+<IfModule mod_php.c>
+  php_flag engine off
+</IfModule>
+<IfModule mod_php8.c>
+  php_flag engine off
+</IfModule>
+Options -ExecCGI
+RemoveHandler .php .phtml .php3 .php4 .php5 .phps
+AddType text/plain .php .phtml .php3 .php4 .php5 .phps

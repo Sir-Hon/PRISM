@@ -50,6 +50,173 @@ if ($action === 'delete_post') {
     ok();
 }
 
+function prism_normalize_http_url($raw) {
+    $url = trim((string) $raw);
+    if ($url === '') {
+        return '';
+    }
+    if (preg_match('#^(javascript|data|file|vbscript):#i', $url)) {
+        return '';
+    }
+    if (!preg_match('#^[a-z][a-z0-9+.-]*://#i', $url)) {
+        $url = 'https://' . $url;
+    }
+    if (!preg_match('#^https?://#i', $url)) {
+        return '';
+    }
+    if (filter_var($url, FILTER_VALIDATE_URL) === false) {
+        return '';
+    }
+    return $url;
+}
+
+function prism_is_video_page_url($url) {
+    return (bool) preg_match('/youtube\.com|youtu\.be|vimeo\.com/i', (string) $url);
+}
+
+function prism_upload_ext_ok($ext) {
+    static $ok = [
+        'pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'txt',
+        'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp',
+        'mp4', 'webm', 'mov', 'ogg', 'ogv', 'zip',
+    ];
+    return in_array(strtolower((string) $ext), $ok, true);
+}
+
+function prism_mime_from_filename($name, $fallback = 'application/octet-stream') {
+    $ext = strtolower((string) pathinfo((string) $name, PATHINFO_EXTENSION));
+    $map = [
+        'pdf' => 'application/pdf',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
+        'svg' => 'image/svg+xml',
+        'bmp' => 'image/bmp',
+        'txt' => 'text/plain',
+        'mp4' => 'video/mp4',
+        'webm' => 'video/webm',
+        'ogg' => 'video/ogg',
+        'ogv' => 'video/ogg',
+        'mov' => 'video/quicktime',
+        'ppt' => 'application/vnd.ms-powerpoint',
+        'pptx' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'xls' => 'application/vnd.ms-excel',
+        'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'zip' => 'application/zip',
+    ];
+    return $map[$ext] ?? $fallback;
+}
+
+function prism_request_is_multipart() {
+    $ct = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+    if (stripos($ct, 'multipart/form-data') !== false) {
+        return true;
+    }
+    return !empty($_FILES);
+}
+
+function prism_store_binary_upload($id, $suffix, $fileName, $bin, $mime) {
+    if ($bin === false || $bin === null || $bin === '') {
+        fail('Could not read the uploaded file.', 400);
+    }
+    if (strlen($bin) > MAX_FILE_SIZE) {
+        fail('File too large. Max 15 MB. For longer videos, paste a YouTube or website link instead.', 400);
+    }
+    $ext = strtolower((string) pathinfo((string) $fileName, PATHINFO_EXTENSION));
+    if ($ext === '' || !prism_upload_ext_ok($ext)) {
+        fail('That file type is not allowed. Use PDF, PPT, Word, Excel, image, video, text, or ZIP.', 400);
+    }
+    if (!$mime || $mime === 'application/octet-stream') {
+        $mime = prism_mime_from_filename($fileName);
+    }
+    if (!is_dir(UPLOAD_DIR)) {
+        @mkdir(UPLOAD_DIR, 0775, true);
+    }
+    $safe_name = $id . $suffix . '.' . $ext;
+    $upload_path = UPLOAD_DIR . $safe_name;
+    if (file_put_contents($upload_path, $bin) === false) {
+        fail('Could not save the file on the server.', 500);
+    }
+    return [$fileName, UPLOAD_URL . $safe_name, $mime];
+}
+
+function prism_read_multipart_file($key) {
+    if (empty($_FILES[$key]) || !is_array($_FILES[$key])) {
+        return null;
+    }
+    $f = $_FILES[$key];
+    $err = $f['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($err === UPLOAD_ERR_NO_FILE) {
+        return null;
+    }
+    if ($err !== UPLOAD_ERR_OK) {
+        fail('File upload failed. Try a smaller file or a link instead.', 400);
+    }
+    if (($f['size'] ?? 0) > MAX_FILE_SIZE) {
+        fail('File too large. Max 15 MB. For longer videos, paste a YouTube or website link instead.', 400);
+    }
+    if (empty($f['tmp_name']) || !is_uploaded_file($f['tmp_name'])) {
+        return null;
+    }
+    $bin = file_get_contents($f['tmp_name']);
+    if ($bin === false) {
+        fail('Could not read the uploaded file.', 400);
+    }
+    return [
+        'name' => $f['name'] ?? 'file',
+        'mime' => $f['type'] ?? 'application/octet-stream',
+        'bin'  => $bin,
+    ];
+}
+
+function prism_read_base64_file($fd) {
+    if (!is_array($fd) || empty($fd['base64'])) {
+        return null;
+    }
+    $raw = $fd['base64'];
+    if (strpos($raw, ',') !== false) {
+        $raw = explode(',', $raw, 2)[1];
+    }
+    $raw = preg_replace('/\s+/', '', $raw);
+    $bin = base64_decode($raw, true);
+    if ($bin === false) {
+        $bin = base64_decode($raw, false);
+    }
+    if ($bin === false) {
+        fail('Could not read the uploaded file.', 400);
+    }
+    return [
+        'name' => $fd['name'] ?? 'file',
+        'mime' => $fd['mime'] ?? 'application/octet-stream',
+        'bin'  => $bin,
+    ];
+}
+
+function prism_material_type_from_ui($rawType, $url, $mime, $fileName) {
+    $t = strtolower(trim((string) $rawType));
+    if ($t === 'image' || $t === 'video-file') {
+        $t = 'file';
+    }
+    if ($t !== 'file' && $t !== 'link' && $t !== 'video') {
+        $t = 'file';
+    }
+    if ($t === 'link' && $url && prism_is_video_page_url($url)) {
+        return 'video';
+    }
+    if ($t === 'file') {
+        $kindMime = strtolower((string) $mime);
+        $ext = strtolower((string) pathinfo((string) $fileName, PATHINFO_EXTENSION));
+        if (strpos($kindMime, 'video/') === 0 || in_array($ext, ['mp4', 'webm', 'mov', 'ogg', 'ogv'], true)) {
+            return 'file';
+        }
+    }
+    return $t;
+}
+
 // ══════════════════════════════════════════════════════
 //  MATERIALS
 // ══════════════════════════════════════════════════════
@@ -58,15 +225,16 @@ if ($action === 'get_materials') {
     $class_id = $_GET['class_id'] ?? '';
     prism_assert_class_access($db, $user, $class_id);
     $stuSec = prism_student_section_for_filter($db, $user);
-    if ($stuSec !== null && prism_table_has_column($db, 'materials', 'target_section')) {
+    $hasSec = prism_table_has_column($db, 'materials', 'target_section');
+    $sel = $hasSec
+        ? 'id, class_id, teacher_id, target_section, title, type, url, file_name, IF(file_path IS NULL OR file_path = "", file_data, NULL) AS file_data, file_path, mime_type, description, created_at'
+        : 'id, class_id, teacher_id, title, type, url, file_name, IF(file_path IS NULL OR file_path = "", file_data, NULL) AS file_data, file_path, mime_type, description, created_at';
+    if ($stuSec !== null && $hasSec) {
         $stmt = $db->prepare(
-            'SELECT id, class_id, teacher_id, target_section, title, type, url, file_name, file_data, file_path, mime_type, description, created_at FROM materials WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = "" OR TRIM(target_section) = ?) ORDER BY created_at DESC'
+            'SELECT ' . $sel . ' FROM materials WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = "" OR TRIM(target_section) = ?) ORDER BY created_at DESC'
         );
         $stmt->execute([$class_id, $stuSec]);
     } else {
-        $sel = prism_table_has_column($db, 'materials', 'target_section')
-            ? 'id, class_id, teacher_id, target_section, title, type, url, file_name, file_data, file_path, mime_type, description, created_at'
-            : 'id, class_id, teacher_id, title, type, url, file_name, file_data, file_path, mime_type, description, created_at';
         $stmt = $db->prepare('SELECT ' . $sel . ' FROM materials WHERE class_id = ? ORDER BY created_at DESC');
         $stmt->execute([$class_id]);
     }
@@ -75,41 +243,62 @@ if ($action === 'get_materials') {
 
 if ($action === 'add_material') {
     if ($user['role'] !== 'teacher') fail('Forbidden', 403);
-    $b = getBody();
+    if (prism_request_is_multipart()) {
+        $b = [
+            'class_id' => $_POST['class_id'] ?? '',
+            'title' => $_POST['title'] ?? '',
+            'type' => $_POST['type'] ?? 'file',
+            'url' => $_POST['url'] ?? '',
+            'desc' => $_POST['desc'] ?? '',
+            'target_section' => $_POST['target_section'] ?? '',
+        ];
+    } else {
+        $b = getBody();
+    }
     prism_assert_teacher_owns_class($db, $user['id'], (string) ($b['class_id'] ?? ''));
+    $title = trim((string) ($b['title'] ?? ''));
+    if ($title === '') {
+        fail('Title is required', 400);
+    }
     $id = uniqid('mat_');
 
     $file_data = null; $file_name = null; $file_path = null; $mime = null;
-
-    if ($b['type'] === 'file' && !empty($b['fileData']['base64'])) {
-        $file_name = $b['fileData']['name'] ?? 'file';
-        $mime      = $b['fileData']['mime'] ?? 'application/octet-stream';
-        // Store as file on server instead of base64 in DB (better performance)
-        $ext       = pathinfo($file_name, PATHINFO_EXTENSION);
-        $safe_name = $id . '.' . $ext;
-        $upload_path = UPLOAD_DIR . $safe_name;
-        $base64_data = $b['fileData']['base64'];
-        // Strip the data:...;base64, prefix
-        if (strpos($base64_data, ',') !== false) {
-            $base64_data = explode(',', $base64_data, 2)[1];
-        }
-        if (file_put_contents($upload_path, base64_decode($base64_data)) !== false) {
-            $file_path = UPLOAD_URL . $safe_name;
-        } else {
-            // Fallback: store base64 in DB
-            $file_data = $b['fileData']['base64'];
+    $url = prism_normalize_http_url($b['url'] ?? '');
+    $desc = trim((string) ($b['desc'] ?? $b['description'] ?? ''));
+    if ($url === '' && $desc !== '') {
+        if (preg_match('#https?://[^\s<>"\']+|www\.[^\s<>"\']+#i', $desc, $mUrl)) {
+            $url = prism_normalize_http_url($mUrl[0]);
         }
     }
+    $up = prism_read_multipart_file('file');
+    if (!$up) {
+        $up = prism_read_base64_file($b['fileData'] ?? $b['file_data'] ?? null);
+    }
+    if ($up) {
+        list($file_name, $file_path, $mime) = prism_store_binary_upload($id, '', $up['name'], $up['bin'], $up['mime']);
+    }
+    if (!$up && $url === '' && $desc === '') {
+        fail('Add a file, a link, or a short note.', 400);
+    }
+    $uiType = strtolower(trim((string) ($b['type'] ?? '')));
+    if ($up) {
+        $uiType = 'file';
+    } elseif ($url !== '') {
+        $uiType = prism_is_video_page_url($url) ? 'video' : 'link';
+    } else {
+        $uiType = 'link';
+    }
+    $type = prism_material_type_from_ui($uiType, $url, $mime, $file_name);
 
     $ts = prism_target_section_from_body($b);
     if (prism_table_has_column($db, 'materials', 'target_section')) {
         $db->prepare('INSERT INTO materials (id, class_id, teacher_id, target_section, title, type, url, file_name, file_data, file_path, mime_type, description) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-           ->execute([$id, $b['class_id'], $user['id'], $ts, $b['title'], $b['type'], $b['url']??'', $file_name, $file_data, $file_path, $mime, $b['desc']??'']);
+           ->execute([$id, $b['class_id'], $user['id'], $ts, $title, $type, $url, $file_name, $file_data, $file_path, $mime, $b['desc']??'']);
     } else {
         $db->prepare('INSERT INTO materials (id, class_id, teacher_id, title, type, url, file_name, file_data, file_path, mime_type, description) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-           ->execute([$id, $b['class_id'], $user['id'], $b['title'], $b['type'], $b['url']??'', $file_name, $file_data, $file_path, $mime, $b['desc']??'']);
+           ->execute([$id, $b['class_id'], $user['id'], $title, $type, $url, $file_name, $file_data, $file_path, $mime, $b['desc']??'']);
     }
-    ok(['id' => $id, 'file_path' => $file_path]);
+    ok(['id' => $id, 'file_path' => $file_path, 'type' => $type]);
 }
 
 if ($action === 'delete_material') {
@@ -148,39 +337,40 @@ if ($action === 'get_assignments') {
 
 if ($action === 'add_assignment') {
     if ($user['role'] !== 'teacher') fail('Forbidden', 403);
-    $b = getBody();
+    if (prism_request_is_multipart()) {
+        $b = [
+            'class_id' => $_POST['class_id'] ?? '',
+            'title' => $_POST['title'] ?? '',
+            'type' => $_POST['type'] ?? 'written',
+            'instructions' => $_POST['instructions'] ?? '',
+            'pts' => $_POST['pts'] ?? 0,
+            'due' => $_POST['due'] ?? null,
+            'attach_url' => $_POST['attach_url'] ?? '',
+            'target_section' => $_POST['target_section'] ?? '',
+        ];
+    } else {
+        $b = getBody();
+    }
     prism_assert_teacher_owns_class($db, $user['id'], (string) ($b['class_id'] ?? ''));
     $id = uniqid('asgn_');
     $dueA     = $b['due'] ?? null;
     $dueA     = ($dueA !== null && $dueA !== '') ? $dueA : null;
     $dueTimeA = null;
 
-    $attach_url = trim((string) ($b['attach_url'] ?? ''));
+    $attach_url = prism_normalize_http_url($b['attach_url'] ?? '');
     $attach_url = $attach_url !== '' ? $attach_url : null;
     $afn = null;
     $afp = null;
     $amm = null;
     $hasAssignAttach = prism_table_has_column($db, 'assignments', 'attach_url')
         || prism_table_has_column($db, 'assignments', 'attach_file_path');
-    $fd = $b['fileData'] ?? $b['file_data'] ?? null;
-    if ($hasAssignAttach && is_array($fd) && !empty($fd['base64'])) {
-        $fn = $fd['name'] ?? 'file';
-        $amm = $fd['mime'] ?? 'application/octet-stream';
-        $raw = $fd['base64'];
-        if (strpos($raw, ',') !== false) {
-            $raw = explode(',', $raw, 2)[1];
+    if ($hasAssignAttach) {
+        $up = prism_read_multipart_file('file');
+        if (!$up) {
+            $up = prism_read_base64_file($b['fileData'] ?? $b['file_data'] ?? null);
         }
-        $raw = preg_replace('/\s+/', '', $raw);
-        $bin = base64_decode($raw, true);
-        if ($bin === false) {
-            $bin = base64_decode($raw, false);
-        }
-        $ext = pathinfo($fn, PATHINFO_EXTENSION);
-        $safe_name = $id . '_ref.' . ($ext ?: 'bin');
-        $upload_path = UPLOAD_DIR . $safe_name;
-        if ($bin !== false && strlen($bin) <= MAX_FILE_SIZE && file_put_contents($upload_path, $bin) !== false) {
-            $afn = $fn;
-            $afp = UPLOAD_URL . $safe_name;
+        if ($up) {
+            list($afn, $afp, $amm) = prism_store_binary_upload($id, '_ref', $up['name'], $up['bin'], $up['mime']);
         }
     }
 
@@ -241,12 +431,19 @@ if ($action === 'get_submissions') {
         fail('Assignment not found', 404);
     }
     $stmt = $db->prepare(
-        'SELECT s.*, u.name AS student_name, u.section
+        'SELECT s.*, u.name AS student_name, u.section, u.avatar AS student_avatar
          FROM submissions s JOIN users u ON s.student_id = u.id
          WHERE s.assignment_id = ? ORDER BY s.submitted_at DESC'
     );
     $stmt->execute([$asgn_id]);
-    ok(['submissions' => $stmt->fetchAll()]);
+    $rows = $stmt->fetchAll();
+    foreach ($rows as &$r) {
+        if (!empty($r['file_path'])) {
+            $r['file_data'] = null;
+        }
+    }
+    unset($r);
+    ok(['submissions' => $rows]);
 }
 
 if ($action === 'get_my_submission') {
@@ -280,15 +477,18 @@ if ($action === 'submit') {
     try {
     $ct = $_SERVER['CONTENT_TYPE'] ?? '';
     $multipartFiles = [];
-    if (stripos($ct, 'multipart/form-data') !== false) {
+    if (stripos($ct, 'multipart/form-data') !== false || !empty($_FILES)) {
         $b = [
             'assignment_id' => $_POST['assignment_id'] ?? '',
             'class_id'      => $_POST['class_id'] ?? '',
             'note'          => $_POST['note'] ?? '',
             'link_url'      => $_POST['link_url'] ?? '',
         ];
-        if (!empty($_FILES['files'])) {
-            $f = $_FILES['files'];
+        foreach (['files', 'file'] as $fk) {
+            if (empty($_FILES[$fk])) {
+                continue;
+            }
+            $f = $_FILES[$fk];
             if (is_array($f['name'])) {
                 $n = count($f['name']);
                 for ($i = 0; $i < $n; $i++) {
@@ -338,8 +538,11 @@ if ($action === 'submit') {
     }
 
     $link_url = trim((string) ($b['link_url'] ?? ''));
-    if ($link_url !== '' && strlen($link_url) > 500) {
-        $link_url = substr($link_url, 0, 500);
+    if ($link_url !== '') {
+        $link_url = prism_normalize_http_url($link_url);
+        if ($link_url !== '' && strlen($link_url) > 500) {
+            $link_url = substr($link_url, 0, 500);
+        }
     }
     $link_url = $link_url !== '' ? $link_url : null;
 
@@ -357,21 +560,27 @@ if ($action === 'submit') {
     $asgnSafe = preg_replace('/[^a-zA-Z0-9_]/', '_', $asgn_id);
 
     if (!empty($multipartFiles)) {
+        if (!is_dir(UPLOAD_DIR)) {
+            @mkdir(UPLOAD_DIR, 0775, true);
+        }
         foreach ($multipartFiles as $up) {
             if (count($attachments) >= $maxFiles) {
                 break;
             }
             if (($up['size'] ?? 0) > MAX_FILE_SIZE || empty($up['tmp_name']) || !is_uploaded_file($up['tmp_name'])) {
-                continue;
+                fail('File too large. Max 15 MB. For longer videos, paste a YouTube or website link instead.', 400);
+            }
+            $fn = $up['name'] ?? 'file';
+            $ext = strtolower((string) pathinfo($fn, PATHINFO_EXTENSION));
+            if ($ext === '' || !prism_upload_ext_ok($ext)) {
+                fail('That file type is not allowed. Use PDF, PPT, Word, Excel, image, video, text, or ZIP.', 400);
             }
             $bin = file_get_contents($up['tmp_name']);
             if ($bin === false || strlen($bin) > MAX_FILE_SIZE) {
-                continue;
+                fail('Could not read the uploaded file.', 400);
             }
-            $fn = $up['name'] ?? 'file';
-            $mime = $up['type'] ?? 'application/octet-stream';
-            $ext = pathinfo($fn, PATHINFO_EXTENSION);
-            $safe_name = 'sub_' . $uidSafe . '_' . $asgnSafe . '_' . bin2hex(random_bytes(4)) . ($ext ? '.' . $ext : '');
+            $mime = prism_mime_from_filename($fn, $up['type'] ?? 'application/octet-stream');
+            $safe_name = 'sub_' . $uidSafe . '_' . $asgnSafe . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             $upload_path = UPLOAD_DIR . $safe_name;
             if (file_put_contents($upload_path, $bin) !== false) {
                 $attachments[] = ['name' => $fn, 'path' => UPLOAD_URL . $safe_name, 'mime' => $mime];
@@ -524,6 +733,7 @@ if ($action === 'submit') {
 if ($action === 'get_records') {
     requireAuth(['teacher']);
     $class_id = $_GET['class_id']     ?? '';
+    prism_assert_teacher_owns_class($db, $user['id'], (string) $class_id);
     $date     = $_GET['session_date'] ?? '';
     if ($date) {
         $stmt = $db->prepare('SELECT * FROM records WHERE class_id = ? AND session_date = ?');
@@ -538,6 +748,7 @@ if ($action === 'get_records') {
 if ($action === 'get_session_dates') {
     requireAuth(['teacher']);
     $class_id = $_GET['class_id'] ?? '';
+    prism_assert_teacher_owns_class($db, $user['id'], (string) $class_id);
     $stmt = $db->prepare('SELECT DISTINCT session_date FROM records WHERE class_id = ? ORDER BY session_date DESC');
     $stmt->execute([$class_id]);
     ok(['dates' => array_column($stmt->fetchAll(), 'session_date')]);
@@ -546,6 +757,12 @@ if ($action === 'get_session_dates') {
 if ($action === 'save_record') {
     requireAuth(['teacher']);
     $b = getBody();
+    prism_assert_teacher_owns_class($db, $user['id'], (string) ($b['class_id'] ?? ''));
+    $stu = trim((string) ($b['student_id'] ?? ''));
+    if ($stu === '') {
+        fail('student_id required', 400);
+    }
+    prism_assert_student_enrolled($db, $stu, (string) $b['class_id']);
     $db->prepare(
         'INSERT INTO records (class_id, student_id, session_date, attendance, quiz_grade, activity_grade, midterm_grade, final_grade, remarks)
          VALUES (?,?,?,?,?,?,?,?,?)

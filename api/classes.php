@@ -11,13 +11,17 @@ $db     = getDB();
 // ── LIST MY CLASSES ────────────────────────────────────
 if ($method === 'GET' && $action === 'mine') {
     if ($user['role'] === 'teacher') {
-        $stmt = $db->prepare('SELECT * FROM classes WHERE teacher_id = ? ORDER BY created_at DESC');
+        $stmt = $db->prepare(
+            'SELECT c.id, c.teacher_id, c.subject, c.code, c.color, c.created_at,
+                    (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = c.id) AS student_count
+             FROM classes c WHERE c.teacher_id = ? ORDER BY c.created_at DESC'
+        );
         $stmt->execute([$user['id']]);
         ok(['classes' => $stmt->fetchAll()]);
     } else {
         // Student — get joined classes with teacher info
         $stmt = $db->prepare(
-            'SELECT c.*, u.name AS teacher_name, u.avatar AS teacher_avatar
+            'SELECT c.*, u.name AS teacher_name
              FROM enrollments e
              JOIN classes c ON e.class_id = c.id
              JOIN users u ON c.teacher_id = u.id
@@ -99,8 +103,12 @@ if ($method === 'POST' && $action === 'leave') {
 // ── GET STUDENTS IN CLASS (teacher) ───────────────────
 if ($method === 'GET' && $action === 'students') {
     $class_id = $_GET['class_id'] ?? '';
+    $wantAvatars = (string) ($_GET['avatars'] ?? '') === '1';
+    $cols = $wantAvatars
+        ? 'u.id, u.name, u.section, u.avatar, e.joined_at'
+        : 'u.id, u.name, u.section, e.joined_at';
     $stmt = $db->prepare(
-        'SELECT u.id, u.name, u.section, u.avatar, e.joined_at
+        'SELECT ' . $cols . '
          FROM enrollments e JOIN users u ON e.student_id = u.id
          WHERE e.class_id = ? ORDER BY u.name'
     );

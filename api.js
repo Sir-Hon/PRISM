@@ -58,6 +58,27 @@
 
 const API_BASE = window.__PRISM_API_BASE__;
 
+let __prismCsrf = '';
+let __prismCsrfSynced = false;
+try {
+  __prismCsrf = sessionStorage.getItem('prism_csrf') || '';
+} catch (e) {
+  __prismCsrf = '';
+}
+
+function prismRememberCsrf(token) {
+  if (!token) return;
+  __prismCsrf = String(token);
+  __prismCsrfSynced = true;
+  try { sessionStorage.setItem('prism_csrf', __prismCsrf); } catch (e) { /* ignore */ }
+}
+
+function prismCsrfHeaders() {
+  const h = {};
+  if (__prismCsrf) h['X-CSRF-Token'] = __prismCsrf;
+  return h;
+}
+
 function prismFriendlyApiParseError(text) {
   const t = (text || '').trim();
   if (t.startsWith('<') || t.includes('<!DOCTYPE')) {
@@ -73,14 +94,55 @@ function prismApiRootPrefix() {
   return API_BASE;
 }
 
-async function apiCall(endpoint, action, method = 'GET', body = null) {
+function prismIsSessionExpiredError(err) {
+  const m = err && err.message ? String(err.message) : '';
+  return /session expired/i.test(m);
+}
+
+async function prismRefreshCsrf() {
+  try {
+    const res = await fetch(prismApiRootPrefix() + '/auth.php?action=session', {
+      credentials: 'include',
+      headers: prismCsrfHeaders(),
+    });
+    const data = await res.json();
+    if (data && data.csrf_token) prismRememberCsrf(data.csrf_token);
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function prismEnsureCsrf() {
+  if (__prismCsrfSynced && __prismCsrf) return;
+  await prismRefreshCsrf();
+}
+
+function prismFormWithCsrf(formData) {
+  const fd = new FormData();
+  if (__prismCsrf) fd.append('csrf_token', __prismCsrf);
+  if (!formData || typeof formData.forEach !== 'function') return fd;
+  formData.forEach(function (value, key) {
+    if (key === 'csrf_token') return;
+    if (value instanceof File) fd.append(key, value, value.name);
+    else fd.append(key, value);
+  });
+  return fd;
+}
+
+async function apiCall(endpoint, action, method = 'GET', body = null, _retried) {
+  if (method && method !== 'GET') await prismEnsureCsrf();
   const url = `${prismApiRootPrefix()}/${endpoint}.php?action=${action}`;
+  const payload = body && typeof body === 'object' ? Object.assign({}, body) : body;
+  if (payload && method !== 'GET' && __prismCsrf && payload.csrf_token == null) {
+    payload.csrf_token = __prismCsrf;
+  }
   const opts = {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers: Object.assign({ 'Content-Type': 'application/json' }, prismCsrfHeaders()),
     credentials: 'include',
   };
-  if (body && method !== 'GET') opts.body = JSON.stringify(body);
+  if (payload && method !== 'GET') opts.body = JSON.stringify(payload);
   try {
     const res  = await fetch(url, opts);
     const text = await res.text();
@@ -90,10 +152,16 @@ async function apiCall(endpoint, action, method = 'GET', body = null) {
     } catch (parseErr) {
       throw new Error(prismFriendlyApiParseError(text));
     }
+    if (data.csrf_token) prismRememberCsrf(data.csrf_token);
     if (data.error) throw new Error(data.error);
     if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
     return data;
   } catch (e) {
+    if (!_retried && method !== 'GET' && prismIsSessionExpiredError(e)) {
+      __prismCsrfSynced = false;
+      await prismRefreshCsrf();
+      return apiCall(endpoint, action, method, body, true);
+    }
     console.error(`[PRISM API] ${endpoint}/${action}:`, e.message);
     throw e;
   }
@@ -102,7 +170,7 @@ async function apiCall(endpoint, action, method = 'GET', body = null) {
 async function apiGet(endpoint, action, params = {}) {
   let url = `${prismApiRootPrefix()}/${endpoint}.php?action=${action}`;
   for (const [k,v] of Object.entries(params)) url += `&${k}=${encodeURIComponent(v)}`;
-  const res  = await fetch(url, { credentials: 'include' });
+  const res  = await fetch(url, { credentials: 'include', headers: prismCsrfHeaders() });
   const text = await res.text();
   let data = {};
   try {
@@ -110,6 +178,7 @@ async function apiGet(endpoint, action, params = {}) {
   } catch (parseErr) {
     throw new Error(prismFriendlyApiParseError(text));
   }
+  if (data.csrf_token) prismRememberCsrf(data.csrf_token);
   if (data.error) throw new Error(data.error);
   if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
   return data;
@@ -157,32 +226,142 @@ function prismTeacherClassLabel(c) {
   return String(c.subject || '').trim() || 'Class';
 }
 
+const PRISM_MAX_FILE_BYTES = 15 * 1024 * 1024;
+const PRISM_UPLOAD_EXTS = [
+  'pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'txt',
+  'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp',
+  'mp4', 'webm', 'mov', 'ogg', 'ogv', 'zip',
+];
+
+function prismFileExt(name) {
+  return (String(name || '').split('.').pop() || '').toLowerCase();
+}
+
+function prismGuessMimeFromName(name) {
+  const ext = prismFileExt(name);
+  const map = {
+    pdf: 'application/pdf',
+    png: 'image/png',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    svg: 'image/svg+xml',
+    bmp: 'image/bmp',
+    txt: 'text/plain;charset=utf-8',
+    mp4: 'video/mp4',
+    webm: 'video/webm',
+    ogg: 'video/ogg',
+    ogv: 'video/ogg',
+    mov: 'video/quicktime',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    zip: 'application/zip',
+  };
+  return map[ext] || '';
+}
+
+function prismAllowedUploadExt(name) {
+  return PRISM_UPLOAD_EXTS.indexOf(prismFileExt(name)) >= 0;
+}
+
+function prismNormalizeHttpUrl(raw) {
+  let s = String(raw || '').trim();
+  if (!s) return '';
+  if (/^(javascript|data|file|vbscript):/i.test(s)) return '';
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) s = 'https://' + s;
+  try {
+    const u = new URL(s);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return '';
+    return u.href;
+  } catch (e) {
+    return '';
+  }
+}
+
+function prismExtractFirstUrl(text) {
+  const m = String(text || '').match(/https?:\/\/[^\s<>"']+|www\.[^\s<>"']+/i);
+  if (!m) return '';
+  return prismNormalizeHttpUrl(m[0]);
+}
+
+function prismLinkifyHtml(text) {
+  const esc = typeof prismEscHtml === 'function' ? prismEscHtml(text) : String(text || '');
+  return esc.replace(/(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi, function (raw) {
+    const href = prismNormalizeHttpUrl(raw.replace(/&amp;/g, '&'));
+    if (!href) return raw;
+    const attr = typeof prismEscAttr === 'function' ? prismEscAttr(href) : href;
+    return '<a href="' + attr + '" target="_blank" rel="noopener">' + raw + '</a>';
+  });
+}
+
+function prismMaterialHttpUrl(it) {
+  if (!it || !it.url) return '';
+  const s = String(it.url).trim();
+  if (!s) return '';
+  if (/^https?:\/\//i.test(s) || /^www\./i.test(s)) return prismNormalizeHttpUrl(s);
+  return '';
+}
+
+function prismMaterialKind(mime, fileName, type) {
+  const t = String(type || '').toLowerCase();
+  if (t === 'video') return 'video';
+  if (t === 'link') return 'link';
+  const m = String(mime || '').toLowerCase();
+  const ext = prismFileExt(fileName);
+  if (m === 'application/pdf' || ext === 'pdf') return 'pdf';
+  if (m.indexOf('image/') === 0 || ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].indexOf(ext) >= 0) return 'image';
+  if (m.indexOf('video/') === 0 || ['mp4', 'webm', 'mov', 'ogg', 'ogv'].indexOf(ext) >= 0) return 'video-file';
+  if (['ppt', 'pptx'].indexOf(ext) >= 0 || m.indexOf('powerpoint') >= 0 || m.indexOf('presentation') >= 0) return 'ppt';
+  return 'file';
+}
+
+function prismMaterialIcon(kind) {
+  const icons = {
+    pdf: '📕',
+    image: '🖼',
+    'video-file': '🎬',
+    video: '▶️',
+    ppt: '📙',
+    link: '🔗',
+    file: '📄',
+  };
+  return icons[kind] || '📄';
+}
+
+function prismMaterialKindLabel(kind) {
+  const labels = {
+    pdf: 'PDF',
+    image: 'Image',
+    'video-file': 'Video',
+    video: 'Video link',
+    ppt: 'Presentation',
+    link: 'Link',
+    file: 'File',
+  };
+  return labels[kind] || 'File';
+}
+
 function prismOpenMaterialUrl(url, mime, fileName) {
   if (!url) return;
   let m = mime || '';
   let fn = fileName || '';
-  let abs = url;
-  if (/^https?:\/\//i.test(url)) {
-    abs = url;
-  } else if (url.charAt(0) === '/') {
-    abs = window.location.origin + url;
-  } else {
-    try {
-      abs = new URL(url, window.location.href).href;
-    } catch (e) {
-      abs = url;
+  let abs = typeof prismResolveUploadUrl === 'function' ? prismResolveUploadUrl(url) : url;
+  if (!abs) abs = url;
+  if (!/^https?:\/\//i.test(abs) && abs.indexOf('data:') !== 0) {
+    if (abs.charAt(0) === '/') {
+      abs = (window.location.origin || '') + abs;
+    } else {
+      try {
+        abs = new URL(abs, window.location.href).href;
+      } catch (e) {
+        abs = url;
+      }
     }
-  }
-  function guessMime(name) {
-    const ext = (String(name).split('.').pop() || '').toLowerCase();
-    if (ext === 'pdf') return 'application/pdf';
-    if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'webp') return 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
-    if (ext === 'txt') return 'text/plain;charset=utf-8';
-    if (ext === 'mp4') return 'video/mp4';
-    if (ext === 'webm') return 'video/webm';
-    if (ext === 'ogg' || ext === 'ogv') return 'video/ogg';
-    if (ext === 'mov') return 'video/quicktime';
-    return '';
   }
   try {
     const absUrl = new URL(abs, window.location.href);
@@ -202,7 +381,7 @@ function prismOpenMaterialUrl(url, mime, fileName) {
           ? m
           : blob.type && blob.type !== 'application/octet-stream'
             ? blob.type
-            : guessMime(fn);
+            : prismGuessMimeFromName(fn);
       if (!type) type = blob.type || 'application/octet-stream';
       const b = new Blob([blob], { type });
       const u = URL.createObjectURL(b);
@@ -242,13 +421,117 @@ function prismVideoEmbedFromUrl(pageUrl) {
 }
 
 function prismCanPreviewInBrowser(mime, fileName) {
-  const ext = ((fileName || '').split('.').pop() || '').toLowerCase();
-  if (['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'txt', 'html', 'htm', 'mp4', 'webm', 'mov'].indexOf(ext) >= 0) return true;
+  const ext = prismFileExt(fileName);
+  if (['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'txt', 'html', 'htm', 'mp4', 'webm', 'mov', 'ogg', 'ogv'].indexOf(ext) >= 0) return true;
   if (mime && /^image\//.test(mime)) return true;
   if (mime === 'application/pdf') return true;
   if (mime && /^text\//.test(mime)) return true;
   if (mime && /^video\/(mp4|webm|ogg|quicktime)/.test(mime)) return true;
   return false;
+}
+
+function prismEscAttr(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function prismEscHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function prismAppRootPrefix() {
+  if (typeof API_BASE === 'string' && API_BASE) {
+    return String(API_BASE).replace(/\/api\/?$/, '');
+  }
+  return '';
+}
+
+/** Turn a stored upload path into a URL that works whether Prism is at /prism or site root. */
+function prismResolveUploadUrl(path) {
+  if (!path) return '';
+  let s = String(path);
+  if (/^https?:\/\//i.test(s) || s.indexOf('data:') === 0) return s;
+  const root = prismAppRootPrefix();
+  if (s.indexOf('/prism/uploads/') === 0) {
+    s = (root || '') + '/uploads/' + s.slice('/prism/uploads/'.length);
+  } else if (s.indexOf('uploads/') === 0) {
+    s = (root ? root + '/' : '/') + s;
+  }
+  if (/^https?:\/\//i.test(s) || s.indexOf('data:') === 0) return s;
+  if (s.charAt(0) === '/') return (window.location.origin || '') + s;
+  try {
+    return new URL(s, window.location.href).href;
+  } catch (e) {
+    return s;
+  }
+}
+
+function prismSafeAvatarUrl(avatar) {
+  const s = String(avatar || '');
+  if (s.indexOf('data:image/') === 0) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.charAt(0) === '/' || s.indexOf('uploads/') === 0) return prismResolveUploadUrl(s);
+  return '';
+}
+
+function prismRosterAvatarHtml(person, sizePx) {
+  const size = sizePx || 30;
+  const name = String((person && (person.name || person.id)) || '?');
+  const initial = name.charAt(0).toUpperCase();
+  const src = prismSafeAvatarUrl(person && person.avatar);
+  const box = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;flex-shrink:0;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;';
+  if (src) {
+    return '<span class="student-avatar" style="' + box + 'padding:0;background:#e5e7eb;"><img src="' + prismEscAttr(src) + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block;"/></span>';
+  }
+  return '<span class="student-avatar" style="' + box + '">' + prismEscHtml(initial) + '</span>';
+}
+
+function prismMapStudentRow(s) {
+  return {
+    id: s && s.id,
+    name: (s && s.name) || '',
+    section: (s && s.section) || '',
+    avatar: (s && s.avatar) || '',
+  };
+}
+
+async function apiForm(endpoint, action, formData, _retried) {
+  await prismEnsureCsrf();
+  const payload = prismFormWithCsrf(formData);
+  const url = `${prismApiRootPrefix()}/${endpoint}.php?action=${action}`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: prismCsrfHeaders(),
+      body: payload,
+    });
+    const text = await res.text();
+    let data = {};
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      throw new Error(prismFriendlyApiParseError(text));
+    }
+    if (data.csrf_token) prismRememberCsrf(data.csrf_token);
+    if (data.error) throw new Error(data.error);
+    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  } catch (e) {
+    if (!_retried && prismIsSessionExpiredError(e)) {
+      __prismCsrfSynced = false;
+      await prismRefreshCsrf();
+      return apiForm(endpoint, action, formData, true);
+    }
+    console.error(`[PRISM API] ${endpoint}/${action}:`, e.message);
+    throw e;
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -283,8 +566,10 @@ const PrismAuth = {
   },
 
   async logout() {
-    await apiCall('auth', 'logout', 'POST');
-    sessionStorage.clear();
+    try {
+      await apiCall('auth', 'logout', 'POST');
+    } catch (e) { /* still leave the page */ }
+    try { sessionStorage.clear(); } catch (e2) { /* ignore */ }
     window.location.href = 'login.html';
   },
 
@@ -327,8 +612,10 @@ const PrismClasses = {
   async leave(class_id) {
     return await apiCall('classes', 'leave', 'POST', { class_id });
   },
-  async getStudents(class_id) {
-    const data = await apiGet('classes', 'students', { class_id });
+  async getStudents(class_id, opts) {
+    const params = { class_id };
+    if (opts && opts.avatars) params.avatars = '1';
+    const data = await apiGet('classes', 'students', params);
     return data.students || [];
   },
   async delete(class_id) {
@@ -361,6 +648,19 @@ const PrismMaterials = {
     return data.materials || [];
   },
   async add(mat) {
+    if (mat && mat.file instanceof File) {
+      const fd = new FormData();
+      fd.append('class_id', mat.class_id || '');
+      fd.append('title', mat.title || '');
+      fd.append('type', mat.type || 'file');
+      fd.append('url', mat.url || '');
+      fd.append('desc', mat.desc || '');
+      if (mat.target_section != null && mat.target_section !== '') {
+        fd.append('target_section', mat.target_section);
+      }
+      fd.append('file', mat.file, mat.file.name);
+      return await apiForm('content', 'add_material', fd);
+    }
     return await apiCall('content', 'add_material', 'POST', mat);
   },
   async delete(id) {
@@ -377,6 +677,21 @@ const PrismAssignments = {
     return data.assignments || [];
   },
   async add(asgn) {
+    if (asgn && asgn.file instanceof File) {
+      const fd = new FormData();
+      fd.append('class_id', asgn.class_id || '');
+      fd.append('title', asgn.title || '');
+      fd.append('type', asgn.type || 'written');
+      fd.append('instructions', asgn.instructions || '');
+      fd.append('pts', asgn.pts != null ? String(asgn.pts) : '0');
+      if (asgn.due) fd.append('due', asgn.due);
+      if (asgn.target_section != null && asgn.target_section !== '') {
+        fd.append('target_section', asgn.target_section);
+      }
+      if (asgn.attach_url) fd.append('attach_url', asgn.attach_url);
+      fd.append('file', asgn.file, asgn.file.name);
+      return await apiForm('content', 'add_assignment', fd);
+    }
     return await apiCall('content', 'add_assignment', 'POST', asgn);
   },
   async delete(id) {
@@ -401,6 +716,20 @@ const PrismSubmissions = {
     return data.submissions || [];
   },
   async submit(submission) {
+    const files = submission && Array.isArray(submission.files)
+      ? submission.files.filter(function (f) { return f instanceof File; })
+      : (submission && submission.file instanceof File ? [submission.file] : []);
+    if (files.length) {
+      const fd = new FormData();
+      fd.append('assignment_id', submission.assignment_id || '');
+      fd.append('class_id', submission.class_id || '');
+      fd.append('note', submission.note || '');
+      fd.append('link_url', submission.link_url || '');
+      files.forEach(function (f) {
+        fd.append('files[]', f, f.name);
+      });
+      return await apiForm('content', 'submit', fd);
+    }
     return await apiCall('content', 'submit', 'POST', submission);
   },
 };
@@ -527,10 +856,15 @@ const PrismAdmin = {
 // ══════════════════════════════════════════════════════
 //  AUTH GUARD
 // ══════════════════════════════════════════════════════
+let __prismAuthPromise = null;
+
 async function prismAuthGuard(allowedRoles = []) {
   try {
-    const { loggedIn, user } = await PrismAuth.checkSession();
-    if (!loggedIn) {
+    if (!__prismAuthPromise) {
+      __prismAuthPromise = PrismAuth.checkSession();
+    }
+    const { loggedIn, user } = await __prismAuthPromise;
+    if (!loggedIn || !user) {
       window.location.replace('login.html');
       return null;
     }
@@ -541,31 +875,10 @@ async function prismAuthGuard(allowedRoles = []) {
     }
     return user;
   } catch (e) {
+    __prismAuthPromise = null;
     window.location.replace('login.html');
     return null;
   }
 }
-
-(function prismSyncProfileCacheBeforeInit() {
-  if (typeof document === 'undefined' || !document.addEventListener) return;
-  document.addEventListener(
-    'DOMContentLoaded',
-    function () {
-      try {
-        const url = prismApiRootPrefix() + '/auth.php?action=session';
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', url, false);
-        xhr.withCredentials = true;
-        xhr.send(null);
-        if (xhr.status !== 200) return;
-        const data = JSON.parse(xhr.responseText || '{}');
-        if (data.loggedIn && data.user) prismCacheUserProfile(data.user);
-      } catch (e) {
-        /* ignore */
-      }
-    },
-    false
-  );
-})();
 
 console.log('[PRISM] api.js loaded — API base:', window.__PRISM_API_BASE__);

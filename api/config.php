@@ -73,7 +73,11 @@ function ok($data = []) {
 }
 
 function fail($msg, $code = 400) {
-    prism_exit_json(['error' => $msg], $code);
+    $out = ['error' => $msg];
+    if (session_status() === PHP_SESSION_ACTIVE && !empty($_SESSION['csrf_token'])) {
+        $out['csrf_token'] = $_SESSION['csrf_token'];
+    }
+    prism_exit_json($out, $code);
 }
 
 function getDB() {
@@ -136,7 +140,7 @@ function prism_assert_same_origin(): void {
         }
         return;
     }
-    fail('Forbidden', 403);
+    // Some browsers omit Origin and Referer on same-site POSTs; session cookie still required.
 }
 
 function prism_csrf_token(): string {
@@ -145,6 +149,27 @@ function prism_csrf_token(): string {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
     return $_SESSION['csrf_token'];
+}
+
+/** CSRF may arrive as a header, multipart field, JSON body, or query (hosts sometimes drop one of them). */
+function prism_csrf_candidates(): array {
+    $out = [];
+    foreach (['HTTP_X_CSRF_TOKEN', 'HTTP_X_CSRFTOKEN'] as $k) {
+        if (!empty($_SERVER[$k])) {
+            $out[] = (string) $_SERVER[$k];
+        }
+    }
+    if (!empty($_POST['csrf_token'])) {
+        $out[] = (string) $_POST['csrf_token'];
+    }
+    $body = getBody();
+    if (!empty($body['csrf_token'])) {
+        $out[] = (string) $body['csrf_token'];
+    }
+    if (!empty($_GET['csrf_token'])) {
+        $out[] = (string) $_GET['csrf_token'];
+    }
+    return $out;
 }
 
 /**
@@ -161,11 +186,17 @@ function prism_guard_mutating_request(array $publicActions = []): void {
     if (in_array($action, $publicActions, true)) {
         return;
     }
-    $sent = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? $_POST['csrf_token'] ?? '');
+    startSession();
     $want = (string) ($_SESSION['csrf_token'] ?? '');
-    if ($want === '' || $sent === '' || !hash_equals($want, $sent)) {
+    if ($want === '') {
         fail('Session expired. Refresh the page and try again.', 403);
     }
+    foreach (prism_csrf_candidates() as $sent) {
+        if ($sent !== '' && hash_equals($want, $sent)) {
+            return;
+        }
+    }
+    fail('Session expired. Refresh the page and try again.', 403);
 }
 
 function prism_client_ip(): string {
@@ -272,10 +303,23 @@ function requireAuth($allowedRoles = []) {
     ];
 }
 
-// ── Get JSON body ──
+// ── Get JSON body (cached — php://input can only be read once) ──
 function getBody() {
+    static $cached = null;
+    static $done = false;
+    if ($done) {
+        return is_array($cached) ? $cached : [];
+    }
+    $done = true;
+    $ct = (string) ($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '');
+    if (stripos($ct, 'multipart/form-data') !== false) {
+        $cached = [];
+        return $cached;
+    }
     $raw = file_get_contents('php://input');
-    return json_decode($raw, true) ?? [];
+    $decoded = json_decode((string) $raw, true);
+    $cached = is_array($decoded) ? $decoded : [];
+    return $cached;
 }
 
 /** Teacher must own this class (row in classes). */
