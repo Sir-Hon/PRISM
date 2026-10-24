@@ -3,27 +3,40 @@
  * Call initSidebar(activePage) after DOMContentLoaded.
  * Logout is bound here so dashboards do not each paste their own handler.
  */
+function prismNavIcon(name) {
+  var common = 'width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+  var map = {
+    home: '<svg ' + common + '><path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/></svg>',
+    calendar: '<svg ' + common + '><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    notes: '<svg ' + common + '><path d="M8 4h8a2 2 0 0 1 2 2v14l-6-3-6 3V6a2 2 0 0 1 2-2z"/></svg>',
+    quizzes: '<svg ' + common + '><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8"/><path d="M12 17h.01"/></svg>',
+    classes: '<svg ' + common + '><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M15 4v5h5"/></svg>',
+    records: '<svg ' + common + '><path d="M8 6h13M8 12h13M8 18h13"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+    grading: '<svg ' + common + '><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+    users: '<svg ' + common + '><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    dashboard: '<svg ' + common + '><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
+  };
+  return map[name] || '';
+}
+
 var ROLE_NAV = {
   student: [
-    { page: 'home', href: 'index.html', icon: '🏠', label: 'Home' },
-    { page: 'calendar', href: 'calendar.html', icon: '📅', label: 'Calendar' },
-    { page: 'notes', href: 'notes.html', icon: '📓', label: 'Notes' },
-    { page: 'quizzes', href: 'quizzes.html', icon: '🧠', label: 'Quizzes' },
-    { page: 'call', href: 'call.html', icon: '📞', label: 'Organizations' },
+    { page: 'home', href: 'index.html', icon: 'home', label: 'Home' },
+    { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
+    { page: 'notes', href: 'notes.html', icon: 'notes', label: 'Notes' },
+    { page: 'quizzes', href: 'quizzes.html', icon: 'quizzes', label: 'Quizzes' },
   ],
   teacher: [
-    { page: 'home', href: 'teacher.html', icon: '🏠', label: 'My Classes' },
-    { page: 'quizmaker', href: 'quizmaker.html', icon: '🧪', label: 'Quiz Maker' },
-    { page: 'records', href: 'records.html', icon: '📋', label: 'Records' },
-    { page: 'grading', href: 'grading.html', icon: '🎯', label: 'Grading' },
-    { page: 'calendar', href: 'calendar.html', icon: '📅', label: 'Calendar' },
-    { page: 'call', href: 'call.html', icon: '📞', label: 'Organizations' },
+    { page: 'home', href: 'teacher.html', icon: 'classes', label: 'My Classes' },
+    { page: 'quizmaker', href: 'quizmaker.html', icon: 'quizzes', label: 'Quiz Maker' },
+    { page: 'records', href: 'records.html', icon: 'records', label: 'Records' },
+    { page: 'grading', href: 'grading.html', icon: 'grading', label: 'Grading' },
+    { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
   ],
   admin: [
-    { page: 'home', href: 'admin.html', icon: '🏠', label: 'Dashboard' },
-    { page: 'manage', href: 'manage.html', icon: '👥', label: 'Manage Users' },
-    { page: 'calendar', href: 'calendar.html', icon: '📅', label: 'Calendar' },
-    { page: 'call', href: 'call.html', icon: '📞', label: 'Organizations' },
+    { page: 'home', href: 'admin.html', icon: 'dashboard', label: 'Dashboard' },
+    { page: 'manage', href: 'manage.html', icon: 'users', label: 'Manage Users' },
+    { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
   ],
 };
 
@@ -45,6 +58,63 @@ function diamondSVG(color, size) {
   return '<svg class="sidebar-diamond" width="' + size + '" height="' + size + '" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 1L13 7L7 13L1 7Z" fill="' + fill + '" stroke="' + fill + '" stroke-width="0.5" stroke-linejoin="round"/></svg>';
 }
 
+function prismGetTheme() {
+  try {
+    return localStorage.getItem('prism_theme') === 'dark' ? 'dark' : 'light';
+  } catch (e) {
+    return 'light';
+  }
+}
+
+function prismApplyTheme(theme) {
+  var next = theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('prism_theme', next); } catch (e) { /* ignore */ }
+  var btn = document.getElementById('prism-theme-toggle');
+  if (btn) {
+    btn.innerHTML = next === 'dark'
+      ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
+      : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>';
+    btn.title = next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.setAttribute('aria-label', btn.title);
+  }
+}
+
+function prismToggleTheme() {
+  prismApplyTheme(prismGetTheme() === 'dark' ? 'light' : 'dark');
+}
+
+function prismEnsureThemeToggle() {
+  var right = document.querySelector('.topbar-right');
+  if (!right) return;
+  var btn = document.getElementById('prism-theme-toggle');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'prism-theme-toggle';
+    btn.className = 'topbar-theme-btn';
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      prismToggleTheme();
+    });
+    var avatar = document.getElementById('topbar-avatar');
+    if (avatar && avatar.parentNode === right) right.insertBefore(btn, avatar);
+    else right.appendChild(btn);
+  }
+  prismApplyTheme(prismGetTheme());
+}
+
+function markSidebarClassActive(classId) {
+  window.__prismActiveClassId = classId ? String(classId) : '';
+  document.querySelectorAll('.sidebar-class-item').forEach(function (btn) {
+    if (window.__prismActiveClassId && btn.getAttribute('data-class-id') === window.__prismActiveClassId) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+}
+
 function prismBindLogoutButtons() {
   document.querySelectorAll('button.sidebar-logout').forEach(function (btn) {
     if (btn.dataset.prismLogoutBound === '1') return;
@@ -57,6 +127,7 @@ function prismBindLogoutButtons() {
 }
 
 function initSidebar(activePage) {
+  prismEnsureThemeToggle();
   var uid = sessionStorage.getItem('prism_user_id') || '';
   var profile = {};
   try {
@@ -108,24 +179,33 @@ function initSidebar(activePage) {
   var placeholder = document.getElementById('sidebar-nav');
   if (placeholder) {
     var links = ROLE_NAV[role] || ROLE_NAV.student;
-    var lbl = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
-    var sec = document.createElement('div');
-    sec.className = 'sidebar-section';
-    var secLbl = document.createElement('div');
-    secLbl.className = 'sidebar-section-label';
-    secLbl.textContent = lbl;
-    sec.appendChild(secLbl);
-    for (var i = 0; i < links.length; i++) {
-      var l = links[i];
-      var a = document.createElement('a');
-      a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
-      a.setAttribute('data-page', l.page);
-      a.href = l.href;
-      a.innerHTML = '<span class="s-icon">' + l.icon + '</span> ' + prismSidebarEsc(l.label);
-      sec.appendChild(a);
+    var navKey = role + '|' + String(activePage || '');
+    if (placeholder.dataset.prismNavKey === navKey) {
+      placeholder.querySelectorAll('.sidebar-link').forEach(function (a) {
+        if (a.getAttribute('data-page') === activePage) a.classList.add('active');
+        else a.classList.remove('active');
+      });
+    } else {
+      var lbl = role === 'admin' ? 'Admin' : role === 'teacher' ? 'Teacher' : 'Main';
+      var sec = document.createElement('div');
+      sec.className = 'sidebar-section';
+      var secLbl = document.createElement('div');
+      secLbl.className = 'sidebar-section-label';
+      secLbl.textContent = lbl;
+      sec.appendChild(secLbl);
+      for (var i = 0; i < links.length; i++) {
+        var l = links[i];
+        var a = document.createElement('a');
+        a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
+        a.setAttribute('data-page', l.page);
+        a.href = l.href;
+        a.innerHTML = '<span class="s-icon">' + prismNavIcon(l.icon) + '</span> ' + prismSidebarEsc(l.label);
+        sec.appendChild(a);
+      }
+      sec.id = 'sidebar-nav';
+      sec.dataset.prismNavKey = navKey;
+      placeholder.parentNode.replaceChild(sec, placeholder);
     }
-    sec.id = 'sidebar-nav';
-    placeholder.parentNode.replaceChild(sec, placeholder);
   }
 
   var classCont = document.getElementById('sidebar-classes');
@@ -149,8 +229,6 @@ function initSidebar(activePage) {
       var classLabel = classSection.querySelector('.sidebar-section-label');
       if (classLabel) classLabel.textContent = role === 'teacher' ? 'Classes' : 'My Classes';
     }
-    classCont.innerHTML = '';
-
     if (role === 'teacher') {
       var teacherId = sessionStorage.getItem('prism_user_id') || 'teacher';
       var teacherClasses = [];
@@ -159,23 +237,29 @@ function initSidebar(activePage) {
       } catch (e3) {
         teacherClasses = [];
       }
-      if (!teacherClasses.length) {
-        var emp = document.createElement('div');
-        emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
-        emp.textContent = 'No subjects yet';
-        classCont.appendChild(emp);
-      } else {
-        teacherClasses.forEach(function (cls) {
-          var btn = document.createElement('button');
-          btn.type = 'button';
-          btn.className = 'sidebar-class-item';
-          btn.innerHTML = diamondSVG(cls.color || '#7c3aed', 13) +
-            '<span class="sidebar-class-name">' + prismSidebarEsc(cls.subject) + '</span>';
-          btn.onclick = function () {
-            window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id);
-          };
-          classCont.appendChild(btn);
-        });
+      var tSig = teacherClasses.map(function (c) { return String(c.id) + '|' + String(c.subject || ''); }).join(',');
+      if (classCont.dataset.prismClassSig !== tSig) {
+        classCont.dataset.prismClassSig = tSig;
+        classCont.innerHTML = '';
+        if (!teacherClasses.length) {
+          var emp = document.createElement('div');
+          emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+          emp.textContent = 'No subjects yet';
+          classCont.appendChild(emp);
+        } else {
+          teacherClasses.forEach(function (cls) {
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'sidebar-class-item';
+            btn.setAttribute('data-class-id', cls.id);
+            btn.innerHTML = diamondSVG(cls.color || '#7c3aed', 13) +
+              '<span class="sidebar-class-name">' + prismSidebarEsc(cls.subject) + '</span>';
+            btn.onclick = function () {
+              window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id);
+            };
+            classCont.appendChild(btn);
+          });
+        }
       }
     } else {
       var studentId = sessionStorage.getItem('prism_user_id') || 'student';
@@ -186,37 +270,46 @@ function initSidebar(activePage) {
         joinedRaw = {};
       }
       var joinedList = Object.values(joinedRaw);
-      if (!joinedList.length) {
-        var emp2 = document.createElement('div');
-        emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
-        emp2.textContent = 'No classes joined yet';
-        classCont.appendChild(emp2);
-      } else {
-        var colors = ['#7c3aed', '#0d9488', '#d97706', '#2563eb', '#be123c', '#15803d'];
-        joinedList.forEach(function (entry, idx) {
-          (function (e, i) {
-            var btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'sidebar-class-item';
-            btn.innerHTML = diamondSVG(colors[i % colors.length], 13) +
-              '<span class="sidebar-class-name">' + prismSidebarEsc(e.subject) + '</span>';
-            btn.onclick = function () {
-              if (typeof openClassDetail === 'function') {
-                openClassDetail(e.classId, e.teacherId, e.subject, colors[i % colors.length]);
-              } else {
-                window.location.href = 'index.html';
-              }
-            };
-            classCont.appendChild(btn);
-          })(entry, idx);
-        });
+      var sSig = joinedList.map(function (e) { return String(e.classId) + '|' + String(e.subject || ''); }).join(',');
+      if (classCont.dataset.prismClassSig !== sSig) {
+        classCont.dataset.prismClassSig = sSig;
+        classCont.innerHTML = '';
+        if (!joinedList.length) {
+          var emp2 = document.createElement('div');
+          emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
+          emp2.textContent = 'No classes joined yet';
+          classCont.appendChild(emp2);
+        } else {
+          var colors = ['#7c3aed', '#0d9488', '#d97706', '#2563eb', '#be123c', '#15803d'];
+          joinedList.forEach(function (entry, idx) {
+            (function (e, i) {
+              var btn = document.createElement('button');
+              btn.type = 'button';
+              btn.className = 'sidebar-class-item';
+              btn.setAttribute('data-class-id', e.classId);
+              btn.innerHTML = diamondSVG(e.color || colors[i % colors.length], 13) +
+                '<span class="sidebar-class-name">' + prismSidebarEsc(e.subject) + '</span>';
+              btn.onclick = function (ev) {
+                if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+                if (typeof openClassDetail === 'function') {
+                  openClassDetail(e.classId, e.teacherId, e.subject, e.color || colors[i % colors.length]);
+                } else {
+                  window.location.href = 'index.html?class=' + encodeURIComponent(e.classId);
+                }
+              };
+              classCont.appendChild(btn);
+            })(entry, idx);
+          });
+        }
       }
     }
+    markSidebarClassActive(window.__prismActiveClassId || '');
   }
 
   prismBindLogoutButtons();
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+  prismEnsureThemeToggle();
   prismBindLogoutButtons();
 });

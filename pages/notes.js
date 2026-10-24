@@ -1,24 +1,19 @@
 /** Page script for notes.html — keep HTML in the .html file. */
 const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#607d8b','#795548'];
-  const NB_ICONS  = ['📓','📔','📒','📕','📗','📘','📙','🗒️','✏️','🔬','📐','🌟','🎨','💡','🎵'];
 
   let notebooks     = JSON.parse(localStorage.getItem('prism_notebooks')||'[]');
   let activeNbId    = null, activeNoteId = null, editingNbId = null;
-  let selNbColor    = NB_COLORS[2], selNbIcon = NB_ICONS[0];
+  let selNbColor    = NB_COLORS[2];
   let autosaveTimer = null;
 
   const colorPicker = document.getElementById('nb-color-picker');
   NB_COLORS.forEach(c => {
     const chip = document.createElement('div'); chip.className='nb-color-chip'; chip.style.background=c; chip.dataset.color=c; chip.onclick=()=>selNbClr(c); colorPicker.appendChild(chip);
   });
-  const iconRow = document.getElementById('nb-icon-row');
-  NB_ICONS.forEach(ic => {
-    const chip = document.createElement('span'); chip.className='nb-icon-chip'; chip.textContent=ic; chip.onclick=()=>selNbIc(ic); iconRow.appendChild(chip);
-  });
 
+  function nbInitial(name) { return String(name || 'N').charAt(0).toUpperCase(); }
   function selNbClr(c) { selNbColor=c; document.querySelectorAll('.nb-color-chip').forEach(ch=>ch.classList.toggle('selected',ch.dataset.color===c)); }
-  function selNbIc(ic) { selNbIcon=ic; document.querySelectorAll('.nb-icon-chip').forEach(ch=>ch.classList.toggle('selected',ch.textContent===ic)); }
-  selNbClr(NB_COLORS[2]); selNbIc(NB_ICONS[0]);
+  selNbClr(NB_COLORS[2]);
 
   function saveData() { localStorage.setItem('prism_notebooks',JSON.stringify(notebooks)); }
 
@@ -34,12 +29,12 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
       const card = document.createElement('div');
       card.className='notebook-card'+(nb.id===activeNbId?' active-nb':'');
       card.style.background=`linear-gradient(135deg,${nb.color},${darken(nb.color)})`;
-      card.innerHTML=`<div><div class="nb-icon">${nb.icon||'📓'}</div><div class="nb-title">${nb.name}</div><div class="nb-count">${cnt} note${cnt!==1?'s':''}</div></div>
+      card.innerHTML=`<div><div class="nb-icon">${nbInitial(nb.name)}</div><div class="nb-title">${nb.name}</div><div class="nb-count">${cnt} note${cnt!==1?'s':''}</div></div>`
         <button class="nb-menu-btn" onclick="toggleNbMenu(event,'${nb.id}')">⋯</button>
         <div class="nb-context-menu" id="nbmenu-${nb.id}">
-          <div class="nb-ctx-item" onclick="openEditor('${nb.id}')">📂 Open</div>
-          <div class="nb-ctx-item" onclick="openRenameNb('${nb.id}')">✏️ Rename</div>
-          <div class="nb-ctx-item danger" onclick="deleteNotebook('${nb.id}')">🗑 Delete</div>
+          <div class="nb-ctx-item" onclick="openEditor('${nb.id}')"> Open</div>
+          <div class="nb-ctx-item" onclick="openRenameNb('${nb.id}')"> Rename</div>
+          <div class="nb-ctx-item danger" onclick="deleteNotebook('${nb.id}')"> Delete</div>
         </div>`;
       card.addEventListener('click',e=>{ if(e.target.closest('.nb-menu-btn')||e.target.closest('.nb-context-menu'))return; openEditor(nb.id); });
       grid.appendChild(card);
@@ -49,20 +44,20 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
   function toggleNbMenu(e,id) { e.stopPropagation(); document.querySelectorAll('.nb-context-menu').forEach(m=>{if(m.id!=='nbmenu-'+id)m.classList.remove('open');}); document.getElementById('nbmenu-'+id).classList.toggle('open'); }
   document.addEventListener('click',()=>document.querySelectorAll('.nb-context-menu').forEach(m=>m.classList.remove('open')));
 
-  function openNewNotebookModal() { editingNbId=null; document.getElementById('nb-modal-title').textContent='New Notebook'; document.getElementById('nb-name-input').value=''; selNbClr(NB_COLORS[Math.floor(Math.random()*NB_COLORS.length)]); selNbIc(NB_ICONS[Math.floor(Math.random()*NB_ICONS.length)]); document.getElementById('nb-overlay').classList.add('active'); setTimeout(()=>document.getElementById('nb-name-input').focus(),200); }
-  function openRenameNb(id) { const nb=notebooks.find(n=>n.id===id); if(!nb)return; editingNbId=id; document.getElementById('nb-modal-title').textContent='Rename Notebook'; document.getElementById('nb-name-input').value=nb.name; selNbClr(nb.color||NB_COLORS[2]); selNbIc(nb.icon||NB_ICONS[0]); document.getElementById('nb-overlay').classList.add('active'); }
+  function openNewNotebookModal() { editingNbId=null; document.getElementById('nb-modal-title').textContent='New Notebook'; document.getElementById('nb-name-input').value=''; selNbClr(NB_COLORS[Math.floor(Math.random()*NB_COLORS.length)]); document.getElementById('nb-overlay').classList.add('active'); setTimeout(()=>document.getElementById('nb-name-input').focus(),200); }
+  function openRenameNb(id) { const nb=notebooks.find(n=>n.id===id); if(!nb)return; editingNbId=id; document.getElementById('nb-modal-title').textContent='Rename Notebook'; document.getElementById('nb-name-input').value=nb.name; selNbClr(nb.color||NB_COLORS[2]); document.getElementById('nb-overlay').classList.add('active'); }
   function closeNbModal() { document.getElementById('nb-overlay').classList.remove('active'); }
 
   function saveNotebook() {
     const name=document.getElementById('nb-name-input').value.trim(); if(!name){alert('Please enter a name.');return;}
-    if(editingNbId){const nb=notebooks.find(n=>n.id===editingNbId);nb.name=name;nb.color=selNbColor;nb.icon=selNbIcon;}
-    else{notebooks.push({id:Date.now().toString(),name,color:selNbColor,icon:selNbIcon,notes:[]});}
+    if(editingNbId){const nb=notebooks.find(n=>n.id===editingNbId);nb.name=name;nb.color=selNbColor;nb.icon=nbInitial(name);}
+    else{notebooks.push({id:Date.now().toString(),name,color:selNbColor,icon:nbInitial(name),notes:[]});}
     saveData();closeNbModal();renderNotebooks();
   }
 
   function deleteNotebook(id){if(!confirm('Delete this notebook and all its notes?'))return;notebooks=notebooks.filter(n=>n.id!==id);if(activeNbId===id)closeEditor();saveData();renderNotebooks();}
 
-  function openEditor(nbId){activeNbId=nbId;const nb=notebooks.find(n=>n.id===nbId);document.getElementById('notes-editor-wrap').classList.add('visible');const badge=document.getElementById('editor-nb-badge');badge.textContent=(nb.icon||'📓')+' '+nb.name;badge.style.background=nb.color;renderNoteList();renderNotebooks();if(nb.notes&&nb.notes.length)loadNote(nb.notes[0].id);else clearEditor();}
+  function openEditor(nbId){activeNbId=nbId;const nb=notebooks.find(n=>n.id===nbId);document.getElementById('notes-editor-wrap').classList.add('visible');const badge=document.getElementById('editor-nb-badge');badge.textContent=nb.name;badge.style.background=nb.color;renderNoteList();renderNotebooks();if(nb.notes&&nb.notes.length)loadNote(nb.notes[0].id);else clearEditor();}
   function closeEditor(){activeNbId=null;activeNoteId=null;document.getElementById('notes-editor-wrap').classList.remove('visible');renderNotebooks();}
 
   function renderNoteList(){const nb=notebooks.find(n=>n.id===activeNbId);if(!nb)return;const c=document.getElementById('note-list-items');c.innerHTML='';(nb.notes||[]).forEach(note=>{const item=document.createElement('div');item.className='note-list-item'+(note.id===activeNoteId?' active':'');item.innerHTML=`<div class="note-list-title">${note.title||'Untitled'}</div><div class="note-list-date">${fmtDate(note.updated)}</div>`;item.onclick=()=>loadNote(note.id);c.appendChild(item);});}
@@ -73,7 +68,7 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
   function addNote(){const nb=notebooks.find(n=>n.id===activeNbId);if(!nb)return;if(!nb.notes)nb.notes=[];const note={id:Date.now().toString(),title:'',body:'',updated:Date.now()};nb.notes.unshift(note);saveData();renderNoteList();loadNote(note.id);document.getElementById('note-title').focus();}
   function deleteNote(){if(!confirm('Delete this note?'))return;const nb=notebooks.find(n=>n.id===activeNbId);nb.notes=(nb.notes||[]).filter(n=>n.id!==activeNoteId);saveData();renderNoteList();if(nb.notes.length)loadNote(nb.notes[0].id);else clearEditor();renderNotebooks();}
 
-  function autosave(){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{const nb=notebooks.find(n=>n.id===activeNbId);const note=(nb.notes||[]).find(n=>n.id===activeNoteId);if(!note)return;note.title=document.getElementById('note-title').value;note.body=document.getElementById('note-body').innerHTML;note.updated=Date.now();saveData();document.getElementById('note-meta').textContent='Last edited: '+fmtDate(note.updated);document.getElementById('autosave-label').textContent='Saved ✓';setTimeout(()=>{document.getElementById('autosave-label').textContent='';},1500);renderNoteList();renderNotebooks();},600);}
+  function autosave(){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(()=>{const nb=notebooks.find(n=>n.id===activeNbId);const note=(nb.notes||[]).find(n=>n.id===activeNoteId);if(!note)return;note.title=document.getElementById('note-title').value;note.body=document.getElementById('note-body').innerHTML;note.updated=Date.now();saveData();document.getElementById('note-meta').textContent='Last edited: '+fmtDate(note.updated);document.getElementById('autosave-label').textContent='Saved ';setTimeout(()=>{document.getElementById('autosave-label').textContent='';},1500);renderNoteList();renderNotebooks();},600);}
 
   function execFmt(cmd){document.execCommand(cmd,false,null);document.getElementById('note-body').focus();autosave();}
   function execFmtArg(cmd,val){document.execCommand(cmd,false,val);document.getElementById('note-body').focus();autosave();}

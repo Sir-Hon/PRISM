@@ -164,12 +164,12 @@ async function renderTeacherPortalAnnouncements() {
     return;
   }
   var typeCls = { portal:'background:#d1fae5;color:#065f46;', alert:'background:#fee2e2;color:#991b1b;', info:'background:#dbeafe;color:#1d4ed8;' };
-  var typeIco = { portal:'📢', alert:'🚨', info:'ℹ️' };
+  var typeIco = { portal:'General', alert:'Alert', info:'Info' };
   feed.innerHTML = anns.slice(0, 5).map(function(a) {
     var rawDate = a.created_at || a.date;
     var dl = rawDate ? new Date(rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     var t = a.type || 'portal';
-    var pill = '<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:.4rem;' + (typeCls[t] || typeCls.portal) + '">' + (typeIco[t] || '📢') + '</span>';
+    var pill = '<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:.4rem;' + (typeCls[t] || typeCls.portal) + '">' + (typeIco[t] || '') + '</span>';
     var text = String(a.text == null ? '' : a.text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     return '<div style="display:flex;gap:.8rem;padding:.75rem 0;border-bottom:1px solid #ecfdf5;">'
       + '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">' + String(a.author || 'A').charAt(0) + '</div>'
@@ -209,7 +209,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if(typeof initSidebar==='function') initSidebar('home');
   const hour = new Date().getHours();
   const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
-  document.getElementById('teacher-greeting').textContent = `${g}, ${user.name}! 👋`;
+  document.getElementById('teacher-greeting').textContent = `${g}, ${user.name}`;
   paintTeacherClassesFromCache();
   renderDashboardIncomingEvents();
   await Promise.all([
@@ -326,7 +326,7 @@ function buildClassSelect() {
 /** Re-injected after empty state reset */
 const TEACHER_CLASS_CONTENT_HTML = `
       <div class="t-card" style="margin-bottom:1.2rem;">
-        <div class="t-card-title">📢 Announcements</div>
+        <div class="t-card-title"> Announcements</div>
         <textarea class="composer" id="stream-text" placeholder="Write an announcement for your class…"></textarea>
         <div class="composer-row" style="justify-content:flex-end;margin-top:.75rem;">
           <button class="t-btn" onclick="postStream()">Post announcement →</button>
@@ -355,8 +355,7 @@ function showEmptyState() {
   if (secWrap) { secWrap.style.display = 'none'; secWrap.innerHTML = ''; }
   document.getElementById('class-content').innerHTML = `
     <div style="text-align:center;padding:4rem 2rem;background:#fff;border-radius:18px;border:2px dashed #d1fae5;">
-      <div style="font-size:3rem;margin-bottom:1rem;">📚</div>
-      <div style="font-family:'DM Sans',sans-serif;font-size:1.3rem;font-weight:800;color:#16132b;margin-bottom:.5rem;">No Subjects Yet</div>
+      <div style="font-family:'DM Sans',sans-serif;font-size:1.15rem;font-weight:700;color:#16132b;margin-bottom:.5rem;">No subjects yet</div>
       <p style="color:#9ca3af;font-size:.95rem;margin-bottom:1.5rem;">Create your first subject to get started.</p>
       <button class="t-btn" onclick="openCreateClass()" style="padding:.75rem 2rem;font-size:1rem;">+ Create Subject</button>
     </div>`;
@@ -567,17 +566,17 @@ function streamMaterialActionsHtml(p) {
   const mat = resolveStreamMaterial(p);
   const btn = 'display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .95rem;border-radius:10px;font-size:.82rem;font-weight:700;font-family:\'DM Sans\',sans-serif;text-decoration:none;cursor:pointer;border:none;';
   if (mat && mat.file_path) {
-    return `<div style="margin-top:.75rem;"><a href="${mat.file_path}" download target="_blank" style="${btn}background:linear-gradient(135deg,#10b981,#059669);color:#fff;">⬇ Download</a></div>`;
+    return `<div style="margin-top:.75rem;"><a href="${mat.file_path}" download target="_blank" style="${btn}background:linear-gradient(135deg,#10b981,#059669);color:#fff;"> Download</a></div>`;
   }
   if (mat && mat.file_data) {
-    return `<div style="margin-top:.75rem;"><button type="button" onclick="downloadMaterial('${mat.id}')" style="${btn}background:linear-gradient(135deg,#10b981,#059669);color:#fff;">⬇ Download</button></div>`;
+    return `<div style="margin-top:.75rem;"><button type="button" onclick="downloadMaterial('${mat.id}')" style="${btn}background:linear-gradient(135deg,#10b981,#059669);color:#fff;"> Download</button></div>`;
   }
   if (mat && mat.url && (mat.url.startsWith('http') || mat.url.startsWith('/'))) {
-    const label = mat.type === 'file' ? '⬇ Download' : '🔗 Open';
+    const label = mat.type === 'file' ? ' Download' : ' Open';
     return `<div style="margin-top:.75rem;"><a href="${mat.url}" target="_blank" rel="noopener" download style="${btn}background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;">${label}</a></div>`;
   }
   if (att.startsWith('http') || att.startsWith('/')) {
-    return `<div style="margin-top:.75rem;"><a href="${att}" target="_blank" rel="noopener" download style="${btn}background:linear-gradient(135deg,#10b981,#059669);color:#fff;">⬇ Download</a></div>`;
+    return `<div style="margin-top:.75rem;"><a href="${att}" target="_blank" rel="noopener" download style="${btn}background:linear-gradient(135deg,#10b981,#059669);color:#fff;"> Download</a></div>`;
   }
   return '';
 }
@@ -601,16 +600,16 @@ function renderStream() {
     const div=document.createElement('div'); div.className='stream-post';
     const qid = p.quiz_id || p.quizId || '';
     const quizRow = (p.type === 'quiz' && qid)
-      ? `<div style="margin-top:.75rem;"><a href="quizmaker.html" style="display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .95rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;text-decoration:none;border-radius:10px;font-size:.82rem;font-weight:700;font-family:'DM Sans',sans-serif;">🧪 Open in Quiz Maker</a></div>`
+      ? `<div style="margin-top:.75rem;"><a href="quizmaker.html" style="display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .95rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;text-decoration:none;border-radius:10px;font-size:.82rem;font-weight:700;font-family:'DM Sans',sans-serif;"> Open in Quiz Maker</a></div>`
       : '';
     const matRow = streamMaterialActionsHtml(p);
-    const attachLine = (p.attachment && p.type !== 'announcement') ? `<div class="post-attach">📎 ${p.attachment}</div>` : '';
+    const attachLine = (p.attachment && p.type !== 'announcement') ? `<div class="post-attach"> ${p.attachment}</div>` : '';
     div.innerHTML=`
       <div class="post-header">
         <div class="post-avatar">${(p.author||'T').charAt(0)}</div>
         <div class="post-meta"><div class="post-author">${p.author||'Teacher'}</div><div class="post-date">${dl}</div></div>
         <span class="post-badge ${p.type}">${p.type}</span>
-        <button class="post-del" onclick="deletePost('${p.id}')">🗑</button>
+        <button class="post-del" onclick="deletePost('${p.id}')">Remove</button>
       </div>
       <div class="post-body">${p.body}</div>
       ${attachLine}
@@ -701,13 +700,13 @@ function renderOpts(q){
     <div class="mc-opt-row">
       <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
       <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
-      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})">✕</button>`:''}
+      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})"></button>`:''}
     </div>`).join('')}
     ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
   </div>`;
   if(q.type==='tf')return`<div class="tf-row">
-    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')">✅ True</button>
-    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')">❌ False</button>
+    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')"> True</button>
+    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')"> False</button>
   </div>`;
   if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
   if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;

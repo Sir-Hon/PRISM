@@ -224,10 +224,10 @@ async function renderGrading(){
   if(activeType!=='assignment'&&asgWrap) asgWrap.style.display='none';
   if((activeType!=='quiz'&&activeType!=='activity')&&qaWrap) qaWrap.style.display='none';
   if(activeType==='quiz') {
-    cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;"><span style="font-size:1.5rem;display:block;margin-bottom:.5rem;">⏳</span>Loading quizzes…</div>';
+    cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;"><span style="font-size:1.5rem;display:block;margin-bottom:.5rem;"></span>Loading quizzes…</div>';
     await renderGradingQuizzes(cont);
   } else if(activeType==='activity') {
-    cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;"><span style="font-size:1.5rem;display:block;margin-bottom:.5rem;">⏳</span>Loading activities…</div>';
+    cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;"><span style="font-size:1.5rem;display:block;margin-bottom:.5rem;"></span>Loading activities…</div>';
     await renderGradingActivities(cont);
   } else {
     try {
@@ -256,9 +256,9 @@ function GRADER_assignmentRefHtml(asgn){
     var hrefAu=/^https?:\/\//i.test(m.url)?m.url:('https://'+m.url);
     var vidEmb=typeof prismVideoEmbedFromUrl==='function'?prismVideoEmbedFromUrl(hrefAu):null;
     if(vidEmb&&vidEmb.embed){
-      bits.push('<div style="margin:.35rem 0 0;"><div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;background:#0f172a;margin-bottom:.45rem;"><iframe src="'+esc(vidEmb.embed)+'" title="Reference video" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div><a href="'+esc(hrefAu)+'" target="_blank" rel="noopener" style="font-size:.8rem;font-weight:700;color:#4f46e5;">🔗 Open video in new tab</a></div>');
+      bits.push('<div style="margin:.35rem 0 0;"><div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;background:#0f172a;margin-bottom:.45rem;"><iframe src="'+esc(vidEmb.embed)+'" title="Reference video" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div><a href="'+esc(hrefAu)+'" target="_blank" rel="noopener" style="font-size:.8rem;font-weight:700;color:#4f46e5;"> Open video in new tab</a></div>');
     }else{
-      bits.push('<div style="margin:.35rem 0 0;"><a href="'+esc(hrefAu)+'" target="_blank" rel="noopener" style="font-size:.8rem;font-weight:700;color:#4f46e5;word-break:break-all;">🔗 '+esc(m.url.length>96?m.url.slice(0,96)+'…':m.url)+'</a></div>');
+      bits.push('<div style="margin:.35rem 0 0;"><a href="'+esc(hrefAu)+'" target="_blank" rel="noopener" style="font-size:.8rem;font-weight:700;color:#4f46e5;word-break:break-all;"> '+esc(m.url.length>96?m.url.slice(0,96)+'…':m.url)+'</a></div>');
     }
   }
   if(m.path){
@@ -271,8 +271,8 @@ function GRADER_assignmentRefHtml(asgn){
       bits.push('<video src="'+esc(abs)+'" controls style="width:100%;max-height:220px;border-radius:10px;margin-top:.35rem;background:#0f172a;"></video>');
     }
     bits.push('<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.35rem 0 0;align-items:center;"><span style="font-size:.75rem;color:#9ca3af;">Reference file:</span>'
-      +'<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(m.path)+','+JSON.stringify(m.mime)+','+JSON.stringify(m.name)+')\' style="padding:.3rem .75rem;border-radius:8px;background:#ede9fe;color:#5b21b6;font-size:.76rem;font-weight:700;border:1.5px solid #c4b5fd;cursor:pointer;">'+(prev?'👁 View':'🔗 Open')+'</button>'
-      +'<a href="'+esc(m.path)+'" download="'+esc(m.name)+'" style="font-size:.72rem;color:#7c3aed;font-weight:700;">⬇ Save</a></div>');
+      +'<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(m.path)+','+JSON.stringify(m.mime)+','+JSON.stringify(m.name)+')\' style="padding:.3rem .75rem;border-radius:8px;background:#ede9fe;color:#5b21b6;font-size:.76rem;font-weight:700;border:1.5px solid #c4b5fd;cursor:pointer;">'+(prev?' View':' Open')+'</button>'
+      +'<a href="'+esc(m.path)+'" download="'+esc(m.name)+'" style="font-size:.72rem;color:#7c3aed;font-weight:700;"> Save</a></div>');
   }
   if(!bits.length) return '';
   return '<div style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid #f0ecff;"><div style="font-size:.68rem;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:.35rem;">Attached to this assignment</div>'+bits.join('')+'</div>';
@@ -339,17 +339,17 @@ function GRADER_submissionFilesHtml(sub){
     if(isImg&&urlAbs){
       thumb='<div class="gc-attach-preview" '+oj+' title="Open preview"><img src="'+esc(urlAbs)+'" alt=""/></div>';
     }else if(kind==='video-file'&&urlAbs){
-      thumb='<div class="gc-attach-preview gc-doc" '+oj+' title="Open">🎬</div>';
+      thumb='<div class="gc-attach-preview gc-doc" '+oj+' title="Open"></div>';
       extraPreview='<video src="'+esc(urlAbs)+'" controls style="width:100%;max-height:220px;border-radius:8px;margin-top:.4rem;background:#0f172a;"></video>';
     }else{
       var ext=(name.split('.').pop()||'').toLowerCase();
-      var em='📄';
-      if(ext==='pdf') em='📕';
-      else if(['png','jpg','jpeg','gif','webp'].indexOf(ext)>=0) em='🖼';
-      else if(['doc','docx'].indexOf(ext)>=0) em='📘';
-      else if(['ppt','pptx'].indexOf(ext)>=0) em='📙';
-      else if(['xls','xlsx','csv'].indexOf(ext)>=0) em='📊';
-      else if(['zip','rar','7z'].indexOf(ext)>=0) em='🗜';
+      var em='';
+      if(ext==='pdf') em='';
+      else if(['png','jpg','jpeg','gif','webp'].indexOf(ext)>=0) em='';
+      else if(['doc','docx'].indexOf(ext)>=0) em='';
+      else if(['ppt','pptx'].indexOf(ext)>=0) em='';
+      else if(['xls','xlsx','csv'].indexOf(ext)>=0) em='';
+      else if(['zip','rar','7z'].indexOf(ext)>=0) em='';
       thumb='<div class="gc-attach-preview gc-doc" '+oj+' title="Open">'+em+'</div>';
     }
     fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div>'+thumb
@@ -360,13 +360,13 @@ function GRADER_submissionFilesHtml(sub){
   });
   if(sub.file_data&&!items.length){
     var fn=esc(sub.file_name||'Submitted file');
-    fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc">📎</div>'
+    fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc"></div>'
       +'<div class="gc-attach-body"><div class="gc-attach-name">'+fn+'</div>'
       +'<div class="gc-attach-actions"><button type="button" class="gc-attach-open grader-sub-dl-btn">Download</button></div></div></div>');
   }else if(inlineCount>0&&!items.length&&!sub.file_data){
     parsed.forEach(function(a){
       if(a&&a.inline){
-        fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc">📎</div>'
+        fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc"></div>'
           +'<div class="gc-attach-body"><div class="gc-attach-name">'+esc(a.name||'file')+'</div>'
           +'<div class="gc-attach-actions"><span style="font-size:.72rem;color:#5f6368;">No separate file on server</span></div></div></div>');
       }
@@ -405,12 +405,12 @@ function GRADER_teacherSourceThumbs(asgn){
     bits.push('<img class="roster-thumb roster-thumb-lg" src="'+esc(GRADER_absUploadUrl(m.path))+'" alt="Teacher source" title="Image sent by teacher" onclick=\'prismOpenMaterialUrl('+JSON.stringify(m.path)+','+JSON.stringify(m.mime)+','+JSON.stringify(m.name)+')\'/>');
   } else if(m.path){
     var kind=typeof prismMaterialKind==='function'?prismMaterialKind(m.mime,m.name,'file'):'';
-    var ic=kind==='video-file'?'🎬':(kind==='pdf'?'📕':'📎');
+    var ic=kind==='video-file'?'':(kind==='pdf'?'':'');
     bits.push('<button type="button" class="roster-file-chip" onclick=\'prismOpenMaterialUrl('+JSON.stringify(m.path)+','+JSON.stringify(m.mime)+','+JSON.stringify(m.name)+')\'>'+ic+' Teacher source</button>');
   }
   if(m.url){
     var href=/^https?:\/\//i.test(m.url)?m.url:('https://'+m.url);
-    bits.push('<a class="roster-file-chip" href="'+esc(href)+'" target="_blank" rel="noopener">🔗 Teacher link</a>');
+    bits.push('<a class="roster-file-chip" href="'+esc(href)+'" target="_blank" rel="noopener"> Teacher link</a>');
   }
   return bits.join('');
 }
@@ -418,7 +418,7 @@ function GRADER_teacherSourceThumbs(asgn){
 function GRADER_studentWorkThumbs(sub){
   var items=GRADER_collectSubFiles(sub);
   if(!items.length){
-    if(sub&&sub.link_url) return '<a class="roster-file-chip" href="'+esc(sub.link_url)+'" target="_blank" rel="noopener">🔗</a>';
+    if(sub&&sub.link_url) return '<a class="roster-file-chip" href="'+esc(sub.link_url)+'" target="_blank" rel="noopener"></a>';
     return '<span style="color:#d1d5db;">—</span>';
   }
   return '<div class="roster-thumbs">'+items.map(function(it){
@@ -428,7 +428,7 @@ function GRADER_studentWorkThumbs(sub){
       return '<img class="roster-thumb" src="'+esc(abs)+'" alt="'+esc(it.name)+'" title="Submitted by student" onclick=\''+oj+'\'/>';
     }
     var kind=typeof prismMaterialKind==='function'?prismMaterialKind(it.mime,it.name,'file'):'';
-    var ic=kind==='video-file'?'🎬':(kind==='pdf'?'📕':'📎');
+    var ic=kind==='video-file'?'':(kind==='pdf'?'':'');
     return '<button type="button" class="roster-file-chip" onclick=\''+oj+'\'>'+ic+'</button>';
   }).join('')+'</div>';
 }
@@ -526,11 +526,11 @@ function buildStudentRow(q,s){
   var inProgress=!!ip[q.id];
   var warnings=log.filter(e=>e.studentId===s.id&&(e.type==='tab-switch'||e.type==='abandon')).length;
   var statusHtml=scored
-    ?'<span style="background:#d1fae5;color:#065f46;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;">✅ '+scores[q.id]+'/'+q.totalPoints+'</span>'
+    ?'<span style="background:#d1fae5;color:#065f46;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;"> '+scores[q.id]+'/'+q.totalPoints+'</span>'
     :(inProgress||attCount)
-    ?'<span style="background:#fef3c7;color:#92400e;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;">⚠️ Incomplete</span>'
+    ?'<span style="background:#fef3c7;color:#92400e;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;"> Incomplete</span>'
     :'<span style="background:#f3f4f6;color:#9ca3af;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;">Not taken</span>';
-  var warnHtml=warnings?'<span style="background:#fee2e2;color:#dc2626;font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:.4rem;">⚠ '+warnings+'</span>':'';
+  var warnHtml=warnings?'<span style="background:#fee2e2;color:#dc2626;font-size:.7rem;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:.4rem;"> '+warnings+'</span>':'';
   var sid=esc(s.id),qid=esc(q.id);
   var viewBtn=(scored||attCount||inProgress)
     ?'<button onclick="openQuizReview(\''+sid+'\',\''+qid+'\')" style="padding:.32rem .9rem;background:none;border:1.5px solid #7c3aed;color:#7c3aed;border-radius:8px;font-size:.78rem;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;">Review →</button>'
@@ -540,12 +540,12 @@ function buildStudentRow(q,s){
 
 function buildQuizCard(q){
   var students=studentsFilteredForGrading();
-  var icon=q.type==='exam'?'\ud83d\udcdd':q.type==='activity'?'\ud83c\udfaf':'\ud83e\uddea';
+  var icon=q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz';
   if(!students.length) return '<div class="t-card" style="text-align:center;color:#9ca3af;padding:2rem;">No students enrolled yet.</div>';
   var rows=students.map(s=>buildStudentRow(q,s)).join('');
   return '<div class="t-card" style="margin-bottom:1.4rem;">'+
     '<div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;flex-wrap:wrap;">'+
-    '<span style="font-size:1.1rem;">'+icon+'</span>'+
+    '<span style="font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#059669;background:#ecfdf5;padding:3px 8px;border-radius:6px;">'+icon+'</span>'+
     '<div><div style="font-family:DM Sans,sans-serif;font-weight:800;color:#16132b;">'+esc(q.title||'Untitled')+'</div>'+
     '<div style="font-size:.75rem;color:#9ca3af;">'+q.questions.length+' questions \u00b7 '+q.totalPoints+' pts'+((q.due||q.due_date)?' \u00b7 Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(q.due||q.due_date,q.due_time):(q.due||q.due_date)):'')+'</div></div></div>'+
     '<div class="prism-table-scroll"><table>'+
@@ -586,7 +586,7 @@ async function renderGradingActivities(cont){
   cont.innerHTML=filtered.map(buildQuizCard).join('');
 }
 async function renderGradingAssignments(cont){
-  cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;"><span style="font-size:1.5rem;display:block;margin-bottom:.5rem;">⏳</span>Loading submissions…</div>';
+  cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;"><span style="font-size:1.5rem;display:block;margin-bottom:.5rem;"></span>Loading submissions…</div>';
   var assignments=(getAssignments()[activeClassId]||[]);
   try{
     var live=await PrismAssignments.get(activeClassId);
@@ -625,7 +625,7 @@ async function renderGradingAssignments(cont){
   });
   var asnKey='prism_asn_grades_'+activeClassId;
   var asnGrades=JSON.parse(localStorage.getItem(asnKey)||'{}');
-  var icons={written:'\ud83d\udcdd',project:'\ud83c\udfaf',lab:'\ud83d\udd2c',oral:'\ud83c\udfa4'};
+  var icons={written:'Written',project:'Project',lab:'Lab',oral:'Oral'};
   var html=filteredAsgns.slice().reverse().map(function(asgn){
     var aidRaw=asgn.id;
     var aid=esc(aidRaw);
@@ -636,14 +636,14 @@ async function renderGradingAssignments(cont){
       var sub=(subsByAsgn[aidRaw]||[]).find(function(x){ return String(x.student_id)===String(sidRaw); });
       var hasSub=sub&&(sub.file_path||sub.file_data||sub.note||sub.link_url||sub.attachments_json);
       var turnInHtml=hasSub
-        ?'<span style="font-size:.72rem;color:#059669;font-weight:700;">✅</span>'
+        ?'<span style="font-size:.72rem;color:#059669;font-weight:700;"></span>'
         :'<span style="font-size:.72rem;color:#d1d5db;">—</span>';
       var avHtml=typeof prismRosterAvatarHtml==='function'?prismRosterAvatarHtml(s,28):'';
       var viewBtn='<button type="button" onclick=\'gradeOpenAsgnWork('+JSON.stringify(aidRaw)+','+JSON.stringify(sidRaw)+','+JSON.stringify(ptsMax)+')\' style="padding:.28rem .65rem;background:none;border:1.5px solid #7c3aed;color:#7c3aed;border-radius:8px;font-size:.74rem;font-weight:700;cursor:pointer;font-family:DM Sans,sans-serif;">View work</button>';
       var grade=(asnGrades[asgn.id]&&asnGrades[asgn.id][s.id])||{};
       var scored=grade.score!==undefined&&grade.score!=='';
       var statusHtml=scored
-        ?'<span style="background:#d1fae5;color:#065f46;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;">✅ '+grade.score+'\/'+ptsMax+'</span>'
+        ?'<span style="background:#d1fae5;color:#065f46;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;"> '+grade.score+'\/'+ptsMax+'</span>'
         :'<span style="background:#f3f4f6;color:#9ca3af;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;">Not graded</span>';
       return '<tr><td><div style="display:flex;align-items:center;gap:.5rem;">'+avHtml+'<strong style="color:#16132b;">'+esc(s.name)+'</strong></div></td><td style="font-size:.8rem;color:#6b7280;">'+(s.section||'\u2014')+'</td><td style="text-align:center;">'+turnInHtml+'</td><td>'+GRADER_studentWorkThumbs(sub)+'</td><td>'+viewBtn+'</td><td>'+statusHtml+'</td>'+
         '<td><input type="number" min="0" max="'+ptsMax+'" placeholder="\u2014" value="'+(scored?esc(String(grade.score)):'')+'" style="width:65px;border:1.5px solid #e4dffa;border-radius:8px;padding:.3rem .5rem;font-size:.83rem;text-align:center;font-family:DM Sans,sans-serif;" onchange="gradeAssignment(\''+aid+'\',\''+sid+'\',this.value)"/></td>'+
@@ -652,7 +652,7 @@ async function renderGradingAssignments(cont){
     var teacherSrc=GRADER_teacherSourceThumbs(asgn);
     return '<div class="t-card" style="margin-bottom:1.2rem;">'+
       '<div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;flex-wrap:wrap;">'+
-      '<span>'+(icons[asgn.type]||'\ud83d\udcdd')+'</span>'+
+      '<span style="font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#059669;background:#ecfdf5;padding:3px 8px;border-radius:6px;">'+(icons[asgn.type]||'Written')+'</span>'+
       '<div style="flex:1;min-width:0;"><div style="font-family:DM Sans,sans-serif;font-weight:800;color:#16132b;">'+esc(asgn.title)+'</div>'+
       '<div style="font-size:.75rem;color:#9ca3af;">'+(asgn.pts||asgn.points?(asgn.pts||asgn.points)+' pts \u00b7 ':'')+((asgn.due||asgn.due_date)?'Due '+(typeof prismFormatAssignmentDue==='function'?prismFormatAssignmentDue(asgn.due||asgn.due_date):(asgn.due||asgn.due_date)):'')+'</div>'+
       (teacherSrc?'<div class="roster-thumbs" style="margin-top:.45rem;">'+teacherSrc+'</div>':'')+'</div></div>'+
@@ -702,7 +702,7 @@ function openQuizReview(studentId, quizId){
         content+='<div style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;background:'+bg+';border:2px solid '+bdr+';border-radius:11px;">'+
           '<div style="width:26px;height:26px;border-radius:50%;background:'+lBg+';display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;color:'+lCol+';flex-shrink:0;">'+letter+'</div>'+
           '<span style="font-size:.9rem;color:'+col+';font-weight:'+( isCorrect?'700':'400')+';">'+esc(ch)+'</span>'+
-          (isCorrect?'<span style="margin-left:auto;font-size:.72rem;font-weight:700;color:#10b981;">✓ Correct</span>':'')
+          (isCorrect?'<span style="margin-left:auto;font-size:.72rem;font-weight:700;color:#10b981;"> Correct</span>':'')
           +'</div>';
       });
       content+='</div>';
@@ -738,7 +738,7 @@ function openQuizReview(studentId, quizId){
     '<button onclick="closeReview()" style="background:#f0ecff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;color:#555;">\u2715</button>'+
     '</div></div>'+
     '<div style="overflow-y:auto;padding:1.3rem 1.7rem;flex:1;">'+
-    (saTotal>0?'<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:.6rem 1rem;font-size:.82rem;color:#92400e;margin-bottom:1rem;">\ud83d\udcdd Award points for essay/short-answer questions below, then click <strong>Save Grades</strong>.</div>':'')+
+    (saTotal>0?'<div style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;padding:.6rem 1rem;font-size:.82rem;color:#92400e;margin-bottom:1rem;">Award points for essay and short-answer questions below, then click <strong>Save Grades</strong>.</div>':'')+
     qsHtml+'</div>';
   modal.classList.add('active');
   modal.addEventListener('click',function(e){if(e.target===modal)closeReview();},{once:true});
@@ -771,7 +771,7 @@ function GRADE_saveReview(){
   var el=document.getElementById('score-display');
   if(el) el.textContent=newTotal+' / '+totalPts;
   var btn=document.getElementById('save-btn');
-  if(btn){var o=btn.textContent;btn.textContent='\u2705 Saved!';btn.style.background='#10b981';
+  if(btn){var o=btn.textContent;btn.textContent='Saved';btn.style.background='#10b981';
     setTimeout(()=>{btn.textContent=o;btn.style.background='#7c3aed';},1400);}
 }
 

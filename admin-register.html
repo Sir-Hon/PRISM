@@ -6,7 +6,7 @@
   <!-- No descriptive title — intentionally vague -->
   <title>PRISM — Portal Setup</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
-  <script src="api.js?v=8"></script>
+  <script src="api.js?v=9"></script>
   <style>
     *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
     :root {
@@ -211,7 +211,7 @@
   </div>
 
   <div class="reg-card" id="reg-card">
-    <div style="text-align:center"><span class="admin-badge">🛡️ Admin Account</span></div>
+    <div style="text-align:center"><span class="admin-badge"> Admin Account</span></div>
 
     <!-- Step dots -->
     <div class="step-indicator">
@@ -234,7 +234,7 @@
     <!-- ══ STEP 1: Invite Code ══ -->
     <div class="step active" id="step-1">
       <div class="security-notice">
-        <strong>🔒 Restricted registration.</strong> This page is for portal administrators only. Two credentials are required:
+        <strong> Restricted registration.</strong> This page is for portal administrators only. Two credentials are required:
         <div class="threat-row"><span>①</span> An admin-role invite code generated inside the portal</div>
         <div class="threat-row"><span>②</span> The portal-wide admin passphrase set by your admin</div>
         Unauthorized attempts are tracked.
@@ -255,7 +255,7 @@
     <!-- ══ STEP 2: Portal Passphrase ══ -->
     <div class="step" id="step-2">
       <div class="security-notice">
-        <strong>🔑 Step 2 of 3:</strong> Enter the portal passphrase. This is set by your administrator in the portal management panel. It is <strong>not</strong> the same as any account password.
+        <strong> Step 2 of 3:</strong> Enter the portal passphrase. This is set by your administrator in the portal management panel. It is <strong>not</strong> the same as any account password.
       </div>
 
       <div class="input-group">
@@ -263,7 +263,7 @@
         <div class="input-wrap">
           <input class="field-input" type="password" id="passphrase-input"
                  placeholder="Enter the passphrase…" autocomplete="off"/>
-          <button class="pw-eye" type="button" onclick="toggleEye('passphrase-input',this)">👁</button>
+          <button class="pw-eye" type="button" onclick="toggleEye('passphrase-input',this)"></button>
         </div>
         <div class="field-hint">Case-sensitive. Ask your admin if you don't have it.</div>
       </div>
@@ -292,7 +292,7 @@
           <label>Password</label>
           <div class="input-wrap">
             <input class="field-input" type="password" id="pw1" placeholder="Minimum 8 characters" oninput="checkPwStrength()"/>
-            <button class="pw-eye" type="button" onclick="toggleEye('pw1',this)">👁</button>
+            <button class="pw-eye" type="button" onclick="toggleEye('pw1',this)"></button>
           </div>
           <div class="pp-strength" id="pp-strength">
             <div class="pp-bar"><div class="pp-fill" id="pp-fill"></div></div>
@@ -303,7 +303,7 @@
           <label>Confirm Password</label>
           <div class="input-wrap">
             <input class="field-input" type="password" id="pw2" placeholder="Re-enter password" oninput="checkConfirm()"/>
-            <button class="pw-eye" type="button" onclick="toggleEye('pw2',this)">👁</button>
+            <button class="pw-eye" type="button" onclick="toggleEye('pw2',this)"></button>
           </div>
         </div>
       </div>
@@ -312,13 +312,13 @@
       <div class="feedback" id="fb-step3"></div>
 
       <div class="audit-strip">
-        <strong>🔍 Audit notice:</strong> Admin account creations are logged with timestamp, IP approximation, and invite code used. This registration is traceable.
+        <strong> Audit notice:</strong> Admin account creations are logged with timestamp, IP approximation, and invite code used. This registration is traceable.
       </div>
     </div>
 
     <!-- ══ LOCKOUT ══ -->
     <div class="lockout-screen" id="lockout-screen">
-      <div class="lockout-icon">🔒</div>
+      <div class="lockout-icon"></div>
       <h3 style="font-family:'DM Sans',sans-serif;font-size:1.2rem;font-weight:800;color:#f0f0f5;">Too Many Attempts</h3>
       <p style="font-size:.85rem;color:#6b7280;max-width:300px;line-height:1.65;">This registration page has been locked after too many failed attempts. Please contact your administrator.</p>
       <a href="login.html" style="margin-top:.5rem;color:#9ca3af;font-size:.82rem;text-decoration:none;">← Return to login</a>
@@ -326,7 +326,7 @@
 
     <!-- ══ SUCCESS ══ -->
     <div class="success-screen" id="success-screen">
-      <div class="check-ring">🛡️</div>
+      <div class="check-ring"></div>
       <h3>Admin Account Created</h3>
       <p>Your administrator account has been registered.<br/>Your login ID is:</p>
       <div class="id-box" id="success-id"></div>
@@ -340,6 +340,6 @@
 </div>
 
 
-<script src="pages/admin-register.js?v=7"></script>
+<script src="pages/admin-register.js?v=10"></script>
 </body>
 </html>

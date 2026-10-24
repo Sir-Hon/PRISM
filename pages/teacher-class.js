@@ -208,17 +208,17 @@ async function initTeacherClassPage() {
 /** Re-injected if #class-content is cleared. */
 const TEACHER_CLASS_CONTENT_HTML = `
       <div class="sub-tabs">
-        <button type="button" class="sub-tab active" onclick="switchSub('materials',this)">📚 Materials</button>
-        <button type="button" class="sub-tab" onclick="switchSub('assignments',this)">📝 Assignments</button>
+        <button type="button" class="sub-tab active" onclick="switchSub('materials',this)"> Materials</button>
+        <button type="button" class="sub-tab" onclick="switchSub('assignments',this)"> Assignments</button>
       </div>
       <div class="sub-panel active" id="sub-materials">
         <div class="t-card">
-          <div class="t-card-title">➕ Add Material</div>
+          <div class="t-card-title"> Add Material</div>
           <div class="m-field"><label>Title</label><input type="text" id="mat-title" placeholder="e.g. Week 1 reading or lab video"/></div>
           <div class="m-field" id="mat-file-row">
             <label>Attach a file (optional)</label>
             <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
-              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;">📎 Click to choose a file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel — max 15 MB</span></div>
+              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose a file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel — max 15 MB</span></div>
               <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;"></div>
             </div>
             <input type="file" id="mat-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
@@ -240,14 +240,14 @@ const TEACHER_CLASS_CONTENT_HTML = `
       </div>
       <div class="sub-panel" id="sub-assignments">
         <div class="t-card">
-          <div class="t-card-title">➕ Create Assignment</div>
+          <div class="t-card-title"> Create Assignment</div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
             <div class="m-field" style="margin:0;"><label>Title</label><input type="text" id="asgn-title" placeholder="e.g. Problem Set 1"/></div>
             <div class="m-field" style="margin:0;"><label>Due Date</label><input type="date" id="asgn-due"/></div>
           </div>
           <div class="m-field" style="margin-bottom:.9rem;"><label>Points</label><input type="number" id="asgn-pts" placeholder="e.g. 50" min="1"/></div>
           <div class="m-field" style="margin-bottom:.9rem;"><label>Type</label>
-            <select id="asgn-type"><option value="written">📝 Written</option><option value="project">🎯 Project</option><option value="lab">🔬 Lab</option><option value="oral">🎤 Oral</option></select>
+            <select id="asgn-type"><option value="written"> Written</option><option value="project"> Project</option><option value="lab"> Lab</option><option value="oral"> Oral</option></select>
           </div>
           <div class="m-field" style="margin-bottom:.9rem;">
             <label>Instructions for students</label>
@@ -265,7 +265,7 @@ const TEACHER_CLASS_CONTENT_HTML = `
               <span class="src-chip">Website link</span>
             </div>
             <div style="border:2px dashed #fbcfe8;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#fff5f9;transition:border-color .2s;" id="asgn-drop-zone" onclick="document.getElementById('asgn-file-input').click()">
-              <div id="asgn-drop-label" style="font-size:.88rem;color:#9ca3af;">📎 Click to attach a source file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT — max 15 MB</span></div>
+              <div id="asgn-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to attach a source file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT — max 15 MB</span></div>
               <div id="asgn-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#be185d;margin-top:.3rem;"></div>
             </div>
             <input type="file" id="asgn-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onAsgnFileChosen(this)"/>
@@ -480,13 +480,13 @@ function renderOpts(q){
     <div class="mc-opt-row">
       <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
       <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
-      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})">✕</button>`:''}
+      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})"></button>`:''}
     </div>`).join('')}
     ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
   </div>`;
   if(q.type==='tf')return`<div class="tf-row">
-    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')">✅ True</button>
-    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')">❌ False</button>
+    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')"> True</button>
+    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')"> False</button>
   </div>`;
   if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
   if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;
@@ -544,7 +544,7 @@ function onMatFileChosen(input) {
   const chosen = document.getElementById('mat-file-chosen');
   if (chosen) {
     chosen.style.display = 'block';
-    chosen.textContent = '✅ ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    chosen.textContent = ' ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
   }
   const titleEl = document.getElementById('mat-title');
   if (titleEl && !titleEl.value.trim()) titleEl.value = file.name.replace(/\.[^.]+$/, '');
@@ -590,7 +590,7 @@ function onAsgnFileChosen(input) {
   const chosen = document.getElementById('asgn-file-chosen');
   if (chosen) {
     chosen.style.display = 'block';
-    chosen.textContent = '✅ ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    chosen.textContent = ' ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
   }
 }
 
@@ -646,7 +646,7 @@ async function addMaterial(){
     if (dropLabel) dropLabel.style.display='block';
     await refreshClassData(activeClassId);
     renderMaterials(); renderWorkspacePage();
-    showMatMsg('✅ Shared with the class.','ok');
+    showMatMsg(' Shared with the class.','ok');
   } catch(e) { showMatMsg(e.message||'Upload failed.','err'); }
   finally { btn.disabled=false; btn.textContent='Share with class'; }
 }
@@ -668,21 +668,21 @@ function renderMaterials(){
     const kind = typeof prismMaterialKind === 'function'
       ? prismMaterialKind(it.mime_type, it.file_name || it.url, it.type)
       : (it.type || 'file');
-    const icon = typeof prismMaterialIcon === 'function' ? prismMaterialIcon(kind) : '📄';
+    const icon = typeof prismMaterialIcon === 'function' ? prismMaterialIcon(kind) : '';
     const kindLabel = typeof prismMaterialKindLabel === 'function' ? prismMaterialKindLabel(kind) : (it.type || 'File');
     const secTag = (it.target_section && String(it.target_section).trim()) ? '<span style="font-size:.68rem;font-weight:700;color:#059669;margin-left:.35rem;">· '+teacherEsc(String(it.target_section).trim())+'</span>' : '';
     let actionBtn='';
     const btnBase = 'border:none;padding:.38rem .9rem;border-radius:8px;font-size:.78rem;font-weight:700;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;margin-left:.35rem;';
     if (it.file_path) {
       const prevT = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
-      actionBtn += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(it.file_path)+','+JSON.stringify(it.mime_type||'')+','+JSON.stringify(it.file_name||'')+')\' style="'+btnBase+'background:#10b981;color:white;margin-left:0;">'+(prevT?'👁 View':'🔗 Open')+'</button>'
-        + '<a href="'+teacherEsc(it.file_path)+'" download="'+teacherEsc(it.file_name||'file')+'" style="'+btnBase+'background:#ecfdf5;color:#065f46;">⬇ Save</a>';
+      actionBtn += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(it.file_path)+','+JSON.stringify(it.mime_type||'')+','+JSON.stringify(it.file_name||'')+')\' style="'+btnBase+'background:#10b981;color:white;margin-left:0;">'+(prevT?' View':' Open')+'</button>'
+        + '<a href="'+teacherEsc(it.file_path)+'" download="'+teacherEsc(it.file_name||'file')+'" style="'+btnBase+'background:#ecfdf5;color:#065f46;"> Save</a>';
     } else if (it.file_data) {
-      actionBtn += '<button type="button" onclick="downloadMaterial(\''+it.id+'\')" style="'+btnBase+'background:#10b981;color:white;margin-left:0;">⬇ Download</button>';
+      actionBtn += '<button type="button" onclick="downloadMaterial(\''+it.id+'\')" style="'+btnBase+'background:#10b981;color:white;margin-left:0;"> Download</button>';
     }
     const httpUrl = typeof prismMaterialHttpUrl === 'function' ? prismMaterialHttpUrl(it) : '';
     if (httpUrl) {
-      actionBtn += '<a href="'+teacherEsc(httpUrl)+'" target="_blank" rel="noopener" style="'+btnBase+'background:#6366f1;color:white;">🔗 Link</a>';
+      actionBtn += '<a href="'+teacherEsc(httpUrl)+'" target="_blank" rel="noopener" style="'+btnBase+'background:#6366f1;color:white;"> Link</a>';
     }
     let iconHtml;
     if (kind === 'image' && it.file_path) {
@@ -702,7 +702,7 @@ function renderMaterials(){
       + '<div class="mat-meta">'+teacherEsc(metaBits.join(' · '))+secTag+' · '+new Date(it.created_at||it.date).toLocaleDateString()+'</div>'
       + noteHtml + '</div>'
       + actionBtn
-      + '<button class="mat-del" onclick="deleteMaterial(\''+it.id+'\')">🗑</button>'
+      + '<button class="mat-del" onclick="deleteMaterial(\''+it.id+'\')">Remove</button>'
       + '</div>';
   }).join('');
 }
@@ -780,7 +780,7 @@ function renderAssignments(){
     list.innerHTML='<div style="text-align:center;padding:2rem;color:#9ca3af;font-size:.9rem;">No assignment matches this filter. Choose <strong>All assignments</strong> above.</div>';
     return;
   }
-  const typeIcons={written:'📝',project:'🎯',lab:'🔬',oral:'🎤'};
+  const typeIcons={written:'Written',project:'Project',lab:'Lab',oral:'Oral'};
   const btnBase = 'border:none;padding:.32rem .7rem;border-radius:8px;font-size:.72rem;font-weight:700;white-space:nowrap;cursor:pointer;text-decoration:none;';
   list.innerHTML=displayItems.map(it=>{
     const dStr = it.due_date||it.due||'';
@@ -793,21 +793,21 @@ function renderAssignments(){
     let srcBtns = '';
     if (attachPath) {
       const prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(attachMime, attachName);
-      srcBtns += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(attachPath)+','+JSON.stringify(attachMime)+','+JSON.stringify(attachName)+')\' style="'+btnBase+'background:#ede9fe;color:#5b21b6;">'+(prev?'👁 Source':'🔗 Source')+'</button>';
+      srcBtns += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(attachPath)+','+JSON.stringify(attachMime)+','+JSON.stringify(attachName)+')\' style="'+btnBase+'background:#ede9fe;color:#5b21b6;">'+(prev?' Source':' Source')+'</button>';
     }
     if (attachUrl) {
       const href = typeof prismNormalizeHttpUrl === 'function' ? (prismNormalizeHttpUrl(attachUrl) || attachUrl) : attachUrl;
-      srcBtns += '<a href="'+teacherEsc(href)+'" target="_blank" rel="noopener" style="'+btnBase+'background:#ede9fe;color:#5b21b6;">🔗 Link</a>';
+      srcBtns += '<a href="'+teacherEsc(href)+'" target="_blank" rel="noopener" style="'+btnBase+'background:#ede9fe;color:#5b21b6;"> Link</a>';
     }
     const srcMeta = attachPath ? attachName : (attachUrl ? 'Link attached' : '');
     return '<div class="asgn-item">'
-      +'<div style="font-size:1.4rem;">'+(typeIcons[it.type]||'📝')+'</div>'
+      +'<div style="font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#059669;min-width:3.6rem;">'+(typeIcons[it.type]||'')+'</div>'
       +'<div class="asgn-info"><div class="asgn-title">'+teacherEsc(it.title)+'</div>'
       +'<div class="asgn-meta">'+(it.points||it.pts?((it.points||it.pts)+' pts · '):'')+((it.target_section&&String(it.target_section).trim())?('<span style="color:#059669;font-weight:700;">'+teacherEsc(String(it.target_section).trim())+'</span> · '):'')+(srcMeta?teacherEsc(srcMeta)+' · ':'')+(it.instructions?teacherEsc(it.instructions.slice(0,60))+'…':'')+'</div></div>'
       + srcBtns
-      +(dStr?'<div class="asgn-due'+(overdue?' overdue':'')+'">'+( overdue?'⚠ ':'' )+'Due '+dueDisp+'</div>':'')
-      +'<a href="grading.html" style="font-size:.72rem;color:#7c3aed;font-weight:700;white-space:nowrap;text-decoration:none;" title="View submissions and enter scores">🎯 Grading →</a>'
-      +'<button class="mat-del" onclick="deleteAssignment(\''+it.id+'\')">🗑</button>'
+      +(dStr?'<div class="asgn-due'+(overdue?' overdue':'')+'">'+( overdue?' ':'' )+'Due '+dueDisp+'</div>':'')
+      +'<a href="grading.html" style="font-size:.72rem;color:#7c3aed;font-weight:700;white-space:nowrap;text-decoration:none;" title="View submissions and enter scores"> Grading →</a>'
+      +'<button class="mat-del" onclick="deleteAssignment(\''+it.id+'\')">Remove</button>'
       +'</div>';
   }).join('');
 }

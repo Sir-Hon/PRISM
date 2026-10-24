@@ -113,7 +113,7 @@ function QUIZ_onVisibility() {
     QUIZ_logEvent('tab-switch', 'Student switched tab/window (warning #' + QUIZ_tabWarnings + ')');
     var banner = document.getElementById('quiz-security-banner');
     if (banner) {
-      banner.textContent = '\u26a0\ufe0f Tab switch detected! Your teacher has been notified. (Warning ' + QUIZ_tabWarnings + ')';
+      banner.textContent = 'Tab switch detected. Your teacher has been notified. (Warning ' + QUIZ_tabWarnings + ')';
       banner.style.display = 'block';
       setTimeout(function() { if (banner) banner.style.display = 'none'; }, 4000);
     }
@@ -258,12 +258,12 @@ function QUIZ_renderQuestion() {
   var feedbackHtml = '';
   if (done && !isSA) {
     feedbackHtml = '<div style="margin-top:1rem;padding:.9rem 1.2rem;border-radius:12px;font-size:.92rem;font-weight:600;background:'+(sel===q.answer?'#d1fae5':'#fee2e2')+';color:'+(sel===q.answer?'#065f46':'#991b1b')+';display:flex;align-items:center;gap:.5rem;">'
-      + (sel===q.answer ? '\u2705 Correct! ' : '\u274c Incorrect. ') + (q.explain||'') + '</div>';
+      + (sel===q.answer ? 'Correct. ' : 'Incorrect. ') + (q.explain||'') + '</div>';
   }
   var isLast  = QUIZ_currentQ === tot - 1;
   var canNext = isSA ? true : done;
   var tlShow = parseInt(QUIZ_currentQuiz.time, 10) || parseInt(QUIZ_currentQuiz.time_limit, 10) || 0;
-  var lockedBadge = '<div style="font-size:.72rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;">\ud83d\udd12 Quiz Locked</div>';
+  var lockedBadge = '<div style="font-size:.72rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;">Quiz locked</div>';
   if (tlShow > 0 && QUIZ_active) QUIZ_ensureViewportTimer();
   document.getElementById('shared-qz-inner').innerHTML =
     '<div style="padding:1.6rem 2rem 1rem;border-bottom:1px solid #f0ecff;position:sticky;top:0;background:#fff;z-index:2;border-radius:22px 22px 0 0;">'
@@ -351,19 +351,18 @@ function QUIZ_finish() {
   QUIZ_logEvent('submit','Quiz submitted \u2014 MC: '+mcCorrect+'/'+mcTotal+', SA pending ('+saTotal+' pts), tab switches: '+QUIZ_tabWarnings);
   var hasSA=saTotal>0;
   var mcPct=mcTotal>0?Math.round(mcCorrect/mcTotal*100):100;
-  var msg=hasSA?'\ud83d\udcdd Submitted \u2014 awaiting teacher review':(mcPct>=90?'\ud83c\udf89 Excellent!':mcPct>=75?'\ud83d\udc4d Great job!':mcPct>=60?'\ud83d\udcda Keep studying!':'\ud83d\udcaa Don\'t give up!');
+  var msg=hasSA?'Submitted — awaiting teacher review':(mcPct>=90?'Excellent work.':mcPct>=75?'Great job.':mcPct>=60?'Keep studying.':'Review the material and try again.');
   var scoreDisplay=hasSA
     ?'<div style="font-family:DM Sans,sans-serif;font-size:3rem;font-weight:800;color:#7c3aed;margin-bottom:.2rem;">'+mcCorrect+' / '+mcTotal+'</div>'
      +'<div style="font-size:.82rem;color:#d97706;font-weight:600;margin-bottom:.4rem;">Multiple choice score \u00b7 <span style="color:#9ca3af;">'+saTotal+' pts pending teacher review</span></div>'
     :'<div style="font-family:DM Sans,sans-serif;font-size:3.5rem;font-weight:800;color:#7c3aed;margin-bottom:.3rem;">'+mcCorrect+' / '+total+'</div>';
   document.getElementById('shared-qz-inner').innerHTML=
     '<div style="text-align:center;padding:2.5rem 2rem;">'
-    +'<div style="font-size:3rem;margin-bottom:.5rem;">'+(hasSA?'\ud83d\udcdd':(mcPct>=75?'\ud83c\udfc6':'\ud83d\udcdd'))+'</div>'
     +scoreDisplay
     +'<div style="font-size:1.05rem;font-weight:700;color:#16132b;margin-bottom:.4rem;">'+msg+'</div>'
     +'<div style="font-size:.88rem;color:#6b7280;margin-bottom:1rem;">'+(q.title||'')+'</div>'
-    +(hasSA?'<div style="font-size:.82rem;background:#fef3c7;color:#92400e;padding:.75rem 1rem;border-radius:10px;margin-bottom:1.5rem;text-align:left;line-height:1.6;">\ud83d\udcdd Your essay/short-answer responses have been saved. Your teacher will review and award points.</div>':'')
-    +(QUIZ_tabWarnings>0?'<div style="font-size:.78rem;background:#fee2e2;color:#dc2626;padding:.5rem 1rem;border-radius:10px;margin-bottom:1.5rem;">\u26a0\ufe0f '+QUIZ_tabWarnings+' tab switch(es) recorded.</div>':'')
+    +(hasSA?'<div style="font-size:.82rem;background:#fef3c7;color:#92400e;padding:.75rem 1rem;border-radius:10px;margin-bottom:1.5rem;text-align:left;line-height:1.6;">Your essay and short-answer responses have been saved. Your teacher will review and award points.</div>':'')
+    +(QUIZ_tabWarnings>0?'<div style="font-size:.78rem;background:#fee2e2;color:#dc2626;padding:.5rem 1rem;border-radius:10px;margin-bottom:1.5rem;">'+QUIZ_tabWarnings+' tab switch(es) recorded.</div>':'')
     +'<button onclick="QUIZ_close()" style="padding:.75rem 2.2rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:12px;font-family:DM Sans,sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;">Done</button>'
     +'</div>';
 }
@@ -409,7 +408,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
       var mcTotal = quiz.questions.reduce(function(s,q){ return s+(q.type!=='sa'&&q.type!=='essay'?(parseInt(q.points)||1):0); },0);
       return '<div style="font-size:.85rem;margin-bottom:.8rem;"><span style="color:#10b981;font-weight:700;">MC: '+mcPts+'/'+mcTotal+'</span> <span style="color:#d97706;font-weight:600;font-size:.78rem;">SA pending review</span></div>';
     }
-    return '<div style="font-size:.85rem;color:#10b981;font-weight:700;margin-bottom:.8rem;">✅ Score: '+score+' / '+quiz.totalPoints+'</div>';
+    return '<div style="font-size:.85rem;color:#10b981;font-weight:700;margin-bottom:.8rem;"> Score: '+score+' / '+quiz.totalPoints+'</div>';
   }
 
   function filterQuizzes(f, btn) {
@@ -443,7 +442,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
       var maxAtts  = parseInt(quiz.attempts) || 1;
       var noAttemptsLeft = maxAtts > 0 && attCount >= maxAtts;
       var btnHtml = status === 'completed'
-        ? '<button class="start-quiz-btn done" disabled>Completed ✓</button>'
+        ? '<button class="start-quiz-btn done" disabled>Completed </button>'
         : status === 'overdue'
         ? '<button type="button" class="start-quiz-btn late-deadline" onclick="alert(PRISM_LATE_QUIZ_MSG)">Past due date — tap for info</button>'
         : noAttemptsLeft
@@ -457,13 +456,13 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
         + '<div class="quiz-subject-badge">'+(quiz.subjectName||'Class')+'</div>'
         + '<div class="quiz-title">'+quiz.title+'</div>'
         + '<div class="quiz-meta">'
-        + '<div class="quiz-meta-item">📝 '+quiz.questions.length+' questions</div>'
-        + '<div class="quiz-meta-item">⭐ '+quiz.totalPoints+' pts</div>'
-        + (quiz.time ? '<div class="quiz-meta-item">⏱ '+quiz.time+' min</div>' : '')
-        + ((quiz.due || quiz.due_date) ? '<div class="quiz-meta-item">📅 Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(quiz.due||quiz.due_date,quiz.due_time):(quiz.due||quiz.due_date))+'</div>' : '')
+        + '<div class="quiz-meta-item"> '+quiz.questions.length+' questions</div>'
+        + '<div class="quiz-meta-item"> '+quiz.totalPoints+' pts</div>'
+        + (quiz.time ? '<div class="quiz-meta-item"> '+quiz.time+' min</div>' : '')
+        + ((quiz.due || quiz.due_date) ? '<div class="quiz-meta-item"> Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(quiz.due||quiz.due_date,quiz.due_time):(quiz.due||quiz.due_date))+'</div>' : '')
         + '</div>'
         + (score !== undefined ? buildScoreDisplay(quiz, score) : '')
-        + (status==='pending' ? '<div style="font-size:.82rem;color:#d97706;font-weight:600;margin-bottom:.8rem;">⚠️ Unfinished — '+attCount+' of '+(maxAtts>0?maxAtts:'∞')+' attempt(s) used</div>' : '')
+        + (status==='pending' ? '<div style="font-size:.82rem;color:#d97706;font-weight:600;margin-bottom:.8rem;"> Unfinished — '+attCount+' of '+(maxAtts>0?maxAtts:'∞')+' attempt(s) used</div>' : '')
         + (maxAtts > 0 && status !== 'completed' ? '<div style="font-size:.75rem;color:#9ca3af;margin-bottom:.4rem;">Attempts: '+attCount+' / '+maxAtts+'</div>' : '')
         + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.6rem;">'
         + '<span class="quiz-status '+status+'">'+(statusLabels[status]||status)+'</span>'

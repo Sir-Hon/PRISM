@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Teacher</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=3"/>
-  <script src="portal-mobile.js?v=3" defer></script>
+  <link rel="stylesheet" href="portal.css?v=10"/>
+  <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
 
-    .teacher-hero { border-radius:20px; padding:2.5rem; background:linear-gradient(135deg,#064e3b 0%,#065f46 50%,#10b981 100%); color:white; margin-bottom:2rem; position:relative; overflow:hidden; animation:fadeUp .4s ease; }
-    .teacher-hero::before { content:''; position:absolute; inset:0; background-image:repeating-linear-gradient(55deg,rgba(255,255,255,.04) 0,rgba(255,255,255,.04) 2px,transparent 2px,transparent 22px); }
-    .teacher-hero-label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#6ee7b7; margin-bottom:.5rem; position:relative; }
-    .teacher-hero h1 { font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:800; margin-bottom:.35rem; position:relative; }
-    .teacher-hero p  { font-size:.95rem; color:rgba(255,255,255,.75); position:relative; }
-    .teacher-hero-gem { position:absolute; right:2rem; top:50%; transform:translateY(-50%); opacity:.12; font-size:7rem; pointer-events:none; }
+    .teacher-hero { border-radius:12px; padding:1.5rem 1.75rem; background:#064e3b; color:white; margin-bottom:1.5rem; position:relative; overflow:hidden; }
+    .teacher-hero::before { display:none; }
+    .teacher-hero-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#6ee7b7; margin-bottom:.4rem; position:relative; }
+    .teacher-hero h1 { font-family:'DM Sans',sans-serif; font-size:1.65rem; font-weight:700; margin-bottom:.3rem; position:relative; }
+    .teacher-hero p  { font-size:.9rem; color:rgba(255,255,255,.75); position:relative; }
+    .teacher-hero-gem { display:none; }
 
-    .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; margin-bottom:2rem; }
-    .stat-card { background:#fff; border-radius:16px; padding:1.2rem 1.4rem; box-shadow:0 4px 18px rgba(16,185,129,.09); border:1px solid rgba(16,185,129,.09); animation:fadeUp .4s ease both; }
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.85rem; margin-bottom:1.5rem; }
+    .stat-card { background:#fff; border-radius:10px; padding:1rem 1.15rem; box-shadow:none; border:1px solid rgba(16,185,129,.14); }
     .stat-card .sv { font-family:'DM Sans',sans-serif; font-size:1.9rem; font-weight:800; color:var(--t); }
     .stat-card .sl { font-size:.78rem; color:#9ca3af; font-weight:600; margin-top:2px; }
 
@@ -72,7 +72,7 @@
     .post-badge.assignment   { background:#fce7f3; color:#9d174d; }
     .post-badge.quiz         { background:#ede9fe; color:#5b21b6; }
     .post-body { font-size:.92rem; color:#374151; line-height:1.7; }
-    .post-del { margin-left:auto; background:none; border:none; color:#d1d5db; cursor:pointer; font-size:.88rem; padding:3px 7px; border-radius:7px; transition:all .15s; }
+    .post-del { margin-left:auto; background:none; border:none; color:#9ca3af; cursor:pointer; font-size:.72rem; font-weight:700; padding:3px 7px; border-radius:7px; transition:all .15s; }
     .post-del:hover { background:#fee2e2; color:#ef4444; }
     .post-attach { display:inline-flex; align-items:center; gap:.4rem; margin-top:.7rem; background:#f0fdf4; padding:.4rem .85rem; border-radius:9px; font-size:.82rem; color:var(--t-dark); font-weight:600; border:1px solid #d1fae5; }
 
@@ -160,7 +160,7 @@
     .mat-info { flex:1; }
     .mat-title { font-weight:700; font-size:.9rem; color:#16132b; }
     .mat-meta  { font-size:.75rem; color:#9ca3af; margin-top:2px; }
-    .mat-del { background:none; border:none; color:#d1d5db; cursor:pointer; font-size:.9rem; padding:3px 7px; border-radius:7px; transition:all .15s; }
+    .mat-del { background:none; border:none; color:#9ca3af; cursor:pointer; font-size:.72rem; font-weight:700; padding:3px 7px; border-radius:7px; transition:all .15s; }
     .mat-del:hover { background:#fee2e2; color:#ef4444; }
 
     /* ASSIGNMENTS */
@@ -195,9 +195,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=8"></script>
-<script src="script.js?v=7"></script>
-<script src="portal-sidebar.js?v=7"></script>
+<script src="api.js?v=9"></script>
+<script src="script.js?v=10"></script>
+<script src="portal-sidebar.js?v=10"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -219,7 +219,7 @@
     </div>
     <div style="margin-top:auto;padding-top:1rem;">
       <div class="sidebar-divider"></div>
-      <button type="button" class="sidebar-logout"><span class="s-icon">🚪</span> Logout</button>
+      <button type="button" class="sidebar-logout">Logout</button>
     </div>
   </aside>
 
@@ -227,10 +227,9 @@
 
     <div class="teacher-hero">
       <div class="teacher-hero-label">Teacher Panel</div>
-      <h1 id="teacher-greeting">Good morning! 👋</h1>
+      <h1 id="teacher-greeting">Good morning</h1>
       <p>Post announcements for each class. Open a subject in the sidebar (or below) for materials, assignments, and join codes.</p>
-      <div class="teacher-hero-gem">📢</div>
-    </div>
+</div>
 
     <div class="stats-row">
       <div class="stat-card" style="animation-delay:.05s"><div class="sv" id="stat-classes">0</div><div class="sl">My Classes</div></div>
@@ -240,7 +239,7 @@
       <div class="stat-card" style="animation-delay:.25s"><div class="sv" id="stat-assignments">0</div><div class="sl">Assignments</div></div>
     </div>
 
-    <div class="section-heading">📅 Upcoming events</div>
+    <div class="section-heading">Upcoming events</div>
     <div class="panel-card" style="margin-bottom:2rem;">
       <div id="dash-events-list" class="dash-events-list"></div>
       <div style="text-align:right;margin-top:.65rem;"><a href="calendar.html" style="font-size:.82rem;font-weight:600;color:var(--t-dark);text-decoration:none;">Open calendar →</a></div>
@@ -249,12 +248,12 @@
     <!-- CLASS SELECT (same idea as Records: dropdown instead of many subject tabs) -->
     <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1.5rem;">
       <div class="class-bar" style="margin-bottom:0;flex:1;min-width:200px;display:flex;align-items:center;gap:.75rem;background:#fff;border-radius:14px;padding:.55rem 1rem;box-shadow:0 4px 24px rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.12);flex-wrap:wrap;">
-        <span style="font-size:.82rem;font-weight:700;color:#9ca3af;white-space:nowrap;">📚 Class</span>
+        <span style="font-size:.82rem;font-weight:700;color:#9ca3af;white-space:nowrap;"> Class</span>
         <select id="teacher-class-select" class="t-select" onchange="onTeacherClassChange(this.value)" style="min-width:220px;flex:1;max-width:100%;font-weight:600;"></select>
         <button type="button" onclick="openCreateClass()" style="padding:.5rem 1rem;color:#10b981;border:1.5px dashed #10b981;background:none;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">＋ Subject</button>
       </div>
-      <a id="teacher-open-workspace" class="t-btn outline" href="teacher-class.html" style="padding:.5rem 1rem;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:.35rem;">📂 Subject page</a>
-      <button onclick="deleteCurrentClass()" style="padding:.5rem 1rem;background:none;border:1.5px solid #fca5a5;color:#ef4444;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;" title="Delete current class">🗑 Delete Class</button>
+      <a id="teacher-open-workspace" class="t-btn outline" href="teacher-class.html" style="padding:.5rem 1rem;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:.35rem;"> Subject page</a>
+      <button onclick="deleteCurrentClass()" style="padding:.5rem 1rem;background:none;border:1.5px solid #fca5a5;color:#ef4444;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;" title="Delete current class"> Delete Class</button>
     </div>
 
     <div id="teacher-class-scope-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.15rem;border-radius:14px;background:linear-gradient(135deg,#ecfdf5 0%,#f0fdf4 100%);border:1.5px solid #a7f3d0;font-size:.84rem;line-height:1.55;color:#065f46;"></div>
@@ -263,7 +262,7 @@
 
     <div id="class-content">
       <div class="t-card" style="margin-bottom:1.2rem;">
-        <div class="t-card-title">📢 Announcements</div>
+        <div class="t-card-title"> Announcements</div>
         <textarea class="composer" id="stream-text" placeholder="Write an announcement for your class…"></textarea>
         <div class="composer-row" style="justify-content:flex-end;margin-top:.75rem;">
           <button class="t-btn" onclick="postStream()">Post announcement →</button>
@@ -272,7 +271,7 @@
       <div id="stream-feed"></div>
     </div><!-- /class-content -->
 
-    <div class="section-heading">📢 Portal announcements</div>
+    <div class="section-heading">Portal announcements</div>
     <div class="panel-card" style="margin-bottom:2rem;">
       <p style="font-size:.8rem;color:#9ca3af;margin:-.25rem 0 1rem;line-height:1.5;">Messages from administrators for all portal users.</p>
       <div id="teacher-portal-ann-feed"></div>
@@ -283,8 +282,8 @@
 <!-- Create Class Modal -->
 <div class="m-overlay" id="create-class-overlay">
   <div class="m-box">
-    <button class="m-close" onclick="closeCreateClass()">✕</button>
-    <h3>📚 Create New Subject</h3>
+    <button class="m-close" onclick="closeCreateClass()"></button>
+    <h3> Create New Subject</h3>
     <div class="m-field"><label>Subject Name</label><input type="text" id="cc-subject" placeholder="e.g. Mathematics, Programming…"/></div>
     <div class="m-field"><label>Course Code</label><input type="text" id="cc-code" placeholder="e.g. MATH 101 (auto-generated if blank)"/></div>
     <p style="font-size:.8rem;color:#9ca3af;margin-bottom:1rem;">A 6-character join code will be automatically generated. Share it with your students so they can join this class.</p>
@@ -301,8 +300,8 @@
 <!-- Bulk Grade Modal -->
 <div class="m-overlay" id="bulk-overlay">
   <div class="m-box">
-    <button class="m-close" onclick="closeBulk()">✕</button>
-    <h3>✏️ Bulk Grade Entry</h3>
+    <button class="m-close" onclick="closeBulk()"></button>
+    <h3> Bulk Grade Entry</h3>
     <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;">Set one grade component for all students in the selected section.</p>
     <div class="m-field"><label>Component</label>
       <select id="bulk-comp"><option value="quiz">Quiz</option><option value="activity">Activity</option><option value="midterm">Midterm</option><option value="final">Final</option></select>
@@ -315,6 +314,6 @@
   </div>
 </div>
 
-<script src="pages/teacher.js?v=7"></script>
+<script src="pages/teacher.js?v=10"></script>
 </body>
 </html>

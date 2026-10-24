@@ -355,7 +355,7 @@ function openSessionModal(date){
   var v2 = getRecordsV2()[activeClassId] || {};
   var dayRec = v2[date] || {};
   var students = getStudents(activeClassId);
-  document.getElementById('smod-title').textContent = '📅 ' + formatDateNice(date);
+  document.getElementById('smod-title').textContent = ' ' + formatDateNice(date);
   document.getElementById('smod-meta').textContent = getClasses().find(c=>c.id===activeClassId)?.subject || '';
   var tbody = document.getElementById('smod-tbody');
   tbody.innerHTML = '';
@@ -494,7 +494,7 @@ function openStudentModal(studentId){
         }).join('')
         +'<div class="te-grade-box"><div class="tgb-val" style="color:var(--t);">'+(gw||'—')+'</div><div class="tgb-lbl">GWA</div></div>'
         +'</div>'
-        +(r.remarks?'<div style="font-size:.76rem;color:#9ca3af;margin-top:.35rem;">💬 '+r.remarks+'</div>':'')
+        +(r.remarks?'<div style="font-size:.76rem;color:#9ca3af;margin-top:.35rem;"> '+r.remarks+'</div>':'')
         +'</div>';
     }).join('');
   }

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Quizzes</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=3"/>
-  <script src="portal-mobile.js?v=3" defer></script>
+  <link rel="stylesheet" href="portal.css?v=10"/>
+  <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
 
@@ -122,9 +122,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=8"></script>
-<script src="script.js?v=7"></script>
-<script src="portal-sidebar.js?v=7"></script>
+<script src="api.js?v=9"></script>
+<script src="script.js?v=10"></script>
+<script src="portal-sidebar.js?v=10"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -146,13 +146,13 @@
     </div>
     <div style="margin-top:auto;padding-top:1rem;">
       <div class="sidebar-divider"></div>
-      <button type="button" class="sidebar-logout"><span class="s-icon">🚪</span> Logout</button>
+      <button type="button" class="sidebar-logout">Logout</button>
     </div>
   </aside>
 
   <main class="main-content">
     <div class="page-header">
-      <h1>🧠 Quizzes</h1>
+      <h1> Quizzes</h1>
       <p>Practice quizzes for all your enrolled subjects.</p>
     </div>
 
@@ -170,7 +170,7 @@
 <!-- Quiz modal -->
 <div class="qz-overlay" id="qz-overlay">
   <div class="qz-modal" id="qz-modal">
-    <button class="qz-close-btn" onclick="closeQuiz()">✕</button>
+    <button class="qz-close-btn" onclick="closeQuiz()"></button>
     <div id="qz-inner"></div>
   </div>
 </div>
@@ -181,6 +181,6 @@
 
 
 
-<script src="pages/quizzes.js?v=7"></script>
+<script src="pages/quizzes.js?v=10"></script>
 </body>
 </html>

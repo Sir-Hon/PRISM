@@ -71,7 +71,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (typeof initSidebar === 'function') initSidebar('home');
   const hour = new Date().getHours();
   const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
-  document.getElementById('admin-greeting').textContent = `${g}, ${user.name}! 👋`;
+  document.getElementById('admin-greeting').textContent = `${g}, ${user.name}`;
   document.getElementById('admin-url').textContent = location.origin + location.pathname.replace(/[^/]+$/, '') + 'admin-register.html';
   try {
     if (typeof PrismEvents !== 'undefined' && PrismEvents.get) {
@@ -174,7 +174,7 @@ async function deleteAccount(id) {
 let createRole = 'teacher';
 function openCreateModal(role) {
   createRole = role;
-  document.getElementById('create-modal-title').textContent = role==='teacher'?'➕ Add Teacher':'➕ Add Admin';
+  document.getElementById('create-modal-title').textContent = role==='teacher'?' Add Teacher':' Add Admin';
   document.getElementById('m-id').placeholder = role==='teacher'?'e.g. 2024-00005':'e.g. admin002';
   ['m-fname','m-lname','m-id','m-dept','m-pw'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('create-msg').textContent = '';
@@ -199,7 +199,7 @@ async function createAccount() {
     await apiCall('auth', 'register_admin', 'POST', {
       id, password:pw, name:fn+' '+ln, section:dept, role: createRole === 'admin' ? 'admin' : 'teacher'
     });
-    showMsg('✅ Account created!','ok');
+    showMsg(' Account created!','ok');
     setTimeout(async ()=>{ closeCreateModal(); await refreshAdminUsers(); await renderTeachers(); await renderStudents(); await renderStats(); },900);
   } catch(e) { showMsg(e.message||'Failed to create account.','err'); }
 }
@@ -221,7 +221,7 @@ async function renderInviteCodes() {
     grid.innerHTML = [...codes].reverse().map(c => {
       const invalid = c.used;
       return `<div class="invite-card${invalid?' used':''}">
-        <span class="inv-role teacher">📚 teacher</span>
+        <span class="inv-role teacher"> teacher</span>
         <div class="invite-code-text">
           ${c.code}
           <button class="copy-btn" onclick="copyCode('${c.code}',this)">Copy</button>
@@ -267,7 +267,7 @@ async function renderAnnouncements() {
           <div class="ann-header">
             <span class="ann-author">${a.author||'Admin'}</span>
             <span class="ann-date">${dl}</span>
-            <span class="ann-type-badge ${a.type}">${a.type==='portal'?'📢 General':a.type==='alert'?'🚨 Alert':'ℹ️ Info'}</span>
+            <span class="ann-type-badge ${a.type}">${a.type==='portal'?' General':a.type==='alert'?' Alert':'ℹ Info'}</span>
           </div>
           <div class="ann-text">${a.text}</div>
         </div>

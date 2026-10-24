@@ -3,6 +3,13 @@
  * One logout() and one session guard for all roles, instead of pasting
  * the same block into every HTML file.
  */
+(function prismApplyThemeBoot() {
+  try {
+    var t = localStorage.getItem('prism_theme') === 'dark' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { /* ignore */ }
+})();
+
 (function () {
   var raw = (window.location.pathname || '').split('/').pop() || 'index.html';
   var currentPage = raw.split('?')[0].split('#')[0] || 'index.html';
@@ -20,7 +27,7 @@
     'calendar.html': ['student', 'teacher', 'admin'],
     'notes.html': ['student'],
     'quizzes.html': ['student'],
-    'call.html': ['student', 'teacher', 'admin'],
+    'call.html': ['student', 'teacher', 'admin'], // leftover URL → send home below
     'teacher.html': ['teacher'],
     'teacher-class.html': ['teacher'],
     'quizmaker.html': ['teacher'],
@@ -32,6 +39,12 @@
   };
 
   if (PUBLIC_PAGES.indexOf(currentPage) !== -1) {
+    return;
+  }
+
+  if (currentPage === 'call.html') {
+    var r = (sessionStorage.getItem('prism_role') || 'student').toLowerCase();
+    window.location.replace(r === 'teacher' ? 'teacher.html' : r === 'admin' ? 'admin.html' : 'index.html');
     return;
   }
 

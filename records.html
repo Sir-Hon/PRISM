@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Student Records</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=4"/>
-  <script src="portal-mobile.js?v=3" defer></script>
+  <link rel="stylesheet" href="portal.css?v=10"/>
+  <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
 
@@ -123,9 +123,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=8"></script>
-<script src="script.js?v=7"></script>
-<script src="portal-sidebar.js?v=7"></script>
+<script src="api.js?v=9"></script>
+<script src="script.js?v=10"></script>
+<script src="portal-sidebar.js?v=10"></script>
 <!-- TOPBAR -->
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
@@ -148,32 +148,32 @@
     </div>
     <div style="margin-top:auto;padding-top:1rem;">
       <div class="sidebar-divider"></div>
-      <button type="button" class="sidebar-logout"><span class="s-icon">🚪</span> Logout</button>
+      <button type="button" class="sidebar-logout">Logout</button>
     </div>
   </aside>
 
   <main class="main-content">
     <div class="page-header">
-      <h1>📋 Student Records</h1>
+      <h1> Student Records</h1>
       <p>Track daily attendance and grades — view full history per student per class.</p>
     </div>
 
     <!-- Class + actions bar -->
     <div class="class-bar">
-      <span style="font-size:.82rem;font-weight:700;color:#9ca3af;">📚 Class:</span>
+      <span style="font-size:.82rem;font-weight:700;color:#9ca3af;"> Class:</span>
       <select id="class-select" class="t-select" onchange="onClassChange(this.value)" style="min-width:220px;font-weight:600;"></select>
       <div style="margin-left:auto;display:flex;gap:.5rem;flex-wrap:wrap;">
-        <button class="t-btn outline" onclick="exportCSV()">⬇ Export CSV</button>
-        <button class="t-btn outline amber" onclick="openBulkModal()">✏️ Bulk Grade</button>
+        <button class="t-btn outline" onclick="exportCSV()"> Export CSV</button>
+        <button class="t-btn outline amber" onclick="openBulkModal()"> Bulk Grade</button>
       </div>
     </div>
 
     <!-- View mode tabs -->
     <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;">
       <div class="view-tabs">
-        <button class="view-tab active" onclick="switchView('session',this)">📝 Session Entry</button>
-        <button class="view-tab" onclick="switchView('history',this)">📅 History</button>
-        <button class="view-tab" onclick="switchView('summary',this)">📊 Summary</button>
+        <button class="view-tab active" onclick="switchView('session',this)"> Session Entry</button>
+        <button class="view-tab" onclick="switchView('history',this)"> History</button>
+        <button class="view-tab" onclick="switchView('summary',this)"> Summary</button>
       </div>
       <div style="font-size:.8rem;color:#9ca3af;" id="view-hint">Enter grades for the selected date below</div>
     </div>
@@ -182,7 +182,7 @@
     <div id="view-session">
       <!-- Session date bar -->
       <div class="session-bar">
-        <span style="font-size:.82rem;font-weight:700;color:#9ca3af;">📅 Date:</span>
+        <span style="font-size:.82rem;font-weight:700;color:#9ca3af;"> Date:</span>
         <input type="date" id="session-date" class="session-date-inp" onchange="onDateChange(this.value)"/>
         <div class="session-nav">
           <button onclick="shiftDate(-1)" title="Previous day">‹</button>
@@ -204,7 +204,7 @@
       <!-- Records table -->
       <div class="records-wrap">
         <div class="records-toolbar">
-          <input class="rec-search" id="rec-search" placeholder="🔍 Search student…" oninput="renderSession()"/>
+          <input class="rec-search" id="rec-search" placeholder=" Search student…" oninput="renderSession()"/>
           <select class="t-select" id="rec-filter" onchange="renderSession()">
             <option value="all">All Students</option>
             <option value="passing">Passing (≥75)</option>
@@ -245,7 +245,7 @@
       </div>
       <div class="records-wrap" style="margin-top:.5rem;">
         <div class="records-toolbar">
-          <input class="rec-search" id="summary-search" placeholder="🔍 Search student…" oninput="renderSummary()"/>
+          <input class="rec-search" id="summary-search" placeholder=" Search student…" oninput="renderSummary()"/>
           <select class="t-select" id="summary-filter" onchange="renderSummary()">
             <option value="all">All Students</option>
             <option value="passing">Passing (≥75)</option>
@@ -276,11 +276,11 @@
         <h3 id="modal-student-name">Student Name</h3>
         <div style="font-size:.8rem;color:#9ca3af;margin-top:.1rem;" id="modal-student-meta"></div>
       </div>
-      <button class="m-close" onclick="closeStudentModal()">✕</button>
+      <button class="m-close" onclick="closeStudentModal()"></button>
     </div>
     <div class="m-body">
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem;margin-bottom:1.4rem;" id="modal-stats-row"></div>
-      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;margin-bottom:.7rem;">📅 Full Record History</div>
+      <div style="font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#9ca3af;margin-bottom:.7rem;"> Full Record History</div>
       <div id="modal-timeline"><!-- filled by JS --></div>
     </div>
   </div>
@@ -294,7 +294,7 @@
         <h3 id="smod-title">Session Records</h3>
         <div style="font-size:.8rem;color:#9ca3af;" id="smod-meta"></div>
       </div>
-      <button class="m-close" onclick="document.getElementById('session-modal').classList.remove('active')">✕</button>
+      <button class="m-close" onclick="document.getElementById('session-modal').classList.remove('active')"></button>
     </div>
     <div class="m-body">
       <div class="prism-table-scroll">
@@ -311,8 +311,8 @@
 <div class="m-overlay" id="bulk-overlay">
   <div class="m-box" style="width:400px;">
     <div class="m-header">
-      <h3>✏️ Bulk Grade Entry</h3>
-      <button class="m-close" onclick="closeBulk()">✕</button>
+      <h3> Bulk Grade Entry</h3>
+      <button class="m-close" onclick="closeBulk()"></button>
     </div>
     <div class="m-body">
       <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;">Set one grade component for all students on the selected date.</p>
@@ -332,6 +332,6 @@
 </div>
 
 
-<script src="pages/records.js?v=7"></script>
+<script src="pages/records.js?v=10"></script>
 </body>
 </html>

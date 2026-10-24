@@ -58,7 +58,7 @@
   function toggleEye(id, btn) {
     const el = document.getElementById(id);
     el.type = el.type === 'password' ? 'text' : 'password';
-    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+    btn.textContent = el.type === 'password' ? '' : '';
   }
 
   function setFb(id, msg, type) {
@@ -70,7 +70,7 @@
   function stepToNext(from, to) {
     document.getElementById('step-' + from).classList.remove('active');
     document.getElementById('dot-' + from).className = 'step-dot done';
-    document.getElementById('dot-' + from).textContent = '✓';
+    document.getElementById('dot-' + from).textContent = '';
     if (from < 3) {
       document.getElementById('line-' + from).className = 'step-line done';
     }
@@ -97,25 +97,25 @@
 
       if (!code) {
         el.classList.add('err'); setTimeout(()=>el.classList.remove('err'),600);
-        setFb('fb-step1','❌ Invalid invite code.','err');
+        setFb('fb-step1',' Invalid invite code.','err');
         if (recordAttempt()) return;
         return;
       }
       if (code.used) {
         el.classList.add('err');
-        setFb('fb-step1','❌ This code has already been used.','err');
+        setFb('fb-step1',' This code has already been used.','err');
         if (recordAttempt()) return;
         return;
       }
       if (code.expires && Date.now() > code.expires) {
         el.classList.add('err');
-        setFb('fb-step1','❌ This code has expired.','err');
+        setFb('fb-step1',' This code has expired.','err');
         if (recordAttempt()) return;
         return;
       }
       if (code.role !== 'admin') {
         el.classList.add('err');
-        setFb('fb-step1','❌ This code is not for an admin account.','err');
+        setFb('fb-step1',' This code is not for an admin account.','err');
         if (recordAttempt()) return;
         return;
       }
@@ -123,7 +123,7 @@
       // Valid admin code
       verifiedCode = raw;
       el.classList.add('valid');
-      setFb('fb-step1','✅ Code verified — proceed to passphrase.','ok');
+      setFb('fb-step1',' Code verified — proceed to passphrase.','ok');
       setTimeout(() => stepToNext(1, 2), 700);
     }, 700);
   }
@@ -146,7 +146,7 @@
       if (!storedPP) {
         // No passphrase has been set — block registration
         el.classList.add('err'); setTimeout(()=>el.classList.remove('err'),600);
-        setFb('fb-step2','❌ No admin passphrase has been configured. Ask your administrator to set one in the portal.','err');
+        setFb('fb-step2',' No admin passphrase has been configured. Ask your administrator to set one in the portal.','err');
         if (recordAttempt()) return;
         return;
       }
@@ -154,17 +154,17 @@
       if (input !== storedPP) {
         el.classList.add('err'); setTimeout(()=>el.classList.remove('err'),600);
         const left = MAX_TOTAL_ATTEMPTS - totalAttempts - 1;
-        setFb('fb-step2',`❌ Incorrect passphrase. ${left > 0 ? left+' attempt'+(left!==1?'s':'')+' remaining.' : 'Last attempt.'}`, 'err');
+        setFb('fb-step2',` Incorrect passphrase. ${left > 0 ? left+' attempt'+(left!==1?'s':'')+' remaining.' : 'Last attempt.'}`, 'err');
         if (recordAttempt()) return;
         el.value = '';
         return;
       }
 
       el.classList.add('valid');
-      setFb('fb-step2','✅ Passphrase accepted.','ok');
+      setFb('fb-step2',' Passphrase accepted.','ok');
 
       document.getElementById('s3-notice').innerHTML =
-        '<strong style="color:#fcd34d;">✅ Both credentials verified.</strong> Complete your account details below.';
+        '<strong style="color:#fcd34d;"> Both credentials verified.</strong> Complete your account details below.';
 
       setTimeout(() => stepToNext(2, 3), 700);
     }, 600);

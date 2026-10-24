@@ -97,7 +97,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=8"></script>
+<script src="api.js?v=9"></script>
 <div class="page">
   <div class="page-header">
     <a class="logo" href="login.html"><div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div><span class="logo-text">PRISM</span></a>
@@ -143,14 +143,14 @@
           <label>Password</label>
           <div class="pw-wrap">
             <input type="password" id="f-pw" placeholder="Create a password (min. 6 chars)"/>
-            <button class="pw-toggle" type="button" onclick="togglePw('f-pw',this)">👁</button>
+            <button class="pw-toggle" type="button" onclick="togglePw('f-pw',this)">Show</button>
           </div>
         </div>
         <div class="field full">
           <label>Confirm Password</label>
           <div class="pw-wrap">
             <input type="password" id="f-pw2" placeholder="Re-enter your password"/>
-            <button class="pw-toggle" type="button" onclick="togglePw('f-pw2',this)">👁</button>
+            <button class="pw-toggle" type="button" onclick="togglePw('f-pw2',this)">Show</button>
           </div>
         </div>
       </div>
@@ -160,7 +160,7 @@
 
     <!-- Success -->
     <div class="success-screen" id="success-screen">
-      <div class="check-icon">✅</div>
+      <div class="check-icon"></div>
       <h3>Welcome to PRISM!</h3>
       <p>Your teacher account has been created.<br/>Your login ID is:</p>
       <div class="id-box" id="success-id"></div>
@@ -173,6 +173,6 @@
 </div>
 
 
-<script src="pages/teacher-register.js?v=7"></script>
+<script src="pages/teacher-register.js?v=10"></script>
 </body>
 </html>

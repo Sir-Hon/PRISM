@@ -25,7 +25,7 @@ if (sessionStorage.getItem('prism_logged_in') === 'true') {
   function togglePw(id, btn) {
     const el = document.getElementById(id);
     el.type = el.type === 'password' ? 'text' : 'password';
-    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+    btn.textContent = el.type === 'password' ? 'Show' : 'Hide';
   }
 
   async function verifyInviteCode() {
@@ -43,15 +43,15 @@ if (sessionStorage.getItem('prism_logged_in') === 'true') {
       btn.classList.remove('loading'); btn.textContent = 'Verify Code →';
       el.classList.add('valid');
       verifiedCode = inputCode;
-      msg.textContent = '✅ Code accepted!'; msg.className = 'verify-msg success';
+      msg.textContent = ' Code accepted!'; msg.className = 'verify-msg success';
 
       setTimeout(() => {
         document.getElementById('step-1').classList.remove('active');
         document.getElementById('step-2').classList.add('active');
-        document.getElementById('dot-1').className = 'step-dot done'; document.getElementById('dot-1').textContent = '✓';
+        document.getElementById('dot-1').className = 'step-dot done'; document.getElementById('dot-1').textContent = '';
         document.getElementById('line-1').className = 'step-line done';
         document.getElementById('dot-2').className = 'step-dot current';
-        document.getElementById('code-success-notice').innerHTML = '<strong style="color:#6ee7b7;">✅ Code accepted.</strong> Fill in your details to complete registration as a <strong>teacher</strong>.';
+        document.getElementById('code-success-notice').innerHTML = '<strong style="color:#6ee7b7;"> Code accepted.</strong> Fill in your details to complete registration as a <strong>teacher</strong>.';
         document.getElementById('f-firstname').focus();
       }, 700);
     } catch(e) {

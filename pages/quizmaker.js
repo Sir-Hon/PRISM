@@ -161,7 +161,7 @@ function renderQMQuestions(){
       </select>
       <input class="q-pts" type="number" min="1" value="${q.points}" onchange="updateQ('${q.id}','points',this.value)" title="Points"/>
       <span style="font-size:.72rem;color:#9ca3af;">pts</span>
-      <button class="q-del" onclick="removeQuestion('${q.id}')">🗑</button></div>
+      <button class="q-del" onclick="removeQuestion('${q.id}')"></button></div>
       <input class="q-text" placeholder="Type your question…" value="${esc(q.question)}" oninput="updateQ('${q.id}','question',this.value)"/>
       <div id="qo-${q.id}">${renderOpts(q)}</div>`;
     list.appendChild(card);
@@ -172,13 +172,13 @@ function renderOpts(q){
     <div class="mc-opt-row">
       <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
       <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
-      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})">✕</button>`:''}
+      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})"></button>`:''}
     </div>`).join('')}
     ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
   </div>`;
   if(q.type==='tf')return`<div class="tf-row">
-    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')">✅ True</button>
-    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')">❌ False</button>
+    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')"> True</button>
+    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')"> False</button>
   </div>`;
   if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
   if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;
@@ -250,13 +250,13 @@ async function publishQuiz(){
     d.target_section = qmGetTargetSectionForApi() || '';
     const quizzes=getQuizzes(); quizzes.push(d); saveQuizzes(quizzes);
     await syncQuizzesFromApiForClass(activeClassId);
-    showQMsg('✅ Published!','ok'); resetQM(); renderSavedQuizzes();
+    showQMsg(' Published!','ok'); resetQM(); renderSavedQuizzes();
   }catch(e){ showQMsg(e.message||'Publish failed.','err'); }
 }
 function saveDraft(){
   const d=getQMData();if(!d.title){showQMsg('Enter a title.','err');return;}
   d.published=false; const quizzes=getQuizzes(); quizzes.push(d); saveQuizzes(quizzes);
-  showQMsg('💾 Draft saved.','ok'); renderSavedQuizzes();
+  showQMsg(' Draft saved.','ok'); renderSavedQuizzes();
 }
 function showQMsg(m,t){const el=document.getElementById('qm-msg');el.textContent=m;el.className='form-msg '+t;setTimeout(()=>el.textContent='',2500);}
 function resetQM(){document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';questions=[];renderQMQuestions();}
@@ -329,11 +329,11 @@ function renderSavedQuizzes(){
     const logKey='prism_quiz_log_'+q.classId+'_'+q.id;
     const log=JSON.parse(localStorage.getItem(logKey)||'[]');
     const alerts=log.filter(e=>e.type==='tab-switch'||e.type==='abandon').length;
-    const alertBadge=alerts?`<span style="background:#fee2e2;color:#dc2626;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:.4rem;">⚠ ${alerts}</span>`:'';
+    const alertBadge=alerts?`<span style="background:#fee2e2;color:#dc2626;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:.4rem;"> ${alerts}</span>`:'';
     var secLab = (q.target_section && String(q.target_section).trim()) ? ' · <span style="color:#059669;font-weight:700;">'+String(q.target_section).trim()+'</span>' : '';
     var qid = JSON.stringify(q.id);
     return `<div class="saved-q-item">
-      <div class="sq-icon">${q.type==='exam'?'📝':q.type==='activity'?'🎯':'🧪'}</div>
+      <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
       <div style="flex:1;min-width:0;"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${q.questions.length}Q · ${q.totalPoints}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
       <div class="sq-actions">
         <button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>
@@ -365,21 +365,21 @@ function viewQuizLog(quizId){
   modal.id='quiz-log-modal';
   modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;';
   const typeColors={'start':'#d1fae5','submit':'#dbeafe','tab-switch':'#fef3c7','abandon':'#fee2e2'};
-  const typeIcons={'start':'▶️','submit':'✅','tab-switch':'⚠️','abandon':'🚨'};
+  const typeIcons={'start':'Start','submit':'Submit','tab-switch':'Tab','abandon':'Left'};
   const rows=log.length?log.slice().reverse().map(e=>{
     const t=new Date(e.time).toLocaleString();
     const bg=typeColors[e.type]||'#f9fafb';
     return `<div style="display:flex;gap:.8rem;align-items:flex-start;padding:.7rem .9rem;background:${bg};border-radius:10px;margin-bottom:.5rem;font-size:.83rem;">
-      <span style="font-size:1rem;flex-shrink:0;">${typeIcons[e.type]||'📌'}</span>
+      <span style="font-size:.65rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;flex-shrink:0;color:#374151;">${typeIcons[e.type]||e.type}</span>
       <div style="flex:1;"><div style="font-weight:700;color:#16132b;">${e.student} <span style="font-weight:400;color:#9ca3af;">(${e.studentId})</span></div>
       <div style="color:#374151;margin:.15rem 0;">${e.detail}</div>
       <div style="font-size:.75rem;color:#9ca3af;">${t}</div></div></div>`;
   }).join(''):'<div style="text-align:center;color:#9ca3af;padding:2rem;">No activity recorded yet.</div>';
   modal.innerHTML=`<div style="background:#fff;border-radius:20px;width:580px;max-width:94vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:1.8rem 2rem;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
-      <div><div style="font-family:DM Sans,sans-serif;font-size:1.15rem;font-weight:800;color:#16132b;">📋 Activity Log</div>
+      <div><div style="font-family:DM Sans,sans-serif;font-size:1.15rem;font-weight:800;color:#16132b;"> Activity Log</div>
       <div style="font-size:.82rem;color:#9ca3af;">${quiz.title}</div></div>
-      <button id="log-close-btn" style="background:#f0ecff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;">✕</button>
+      <button id="log-close-btn" style="background:#f0ecff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;"></button>
     </div>${rows}</div>`;
   document.body.appendChild(modal);
   document.getElementById('log-close-btn').onclick=function(){modal.remove();};

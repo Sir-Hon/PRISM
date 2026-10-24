@@ -6,7 +6,6 @@ var STUDENT_ID   = sessionStorage.getItem('prism_user_id')   || 'student';
 var _studentProfile = JSON.parse(localStorage.getItem('prism_profile_' + (sessionStorage.getItem('prism_user_id')||'')) || '{}');
 var STUDENT_NAME = _studentProfile.name || sessionStorage.getItem('prism_user_name') || 'Student';
 if (_studentProfile.name) sessionStorage.setItem('prism_user_name', _studentProfile.name);
-var CLASS_ICONS  = ['📐','🔬','📖','💻','🏛️','⚽','🎨','🧪','🌐','📊'];
 var activeDetailId = null;
 var currentQuiz    = null;
 var userAnswers    = [];
@@ -81,7 +80,7 @@ window.addEventListener('DOMContentLoaded', async function() {
   var hour = new Date().getHours();
   var g = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   var greetEl = document.getElementById('student-greeting');
-  if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME + '! 👋';
+  if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
   renderClasses();
   renderStats();
   renderActivity();
@@ -100,15 +99,17 @@ window.addEventListener('DOMContentLoaded', async function() {
         if (user) {
           STUDENT_ID = user.id;
           STUDENT_NAME = user.name || STUDENT_NAME;
-          if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME + '! 👋';
+          if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
         }
       } catch (e) { console.warn('API session check failed:', e); }
     })(),
     loadClassDataFromAPI().then(function() {
       if (typeof initSidebar === 'function') initSidebar('home');
-      renderClasses();
+      if (!document.getElementById('class-view-overlay')) renderClasses();
       renderStats();
       renderActivity();
+      if (activeDetailId) refreshOpenClassPanel();
+      else tryOpenClassFromUrl();
     }).catch(function() {}),
     (async function() {
       try {
@@ -124,6 +125,7 @@ window.addEventListener('DOMContentLoaded', async function() {
     })(),
     renderAnnouncements(),
   ]);
+  tryOpenClassFromUrl();
 });
 
 /** After login: pull enrollments, then for each class fetch posts/materials/assignments/quizzes and merge into the same LS keys the legacy UI expects. */
@@ -232,7 +234,7 @@ async function joinClass() {
     joined[cls.id] = { classId:cls.id, teacherId:cls.teacher_id, subject:cls.subject, joinedAt:new Date().toISOString() };
     saveJoinedClasses(joined);
     document.getElementById('join-code-input').value = '';
-    showJoinMsg('✅ Joined "' + cls.subject + '"!', 'ok');
+    showJoinMsg(' Joined "' + cls.subject + '"!', 'ok');
     await loadClassDataFromAPI();
     renderClasses(); renderStats();
     if (typeof initSidebar === 'function') initSidebar('home');
@@ -275,14 +277,13 @@ function renderClasses() {
   entries.forEach(function(entry, i) {
     var info  = getTeacherClasses(entry.teacherId).find(function(c){ return c.id===entry.classId; });
     var color = info ? info.color : '#7c3aed';
-    var icon  = CLASS_ICONS[i % CLASS_ICONS.length];
+    var initial = String(entry.subject || '?').charAt(0).toUpperCase();
     var card  = document.createElement('div');
     card.className = 'class-card';
-    card.style.animationDelay = (i*0.06)+'s';
-    if (activeDetailId === entry.classId) card.style.boxShadow = '0 0 0 3px '+color+',0 12px 36px rgba(0,0,0,.12)';
+    if (activeDetailId === entry.classId) card.style.boxShadow = '0 0 0 2px '+color;
     card.innerHTML = '<div class="class-card-bar" style="background:'+color+'"></div>'
       + '<div class="class-card-body">'
-      + '<div class="class-icon">'+icon+'</div>'
+      + '<div class="class-icon" style="background:'+color+'">'+initial+'</div>'
       + '<div class="class-name">'+entry.subject+'</div>'
       + (info && info.code ? '<div class="class-code">'+info.code+'</div>' : '')
       + '<div class="class-teacher" style="display:flex;align-items:center;gap:.45rem;">'
@@ -304,61 +305,90 @@ function renderClasses() {
   area.appendChild(frag);
 }
 
-/** Opens the fixed overlay (stream / assignments / materials), syncs that class from API, injects HTML, default tab = stream. */
-async function openClassDetail(classId, teacherId, subject, color) {
-  activeDetailId = classId;
-  renderClasses(); // update highlight on class cards
+var __openClassGen = 0;
 
-  await syncStudentClassContent(classId);
+function tryOpenClassFromUrl() {
+  var want = '';
+  try { want = new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { want = ''; }
+  if (!want || activeDetailId) return;
+  var joined = getJoinedClasses()[want];
+  if (!joined) return;
+  var info = getTeacherClasses(joined.teacherId).find(function(c){ return c.id === joined.classId; });
+  openClassDetail(joined.classId, joined.teacherId, joined.subject, (info && info.color) || joined.color || '#7c3aed');
+}
 
-  var info = getTeacherClasses(teacherId).find(function(c){ return c.id===classId; });
+function refreshOpenClassPanel() {
+  var panel = document.getElementById('class-panel-content');
+  if (!panel || !activeDetailId) return;
+  var tab = document.querySelector('.class-view-tab.active');
+  panel.innerHTML = buildPanel(tab ? tab.dataset.tab : 'stream', activeDetailId);
+}
+
+function paintClassOverlay(classId, teacherId, subject, color) {
+  var info = getTeacherClasses(teacherId).find(function(c){ return c.id === classId; });
   var code = info ? info.code : '';
-
-  // Build overlay (fixed to main column; see CSS)
-  var overlay = document.createElement('div');
-  overlay.className = 'class-view-overlay';
-  overlay.id = 'class-view-overlay';
-
+  var overlay = document.getElementById('class-view-overlay');
+  var reuse = !!overlay;
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'class-view-overlay';
+    overlay.id = 'class-view-overlay';
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+  } else {
+    overlay.style.animation = 'none';
+  }
   overlay.innerHTML =
     '<div class="class-view-topbar">'
     + '<button class="class-view-back" onclick="closeClassView()" title="Back">←</button>'
     + '<div>'
-    + '<div class="class-view-title">' + subject + '</div>'
-    + '<div class="class-view-sub" style="display:flex;align-items:center;gap:.4rem;">' + buildTeacherChipInline(teacherId) + (code ? '  ·  📋 ' + code : '') + '</div>'
+    + '<div class="class-view-title">' + prismEscHtml(subject) + '</div>'
+    + '<div class="class-view-sub" style="display:flex;align-items:center;gap:.4rem;">' + buildTeacherChipInline(teacherId) + (code ? '  ·   ' + prismEscHtml(code) : '') + '</div>'
     + '</div>'
     + '</div>'
     + '<div class="class-view-banner" style="background:linear-gradient(135deg,' + color + ' 0%,' + shadeColor(color,-40) + ' 100%)">'
     + '<div class="class-view-banner-content">'
-    + '<div class="class-view-name">' + subject + '</div>'
+    + '<div class="class-view-name">' + prismEscHtml(subject) + '</div>'
     + '<div class="class-view-teacher" style="display:flex;align-items:center;gap:.5rem;opacity:.9;">' + buildTeacherChipInline(teacherId) + '</div>'
     + '</div>'
-    + (code ? '<div class="class-view-code">📋 ' + code + '</div>' : '')
+    + (code ? '<div class="class-view-code"> ' + prismEscHtml(code) + '</div>' : '')
     + '</div>'
     + '<div class="class-view-tabs">'
-    + '<button class="class-view-tab active" data-tab="stream">📢 Stream</button>'
-    + '<button class="class-view-tab" data-tab="asgn">📝 Assignments</button>'
-    + '<button class="class-view-tab" data-tab="materials">📚 Materials</button>'
+    + '<button class="class-view-tab active" data-tab="stream">Stream</button>'
+    + '<button class="class-view-tab" data-tab="asgn">Assignments</button>'
+    + '<button class="class-view-tab" data-tab="materials">Materials</button>'
     + '</div>'
     + '<div class="class-view-body"><div class="class-view-content" id="class-panel-content"></div></div>';
-
-  // Remove any existing overlay
-  var existing = document.getElementById('class-view-overlay');
-  if (existing) existing.remove();
-
-  document.body.appendChild(overlay);
-  document.body.style.overflow = 'hidden';
-
-  // Tabs replace #class-panel-content via buildPanel(tab, classId)
   overlay.querySelectorAll('.class-view-tab').forEach(function(btn) {
     btn.addEventListener('click', function() {
       overlay.querySelectorAll('.class-view-tab').forEach(function(t){ t.classList.remove('active'); });
       btn.classList.add('active');
       document.getElementById('class-panel-content').innerHTML = buildPanel(btn.dataset.tab, classId);
-        });
+    });
   });
-
-  // Render initial stream
   document.getElementById('class-panel-content').innerHTML = buildPanel('stream', classId);
+  if (!reuse) overlay.scrollTop = 0;
+}
+
+/** Opens the class panel immediately from cache, then refreshes from the API. */
+async function openClassDetail(classId, teacherId, subject, color) {
+  classId = String(classId);
+  if (activeDetailId === classId && document.getElementById('class-view-overlay')) {
+    var genKeep = ++__openClassGen;
+    syncStudentClassContent(classId).then(function() {
+      if (genKeep === __openClassGen) refreshOpenClassPanel();
+    }).catch(function() {});
+    return;
+  }
+  activeDetailId = classId;
+  if (typeof markSidebarClassActive === 'function') markSidebarClassActive(classId);
+  paintClassOverlay(classId, teacherId, subject, color || '#7c3aed');
+  var gen = ++__openClassGen;
+  try {
+    await syncStudentClassContent(classId);
+  } catch (e) { /* keep cached view */ }
+  if (gen !== __openClassGen) return;
+  refreshOpenClassPanel();
 }
 
 /** Darken/lighten a #RRGGBB for banner gradient (second arg shifts each RGB channel by `amt`, negative = darker). */
@@ -378,6 +408,8 @@ function closeClassView() {
   if (overlay) overlay.remove();
   document.body.style.overflow = '';
   activeDetailId = null;
+  __openClassGen++;
+  if (typeof markSidebarClassActive === 'function') markSidebarClassActive('');
   renderClasses();
 }
 
@@ -415,27 +447,27 @@ function streamMaterialActionsStudent(classId, p) {
   var row = 'margin-top:.8rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;';
   if (mat && mat.file_path) {
     var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
-    var view = '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(prev?'👁 View':'🔗 Open')+'</button>';
-    var save = '<a href="'+mat.file_path+'" download="'+prismEscAttr(mat.file_name||'file')+'" style="'+btn+'background:#ede9fe;color:#5b21b6;">⬇ Save</a>';
+    var view = '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(prev?' View':' Open')+'</button>';
+    var save = '<a href="'+mat.file_path+'" download="'+prismEscAttr(mat.file_name||'file')+'" style="'+btn+'background:#ede9fe;color:#5b21b6;"> Save</a>';
     return '<div style="'+row+'">'+view+save+'</div>';
   }
   if (mat && mat.file_data) {
     var p2 = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
-    var viewB = '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(p2?'👁 View':'🔗 Open')+'</button>';
-    var dl = '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:#ede9fe;color:#5b21b6;border:none;cursor:pointer;">⬇ Save</button>';
+    var viewB = '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(p2?' View':' Open')+'</button>';
+    var dl = '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:#ede9fe;color:#5b21b6;border:none;cursor:pointer;"> Save</button>';
     return '<div style="'+row+'">'+viewB+dl+'</div>';
   }
   if (mat && mat.url) {
     var hrefM = typeof prismNormalizeHttpUrl === 'function' ? (prismNormalizeHttpUrl(mat.url) || mat.url) : mat.url;
     if (hrefM.indexOf('http') === 0 || hrefM.charAt(0) === '/') {
-      return '<div style="'+row+'"><a href="'+prismEscAttr(hrefM)+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">🔗 Open in new tab</a></div>';
+      return '<div style="'+row+'"><a href="'+prismEscAttr(hrefM)+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;"> Open in new tab</a></div>';
     }
   }
   if (att.indexOf('http') === 0 || att.charAt(0) === '/') {
     if (att.charAt(0) === '/') {
-      return '<div style="'+row+'"><button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(att)+',"","")\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">🔗 Open</button></div>';
+      return '<div style="'+row+'"><button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(att)+',"","")\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;"> Open</button></div>';
     }
-    return '<div style="'+row+'"><a href="'+att+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;">🔗 Open</a></div>';
+    return '<div style="'+row+'"><a href="'+att+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;"> Open</a></div>';
   }
   return '';
 }
@@ -577,17 +609,17 @@ function studentSubmissionFilesHtml(sub) {
     if (isImg && urlAbs) {
       thumb = '<div class="gc-attach-preview" ' + oj + ' title="Open"><img src="' + prismEscAttr(urlAbs) + '" alt=""/></div>';
     } else if (kind === 'video-file' && urlAbs) {
-      thumb = '<div class="gc-attach-preview gc-doc" ' + oj + ' title="Open">🎬</div>';
+      thumb = '<div class="gc-attach-preview gc-doc" ' + oj + ' title="Open"></div>';
       extraPreview = '<video src="' + prismEscAttr(urlAbs) + '" controls style="width:100%;max-height:180px;border-radius:8px;margin-top:.4rem;background:#0f172a;"></video>';
     } else {
       var ext = (name.split('.').pop() || '').toLowerCase();
-      var em = '📄';
-      if (ext === 'pdf') em = '📕';
-      else if (['png', 'jpg', 'jpeg', 'gif', 'webp'].indexOf(ext) >= 0) em = '🖼';
-      else if (['doc', 'docx'].indexOf(ext) >= 0) em = '📘';
-      else if (['ppt', 'pptx'].indexOf(ext) >= 0) em = '📙';
-      else if (['xls', 'xlsx', 'csv'].indexOf(ext) >= 0) em = '📊';
-      else if (['zip', 'rar', '7z'].indexOf(ext) >= 0) em = '🗜';
+      var em = '';
+      if (ext === 'pdf') em = '';
+      else if (['png', 'jpg', 'jpeg', 'gif', 'webp'].indexOf(ext) >= 0) em = '';
+      else if (['doc', 'docx'].indexOf(ext) >= 0) em = '';
+      else if (['ppt', 'pptx'].indexOf(ext) >= 0) em = '';
+      else if (['xls', 'xlsx', 'csv'].indexOf(ext) >= 0) em = '';
+      else if (['zip', 'rar', '7z'].indexOf(ext) >= 0) em = '';
       thumb = '<div class="gc-attach-preview gc-doc" ' + oj + ' title="Open">' + em + '</div>';
     }
     fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div>' + thumb
@@ -598,13 +630,13 @@ function studentSubmissionFilesHtml(sub) {
   });
   if (sub.file_data && !items.length) {
     var fn = prismEscHtml(sub.file_name || 'Submitted file');
-    fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc">📎</div>'
+    fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc"></div>'
       + '<div class="gc-attach-body"><div class="gc-attach-name">' + fn + '</div>'
       + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open student-sub-dl-btn">Download</button></div></div></div>');
   } else if (inlineCount > 0 && !items.length && !sub.file_data) {
     parsed.forEach(function(a) {
       if (a && a.inline) {
-        fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc">📎</div>'
+        fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc"></div>'
           + '<div class="gc-attach-body"><div class="gc-attach-name">' + prismEscHtml(a.name || 'file') + '</div>'
           + '<div class="gc-attach-actions"><span style="font-size:.72rem;color:#5f6368;">No separate file on server</span></div></div></div>');
       }
@@ -730,11 +762,11 @@ function buildStreamPanel(classId) {
         var qDue    = matchedQuiz.due || matchedQuiz.due_date || '';
         var overdue = qDue && typeof prismIsPastDue === 'function' && prismIsPastDue(qDue, matchedQuiz.due_time) && !done;
         if (done) {
-          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn done" disabled>Completed ✓ · Score: '+scores[matchedQuiz.id]+'/'+matchedQuiz.totalPoints+'</button></div>';
+          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn done" disabled>Completed  · Score: '+scores[matchedQuiz.id]+'/'+matchedQuiz.totalPoints+'</button></div>';
         } else if (overdue) {
           quizActionHtml = '<div style="margin-top:.8rem;"><button type="button" class="take-btn" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;" onclick="alert(\'This quiz is past its due date. Please contact your teacher if you need an extension.\')">Past deadline — tap for info</button></div>';
         } else {
-          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn" onclick="window.location.href=\'quizzes.html\'">🧪 Take Quiz →</button></div>';
+          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn" onclick="window.location.href=\'quizzes.html\'"> Take Quiz →</button></div>';
         }
       }
     }
@@ -746,7 +778,7 @@ function buildStreamPanel(classId) {
       + '<span class="post-badge '+p.type+'">'+p.type+'</span>'
       + '</div>'
       + '<div class="post-body">'+p.body+'</div>'
-      + (p.attachment && p.type !== 'announcement' ? '<div class="post-attach">📎 '+p.attachment+'</div>' : '')
+      + (p.attachment && p.type !== 'announcement' ? '<div class="post-attach"> '+p.attachment+'</div>' : '')
       + materialActionHtml
       + quizActionHtml
       + '</div>';
@@ -818,7 +850,7 @@ async function openStudentAssignmentModal(classId, asgnId) {
       + '<div style="font-size:.88rem;color:#374151;line-height:1.55;white-space:pre-wrap;">' + inst + '</div></div>';
   }
   var title = prismEscHtml(a.title || '');
-  var icons = { written: '📝', project: '🎯', lab: '🔬', oral: '🎤' };
+  var icons = { written: 'WR', project: 'PR', lab: 'LB', oral: 'OR' };
   var teacherRefInner = '';
   if (a.attach_url) {
     var au = String(a.attach_url).trim();
@@ -828,9 +860,9 @@ async function openStudentAssignmentModal(classId, asgnId) {
       teacherRefInner += '<div style="margin:.35rem 0 0;">'
         + '<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;background:#0f172a;margin-bottom:.5rem;">'
         + '<iframe src="' + prismEscAttr(vidEmb.embed) + '" title="Reference video" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>'
-        + '<a href="' + prismEscAttr(hrefAu) + '" target="_blank" rel="noopener" style="font-size:.8rem;font-weight:700;color:#7c3aed;">🔗 Open video in new tab</a></div>';
+        + '<a href="' + prismEscAttr(hrefAu) + '" target="_blank" rel="noopener" style="font-size:.8rem;font-weight:700;color:#7c3aed;"> Open video in new tab</a></div>';
     } else {
-      teacherRefInner += '<div style="margin:.35rem 0 0;"><a href="' + prismEscAttr(hrefAu) + '" target="_blank" rel="noopener" style="font-size:.85rem;font-weight:700;color:#7c3aed;word-break:break-all;">🔗 ' + prismEscHtml(au.length > 72 ? au.slice(0, 72) + '…' : au) + '</a></div>';
+      teacherRefInner += '<div style="margin:.35rem 0 0;"><a href="' + prismEscAttr(hrefAu) + '" target="_blank" rel="noopener" style="font-size:.85rem;font-weight:700;color:#7c3aed;word-break:break-all;"> ' + prismEscHtml(au.length > 72 ? au.slice(0, 72) + '…' : au) + '</a></div>';
     }
   }
   var attachPath = String(a.attach_file_path || '').trim();
@@ -844,8 +876,8 @@ async function openStudentAssignmentModal(classId, asgnId) {
       teacherRefInner += '<video src="' + prismEscAttr(absAttach) + '" controls style="width:100%;max-height:240px;border-radius:10px;margin-top:.5rem;background:#0f172a;"></video>';
     }
     teacherRefInner += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0 0;align-items:center;"><span style="font-size:.75rem;color:#64748b;font-weight:600;">Teacher file</span>'
-      + '<button type="button" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(attachPath) + ',' + JSON.stringify(a.attach_mime || '') + ',' + JSON.stringify(a.attach_file_name || '') + ')\' style="padding:.35rem .8rem;border-radius:9px;background:#7c3aed;color:#fff;font-size:.76rem;font-weight:700;border:none;cursor:pointer;">' + (prev ? '👁 View' : '🔗 Open') + '</button>'
-      + '<a href="' + prismEscAttr(absAttach) + '" download="' + prismEscAttr(a.attach_file_name || 'file') + '" style="padding:.35rem .8rem;border-radius:9px;background:#ede9fe;color:#5b21b6;font-size:.76rem;font-weight:700;text-decoration:none;">⬇ Save</a></div>';
+      + '<button type="button" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(attachPath) + ',' + JSON.stringify(a.attach_mime || '') + ',' + JSON.stringify(a.attach_file_name || '') + ')\' style="padding:.35rem .8rem;border-radius:9px;background:#7c3aed;color:#fff;font-size:.76rem;font-weight:700;border:none;cursor:pointer;">' + (prev ? ' View' : ' Open') + '</button>'
+      + '<a href="' + prismEscAttr(absAttach) + '" download="' + prismEscAttr(a.attach_file_name || 'file') + '" style="padding:.35rem .8rem;border-radius:9px;background:#ede9fe;color:#5b21b6;font-size:.76rem;font-weight:700;text-decoration:none;"> Save</a></div>';
   }
   var teacherRef = '';
   if (teacherRefInner) {
@@ -859,7 +891,7 @@ async function openStudentAssignmentModal(classId, asgnId) {
   } else {
     var statusLine = '';
     if (hasSub && sub.submitted_at) {
-      statusLine = '<div style="font-size:.8rem;color:#059669;font-weight:700;margin:.65rem 0 .35rem;">✅ Turned in · ' + new Date(sub.submitted_at).toLocaleString() + '</div>';
+      statusLine = '<div style="font-size:.8rem;color:#059669;font-weight:700;margin:.65rem 0 .35rem;"> Turned in · ' + new Date(sub.submitted_at).toLocaleString() + '</div>';
     }
     var pickOnchange = 'onStudentAsgnFilesChosen(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ',this)';
     submitBlock = statusLine
@@ -868,7 +900,7 @@ async function openStudentAssignmentModal(classId, asgnId) {
       + '<div style="font-size:.72rem;font-weight:700;color:#9d174d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem;">Turn in</div>'
       + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…" style="width:100%;min-height:90px;border:1.5px solid #fce7f3;border-radius:10px;padding:.65rem .85rem;font-size:.88rem;font-family:inherit;resize:vertical;box-sizing:border-box;">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
       + '<div style="margin-top:.65rem;border:2px dashed #fbcfe8;border-radius:10px;padding:.9rem;text-align:center;cursor:pointer;background:#fff5f9;" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
-      + '<div style="font-size:.84rem;color:#6b7280;">📎 Attach PDF, image, video, or PPT<br/><span style="font-size:.74rem;">Max 15 MB each · up to 10 files</span></div>'
+      + '<div style="font-size:.84rem;color:#6b7280;"> Attach PDF, image, video, or PPT<br/><span style="font-size:.74rem;">Max 15 MB each · up to 10 files</span></div>'
       + '<div id="asgn-file-chosen-' + sid + '" style="display:none;font-size:.82rem;font-weight:700;color:#be185d;margin-top:.35rem;"></div>'
       + '</div>'
       + '<input type="file" id="asgn-file-' + sid + '" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange=\'' + pickOnchange + '\'/>'
@@ -879,7 +911,7 @@ async function openStudentAssignmentModal(classId, asgnId) {
   var inner = '<div class="student-asgn-modal" role="dialog" aria-modal="true" aria-labelledby="student-asgn-modal-title">'
     + '<button type="button" class="student-asgn-modal-close" onclick="closeStudentAssignmentModal()" aria-label="Close">×</button>'
     + '<div style="display:flex;align-items:flex-start;gap:.75rem;padding-right:1.5rem;">'
-    + '<div style="font-size:1.45rem;flex-shrink:0;">' + (icons[a.type] || '📝') + '</div>'
+    + '<div style="font-size:.68rem;font-weight:800;letter-spacing:.04em;color:#be185d;flex-shrink:0;text-transform:uppercase;">' + (icons[a.type] || '') + '</div>'
     + '<div style="flex:1;min-width:0;">'
     + '<div id="student-asgn-modal-title" style="font-family:DM Sans,sans-serif;font-weight:800;font-size:1.05rem;color:#16132b;">' + title + '</div>'
     + '<div style="font-size:.8rem;color:#6b7280;margin-top:.25rem;">' + (a.pts ? a.pts + ' points · ' : '') + (a.due ? 'Due ' + dueLine : 'No due date') + '</div>'
@@ -923,7 +955,7 @@ function buildAsgnPanel(classId) {
     if (ta !== tb) return ta.localeCompare(tb);
     return String(a.id).localeCompare(String(b.id));
   });
-  var icons = { written: '📝', project: '🎯', lab: '🔬', oral: '🎤' };
+  var icons = { written: 'WR', project: 'PR', lab: 'LB', oral: 'OR' };
   var bgs = { written: '#fce7f3', project: '#fef3c7', lab: '#dbeafe', oral: '#e0e7ff' };
   var subMap = getSubmissionMap(classId);
   var btnStyle = 'padding:.38rem .85rem;border:1.5px solid #fbcfe8;border-radius:9px;font-size:.78rem;font-weight:700;white-space:nowrap;background:linear-gradient(135deg,#ec4899,#be185d);color:#fff;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;';
@@ -950,13 +982,13 @@ function buildAsgnPanel(classId) {
           + '<div style="font-size:.85rem;color:#374151;line-height:1.55;white-space:pre-wrap;padding:.65rem .85rem;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;">' + prismEscHtml(sub.note) + '</div></div>';
       }
       if (!filesHtml && !(sub.note && String(sub.note).trim())) {
-        innerSub += '<p style="font-size:.82rem;color:#059669;margin:0;">✅ Submitted' + (sub.submitted_at ? ' · ' + new Date(sub.submitted_at).toLocaleString() : '') + '</p>';
+        innerSub += '<p style="font-size:.82rem;color:#059669;margin:0;"> Submitted' + (sub.submitted_at ? ' · ' + new Date(sub.submitted_at).toLocaleString() : '') + '</p>';
       }
     }
     var openOnclick = 'event.stopPropagation();openStudentAssignmentModal(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')';
     return '<details class="student-asgn-acc">'
       + '<summary>'
-      + '<div class="mat-icon-box" style="background:' + (bgs[a.type] || '#fce7f3') + '">' + (icons[a.type] || '📝') + '</div>'
+      + '<div class="mat-icon-box" style="background:' + (bgs[a.type] || '#fce7f3') + '">' + (icons[a.type] || '') + '</div>'
       + '<div class="mat-info"><div class="mat-title">' + title + '</div>'
       + '<div class="mat-meta">' + prismEscHtml(meta) + '</div></div>'
       + '</summary>'
@@ -978,23 +1010,23 @@ function buildMaterialsPanel(classId) {
   var btnStyle = 'padding:.38rem .85rem;border:1.5px solid #e4dffa;border-radius:9px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;cursor:pointer;';
   return items.map(function(it) {
     var kind = typeof prismMaterialKind === 'function' ? prismMaterialKind(it.mime_type, it.file_name || it.url, it.type) : (it.type || 'file');
-    var icon = typeof prismMaterialIcon === 'function' ? prismMaterialIcon(kind) : '📄';
+    var icon = typeof prismMaterialIcon === 'function' ? prismMaterialIcon(kind) : '';
     var kindLabel = typeof prismMaterialKindLabel === 'function' ? prismMaterialKindLabel(kind) : (it.type || 'File');
     var metaBits = [kindLabel];
     if (it.file_name) metaBits.push(it.file_name);
     var action = '';
     if (it.file_path) {
       var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
-      action += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(it.file_path)+','+JSON.stringify(it.mime_type||'')+','+JSON.stringify(it.file_name||'')+')\' style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">'+(prev?'👁 View':'🔗 Open')+'</button>'
-        + '<a href="'+prismEscAttr(it.file_path)+'" download="'+prismEscAttr(it.file_name||'file')+'" style="'+btnStyle+'background:#faf9ff;color:#6d28d9;">⬇ Save</a>';
+      action += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(it.file_path)+','+JSON.stringify(it.mime_type||'')+','+JSON.stringify(it.file_name||'')+')\' style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">'+(prev?' View':' Open')+'</button>'
+        + '<a href="'+prismEscAttr(it.file_path)+'" download="'+prismEscAttr(it.file_name||'file')+'" style="'+btnStyle+'background:#faf9ff;color:#6d28d9;"> Save</a>';
     } else if (it.file_data) {
       var p2 = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
-      action += '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+it.id+'\')" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">'+(p2?'👁 View':'🔗 Open')+'</button>'
-        + '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+it.id+'\')" style="'+btnStyle+'background:#faf9ff;color:#6d28d9;">⬇ Save</button>';
+      action += '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+it.id+'\')" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">'+(p2?' View':' Open')+'</button>'
+        + '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+it.id+'\')" style="'+btnStyle+'background:#faf9ff;color:#6d28d9;"> Save</button>';
     }
     var href = typeof prismMaterialHttpUrl === 'function' ? prismMaterialHttpUrl(it) : '';
     if (href) {
-      action += '<a href="'+prismEscAttr(href)+'" target="_blank" rel="noopener" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">🔗 Open link</a>';
+      action += '<a href="'+prismEscAttr(href)+'" target="_blank" rel="noopener" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;"> Open link</a>';
     }
     var iconHtml;
     if ((kind === 'image' || studentIsImageMime(it.mime_type, it.file_name)) && it.file_path) {
@@ -1067,12 +1099,12 @@ async function renderAnnouncements() {
   }
   try { localStorage.setItem('prism_admin_announcements', JSON.stringify(anns)); } catch (e) {}
   var typeCls = { portal:'background:#fef3c7;color:#92400e;', alert:'background:#fee2e2;color:#991b1b;', info:'background:#dbeafe;color:#1d4ed8;' };
-  var typeIco = { portal:'📢', alert:'🚨', info:'ℹ️' };
+  var typeIco = { portal:'General', alert:'Alert', info:'Info' };
   feed.innerHTML = anns.slice(0, 5).map(function(a) {
     var rawDate = a.created_at || a.date;
     var dl = rawDate ? new Date(rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     var t = a.type || 'portal';
-    var pill = '<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:.4rem;' + (typeCls[t] || typeCls.portal) + '">' + (typeIco[t] || '📢') + '</span>';
+    var pill = '<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:.4rem;' + (typeCls[t] || typeCls.portal) + '">' + (typeIco[t] || '') + '</span>';
     var text = String(a.text == null ? '' : a.text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     return '<div style="display:flex;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
       + '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">' + String(a.author || 'A').charAt(0) + '</div>'
@@ -1090,14 +1122,14 @@ function renderActivity() {
   }));
   var feed     = document.getElementById('activity-feed');
   if (!posts.length) { feed.innerHTML = '<div class="empty-state">No activity from your classes yet.</div>'; return; }
-  var cfg = { announcement:{bg:'#ede9fe',icon:'📢'}, material:{bg:'#d1fae5',icon:'📚'}, assignment:{bg:'#fce7f3',icon:'📝'}, quiz:{bg:'#dbeafe',icon:'🧪'} };
+  var cfg = { announcement:{bg:'#ede9fe',icon:'AN'}, material:{bg:'#d1fae5',icon:'MT'}, assignment:{bg:'#fce7f3',icon:'AS'}, quiz:{bg:'#dbeafe',icon:'QZ'} };
   feed.innerHTML = posts.slice(0,8).map(function(p) {
-    var c    = cfg[p.type] || {bg:'#f5f3ff',icon:'📌'};
+    var c    = cfg[p.type] || {bg:'#f5f3ff',icon:''};
     var dl   = new Date(p.date || p.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'});
     var pk = String(p.classId != null ? p.classId : (p.class_id != null ? p.class_id : ''));
     var subj = joined[pk] ? joined[pk].subject : '';
     return '<div style="display:flex;align-items:flex-start;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
-      + '<div style="width:34px;height:34px;border-radius:9px;background:'+c.bg+';display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">'+c.icon+'</div>'
+      + '<div style="width:34px;height:34px;border-radius:8px;background:'+c.bg+';display:flex;align-items:center;justify-content:center;font-size:.62rem;font-weight:800;letter-spacing:.04em;color:#4c1d95;flex-shrink:0;">'+c.icon+'</div>'
       + '<div style="flex:1;min-width:0;"><div style="font-size:.88rem;font-weight:600;color:#16132b;line-height:1.4;">'+(p.body.length>65?p.body.slice(0,65)+'…':p.body)+'</div>'
       + '<div style="font-size:.75rem;color:#9ca3af;margin-top:.15rem;">'+(subj?subj+' · ':'')+dl+'</div></div></div>';
   }).join('');

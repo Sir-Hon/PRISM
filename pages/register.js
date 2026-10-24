@@ -2,7 +2,7 @@
 function togglePw(id, btn) {
     const el = document.getElementById(id);
     el.type = el.type === 'password' ? 'text' : 'password';
-    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+    btn.textContent = el.type === 'password' ? 'Show' : 'Hide';
   }
 
   function checkStrength() {

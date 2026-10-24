@@ -77,7 +77,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=8"></script>
+<script src="api.js?v=9"></script>
 <div class="page">
   <div class="page-header">
     <a class="logo" href="login.html"><div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div><span class="logo-text">PRISM</span></a>
@@ -86,7 +86,7 @@
   </div>
 
   <div class="reg-card" id="reg-card">
-    <div style="text-align:center"><span class="student-badge">🎓 Student Account</span></div>
+    <div style="text-align:center"><span class="student-badge"> Student Account</span></div>
     <div class="notice">
       <strong>Note:</strong> This page is for <strong>student accounts only</strong>.
       Teacher and admin accounts are created exclusively by the portal administrator.
@@ -106,7 +106,7 @@
         <label>Password</label>
         <div class="pw-wrap">
           <input type="password" id="f-pw" placeholder="Create a password" oninput="checkStrength()"/>
-          <button class="pw-toggle" type="button" onclick="togglePw('f-pw',this)">👁</button>
+          <button class="pw-toggle" type="button" onclick="togglePw('f-pw',this)">Show</button>
         </div>
         <div class="strength-wrap" id="strength-wrap">
           <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
@@ -117,7 +117,7 @@
         <label>Confirm Password</label>
         <div class="pw-wrap">
           <input type="password" id="f-pw2" placeholder="Re-enter your password" oninput="checkConfirm()"/>
-          <button class="pw-toggle" type="button" onclick="togglePw('f-pw2',this)">👁</button>
+          <button class="pw-toggle" type="button" onclick="togglePw('f-pw2',this)">Show</button>
         </div>
       </div>
     </div>
@@ -126,7 +126,7 @@
     <div class="msg" id="reg-msg"></div>
 
     <div class="success-screen" id="success-screen">
-      <div class="check-icon">✅</div>
+      <div class="check-icon"></div>
       <h3>Account Created!</h3>
       <p>Your student account has been registered.<br/>Your login ID is:</p>
       <div class="id-box" id="success-id"></div>
@@ -138,6 +138,6 @@
   <p class="login-link">Already have an account? <a href="login.html">Sign in here</a></p>
 </div>
 
-<script src="pages/register.js?v=7"></script>
+<script src="pages/register.js?v=10"></script>
 </body>
 </html>

@@ -322,15 +322,15 @@ function prismMaterialKind(mime, fileName, type) {
 
 function prismMaterialIcon(kind) {
   const icons = {
-    pdf: '📕',
-    image: '🖼',
-    'video-file': '🎬',
-    video: '▶️',
-    ppt: '📙',
-    link: '🔗',
-    file: '📄',
+    pdf: 'PDF',
+    image: 'IMG',
+    'video-file': 'VID',
+    video: 'VID',
+    ppt: 'PPT',
+    link: 'URL',
+    file: 'FILE',
   };
-  return icons[kind] || '📄';
+  return icons[kind] || 'FILE';
 }
 
 function prismMaterialKindLabel(kind) {

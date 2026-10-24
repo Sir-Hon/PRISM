@@ -118,7 +118,7 @@ let myId = '';
         <td><span class="role-tag ${String(u.role || '').toLowerCase()}">${u.role || '—'}</span></td>
         <td style="color:#9ca3af;">${u.section || '—'}</td>
         <td><span class="source-tag">database</span></td>
-        <td><button class="del-btn" ${!canDel ? 'disabled' : ''} onclick="deleteAccount('${escJs(u.id)}')">🗑 Delete</button></td>
+        <td><button class="del-btn" ${!canDel ? 'disabled' : ''} onclick="deleteAccount('${escJs(u.id)}')"> Delete</button></td>
       </tr>`;
     }).join('');
   }
@@ -184,7 +184,7 @@ let myId = '';
   function togglePw(id, btn) {
     const el = document.getElementById(id);
     el.type = el.type === 'password' ? 'text' : 'password';
-    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+    btn.textContent = el.type === 'password' ? 'Show' : 'Hide';
   }
 
   // ── PASSPHRASE (localStorage — local admin tool only) ──
@@ -193,9 +193,9 @@ let myId = '';
     const el = document.getElementById('current-pp-status');
     if (!el) return;
     if (pp) {
-      el.innerHTML = '<div style="background:#d1fae5;border:1.5px solid #6ee7b7;border-radius:10px;padding:.65rem 1rem;font-size:.85rem;color:#065f46;display:flex;align-items:center;gap:.6rem;"><span>✅</span><span><strong>Passphrase is set.</strong></span></div>';
+      el.innerHTML = '<div style="background:#d1fae5;border:1.5px solid #6ee7b7;border-radius:10px;padding:.65rem 1rem;font-size:.85rem;color:#065f46;display:flex;align-items:center;gap:.6rem;"><span></span><span><strong>Passphrase is set.</strong></span></div>';
     } else {
-      el.innerHTML = '<div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:.65rem 1rem;font-size:.85rem;color:#991b1b;display:flex;align-items:center;gap:.6rem;"><span>⚠️</span><span><strong>No passphrase set.</strong></span></div>';
+      el.innerHTML = '<div style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:10px;padding:.65rem 1rem;font-size:.85rem;color:#991b1b;display:flex;align-items:center;gap:.6rem;"><span></span><span><strong>No passphrase set.</strong></span></div>';
     }
     const urlEl = document.getElementById('admin-reg-url');
     if (urlEl) urlEl.textContent = location.origin + location.pathname.replace('manage.html','') + 'admin-register.html';

@@ -213,18 +213,18 @@ function renderHero(profile) {
   var standingEl = document.getElementById('display-standing');
   var roleForStanding = sessionStorage.getItem('prism_role') || 'student';
   if (roleForStanding === 'teacher') {
-    standingEl.textContent = '📚 Educator';
+    standingEl.textContent = 'Educator';
     standingEl.style.background = 'rgba(16,185,129,.25)';
     standingEl.style.color = '#6ee7b7';
   } else if (roleForStanding === 'admin') {
-    standingEl.textContent = '🛡️ Administrator';
+    standingEl.textContent = 'Administrator';
     standingEl.style.background = 'rgba(245,158,11,.25)';
     standingEl.style.color = '#fcd34d';
   } else {
     var overdueCount = ALL_CLASSWORK.filter(function(cc){ return cc.status === 'overdue'; }).length;
-    if (overdueCount === 0) { standingEl.textContent = '✅ Good Standing'; standingEl.style.background = 'rgba(16,185,129,.25)'; standingEl.style.color = '#6ee7b7'; }
-    else if (overdueCount <= 2) { standingEl.textContent = '⚠️ At Risk'; standingEl.style.background = 'rgba(245,158,11,.25)'; standingEl.style.color = '#fcd34d'; }
-    else { standingEl.textContent = '🚨 Needs Attention'; standingEl.style.background = 'rgba(239,68,68,.25)'; standingEl.style.color = '#fca5a5'; }
+    if (overdueCount === 0) { standingEl.textContent = 'Good Standing'; standingEl.style.background = 'rgba(16,185,129,.25)'; standingEl.style.color = '#6ee7b7'; }
+    else if (overdueCount <= 2) { standingEl.textContent = 'At Risk'; standingEl.style.background = 'rgba(245,158,11,.25)'; standingEl.style.color = '#fcd34d'; }
+    else { standingEl.textContent = 'Needs Attention'; standingEl.style.background = 'rgba(239,68,68,.25)'; standingEl.style.color = '#fca5a5'; }
   }
 
  // Hero stats
@@ -315,7 +315,7 @@ function renderQuizStatus() {
   if (!container) return;
 
   if (role !== 'student') {
-    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">🧪</div><div>Quiz status is shown for students.</div></div>';
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>Quiz status is shown for students.</div></div>';
     return;
   }
 
@@ -327,18 +327,18 @@ function renderQuizStatus() {
   var today    = new Date().toISOString().split('T')[0];
 
   if (!quizzes.length) {
-    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">🧪</div><div>No quizzes assigned yet.</div></div>';
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>No quizzes assigned yet.</div></div>';
     return;
   }
 
   container.innerHTML = quizzes.slice(0,8).map(function(q) {
     var isDone    = scores[q.id] !== undefined;
     var isOverdue = !isDone && q.due && q.due < today;
-    var badge  = isDone ? '✅ Done' : isOverdue ? '⚠ Overdue' : '⏳ Pending';
+    var badge  = isDone ? ' Done' : isOverdue ? ' Overdue' : ' Pending';
     var badgeBg= isDone ? '#d1fae5' : isOverdue ? '#fee2e2' : '#fef3c7';
     var badgeC = isDone ? '#065f46' : isOverdue ? '#991b1b' : '#92400e';
     return '<div style="display:flex;align-items:center;gap:.8rem;padding:.75rem 0;border-bottom:1px solid #f5f3ff;">'
-      + '<div style="width:34px;height:34px;border-radius:9px;background:'+badgeBg+';display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;">🧪</div>'
+      + '<div style="width:34px;height:34px;border-radius:9px;background:'+badgeBg+';display:flex;align-items:center;justify-content:center;font-size:.85rem;flex-shrink:0;"></div>'
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-weight:700;font-size:.88rem;color:#16132b;">'+q.title+'</div>'
       + '<div style="font-size:.74rem;color:#9ca3af;">'+(q.subjectName||'')+(q.due?' · Due '+q.due:'')+(isDone?' · Score: '+scores[q.id]+'/'+q.totalPoints:'')+'</div>'
@@ -356,26 +356,26 @@ function renderAssignments() {
   var container = document.getElementById('asgn-list');
   if (!container) return;
   if (role !== 'student') {
-    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">📋</div><div>Assignments are shown for students.</div></div>';
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>Assignments are shown for students.</div></div>';
     return;
   }
   ALL_CLASSWORK = getClasswork();
   var today    = new Date().toISOString().split('T')[0];
   var combined = ALL_CLASSWORK.filter(function(a){ return a.status==='overdue'||a.status==='pending'; }).slice(0,8);
   if (!combined.length) {
-    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">✅</div><div>No pending assignments.</div></div>';
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>No pending assignments.</div></div>';
     return;
   }
-  var icons = {assignment:'📝',project:'🎯',lab:'🔬',oral:'🎤'};
+  var icons = {assignment:'',project:'',lab:'',oral:''};
   container.innerHTML = combined.map(function(a) {
     var overdue = a.status === 'overdue';
     return '<div class="asgn-row" style="display:flex;align-items:center;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
-      + '<div style="width:36px;height:36px;border-radius:10px;background:'+(overdue?'#fee2e2':'#ede9fe')+';display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">'+(icons[a.type]||'📝')+'</div>'
+      + '<div style="width:36px;height:36px;border-radius:10px;background:'+(overdue?'#fee2e2':'#ede9fe')+';display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;">'+(icons[a.type]||'')+'</div>'
       + '<div style="flex:1;min-width:0;">'
       + '<div style="font-weight:700;font-size:.9rem;color:#16132b;">'+a.title+'</div>'
       + '<div style="font-size:.75rem;color:#9ca3af;">'+a.subject+'</div>'
       + '</div>'
-      + (a.due ? '<div style="font-size:.75rem;font-weight:700;white-space:nowrap;color:'+(overdue?'#ef4444':'#9ca3af')+'">'+(overdue?'⚠ Overdue':'Due '+a.due)+'</div>' : '')
+      + (a.due ? '<div style="font-size:.75rem;font-weight:700;white-space:nowrap;color:'+(overdue?'#ef4444':'#9ca3af')+'">'+(overdue?' Overdue':'Due '+a.due)+'</div>' : '')
       + '</div>';
   }).join('');
 }
@@ -388,7 +388,7 @@ function renderActivity(profile) {
   var container = document.getElementById('activity-list');
   if (!container) return;
   if (role !== 'student') {
-    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">📊</div><div>Activity is shown for students.</div></div>';
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>Activity is shown for students.</div></div>';
     return;
   }
   var uid      = sessionStorage.getItem('prism_user_id') || 'student';
@@ -404,25 +404,25 @@ function renderActivity(profile) {
   // Quiz completions
   Object.keys(scores).forEach(function(qid) {
     var q = JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]').find(function(x){ return x.id===qid; });
-    if (q) activities.push({ icon:'🧪', color:'#ede9fe', text:'Completed: '+q.title, sub:'Score: '+scores[qid]+'/'+q.totalPoints, ts: Date.now()-1000 });
+    if (q) activities.push({ icon:'', color:'#ede9fe', text:'Completed: '+q.title, sub:'Score: '+scores[qid]+'/'+q.totalPoints, ts: Date.now()-1000 });
   });
   // Recent posts from classes
   posts.slice(-5).forEach(function(p) {
     var subj = joined[p.classId] ? joined[p.classId].subject : '';
-    activities.push({ icon:'📢', color:'#dbeafe', text:p.body.slice(0,60)+(p.body.length>60?'…':''), sub:subj, ts: new Date(p.date).getTime() });
+    activities.push({ icon:'', color:'#dbeafe', text:p.body.slice(0,60)+(p.body.length>60?'…':''), sub:subj, ts: new Date(p.date).getTime() });
   });
   // Notes
   notes.slice(-3).forEach(function(n) {
-    activities.push({ icon:'📓', color:'#fef3c7', text:'Note: '+(n.title||'Untitled'), sub:(n.notes||[]).length+' notes', ts: Date.now()-2000 });
+    activities.push({ icon:'', color:'#fef3c7', text:'Note: '+(n.title||'Untitled'), sub:(n.notes||[]).length+' notes', ts: Date.now()-2000 });
   });
   activities.sort(function(a,b){ return b.ts-a.ts; });
   if (!activities.length) {
-    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon">📭</div><div>No recent activity yet.</div></div>';
+    container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>No recent activity yet.</div></div>';
     return;
   }
   container.innerHTML = activities.slice(0,8).map(function(a) {
     return '<div style="display:flex;align-items:flex-start;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
-      + '<div style="width:34px;height:34px;border-radius:9px;background:'+a.color+';display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;">'+a.icon+'</div>'
+      + '<div style="width:8px;height:8px;border-radius:50%;background:'+a.color+';flex-shrink:0;margin-top:.55rem;"></div>'
       + '<div style="flex:1;min-width:0;"><div style="font-size:.88rem;font-weight:600;color:#16132b;line-height:1.4;">'+a.text+'</div>'
       + '<div style="font-size:.75rem;color:#9ca3af;margin-top:.1rem;">'+a.sub+'</div></div></div>';
   }).join('');
@@ -447,10 +447,10 @@ function renderQuickStats() {
     var subjCount = (typeof window.__prismProfileTeacherSubjects === 'number')
       ? window.__prismProfileTeacherSubjects : classes.length;
     var stats = [
-      { icon:'📚', label:'Subjects', val: subjCount },
-      { icon:'👩‍🎓', label:'Students', val: myStudents },
-      { icon:'🧪', label:'Quizzes', val: allQuizzes.filter(function(q){ return q.teacherId===uid; }).length },
-      { icon:'📢', label:'Posts', val: allPosts.filter(function(p){ return p.teacherId===uid; }).length },
+      { icon:'', label:'Subjects', val: subjCount },
+      { icon:'', label:'Students', val: myStudents },
+      { icon:'', label:'Quizzes', val: allQuizzes.filter(function(q){ return q.teacherId===uid; }).length },
+      { icon:'', label:'Posts', val: allPosts.filter(function(p){ return p.teacherId===uid; }).length },
     ];
     renderStatCards(stats);
     return;
@@ -459,9 +459,9 @@ function renderQuickStats() {
   if (role === 'admin') {
     var allAccounts = JSON.parse(localStorage.getItem('prism_accounts') || '[]');
     var stats = [
-      { icon:'👨‍🏫', label:'Teachers', val: (typeof window.__prismProfileAdminT === 'number') ? window.__prismProfileAdminT : allAccounts.filter(function(a){ return a.role==='teacher'; }).length },
-      { icon:'🎓',  label:'Students', val: (typeof window.__prismProfileAdminS === 'number') ? window.__prismProfileAdminS : allAccounts.filter(function(a){ return a.role==='student'; }).length },
-      { icon:'🔑',  label:'Invite Codes', val: JSON.parse(localStorage.getItem('prism_invite_codes')||'[]').filter(function(c){ return !c.used; }).length },
+      { icon:'', label:'Teachers', val: (typeof window.__prismProfileAdminT === 'number') ? window.__prismProfileAdminT : allAccounts.filter(function(a){ return a.role==='teacher'; }).length },
+      { icon:'',  label:'Students', val: (typeof window.__prismProfileAdminS === 'number') ? window.__prismProfileAdminS : allAccounts.filter(function(a){ return a.role==='student'; }).length },
+      { icon:'',  label:'Invite Codes', val: JSON.parse(localStorage.getItem('prism_invite_codes')||'[]').filter(function(c){ return !c.used; }).length },
     ];
     renderStatCards(stats);
     return;
@@ -477,10 +477,10 @@ function renderQuickStats() {
   var pending = allQuizzes2.filter(function(q){ return scores[q.id]===undefined; }).length;
   var notes   = JSON.parse(localStorage.getItem('prism_notebooks') || '[]').length;
   var stats = [
-    { icon:'🧪', label:'Quizzes Done',    val: done },
-    { icon:'📋', label:'Pending Quizzes', val: pending },
-    { icon:'📚', label:'Classes Joined',  val: classIds.length },
-    { icon:'📓', label:'Notebooks',       val: notes },
+    { icon:'', label:'Quizzes Done',    val: done },
+    { icon:'', label:'Pending Quizzes', val: pending },
+    { icon:'', label:'Classes Joined',  val: classIds.length },
+    { icon:'', label:'Notebooks',       val: notes },
   ];
   renderStatCards(stats);
 }
@@ -491,7 +491,7 @@ function renderStatCards(stats) {
   el.innerHTML = stats.map(function(s) {
     return '<div class="stat-chip">'
       + '<div class="sc-val">'+s.val+'</div>'
-      + '<div class="sc-lbl">'+s.icon+' '+s.label+'</div>'
+      + '<div class="sc-lbl">'+s.label+'</div>'
       + '</div>';
   }).join('');
 }

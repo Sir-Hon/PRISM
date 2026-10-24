@@ -5,19 +5,19 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
 
   const ROLE_CONFIG = {
     student: {
-      label: '🎓 Student', accent: '#6366f1',
+      label: 'Student', accent: '#6366f1',
       badgeBg: 'rgba(99,102,241,.15)', badgeColor: '#a5b4fc',
       placeholder: 'e.g. 2024-10123',
       note: '<strong>Students only.</strong> Use your student ID number. If you don\'t have an account yet, register first.'
     },
     teacher: {
-      label: '📚 Teacher', accent: '#10b981',
+      label: 'Teacher', accent: '#10b981',
       badgeBg: 'rgba(16,185,129,.15)', badgeColor: '#6ee7b7',
       placeholder: 'e.g. 2024-00001',
       note: '<strong>Teachers only.</strong> Use your teacher ID. New teacher? <a href="teacher-register.html" style="color:#6ee7b7;">Register with your invite code.</a>'
     },
     admin: {
-      label: '🛡️ Admin', accent: '#f59e0b',
+      label: 'Admin', accent: '#f59e0b',
       badgeBg: 'rgba(245,158,11,.15)', badgeColor: '#fcd34d',
       placeholder: 'e.g. admin001',
       note: '<strong>Administrators only.</strong> Unauthorized access attempts are logged. Use your assigned admin credentials.'
@@ -35,7 +35,7 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     badge.textContent = cfg.label;
     badge.style.background = cfg.badgeBg;
     badge.style.color = cfg.badgeColor;
-    document.getElementById('modal-title').textContent = cfg.label.replace(/^\S+\s/, '') + ' Login';
+    document.getElementById('modal-title').textContent = cfg.label + ' Login';
     document.getElementById('modal-sub').textContent   = `Enter your ${role} credentials to continue`;
     document.getElementById('access-note').innerHTML   = cfg.note;
     document.getElementById('modal-box').style.setProperty('--modal-accent', cfg.accent);
@@ -70,7 +70,7 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     const el = document.getElementById('input-pw');
     const btn = document.querySelector('.pw-toggle');
     el.type = el.type === 'password' ? 'text' : 'password';
-    btn.textContent = el.type === 'password' ? '👁' : '🙈';
+    btn.textContent = el.type === 'password' ? 'Show' : 'Hide';
   }
 
   function showError(msg) { document.getElementById('login-error').textContent = msg; }
