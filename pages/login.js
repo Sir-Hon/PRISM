@@ -78,7 +78,7 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
   function friendlyLoginErr(e) {
     const m = (e && e.message) ? String(e.message) : 'Something went wrong.';
     if (m.includes('<!DOCTYPE') || m.includes('<html') || m.length > 160) {
-      return 'Could not reach the login service. Open Prism from the same folder as usual (e.g. http://localhost/prism/login.html).';
+      return 'Could not reach the login service. Wait a few seconds and refresh the page — the live site may still be starting.';
     }
     return m;
   }

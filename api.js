@@ -82,7 +82,7 @@ function prismCsrfHeaders() {
 function prismFriendlyApiParseError(text) {
   const t = (text || '').trim();
   if (t.startsWith('<') || t.includes('<!DOCTYPE')) {
-    return 'Server returned a web page instead of JSON — check the app URL matches your Prism folder (e.g. http://localhost/prism/).';
+    return 'Server returned a web page instead of data. Wait a few seconds and refresh — the live site may still be starting.';
   }
   return t ? t.slice(0, 200) : 'Invalid response from server';
 }

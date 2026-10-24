@@ -26,7 +26,7 @@ async function refreshAdminUsers() {
     console.error('refreshAdminUsers:', e);
     if (alertEl) {
       alertEl.style.display = 'block';
-      alertEl.textContent = adminUsersError + ' Check that Apache/MySQL are running and the app URL matches api.js (e.g. http://localhost/prism/).';
+      alertEl.textContent = adminUsersError + ' If this is the live site, wait a few seconds and refresh — the server may still be starting.';
     }
   }
 }
