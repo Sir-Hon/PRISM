@@ -7,9 +7,11 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
   let autosaveTimer = null;
 
   const colorPicker = document.getElementById('nb-color-picker');
-  NB_COLORS.forEach(c => {
-    const chip = document.createElement('div'); chip.className='nb-color-chip'; chip.style.background=c; chip.dataset.color=c; chip.onclick=()=>selNbClr(c); colorPicker.appendChild(chip);
-  });
+  if (colorPicker) {
+    NB_COLORS.forEach(c => {
+      const chip = document.createElement('div'); chip.className='nb-color-chip'; chip.style.background=c; chip.dataset.color=c; chip.onclick=()=>selNbClr(c); colorPicker.appendChild(chip);
+    });
+  }
 
   function nbInitial(name) { return String(name || 'N').charAt(0).toUpperCase(); }
   function selNbClr(c) { selNbColor=c; document.querySelectorAll('.nb-color-chip').forEach(ch=>ch.classList.toggle('selected',ch.dataset.color===c)); }
@@ -22,20 +24,24 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
   }
 
   function renderNotebooks() {
-    const grid = document.getElementById('notebooks-grid'); grid.innerHTML='';
+    const grid = document.getElementById('notebooks-grid');
+    if (!grid) return;
+    grid.innerHTML='';
     if (!notebooks.length) { grid.innerHTML='<p style="color:#9ca3af;grid-column:1/-1;font-size:1rem;">No notebooks yet. Create your first one!</p>'; return; }
     notebooks.forEach(nb => {
       const cnt = (nb.notes||[]).length;
       const card = document.createElement('div');
       card.className='notebook-card'+(nb.id===activeNbId?' active-nb':'');
       card.style.background=`linear-gradient(135deg,${nb.color},${darken(nb.color)})`;
-      card.innerHTML=`<div><div class="nb-icon">${nbInitial(nb.name)}</div><div class="nb-title">${nb.name}</div><div class="nb-count">${cnt} note${cnt!==1?'s':''}</div></div>`
-        <button class="nb-menu-btn" onclick="toggleNbMenu(event,'${nb.id}')">⋯</button>
-        <div class="nb-context-menu" id="nbmenu-${nb.id}">
-          <div class="nb-ctx-item" onclick="openEditor('${nb.id}')"> Open</div>
-          <div class="nb-ctx-item" onclick="openRenameNb('${nb.id}')"> Rename</div>
-          <div class="nb-ctx-item danger" onclick="deleteNotebook('${nb.id}')"> Delete</div>
-        </div>`;
+      card.innerHTML = '<div><div class="nb-icon">' + nbInitial(nb.name) + '</div>'
+        + '<div class="nb-title">' + String(nb.name || '').replace(/</g,'&lt;') + '</div>'
+        + '<div class="nb-count">' + cnt + ' note' + (cnt !== 1 ? 's' : '') + '</div></div>'
+        + '<button type="button" class="nb-menu-btn" onclick="toggleNbMenu(event,\'' + nb.id + '\')">⋯</button>'
+        + '<div class="nb-context-menu" id="nbmenu-' + nb.id + '">'
+        + '<div class="nb-ctx-item" onclick="openEditor(\'' + nb.id + '\')">Open</div>'
+        + '<div class="nb-ctx-item" onclick="openRenameNb(\'' + nb.id + '\')">Rename</div>'
+        + '<div class="nb-ctx-item danger" onclick="deleteNotebook(\'' + nb.id + '\')">Delete</div>'
+        + '</div>';
       card.addEventListener('click',e=>{ if(e.target.closest('.nb-menu-btn')||e.target.closest('.nb-context-menu'))return; openEditor(nb.id); });
       grid.appendChild(card);
     });
@@ -74,9 +80,15 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
   function execFmtArg(cmd,val){document.execCommand(cmd,false,val);document.getElementById('note-body').focus();autosave();}
   function fmtDate(ts){if(!ts)return'';return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});}
 
-  document.getElementById('nb-overlay').addEventListener('click',function(e){if(e.target===this)closeNbModal();});
-  renderNotebooks();
+  var nbOverlay = document.getElementById('nb-overlay');
+  if (nbOverlay) nbOverlay.addEventListener('click', function(e){ if (e.target === this) closeNbModal(); });
 
-window.addEventListener('DOMContentLoaded', function() {
+  function bootNotesPage() {
     if (typeof initSidebar === 'function') initSidebar('notes');
-  });
+    renderNotebooks();
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootNotesPage);
+  } else {
+    bootNotesPage();
+  }

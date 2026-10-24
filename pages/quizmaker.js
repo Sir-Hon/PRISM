@@ -161,7 +161,7 @@ function renderQMQuestions(){
       </select>
       <input class="q-pts" type="number" min="1" value="${q.points}" onchange="updateQ('${q.id}','points',this.value)" title="Points"/>
       <span style="font-size:.72rem;color:#9ca3af;">pts</span>
-      <button class="q-del" onclick="removeQuestion('${q.id}')"></button></div>
+      <button class="q-del" onclick="removeQuestion('${q.id}')" title="Remove question" aria-label="Remove question">&times;</button></div>
       <input class="q-text" placeholder="Type your question…" value="${esc(q.question)}" oninput="updateQ('${q.id}','question',this.value)"/>
       <div id="qo-${q.id}">${renderOpts(q)}</div>`;
     list.appendChild(card);
@@ -172,7 +172,7 @@ function renderOpts(q){
     <div class="mc-opt-row">
       <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
       <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
-      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})"></button>`:''}
+      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})" title="Remove option" aria-label="Remove option">&times;</button>`:''}
     </div>`).join('')}
     ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
   </div>`;

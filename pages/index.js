@@ -18,6 +18,22 @@ function getPosts()           { return JSON.parse(localStorage.getItem('prism_te
 function getTeacherQuizzes()  { return JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]'); }
 function getMaterials()       { return JSON.parse(localStorage.getItem('prism_teacher_materials')||'{}'); }
 function getAssignments()     { return JSON.parse(localStorage.getItem('prism_teacher_assignments')||'{}'); }
+function listForClass(map, classId) {
+  if (!map) return [];
+  var cid = String(classId);
+  if (Array.isArray(map[cid])) return map[cid];
+  if (Array.isArray(map[classId])) return map[classId];
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    if (String(keys[i]) === cid) return map[keys[i]] || [];
+  }
+  return [];
+}
+function studentFileUrl(path) {
+  if (!path) return '';
+  if (typeof prismResolveUploadUrl === 'function') return prismResolveUploadUrl(path);
+  return studentAbsUploadUrl(path);
+}
 function getScores()          { return JSON.parse(localStorage.getItem('prism_quiz_scores_'+STUDENT_ID)||'{}'); }
 function saveScores(v)        { localStorage.setItem('prism_quiz_scores_'+STUDENT_ID, JSON.stringify(v)); }
 
@@ -161,61 +177,77 @@ async function syncStudentClassContent(classId, opts) {
   var cid = String(classId);
   var skipSubs = opts && opts.skipSubs;
   try {
-    var posts, mats, asgns, quzRes;
-    try {
-      var res = await Promise.all([
-        fetch(API_BASE + '/content.php?action=get_posts&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { posts: [] }; }),
-        fetch(API_BASE + '/content.php?action=get_materials&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { materials: [] }; }),
-        fetch(API_BASE + '/content.php?action=get_assignments&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { assignments: [] }; }),
-        fetch(API_BASE + '/quizzes.php?action=get&class_id=' + encodeURIComponent(cid), { credentials: 'include' }).then(function(r) { return r.json(); }).catch(function() { return { quizzes: [] }; }),
-      ]);
-      posts = res[0]; mats = res[1]; asgns = res[2]; quzRes = res[3];
-    } catch (e) { return; }
-    var allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]').filter(function(p) { return String(p.classId || p.class_id) !== cid; });
-    (posts.posts || []).forEach(function(p) {
-      p.classId = p.class_id || p.classId;
-      p.quizId = p.quiz_id || p.quizId;
-      p.date = p.created_at || p.date || new Date().toISOString();
-      allPosts.push(p);
-    });
-    localStorage.setItem('prism_teacher_posts', JSON.stringify(allPosts));
-    var allQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]').filter(function(q) { return String(q.classId || q.class_id) !== cid; });
-    (quzRes.quizzes || []).forEach(function(q) {
-      var qs = q.questions;
-      if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
-      allQz.push({
-        id: q.id,
-        classId: q.class_id || cid,
-        teacherId: q.teacher_id,
-        title: q.title,
-        type: q.type || 'quiz',
-        published: !!+q.published,
-        due: q.due_date || q.due || '',
-        due_time: q.due_time || '',
-        time: parseInt(q.time_limit, 10) || 0,
-        attempts: parseInt(q.attempts, 10) || 1,
-        totalPoints: parseInt(q.total_points, 10) || 0,
-        questions: qs || [],
+    var postsList = null, matsList = null, asgnList = null, qzList = null;
+    var packed = await Promise.allSettled([
+      (typeof PrismPosts !== 'undefined' && PrismPosts.get) ? PrismPosts.get(cid) : Promise.reject(new Error('no posts api')),
+      (typeof PrismMaterials !== 'undefined' && PrismMaterials.get) ? PrismMaterials.get(cid) : Promise.reject(new Error('no materials api')),
+      (typeof PrismAssignments !== 'undefined' && PrismAssignments.get) ? PrismAssignments.get(cid) : Promise.reject(new Error('no assignments api')),
+      (typeof apiGet === 'function') ? apiGet('quizzes', 'get', { class_id: cid }) : Promise.reject(new Error('no quizzes api')),
+    ]);
+    if (packed[0].status === 'fulfilled') postsList = packed[0].value || [];
+    else console.warn('sync posts:', packed[0].reason);
+    if (packed[1].status === 'fulfilled') matsList = packed[1].value || [];
+    else console.warn('sync materials:', packed[1].reason);
+    if (packed[2].status === 'fulfilled') asgnList = packed[2].value || [];
+    else console.warn('sync assignments:', packed[2].reason);
+    if (packed[3].status === 'fulfilled') {
+      var qzRes = packed[3].value || {};
+      qzList = qzRes.quizzes || [];
+    } else console.warn('sync quizzes:', packed[3].reason);
+
+    if (postsList) {
+      var allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]').filter(function(p) { return String(p.classId || p.class_id) !== cid; });
+      postsList.forEach(function(p) {
+        p.classId = p.class_id || p.classId;
+        p.quizId = p.quiz_id || p.quizId;
+        p.date = p.created_at || p.date || new Date().toISOString();
+        allPosts.push(p);
       });
-    });
-    localStorage.setItem('prism_teacher_quizzes', JSON.stringify(allQz));
-    var allMats = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
-    allMats[cid] = (mats.materials || []).map(function(m) { return Object.assign({}, m, { desc: m.description || m.desc || '' }); });
-    localStorage.setItem('prism_teacher_materials', JSON.stringify(allMats));
-    var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
-    allAsgns[cid] = (asgns.assignments || []).map(function(a) {
-      return normalizeAssignmentForUI(Object.assign({}, a, {
-        due: a.due_date || a.due || '',
-        due_time: '',
-        pts: a.points || a.pts || 0,
-      }));
-    });
-    localStorage.setItem('prism_teacher_assignments', JSON.stringify(allAsgns));
+      localStorage.setItem('prism_teacher_posts', JSON.stringify(allPosts));
+    }
+    if (qzList) {
+      var allQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]').filter(function(q) { return String(q.classId || q.class_id) !== cid; });
+      qzList.forEach(function(q) {
+        var qs = q.questions;
+        if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
+        allQz.push({
+          id: q.id,
+          classId: q.class_id || cid,
+          teacherId: q.teacher_id,
+          title: q.title,
+          type: q.type || 'quiz',
+          published: !!+q.published,
+          due: q.due_date || q.due || '',
+          due_time: q.due_time || '',
+          time: parseInt(q.time_limit, 10) || 0,
+          attempts: parseInt(q.attempts, 10) || 1,
+          totalPoints: parseInt(q.total_points, 10) || 0,
+          questions: qs || [],
+        });
+      });
+      localStorage.setItem('prism_teacher_quizzes', JSON.stringify(allQz));
+    }
+    if (matsList) {
+      var allMats = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
+      allMats[cid] = matsList.map(function(m) { return Object.assign({}, m, { desc: m.description || m.desc || '' }); });
+      localStorage.setItem('prism_teacher_materials', JSON.stringify(allMats));
+    }
+    if (asgnList) {
+      var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+      allAsgns[cid] = asgnList.map(function(a) {
+        return normalizeAssignmentForUI(Object.assign({}, a, {
+          due: a.due_date || a.due || '',
+          due_time: '',
+          pts: a.points || a.pts || 0,
+        }));
+      });
+      localStorage.setItem('prism_teacher_assignments', JSON.stringify(allAsgns));
+    }
     if (!skipSubs) {
       try {
         var mineSubs = await PrismSubmissions.getMineForClass(cid);
         localStorage.setItem('prism_asgn_mine_' + STUDENT_ID + '_' + cid, JSON.stringify(mineSubs));
-      } catch (eSub) { /* ignore */ }
+      } catch (eSub) { /* keep previous submissions cache */ }
     }
   } catch (e) { console.warn('syncStudentClassContent:', e); }
 }
@@ -426,7 +458,7 @@ function buildPanel(tab, classId) {
 /** Link stream post text/attachment fields to a material record (title match, then url/file_path). */
 function resolveStudentStreamMaterial(classId, p) {
   if (p.type !== 'material') return null;
-  var items = getMaterials()[classId] || [];
+  var items = listForClass(getMaterials(), classId);
   var tm = p.body && p.body.match(/New material: "([^"]+)"/);
   if (tm) {
     var found = items.find(function(it) { return it.title === tm[1]; });
@@ -445,35 +477,34 @@ function streamMaterialActionsStudent(classId, p) {
   var att = (p.attachment || '').trim();
   var btn = 'display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .95rem;border-radius:10px;font-size:.82rem;font-weight:700;text-decoration:none;';
   var row = 'margin-top:.8rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;';
+  var bits = '';
   if (mat && mat.file_path) {
     var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
-    var view = '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(prev?' View':' Open')+'</button>';
-    var save = '<a href="'+mat.file_path+'" download="'+prismEscAttr(mat.file_name||'file')+'" style="'+btn+'background:#ede9fe;color:#5b21b6;"> Save</a>';
-    return '<div style="'+row+'">'+view+save+'</div>';
+    var absP = studentFileUrl(mat.file_path);
+    bits += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(prev?' View':' Open')+'</button>';
+    bits += '<a href="'+prismEscAttr(absP)+'" download="'+prismEscAttr(mat.file_name||'file')+'" style="'+btn+'background:#ede9fe;color:#5b21b6;"> Save</a>';
   }
-  if (mat && mat.file_data) {
+  if (mat && mat.file_data && !mat.file_path) {
     var p2 = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
-    var viewB = '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(p2?' View':' Open')+'</button>';
-    var dl = '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:#ede9fe;color:#5b21b6;border:none;cursor:pointer;"> Save</button>';
-    return '<div style="'+row+'">'+viewB+dl+'</div>';
+    bits += '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(p2?' View':' Open')+'</button>';
+    bits += '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:#ede9fe;color:#5b21b6;border:none;cursor:pointer;"> Save</button>';
   }
+  var hrefM = '';
   if (mat && mat.url) {
-    var hrefM = typeof prismNormalizeHttpUrl === 'function' ? (prismNormalizeHttpUrl(mat.url) || mat.url) : mat.url;
-    if (hrefM.indexOf('http') === 0 || hrefM.charAt(0) === '/') {
-      return '<div style="'+row+'"><a href="'+prismEscAttr(hrefM)+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;"> Open in new tab</a></div>';
-    }
+    hrefM = typeof prismNormalizeHttpUrl === 'function' ? (prismNormalizeHttpUrl(mat.url) || mat.url) : mat.url;
+  } else if (att.indexOf('http') === 0) {
+    hrefM = att;
   }
-  if (att.indexOf('http') === 0 || att.charAt(0) === '/') {
-    if (att.charAt(0) === '/') {
-      return '<div style="'+row+'"><button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(att)+',"","")\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;"> Open</button></div>';
-    }
-    return '<div style="'+row+'"><a href="'+att+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;"> Open</a></div>';
+  if (hrefM && (hrefM.indexOf('http') === 0 || hrefM.indexOf('www.') === 0)) {
+    bits += '<a href="'+prismEscAttr(hrefM)+'" target="_blank" rel="noopener" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;"> Open link</a>';
+  } else if (!bits && att.charAt(0) === '/') {
+    bits += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(att)+',"","")\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;"> Open</button>';
   }
-  return '';
+  return bits ? '<div style="'+row+'">'+bits+'</div>' : '';
 }
 
 function downloadStudentMaterial(classId, id) {
-  var items = getMaterials()[classId] || [];
+  var items = listForClass(getMaterials(), classId);
   var it = items.find(function(x) { return x.id === id; });
   if (!it || !it.file_data) return;
   var a = document.createElement('a');
@@ -484,7 +515,7 @@ function downloadStudentMaterial(classId, id) {
   document.body.removeChild(a);
 }
 function previewStudentMaterialBlob(classId, id) {
-  var items = getMaterials()[classId] || [];
+  var items = listForClass(getMaterials(), classId);
   var it = items.find(function(x) { return x.id === id; });
   if (!it || !it.file_data) return;
   var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
@@ -740,7 +771,7 @@ function buildStreamPanel(classId) {
   var posts = postsNewestFirstStudent(getPosts().filter(function(p){ return postBelongsToStudentClass(p, classId); }));
   if (!posts.length) return '<div class="empty-state">No posts in this class yet.</div>';
   var scores = getScores();
-  var allQuizzes = getTeacherQuizzes().filter(function(q){ return q.classId===classId && q.published; });
+  var allQuizzes = getTeacherQuizzes().filter(function(q){ return String(q.classId || q.class_id) === String(classId) && q.published; });
   return posts.map(function(p) {
     var dl = new Date(p.date || p.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
     // For quiz-type posts, find matching quiz and render a Take Quiz button
@@ -748,7 +779,7 @@ function buildStreamPanel(classId) {
     if (p.type === 'quiz') {
       var matchedQuiz = null;
       if (p.quizId) {
-        matchedQuiz = allQuizzes.find(function(q){ return q.id === p.quizId; });
+        matchedQuiz = allQuizzes.find(function(q){ return String(q.id) === String(p.quizId); });
       }
       // Fallback: match by title extracted from post body for old posts
       if (!matchedQuiz) {
@@ -758,28 +789,40 @@ function buildStreamPanel(classId) {
         }
       }
       if (matchedQuiz) {
-        var done    = scores[matchedQuiz.id] !== undefined;
+        var done    = scores[matchedQuiz.id] !== undefined || scores[String(matchedQuiz.id)] !== undefined;
         var qDue    = matchedQuiz.due || matchedQuiz.due_date || '';
         var overdue = qDue && typeof prismIsPastDue === 'function' && prismIsPastDue(qDue, matchedQuiz.due_time) && !done;
+        var scoreVal = scores[matchedQuiz.id] !== undefined ? scores[matchedQuiz.id] : scores[String(matchedQuiz.id)];
         if (done) {
-          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn done" disabled>Completed  · Score: '+scores[matchedQuiz.id]+'/'+matchedQuiz.totalPoints+'</button></div>';
+          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn done" disabled>Completed  · Score: '+scoreVal+'/'+matchedQuiz.totalPoints+'</button></div>';
         } else if (overdue) {
           quizActionHtml = '<div style="margin-top:.8rem;"><button type="button" class="take-btn" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;" onclick="alert(\'This quiz is past its due date. Please contact your teacher if you need an extension.\')">Past deadline — tap for info</button></div>';
         } else {
-          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn" onclick="window.location.href=\'quizzes.html\'"> Take Quiz →</button></div>';
+          quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn" onclick="window.location.href=\'quizzes.html?quiz='+encodeURIComponent(matchedQuiz.id)+'\'"> Take Quiz →</button></div>';
         }
       }
     }
     var materialActionHtml = streamMaterialActionsStudent(classId, p);
+    var attachHtml = '';
+    if (p.type === 'assignment' && p.attachment) {
+      var attS = String(p.attachment).trim();
+      var btnA = 'display:inline-flex;align-items:center;gap:.35rem;padding:.45rem .95rem;border-radius:10px;font-size:.82rem;font-weight:700;text-decoration:none;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;';
+      if (/^https?:\/\//i.test(attS) || /^www\./i.test(attS)) {
+        var hrefA = typeof prismNormalizeHttpUrl === 'function' ? (prismNormalizeHttpUrl(attS) || attS) : attS;
+        attachHtml = '<div style="margin-top:.8rem;"><a href="'+prismEscAttr(hrefA)+'" target="_blank" rel="noopener" style="'+btnA+'">Open link</a></div>';
+      } else if (attS.charAt(0) === '/' || attS.indexOf('uploads/') === 0) {
+        attachHtml = '<div style="margin-top:.8rem;"><button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(attS)+',"","")\' style="'+btnA+'">Open file</button></div>';
+      }
+    }
     return '<div class="stream-post">'
       + '<div class="post-header">'
       + '<div class="post-avatar">'+(p.author||'T').charAt(0)+'</div>'
       + '<div class="post-meta"><div class="post-author">'+(p.author||'Teacher')+'</div><div class="post-date">'+dl+'</div></div>'
       + '<span class="post-badge '+p.type+'">'+p.type+'</span>'
       + '</div>'
-      + '<div class="post-body">'+p.body+'</div>'
-      + (p.attachment && p.type !== 'announcement' ? '<div class="post-attach"> '+p.attachment+'</div>' : '')
+      + '<div class="post-body">'+(typeof prismLinkifyHtml==='function'?prismLinkifyHtml(p.body||''):prismEscHtml(p.body||''))+'</div>'
       + materialActionHtml
+      + attachHtml
       + quizActionHtml
       + '</div>';
   }).join('');
@@ -798,7 +841,7 @@ function closeStudentAssignmentModal() {
 /** Assignment modal: refresh row from API (instructions/attachments), merge into LS, then build modal DOM. */
 async function openStudentAssignmentModal(classId, asgnId) {
   var aid = String(asgnId);
-  var items = (getAssignments()[classId] || []);
+  var items = listForClass(getAssignments(), classId);
   var a = items.find(function(x) { return String(x.id) === aid; });
   if (!a) return;
   try {
@@ -842,12 +885,13 @@ async function openStudentAssignmentModal(classId, asgnId) {
       + studentSubmissionFilesHtml(sub)
       + '</div>';
   }
-  var inst = prismEscHtml(a.instructions || '');
+  var instRaw = a.instructions || '';
   var instructionsBlock = '';
-  if (inst) {
+  if (String(instRaw).trim()) {
+    var instHtml = typeof prismLinkifyHtml === 'function' ? prismLinkifyHtml(instRaw) : prismEscHtml(instRaw);
     instructionsBlock = '<div style="margin-top:.65rem;">'
       + '<div style="font-size:.72rem;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.35rem;">Instructions</div>'
-      + '<div style="font-size:.88rem;color:#374151;line-height:1.55;white-space:pre-wrap;">' + inst + '</div></div>';
+      + '<div style="font-size:.88rem;color:#374151;line-height:1.55;white-space:pre-wrap;">' + instHtml + '</div></div>';
   }
   var title = prismEscHtml(a.title || '');
   var icons = { written: 'WR', project: 'PR', lab: 'LB', oral: 'OR' };
@@ -947,7 +991,7 @@ async function openStudentAssignmentModal(classId, asgnId) {
 }
 
 function buildAsgnPanel(classId) {
-  var raw = (getAssignments()[classId] || []);
+  var raw = listForClass(getAssignments(), classId);
   if (!raw.length) return '<div class="empty-state">No assignments yet.</div>';
   var items = raw.map(function(x) { return normalizeAssignmentForUI(x); }).sort(function(a, b) {
     var ta = (a.title || '').toLowerCase();
@@ -968,6 +1012,8 @@ function buildAsgnPanel(classId) {
     var metaParts = [];
     if (a.pts) metaParts.push(a.pts + ' pts');
     metaParts.push(a.due ? 'Due ' + dueLine : 'No due date');
+    if (a.attach_file_path) metaParts.push('Teacher file');
+    else if (a.attach_url) metaParts.push('Link attached');
     if (overdue) metaParts.push('Past due');
     else if (hasSub) metaParts.push('Turned in');
     var meta = metaParts.join(' · ');
@@ -1004,7 +1050,7 @@ function buildAsgnPanel(classId) {
 }
 
 function buildMaterialsPanel(classId) {
-  var items = (getMaterials()[classId]||[]);
+  var items = listForClass(getMaterials(), classId);
   if (!items.length) return '<div class="empty-state">No materials uploaded yet.</div>';
   var bgs = { file:'#dbeafe', pdf:'#fee2e2', image:'#dbeafe', link:'#fce7f3', video:'#fee2e2', 'video-file':'#ffedd5', ppt:'#ffedd5' };
   var btnStyle = 'padding:.38rem .85rem;border:1.5px solid #e4dffa;border-radius:9px;font-size:.78rem;font-weight:700;text-decoration:none;white-space:nowrap;cursor:pointer;';
@@ -1014,11 +1060,12 @@ function buildMaterialsPanel(classId) {
     var kindLabel = typeof prismMaterialKindLabel === 'function' ? prismMaterialKindLabel(kind) : (it.type || 'File');
     var metaBits = [kindLabel];
     if (it.file_name) metaBits.push(it.file_name);
+    var fileSrc = it.file_path ? studentFileUrl(it.file_path) : '';
     var action = '';
     if (it.file_path) {
       var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
       action += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(it.file_path)+','+JSON.stringify(it.mime_type||'')+','+JSON.stringify(it.file_name||'')+')\' style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">'+(prev?' View':' Open')+'</button>'
-        + '<a href="'+prismEscAttr(it.file_path)+'" download="'+prismEscAttr(it.file_name||'file')+'" style="'+btnStyle+'background:#faf9ff;color:#6d28d9;"> Save</a>';
+        + '<a href="'+prismEscAttr(fileSrc)+'" download="'+prismEscAttr(it.file_name||'file')+'" style="'+btnStyle+'background:#faf9ff;color:#6d28d9;"> Save</a>';
     } else if (it.file_data) {
       var p2 = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
       action += '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+it.id+'\')" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;">'+(p2?' View':' Open')+'</button>'
@@ -1029,8 +1076,8 @@ function buildMaterialsPanel(classId) {
       action += '<a href="'+prismEscAttr(href)+'" target="_blank" rel="noopener" style="'+btnStyle+'background:#7c3aed;color:#fff;border-color:#7c3aed;"> Open link</a>';
     }
     var iconHtml;
-    if ((kind === 'image' || studentIsImageMime(it.mime_type, it.file_name)) && it.file_path) {
-      iconHtml = '<div class="mat-icon-box" style="background:#dbeafe;padding:0;"><img src="'+prismEscAttr(it.file_path)+'" alt=""/></div>';
+    if ((kind === 'image' || studentIsImageMime(it.mime_type, it.file_name)) && fileSrc) {
+      iconHtml = '<div class="mat-icon-box" style="background:#dbeafe;padding:0;"><img src="'+prismEscAttr(fileSrc)+'" alt=""/></div>';
     } else {
       iconHtml = '<div class="mat-icon-box" style="background:'+(bgs[kind]||bgs[it.type]||'#f5f3ff')+'">'+icon+'</div>';
     }
@@ -1041,10 +1088,10 @@ function buildMaterialsPanel(classId) {
       if (vidEmb && vidEmb.embed) {
         preview = '<div style="flex-basis:100%;margin-top:.15rem;"><div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:10px;background:#0f172a;"><iframe src="'+prismEscAttr(vidEmb.embed)+'" title="Video" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div></div>';
       }
-    } else if (kind === 'video-file' && it.file_path) {
-      preview = '<div style="flex-basis:100%;margin-top:.15rem;"><video src="'+prismEscAttr(it.file_path)+'" controls style="width:100%;max-height:260px;border-radius:10px;background:#0f172a;"></video></div>';
-    } else if ((kind === 'image' || studentIsImageMime(it.mime_type, it.file_name)) && it.file_path) {
-      preview = '<div style="flex-basis:100%;margin-top:.15rem;"><img src="'+prismEscAttr(it.file_path)+'" alt="" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid #e4dffa;"/></div>';
+    } else if (kind === 'video-file' && fileSrc) {
+      preview = '<div style="flex-basis:100%;margin-top:.15rem;"><video src="'+prismEscAttr(fileSrc)+'" controls style="width:100%;max-height:260px;border-radius:10px;background:#0f172a;"></video></div>';
+    } else if ((kind === 'image' || studentIsImageMime(it.mime_type, it.file_name)) && fileSrc) {
+      preview = '<div style="flex-basis:100%;margin-top:.15rem;"><img src="'+prismEscAttr(fileSrc)+'" alt="" style="max-width:100%;max-height:240px;border-radius:10px;border:1px solid #e4dffa;"/></div>';
     }
     if (!preview && href) {
       var extraEmb = typeof prismVideoEmbedFromUrl === 'function' ? prismVideoEmbedFromUrl(href) : null;
@@ -1075,9 +1122,9 @@ function renderStats() {
   document.getElementById('stat-classes').textContent = classIds.length;
   var qCount=0, aCount=0, mCount=0;
   classIds.forEach(function(cid) {
-    getTeacherQuizzes().filter(function(q){ return q.classId===cid && q.published; }).forEach(function(){ qCount++; });
-    (getAssignments()[cid]||[]).forEach(function(){ aCount++; });
-    (getMaterials()[cid]||[]).forEach(function(){ mCount++; });
+    getTeacherQuizzes().filter(function(q){ return String(q.classId || q.class_id) === String(cid) && q.published; }).forEach(function(){ qCount++; });
+    listForClass(getAssignments(), cid).forEach(function(){ aCount++; });
+    listForClass(getMaterials(), cid).forEach(function(){ mCount++; });
   });
   document.getElementById('stat-quizzes').textContent     = qCount;
   document.getElementById('stat-assignments').textContent = aCount;

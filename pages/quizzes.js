@@ -98,6 +98,9 @@ function QUIZ_logEvent(type, detail) {
   var log   = JSON.parse(localStorage.getItem(key) || '[]');
   log.push({ student: uname, studentId: uid, type: type, detail: detail, time: new Date().toISOString() });
   localStorage.setItem(key, JSON.stringify(log));
+  if (typeof PrismQuizzes !== 'undefined' && PrismQuizzes.log) {
+    PrismQuizzes.log(QUIZ_currentQuiz.id, type, detail).catch(function () { /* local log is enough */ });
+  }
 }
 function QUIZ_onBeforeUnload(e) {
   if (!QUIZ_active) return;
@@ -138,6 +141,9 @@ function QUIZ_burnAttemptSilent() {
   var scores = QUIZ_getScores();
   scores[q.id] = mcCorrect;
   QUIZ_saveScores(scores);
+  if (typeof PrismQuizzes !== 'undefined' && PrismQuizzes.submitScore) {
+    PrismQuizzes.submitScore(q.id, mcCorrect, (QUIZ_userAnswers || []).slice()).catch(function () { /* local score is enough */ });
+  }
 }
 function QUIZ_normalizeQuestion(raw) {
   var out = {
@@ -167,9 +173,19 @@ function QUIZ_normalizeQuestion(raw) {
 }
 function QUIZ_open(qid, sourceQuizzes) {
   var all = sourceQuizzes || JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
-  var raw = all.find(function(q) { return q.id === qid; });
-  if (!raw) return;
+  var raw = all.find(function(q) { return String(q.id) === String(qid); });
+  if (!raw) {
+    alert('This quiz is no longer available. Refresh the page and try again.');
+    return;
+  }
   QUIZ_normalizeQuizFields(raw);
+  if (typeof raw.questions === 'string') {
+    try { raw.questions = JSON.parse(raw.questions || '[]'); } catch (e) { raw.questions = []; }
+  }
+  if (!Array.isArray(raw.questions) || !raw.questions.length) {
+    alert('This quiz has no questions yet. Ask your teacher to publish it again.');
+    return;
+  }
   if (QUIZ_isPastDue(raw)) {
     alert(PRISM_LATE_QUIZ_MSG);
     return;
@@ -228,7 +244,14 @@ function QUIZ_close() {
   if (typeof renderGrid === 'function') renderGrid();
 }
 function QUIZ_renderQuestion() {
+  if (!QUIZ_currentQuiz || !QUIZ_currentQuiz.questions || !QUIZ_currentQuiz.questions.length) {
+    alert('This quiz has no questions yet.');
+    QUIZ_active = false;
+    QUIZ_close();
+    return;
+  }
   var q    = QUIZ_currentQuiz.questions[QUIZ_currentQ];
+  if (!q) { QUIZ_tryFinish(); return; }
   var tot  = QUIZ_currentQuiz.questions.length;
   var pct  = Math.round((QUIZ_currentQ / tot) * 100);
   var done = QUIZ_answered[QUIZ_currentQ];
@@ -344,6 +367,11 @@ function QUIZ_finish() {
   localStorage.setItem(attKey,JSON.stringify(atts));
   localStorage.setItem('prism_quiz_mc_'+uid+'_'+q.id, String(mcCorrect));
   var scores=QUIZ_getScores(); scores[q.id]=mcCorrect; QUIZ_saveScores(scores);
+  if (typeof PrismQuizzes !== 'undefined' && PrismQuizzes.submitScore) {
+    PrismQuizzes.submitScore(q.id, mcCorrect, QUIZ_userAnswers.slice()).catch(function (e) {
+      console.warn('Could not save quiz score to the server:', e);
+    });
+  }
   var saKey='prism_quiz_sa_'+uid+'_'+q.id;
   var saAnswers={};
   q.questions.forEach(function(qs,i){if(qs.choices===undefined&&QUIZ_userAnswers[i])saAnswers[i]=QUIZ_userAnswers[i];});
@@ -374,7 +402,9 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
     var joined   = Object.values(getJoinedClasses());
     var allQuizzes = JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]');
     return allQuizzes.filter(function(q) {
-      return q.published && joined.find(function(j){ return j.classId===q.classId; });
+      if (!q.published) return false;
+      var qcid = String(q.classId || q.class_id || '');
+      return joined.find(function(j){ return String(j.classId) === qcid; });
     });
   }
 
@@ -384,7 +414,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
     var scores = JSON.parse(localStorage.getItem('prism_quiz_scores_'+STUDENT_ID)||'{}');
     var atts   = JSON.parse(localStorage.getItem('prism_quiz_attempts_'+STUDENT_ID)||'{}');
     var ip     = JSON.parse(localStorage.getItem('prism_quiz_inprogress_'+STUDENT_ID)||'{}');
-    if (scores[quiz.id] !== undefined) return 'completed';
+    if (scores[quiz.id] !== undefined || scores[String(quiz.id)] !== undefined) return 'completed';
     var due = quiz.due || quiz.due_date || '';
     if (due) {
       if (typeof prismIsPastDue === 'function' && prismIsPastDue(due, quiz.due_time)) return 'overdue';
@@ -456,7 +486,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
         + '<div class="quiz-subject-badge">'+(quiz.subjectName||'Class')+'</div>'
         + '<div class="quiz-title">'+quiz.title+'</div>'
         + '<div class="quiz-meta">'
-        + '<div class="quiz-meta-item"> '+quiz.questions.length+' questions</div>'
+        + '<div class="quiz-meta-item"> '+((quiz.questions && quiz.questions.length) || 0)+' questions</div>'
         + '<div class="quiz-meta-item"> '+quiz.totalPoints+' pts</div>'
         + (quiz.time ? '<div class="quiz-meta-item"> '+quiz.time+' min</div>' : '')
         + ((quiz.due || quiz.due_date) ? '<div class="quiz-meta-item"> Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(quiz.due||quiz.due_date,quiz.due_time):(quiz.due||quiz.due_date))+'</div>' : '')
@@ -492,19 +522,19 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
       var list = await PrismQuizzes.getMine();
       var joined = getJoinedClasses();
       var joinedClassIds = Object.keys(joined);
-      var apiIds = new Set((list || []).map(function(q) { return q.id; }));
+      var apiIds = new Set((list || []).map(function(q) { return String(q.id); }));
       var all = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
       // Remove quizzes the teacher deleted on the server so the grid does not show stale cards
       all = all.filter(function(q) {
-        var cid = q.classId || q.class_id;
+        var cid = String(q.classId || q.class_id || '');
         if (!q.published) return true;
-        if (joinedClassIds.indexOf(cid) === -1) return true;
-        return apiIds.has(q.id);
+        if (joinedClassIds.indexOf(cid) === -1 && joinedClassIds.indexOf(String(q.classId || q.class_id || '')) === -1) return true;
+        return apiIds.has(String(q.id));
       });
       (list || []).forEach(function(q) {
         var qs = q.questions;
         if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (e) { qs = []; } }
-        var jc = joined[q.class_id];
+        var jc = joined[q.class_id] || joined[String(q.class_id)];
         var mapped = {
           id: q.id,
           classId: q.class_id,
@@ -522,17 +552,30 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
           totalPoints: parseInt(q.total_points, 10) || 0,
           questions: qs || []
         };
-        var ix = all.findIndex(function(x) { return x.id === q.id; });
+        var ix = all.findIndex(function(x) { return String(x.id) === String(q.id); });
         if (ix >= 0) all[ix] = Object.assign({}, all[ix], mapped);
         else all.push(mapped);
       });
       localStorage.setItem('prism_teacher_quizzes', JSON.stringify(all));
+      try {
+        var apiScores = await PrismQuizzes.getMyScores();
+        var scores = QUIZ_getScores();
+        Object.keys(apiScores || {}).forEach(function (id) {
+          if (scores[id] === undefined) scores[id] = apiScores[id];
+        });
+        QUIZ_saveScores(scores);
+      } catch (e2) { /* local scores still apply */ }
     } catch (e) { console.warn('syncQuizzesFromAPI', e); }
   }
 
   window.addEventListener('DOMContentLoaded', function() {
     if (typeof initSidebar === 'function') initSidebar('quizzes');
-    syncQuizzesFromAPI().finally(function() { renderGrid(); });
+    var wantQuiz = '';
+    try { wantQuiz = new URLSearchParams(window.location.search).get('quiz') || ''; } catch (e) { wantQuiz = ''; }
+    syncQuizzesFromAPI().finally(function() {
+      renderGrid();
+      if (wantQuiz) QUIZ_open(wantQuiz);
+    });
     // Re-render grid when quiz modal closes (observe overlay display change)
     var observer = new MutationObserver(function() {
       var ov = document.getElementById('shared-qz-overlay');

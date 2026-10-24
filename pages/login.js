@@ -115,6 +115,19 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     }
   }
 
+  document.querySelectorAll('.card[role="button"]').forEach(function (card) {
+    card.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.click();
+      }
+    });
+  });
+  window.openModal = openModal;
+  window.closeModal = closeModal;
+  window.togglePw = togglePw;
+  window.handleLogin = handleLogin;
+
   document.getElementById('modal-overlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeModal();

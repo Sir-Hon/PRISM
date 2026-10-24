@@ -309,7 +309,28 @@ function initSidebar(activePage) {
   prismBindLogoutButtons();
 }
 
+function prismActivePageFromPath() {
+  var raw = (window.location.pathname || '').split('/').pop() || '';
+  var file = raw.split('?')[0].split('#')[0].replace(/\.html$/i, '');
+  var map = {
+    index: 'home',
+    teacher: 'home',
+    'teacher-class': 'home',
+    admin: 'home',
+    notes: 'notes',
+    calendar: 'calendar',
+    quizzes: 'quizzes',
+    quizmaker: 'quizmaker',
+    records: 'records',
+    grading: 'grading',
+    manage: 'manage',
+    profile: 'home',
+  };
+  return map[file] || file || 'home';
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   prismEnsureThemeToggle();
   prismBindLogoutButtons();
+  if (typeof initSidebar === 'function') initSidebar(prismActivePageFromPath());
 });

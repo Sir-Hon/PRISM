@@ -49,6 +49,47 @@ async function syncQuizzesFromApiForGrading(classId) {
   }
 }
 
+/** quizId -> { studentId: API row } so Grading shows scores submitted from student browsers. */
+var GRADE_quizApiScores = {};
+async function hydrateQuizScoresFromApi(quizzes) {
+  GRADE_quizApiScores = {};
+  await Promise.all((quizzes || []).map(async function (q) {
+    try {
+      var rows = await PrismQuizzes.getScores(q.id);
+      var map = {};
+      (Array.isArray(rows) ? rows : []).forEach(function (r) {
+        var sid = String(r.student_id || r.studentId || '');
+        if (!sid) return;
+        map[sid] = r;
+        var scores = JSON.parse(localStorage.getItem('prism_quiz_scores_' + sid) || '{}');
+        scores[q.id] = parseInt(r.score, 10);
+        localStorage.setItem('prism_quiz_scores_' + sid, JSON.stringify(scores));
+        var atts = JSON.parse(localStorage.getItem('prism_quiz_attempts_' + sid) || '{}');
+        if (!atts[q.id]) {
+          atts[q.id] = 1;
+          localStorage.setItem('prism_quiz_attempts_' + sid, JSON.stringify(atts));
+        }
+        var answers = r.answers;
+        if (typeof answers === 'string') {
+          try { answers = JSON.parse(answers || '[]'); } catch (e) { answers = []; }
+        }
+        if (Array.isArray(answers)) {
+          var sa = {};
+          answers.forEach(function (a, i) {
+            if (typeof a === 'string' && a) sa[i] = a;
+          });
+          if (Object.keys(sa).length) {
+            localStorage.setItem('prism_quiz_sa_' + sid + '_' + q.id, JSON.stringify(sa));
+          }
+        }
+      });
+      GRADE_quizApiScores[String(q.id)] = map;
+    } catch (e) {
+      console.warn('hydrateQuizScoresFromApi', q && q.id, e);
+    }
+  }));
+}
+
 var activeClassId = null;
 var activeType    = 'quiz';
 var activeSectionGrading = 'all';
@@ -517,16 +558,19 @@ function GRADE_normalizeQ(raw){
 }
 
 function buildStudentRow(q,s){
+  var apiRow=(GRADE_quizApiScores[String(q.id)]||{})[String(s.id)];
   var scores=JSON.parse(localStorage.getItem('prism_quiz_scores_'+s.id)||'{}'  );
   var atts=JSON.parse(localStorage.getItem('prism_quiz_attempts_'+s.id)||'{}'  );
   var ip=JSON.parse(localStorage.getItem('prism_quiz_inprogress_'+s.id)||'{}'  );
   var log=JSON.parse(localStorage.getItem('prism_quiz_log_'+q.classId+'_'+q.id)||'[]');
-  var scored=scores[q.id]!==undefined;
-  var attCount=atts[q.id]||0;
-  var inProgress=!!ip[q.id];
-  var warnings=log.filter(e=>e.studentId===s.id&&(e.type==='tab-switch'||e.type==='abandon')).length;
+  var scoreVal=apiRow&&apiRow.score!=null?apiRow.score:(scores[q.id]!==undefined?scores[q.id]:scores[String(q.id)]);
+  var scored=scoreVal!==undefined&&scoreVal!==null;
+  var attCount=atts[q.id]||atts[String(q.id)]||0;
+  if(scored&&!attCount) attCount=1;
+  var inProgress=!!(ip[q.id]||ip[String(q.id)]);
+  var warnings=log.filter(e=>String(e.studentId)===String(s.id)&&(e.type==='tab-switch'||e.type==='abandon')).length;
   var statusHtml=scored
-    ?'<span style="background:#d1fae5;color:#065f46;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;"> '+scores[q.id]+'/'+q.totalPoints+'</span>'
+    ?'<span style="background:#d1fae5;color:#065f46;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;"> '+scoreVal+'/'+q.totalPoints+'</span>'
     :(inProgress||attCount)
     ?'<span style="background:#fef3c7;color:#92400e;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;"> Incomplete</span>'
     :'<span style="background:#f3f4f6;color:#9ca3af;font-size:.72rem;font-weight:700;padding:2px 9px;border-radius:20px;">Not taken</span>';
@@ -547,7 +591,7 @@ function buildQuizCard(q){
     '<div style="display:flex;align-items:center;gap:.7rem;margin-bottom:1rem;flex-wrap:wrap;">'+
     '<span style="font-size:.68rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#059669;background:#ecfdf5;padding:3px 8px;border-radius:6px;">'+icon+'</span>'+
     '<div><div style="font-family:DM Sans,sans-serif;font-weight:800;color:#16132b;">'+esc(q.title||'Untitled')+'</div>'+
-    '<div style="font-size:.75rem;color:#9ca3af;">'+q.questions.length+' questions \u00b7 '+q.totalPoints+' pts'+((q.due||q.due_date)?' \u00b7 Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(q.due||q.due_date,q.due_time):(q.due||q.due_date)):'')+'</div></div></div>'+
+    '<div style="font-size:.75rem;color:#9ca3af;">'+((q.questions&&q.questions.length)||0)+' questions \u00b7 '+q.totalPoints+' pts'+((q.due||q.due_date)?' \u00b7 Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(q.due||q.due_date,q.due_time):(q.due||q.due_date)):'')+'</div></div></div>'+
     '<div class="prism-table-scroll"><table>'+
     '<thead><tr><th>Student</th><th>Section</th><th>Status</th><th>Attempts</th><th>Actions</th></tr></thead>'+
     '<tbody>'+rows+'</tbody></table></div></div>';
@@ -556,7 +600,7 @@ function buildQuizCard(q){
 async function renderGradingQuizzes(cont){
   await syncQuizzesFromApiForGrading(activeClassId);
   loadGradingQAFilter();
-  var quizzes=getQuizzes().filter(q=>q.classId===activeClassId&&q.teacherId===TEACHER_ID&&q.published&&q.type!=='activity');
+  var quizzes=getQuizzes().filter(q=>graderQuizBelongsToClass(q,activeClassId)&&String(q.teacherId||q.teacher_id)===String(TEACHER_ID)&&q.published&&q.type!=='activity');
   populateGradingQAFilterSelect(quizzes,'Filter by quiz');
   if(!quizzes.length){
     cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;">No published quizzes or exams yet.</div>';
@@ -567,12 +611,13 @@ async function renderGradingQuizzes(cont){
     cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;">No quiz matches this filter. Choose <strong>All quizzes</strong> above.</div>';
     return;
   }
+  await hydrateQuizScoresFromApi(filtered);
   cont.innerHTML=filtered.map(buildQuizCard).join('');
 }
 async function renderGradingActivities(cont){
   await syncQuizzesFromApiForGrading(activeClassId);
   loadGradingQAFilter();
-  var quizzes=getQuizzes().filter(q=>q.classId===activeClassId&&q.teacherId===TEACHER_ID&&q.published&&q.type==='activity');
+  var quizzes=getQuizzes().filter(q=>graderQuizBelongsToClass(q,activeClassId)&&String(q.teacherId||q.teacher_id)===String(TEACHER_ID)&&q.published&&q.type==='activity');
   populateGradingQAFilterSelect(quizzes,'Filter by activity');
   if(!quizzes.length){
     cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;">No activities published yet.</div>';
@@ -583,6 +628,7 @@ async function renderGradingActivities(cont){
     cont.innerHTML='<div style="padding:2rem;text-align:center;color:#9ca3af;">No activity matches this filter. Choose <strong>All activities</strong> above.</div>';
     return;
   }
+  await hydrateQuizScoresFromApi(filtered);
   cont.innerHTML=filtered.map(buildQuizCard).join('');
 }
 async function renderGradingAssignments(cont){
@@ -676,13 +722,23 @@ function gradeAssignmentRemarks(aid,sid,val){
 }
 
 function openQuizReview(studentId, quizId){
-  var quiz=getQuizzes().find(q=>q.id===quizId); if(!quiz)return;
+  var quiz=getQuizzes().find(q=>String(q.id)===String(quizId)); if(!quiz)return;
+  if (typeof quiz.questions === 'string') { try { quiz.questions = JSON.parse(quiz.questions || '[]'); } catch (e) { quiz.questions = []; } }
+  if (!quiz.questions || !quiz.questions.length) { alert('This quiz has no questions to review.'); return; }
   var questions=quiz.questions.map(GRADE_normalizeQ);
   var scores=JSON.parse(localStorage.getItem('prism_quiz_scores_'+studentId)||'{}'  );
   var saAnswers=JSON.parse(localStorage.getItem('prism_quiz_sa_'+studentId+'_'+quizId)||'{}'  );
+  var apiRow=(GRADE_quizApiScores[String(quizId)]||{})[String(studentId)];
+  var apiAnswers=[];
+  if (apiRow && apiRow.answers != null) {
+    try { apiAnswers = typeof apiRow.answers === 'string' ? JSON.parse(apiRow.answers) : apiRow.answers; } catch (e) { apiAnswers = []; }
+  }
+  if (Array.isArray(apiAnswers)) {
+    apiAnswers.forEach(function(a,i){ if (typeof a === 'string' && a && !saAnswers[i]) saAnswers[i]=a; });
+  }
   var saScoreKey='prism_quiz_sa_scores_'+studentId+'_'+quizId;
-  var student=getStudents(activeClassId).find(s=>s.id===studentId)||{name:studentId};
-  var currentScore=scores[quizId]!==undefined?scores[quizId]:null;
+  var student=getStudents(activeClassId).find(s=>String(s.id)===String(studentId))||{name:studentId};
+  var currentScore=apiRow&&apiRow.score!=null?apiRow.score:(scores[quizId]!==undefined?scores[quizId]:(scores[String(quizId)]!==undefined?scores[String(quizId)]:null));
   var total=questions.reduce((s,q)=>s+q.points,0);
   var saTotal=questions.reduce((s,q)=>s+(q.choices===undefined?q.points:0),0);
   window.currentSAScores=JSON.parse(localStorage.getItem(saScoreKey)||'{}'  );
@@ -693,16 +749,23 @@ function openQuizReview(studentId, quizId){
     var saAns=saAnswers[i]||'';
     var content='';
     if(!isSA){
+      var studentPick=apiAnswers[i];
       content='<div style="display:flex;flex-direction:column;gap:.5rem;">';
       q.choices.forEach((ch,ci)=>{
         var isCorrect=ci===q.answer;
-        var bg=isCorrect?'#d1fae5':'#f9fafb',bdr=isCorrect?'#10b981':'#e4dffa',col=isCorrect?'#065f46':'#374151';
-        var lBg=isCorrect?'#10b981':'#e4dffa',lCol=isCorrect?'#fff':'#7c3aed';
+        var isPicked=studentPick===ci||studentPick===String(ci);
+        var bg=isCorrect?'#d1fae5':(isPicked?'#fee2e2':'#f9fafb');
+        var bdr=isCorrect?'#10b981':(isPicked?'#ef4444':'#e4dffa');
+        var col=isCorrect?'#065f46':(isPicked?'#991b1b':'#374151');
+        var lBg=isCorrect?'#10b981':(isPicked?'#ef4444':'#e4dffa');
+        var lCol=(isCorrect||isPicked)?'#fff':'#7c3aed';
         var letter=['A','B','C','D','E','F'][ci]||(ci+1);
+        var mark=isCorrect?' Correct':(isPicked?' Chosen':'');
+        var markCol=isCorrect?'#10b981':'#dc2626';
         content+='<div style="display:flex;align-items:center;gap:.8rem;padding:.7rem 1rem;background:'+bg+';border:2px solid '+bdr+';border-radius:11px;">'+
           '<div style="width:26px;height:26px;border-radius:50%;background:'+lBg+';display:flex;align-items:center;justify-content:center;font-size:.78rem;font-weight:800;color:'+lCol+';flex-shrink:0;">'+letter+'</div>'+
-          '<span style="font-size:.9rem;color:'+col+';font-weight:'+( isCorrect?'700':'400')+';">'+esc(ch)+'</span>'+
-          (isCorrect?'<span style="margin-left:auto;font-size:.72rem;font-weight:700;color:#10b981;"> Correct</span>':'')
+          '<span style="font-size:.9rem;color:'+col+';font-weight:'+( isCorrect||isPicked?'700':'400')+';">'+esc(ch)+'</span>'+
+          (mark?'<span style="margin-left:auto;font-size:.72rem;font-weight:700;color:'+markCol+';">'+mark+'</span>':'')
           +'</div>';
       });
       content+='</div>';

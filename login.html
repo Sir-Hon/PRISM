@@ -77,10 +77,11 @@
     .card.teacher:hover { border-color:var(--teacher); box-shadow:0 20px 50px rgba(16,185,129,.2); }
     .card.admin:hover   { border-color:var(--admin);   box-shadow:0 20px 50px rgba(245,158,11,.2); }
 
-    .card-icon { width:52px; height:52px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.15rem; font-weight:800; letter-spacing:.04em; color:#fff; }
-    .card.student .card-icon { background:var(--student); }
-    .card.teacher .card-icon { background:var(--teacher); }
-    .card.admin   .card-icon { background:var(--admin); }
+    .card-icon { width:56px; height:56px; border-radius:14px; display:flex; align-items:center; justify-content:center; color:#fff; }
+    .card-icon svg { width:28px; height:28px; display:block; }
+    .card.student .card-icon { background:linear-gradient(145deg,#6366f1,#4f46e5); box-shadow:0 8px 18px rgba(99,102,241,.28); }
+    .card.teacher .card-icon { background:linear-gradient(145deg,#10b981,#059669); box-shadow:0 8px 18px rgba(16,185,129,.28); }
+    .card.admin   .card-icon { background:linear-gradient(145deg,#f59e0b,#d97706); box-shadow:0 8px 18px rgba(245,158,11,.28); }
 
     .card-label { font-family:'DM Sans',sans-serif; font-size:1.05rem; font-weight:700; color:#e5e7eb; }
     .card-desc  { font-size:.76rem; color:#4b5563; text-align:center; line-height:1.5; }
@@ -147,23 +148,40 @@
   <p class="subtitle">Select your role to sign in</p>
 
   <div class="cards">
-    <div class="card student">
-      <div class="card-icon">S</div>
+    <div class="card student" onclick="openModal('student')" role="button" tabindex="0">
+      <div class="card-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0 0-3L16.5 2.5a2.1 2.1 0 0 0-3 0L4 16v4z"/>
+          <path d="M13.5 4.5l4 4"/>
+          <path d="M16 20h4"/>
+        </svg>
+      </div>
       <span class="card-label">Student</span>
       <p class="card-desc">Access classes, grades, and assignments.</p>
-      <button class="card-btn" onclick="openModal('student')">Login as Student</button>
+      <button class="card-btn" onclick="event.stopPropagation();openModal('student')">Login as Student</button>
     </div>
-    <div class="card teacher">
-      <div class="card-icon">T</div>
+    <div class="card teacher" onclick="openModal('teacher')" role="button" tabindex="0">
+      <div class="card-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 5.2A2.4 2.4 0 0 1 6.4 3H12v16.5H6.4A2.4 2.4 0 0 0 4 21.9V5.2z"/>
+          <path d="M20 5.2A2.4 2.4 0 0 0 17.6 3H12v16.5h5.6A2.4 2.4 0 0 1 20 21.9V5.2z"/>
+          <path d="M12 3v16.5"/>
+        </svg>
+      </div>
       <span class="card-label">Teacher</span>
       <p class="card-desc">Manage classes, student records, and quizzes.</p>
-      <button class="card-btn" onclick="openModal('teacher')">Login as Teacher</button>
+      <button class="card-btn" onclick="event.stopPropagation();openModal('teacher')">Login as Teacher</button>
     </div>
-    <div class="card admin">
-      <div class="card-icon">A</div>
+    <div class="card admin" onclick="openModal('admin')" role="button" tabindex="0">
+      <div class="card-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3l7.5 3.2v5.6c0 4.6-3.1 8.1-7.5 9.7-4.4-1.6-7.5-5.1-7.5-9.7V6.2L12 3z"/>
+          <path d="M9 12.2l2.1 2.1L15.4 10"/>
+        </svg>
+      </div>
       <span class="card-label">Admin</span>
       <p class="card-desc">Manage portal users and settings.</p>
-      <button class="card-btn" onclick="openModal('admin')">Login as Admin</button>
+      <button class="card-btn" onclick="event.stopPropagation();openModal('admin')">Login as Admin</button>
     </div>
   </div>
 
@@ -199,6 +217,6 @@
   </div>
 </div>
 
-<script src="pages/login.js?v=10"></script>
+<script src="pages/login.js?v=11"></script>
 </body>
 </html>
