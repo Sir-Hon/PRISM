@@ -26,10 +26,26 @@ if (!defined('DB_PORT')) {
     define('DB_PORT', (int) (getenv('DB_PORT') ?: 3306));
 }
 
-// Upload directory (relative to htdocs/prism/)
-define('UPLOAD_DIR', __DIR__ . '/../uploads/');
-define('UPLOAD_URL', '/prism/uploads/');
-define('MAX_FILE_SIZE', 15 * 1024 * 1024); // 15 MB
+// Upload directory (relative to this app folder). URL prefix follows the
+// deployed path (/prism/uploads/ on XAMPP, /uploads/ at site root).
+function prism_app_url_prefix() {
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? ''));
+    $apiDir = dirname($script);
+    $appDir = str_replace('\\', '/', dirname($apiDir));
+    if ($appDir === '/' || $appDir === '.' || $appDir === '') {
+        return '';
+    }
+    return rtrim($appDir, '/');
+}
+if (!defined('UPLOAD_DIR')) {
+    define('UPLOAD_DIR', __DIR__ . '/../uploads/');
+}
+if (!defined('UPLOAD_URL')) {
+    define('UPLOAD_URL', prism_app_url_prefix() . '/uploads/');
+}
+if (!defined('MAX_FILE_SIZE')) {
+    define('MAX_FILE_SIZE', 15 * 1024 * 1024); // 15 MB
+}
 
 // Session settings
 define('SESSION_NAME', 'prism_session');
@@ -71,37 +87,178 @@ function getDB() {
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
         } catch (PDOException $e) {
-            fail('Database connection failed: ' . $e->getMessage(), 500);
+            error_log('PRISM DB connection failed: ' . $e->getMessage());
+            fail('Database connection failed', 500);
         }
     }
     return $pdo;
 }
 
+function prism_is_https(): bool {
+    if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+        return true;
+    }
+    if ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443) {
+        return true;
+    }
+    $fwd = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+    return $fwd === 'https';
+}
+
+function prism_request_host(): string {
+    $host = (string) ($_SERVER['HTTP_HOST'] ?? '');
+    $host = strtolower(explode(':', $host)[0]);
+    return $host;
+}
+
+function prism_host_from_url(string $url): string {
+    $h = parse_url($url, PHP_URL_HOST);
+    return strtolower((string) $h);
+}
+
+/** Block cross-site POSTs from other origins. */
+function prism_assert_same_origin(): void {
+    $host = prism_request_host();
+    if ($host === '') {
+        return;
+    }
+    $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+    if ($origin !== '') {
+        if (prism_host_from_url($origin) !== $host) {
+            fail('Forbidden', 403);
+        }
+        return;
+    }
+    $referer = (string) ($_SERVER['HTTP_REFERER'] ?? '');
+    if ($referer !== '') {
+        if (prism_host_from_url($referer) !== $host) {
+            fail('Forbidden', 403);
+        }
+        return;
+    }
+    fail('Forbidden', 403);
+}
+
+function prism_csrf_token(): string {
+    startSession();
+    if (empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Write requests must come from this site. Logged-in writes also need the CSRF token.
+ * $publicActions skip the token (login/register) but still need same-origin.
+ */
+function prism_guard_mutating_request(array $publicActions = []): void {
+    $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+    if (in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+        return;
+    }
+    prism_assert_same_origin();
+    $action = (string) ($_GET['action'] ?? '');
+    if (in_array($action, $publicActions, true)) {
+        return;
+    }
+    $sent = (string) ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? $_POST['csrf_token'] ?? '');
+    $want = (string) ($_SESSION['csrf_token'] ?? '');
+    if ($want === '' || $sent === '' || !hash_equals($want, $sent)) {
+        fail('Session expired. Refresh the page and try again.', 403);
+    }
+}
+
+function prism_client_ip(): string {
+    return (string) ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+}
+
+/** Simple per-IP throttle for login/register (stops password spraying). */
+function prism_rate_limit(string $bucket, int $max, int $windowSec): void {
+    $ip = preg_replace('/[^0-9a-fA-F:.]/', '', prism_client_ip()) ?: '0';
+    $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism_rl';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0700, true);
+    }
+    $file = $dir . DIRECTORY_SEPARATOR . hash('sha256', $bucket . '|' . $ip);
+    $now = time();
+    $hits = [];
+    if (is_readable($file)) {
+        $decoded = json_decode((string) file_get_contents($file), true);
+        if (is_array($decoded)) {
+            $hits = $decoded;
+        }
+    }
+    $hits = array_values(array_filter($hits, static function ($t) use ($now, $windowSec) {
+        return is_int($t) && $t > ($now - $windowSec);
+    }));
+    if (count($hits) >= $max) {
+        fail('Too many attempts. Please wait a few minutes and try again.', 429);
+    }
+    $hits[] = $now;
+    @file_put_contents($file, json_encode($hits), LOCK_EX);
+}
+
+function prism_logout_session(): void {
+    startSession();
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        $p = session_get_cookie_params();
+        setcookie(session_name(), '', [
+            'expires'  => time() - 42000,
+            'path'     => $p['path'] ?? '/',
+            'domain'   => $p['domain'] ?? '',
+            'secure'   => (bool) ($p['secure'] ?? false),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+    session_destroy();
+}
+
 // ── CORS + JSON headers ──
 function setHeaders() {
     header('Content-Type: application/json; charset=utf-8');
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type, Authorization');
-    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(200); exit; }
+    header('X-Content-Type-Options: nosniff');
+    header('X-Frame-Options: DENY');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
+    header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
+    header('Cache-Control: no-store');
+
+    $origin = (string) ($_SERVER['HTTP_ORIGIN'] ?? '');
+    $host = prism_request_host();
+    if ($origin !== '' && $host !== '' && prism_host_from_url($origin) === $host) {
+        header('Access-Control-Allow-Origin: ' . $origin);
+        header('Vary: Origin');
+        header('Access-Control-Allow-Credentials: true');
+        header('Access-Control-Allow-Headers: Content-Type, X-CSRF-Token');
+        header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    }
+    if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+        http_response_code(204);
+        exit;
+    }
 }
 
 // ── Session helper ──
 function startSession() {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
     session_name(SESSION_NAME);
     session_set_cookie_params([
         'lifetime' => SESSION_LIFETIME,
         'path'     => '/',
-        'secure'   => false,  // set true if using HTTPS
+        'secure'   => prism_is_https(),
         'httponly' => true,
         'samesite' => 'Lax',
     ]);
-    if (session_status() === PHP_SESSION_NONE) session_start();
+    session_start();
 }
 
 // ── Auth guard ──
 function requireAuth($allowedRoles = []) {
     startSession();
+    prism_guard_mutating_request();
     if (empty($_SESSION['user_id'])) {
         fail('Not authenticated', 401);
     }
