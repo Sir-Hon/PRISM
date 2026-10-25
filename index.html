@@ -113,6 +113,20 @@
     }
     .class-view-tab:hover:not(.active) { color:#7c3aed; background:#faf8ff; }
     .class-view-tab.active { color:#7c3aed; border-bottom-color:#7c3aed; }
+    .work-list { display:flex; flex-direction:column; gap:.45rem; }
+    .work-row { display:flex; align-items:center; gap:.85rem; width:100%; text-align:left; background:#fff; border:1px solid #e4dffa; border-radius:12px; padding:.8rem .95rem; cursor:pointer; font-family:'DM Sans',sans-serif; color:#16132b; }
+    .work-row .mat-info { flex:1; min-width:0; }
+    .work-row:hover { border-color:#c4b5fd; }
+    .work-status { font-size:.72rem; font-weight:800; border-radius:999px; padding:.22rem .6rem; flex-shrink:0; }
+    .work-status.due { background:#fef3c7; color:#92400e; }
+    .work-status.missing { background:#fee2e2; color:#991b1b; }
+    .work-status.done { background:#d1fae5; color:#065f46; }
+    .stream-post-focus { box-shadow:0 0 0 3px rgba(124,58,237,.35); }
+    html[data-theme="dark"] .work-row { background:#221627; border-color:#3f2a44; color:#f3f4f6; }
+    html[data-theme="dark"] .work-row .mat-title { color:#f3f4f6; }
+    html[data-theme="dark"] .work-status.due { background:#451a03; color:#fde68a; }
+    html[data-theme="dark"] .work-status.missing { background:#450a0a; color:#fecaca; }
+    html[data-theme="dark"] .work-status.done { background:#052e16; color:#bbf7d0; }
     .class-view-body {
       padding:2rem;
     }
@@ -163,6 +177,30 @@
     .mat-info { flex:1; min-width:0; }
     .mat-title { font-weight:700; font-size:.9rem; color:#16132b; }
     .mat-meta  { font-size:.75rem; color:#9ca3af; margin-top:2px; }
+    .student-mat-acc { border:1.5px solid #e4dffa; border-radius:12px; margin-bottom:.65rem; background:#faf9ff; overflow:hidden; }
+    .student-mat-acc > summary { list-style:none; display:flex; align-items:center; gap:.9rem; padding:.9rem 1.1rem; cursor:pointer; user-select:none; }
+    .student-mat-acc > summary::-webkit-details-marker { display:none; }
+    .student-mat-acc > summary::after { content:'View'; margin-left:auto; font-size:.72rem; font-weight:800; color:#6d28d9; background:#ede9fe; border-radius:999px; padding:.22rem .6rem; flex-shrink:0; }
+    .student-mat-acc[open] > summary::after { content:'Hide'; }
+    .student-mat-body { padding:.85rem 1.1rem 1rem; border-top:1px solid #efe9fb; }
+    .student-mat-note { font-size:.9rem; line-height:1.6; color:#1f1630; white-space:pre-wrap; margin:0 0 .75rem; }
+    .student-mat-note:last-child { margin-bottom:0; }
+    .student-mat-media { max-width:100%; max-height:360px; border-radius:10px; border:1px solid #e4dffa; display:block; }
+    .student-mat-frame { width:100%; height:420px; border:1px solid #e4dffa; border-radius:10px; background:#fff; }
+    .student-mat-video { width:100%; max-height:360px; border-radius:10px; background:#0f172a; }
+    .student-mat-embed { position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:10px; background:#0f172a; margin-bottom:.55rem; }
+    .student-mat-embed iframe { position:absolute; top:0; left:0; width:100%; height:100%; border:0; }
+    .student-mat-file, .student-mat-link { display:block; margin-top:.45rem; padding:.55rem .7rem; border-radius:10px; background:#fff; border:1px solid #e4dffa; color:#5b21b6; font-size:.84rem; font-weight:700; text-decoration:none; word-break:break-word; }
+    .student-mat-file { width:100%; text-align:left; font-family:'DM Sans',sans-serif; cursor:pointer; }
+    html[data-theme="dark"] .student-mat-acc { background:#221627; border-color:#3f2a44; }
+    html[data-theme="dark"] .student-mat-acc .mat-title,
+    html[data-theme="dark"] .student-mat-note,
+    html[data-theme="dark"] .student-mat-file,
+    html[data-theme="dark"] .student-mat-link { color:#f3f4f6; }
+    html[data-theme="dark"] .student-mat-body { border-color:#3f2a44; }
+    html[data-theme="dark"] .student-mat-acc > summary::after { background:#3b0764; color:#f3f4f6; }
+    html[data-theme="dark"] .student-mat-file,
+    html[data-theme="dark"] .student-mat-link { background:#1c1524; border-color:#3f2a44; }
 
     .student-asgn-modal-overlay { position:fixed; inset:0; background:rgba(22,19,43,.55); z-index:10050; display:flex; align-items:flex-start; justify-content:center; padding:1.2rem; overflow-y:auto; box-sizing:border-box; }
     .student-asgn-modal { background:#fff; border-radius:16px; max-width:620px; width:100%; margin:auto; box-shadow:0 20px 50px rgba(0,0,0,.2); padding:1.25rem 1.35rem 1.4rem; position:relative; border:1px solid #fce7f3; }
@@ -299,6 +337,6 @@
 
 
 
-<script src="pages/index.js?v=13"></script>
+<script src="pages/index.js?v=16"></script>
 </body>
 </html>

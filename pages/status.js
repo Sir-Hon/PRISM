@@ -376,7 +376,7 @@ async function loadStatus() {
     statusRecords = [];
     if (empty) {
       empty.style.display = '';
-      empty.textContent = 'The records could not be loaded. Refresh the page and try again.';
+      empty.textContent = (e && e.message) ? e.message : 'The records could not be loaded. Refresh the page and try again.';
     }
     return;
   }

@@ -52,7 +52,10 @@ try {
     prism_sheet_tables($db);
 } catch (PDOException $e) {
     error_log('records tables: ' . $e->getMessage());
-    fail('Could not prepare records storage', 500);
+    // Students can still open the subject list if sheet storage is not ready yet.
+    if (!($method === 'GET' && $action === 'my_status')) {
+        fail('Could not prepare records storage', 500);
+    }
 }
 
 $feeKeys = ['tuition', 'athletics', 'computer', 'cultural', 'development', 'guidance', 'laboratory', 'library', 'medical', 'registration'];
@@ -113,34 +116,54 @@ if ($method === 'POST' && $action === 'save_sheet') {
 
 if ($method === 'GET' && $action === 'my_status') {
     if ($user['role'] !== 'student') fail('Forbidden', 403);
+    // Same class list the student home already loads. Sheets are attached afterwards
+    // so a records-table problem does not hide every subject.
     $stmt = $db->prepare(
-        'SELECT c.id AS class_id, c.subject, c.code, c.color, u.name AS teacher_name,
-                a.payload AS attendance_payload, a.updated_at AS attendance_updated,
-                s.payload AS assessment_payload, s.updated_at AS assessment_updated
+        'SELECT c.id, c.subject, c.code, c.color, u.name AS teacher_name
          FROM enrollments e
          JOIN classes c ON e.class_id = c.id
          JOIN users u ON c.teacher_id = u.id
-         LEFT JOIN learner_sheets a ON a.class_id = c.id AND a.student_id = e.student_id AND a.kind = \'attendance\'
-         LEFT JOIN learner_sheets s ON s.class_id = c.id AND s.student_id = e.student_id AND s.kind = \'assessment\'
          WHERE e.student_id = ?
          ORDER BY c.subject ASC, c.code ASC'
     );
     $stmt->execute([$user['id']]);
     $records = [];
     foreach ($stmt->fetchAll() as $row) {
-        $records[] = [
-            'class_id' => $row['class_id'],
+        $records[$row['id']] = [
+            'class_id' => $row['id'],
             'subject' => $row['subject'],
             'code' => $row['code'],
             'color' => $row['color'],
             'teacher_name' => $row['teacher_name'],
-            'attendance' => prism_decode_sheet($row['attendance_payload']),
-            'assessment' => prism_decode_sheet($row['assessment_payload']),
-            'attendance_updated' => $row['attendance_updated'],
-            'assessment_updated' => $row['assessment_updated'],
+            'attendance' => null,
+            'assessment' => null,
+            'attendance_updated' => null,
+            'assessment_updated' => null,
         ];
     }
-    ok(['records' => $records]);
+    try {
+        $sheets = $db->prepare(
+            'SELECT class_id, kind, payload, updated_at
+             FROM learner_sheets
+             WHERE student_id = ?'
+        );
+        $sheets->execute([$user['id']]);
+        foreach ($sheets->fetchAll() as $sheet) {
+            $classId = $sheet['class_id'];
+            if (!isset($records[$classId])) continue;
+            $decoded = prism_decode_sheet($sheet['payload'] ?? null);
+            if ($sheet['kind'] === 'attendance') {
+                $records[$classId]['attendance'] = $decoded;
+                $records[$classId]['attendance_updated'] = $sheet['updated_at'] ?? null;
+            } elseif ($sheet['kind'] === 'assessment') {
+                $records[$classId]['assessment'] = $decoded;
+                $records[$classId]['assessment_updated'] = $sheet['updated_at'] ?? null;
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('my_status sheets: ' . $e->getMessage());
+    }
+    ok(['records' => array_values($records)]);
 }
 
 if ($method === 'GET' && $action === 'cors') {
