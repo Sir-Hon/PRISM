@@ -134,7 +134,8 @@ function genJoinCode() {
 }
 
 /* ── State ── */
-let activeClassId  = null;
+var activeClassId  = null;
+var activeView = 'attendance';
 /** Workspace (materials & assignments): __all__ = whole class; else section label */
 let activeWorkspaceSection = '__all__';
 /** __all__ = list every assignment; else one assignment id (teacher assignments tab) */
@@ -204,13 +205,30 @@ async function initTeacherClassPage() {
   if (typeof markSidebarClassActive === 'function') markSidebarClassActive(activeClassId);
   await refreshClassData(activeClassId);
   renderWorkspacePage();
+  var openTab = params.get('tab');
+  if (openTab) {
+    var tabBtn = document.querySelector('#class-content > .sub-tabs > .sub-tab[data-sub="' + openTab + '"]');
+    if (tabBtn) switchSub(openTab, tabBtn);
+  }
 }
 
 /** Re-injected if #class-content is cleared. */
 const TEACHER_CLASS_CONTENT_HTML = `
       <div class="sub-tabs">
-        <button type="button" class="sub-tab active" onclick="switchSub('materials',this)"> Materials</button>
-        <button type="button" class="sub-tab" onclick="switchSub('assignments',this)"> Assignments</button>
+        <button type="button" class="sub-tab" data-sub="announcements" onclick="switchSub('announcements',this)">Announcements</button>
+        <button type="button" class="sub-tab active" data-sub="materials" onclick="switchSub('materials',this)">Materials</button>
+        <button type="button" class="sub-tab" data-sub="assignments" onclick="switchSub('assignments',this)">Assignments</button>
+        <button type="button" class="sub-tab" data-sub="records" onclick="switchSub('records',this)">Records</button>
+      </div>
+      <div class="sub-panel" id="sub-announcements">
+        <div class="t-card" style="margin-bottom:1.2rem;">
+          <div class="t-card-title">Announcements</div>
+          <textarea class="composer" id="stream-text" placeholder="Write an announcement for this class…"></textarea>
+          <div class="composer-row" style="justify-content:flex-end;margin-top:.75rem;">
+            <button class="t-btn" type="button" onclick="postSubjectAnnouncement()">Post announcement</button>
+          </div>
+        </div>
+        <div id="stream-feed"></div>
       </div>
       <div class="sub-panel active" id="sub-materials">
         <div class="t-card">
@@ -280,6 +298,19 @@ const TEACHER_CLASS_CONTENT_HTML = `
           <select id="teacher-asgn-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
         </div>
         <div id="assignments-list"></div>
+      </div>
+      <div class="sub-panel" id="sub-records">
+        <div class="sheet-bar" id="sheet-bar">
+          <label for="sheet-student">Student</label>
+          <select id="sheet-student" onchange="onSheetStudentChange()"></select>
+          <span class="sheet-status" id="sheet-status"></span>
+        </div>
+        <div class="sub-tabs" id="sheet-kind-tabs">
+          <button type="button" class="sub-tab active" onclick="showSheetKind('attendance', this)">Attendance</button>
+          <button type="button" class="sub-tab" onclick="showSheetKind('assessment', this)">Assessment</button>
+        </div>
+        <div id="view-attendance"><div id="attendance-sheet"></div></div>
+        <div id="view-assessment" style="display:none;"><div id="assessment-sheet"></div></div>
       </div>`;
 
 function ensureWorkspacePanel() {
@@ -292,8 +323,8 @@ function ensureWorkspacePanel() {
   wrap.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
   const subMat = document.getElementById('sub-materials');
   if (subMat) subMat.classList.add('active');
-  const firstTab = wrap.querySelector('.sub-tabs .sub-tab');
-  if (firstTab) firstTab.classList.add('active');
+  const matTab = wrap.querySelector('.sub-tab[data-sub="materials"]');
+  if (matTab) matTab.classList.add('active');
   bindMatDropZone();
   bindAsgnDropZone();
 }
@@ -355,7 +386,7 @@ function renderWorkspaceSectionPills() {
     const esc = String(sec).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     html += '<button type="button" class="section-pill' + (activeWorkspaceSection === sec ? ' active' : '') + '" data-sec="' + esc + '">' + esc + '</button>';
   });
-  html += '</div><p style="font-size:.74rem;color:#6b7280;margin:.5rem 0 0;line-height:1.45;">New uploads and assignments use the section you pick here. Announcements use a separate filter on the <a href="teacher.html" style="color:#059669;font-weight:700;">announcements</a> page.</p>';
+  html += '</div><p style="font-size:.74rem;color:#6b7280;margin:.5rem 0 0;line-height:1.45;">New uploads, assignments, and announcements use the section you pick here.</p>';
   wrap.innerHTML = html;
   wrap.querySelectorAll('.section-pill').forEach(btn => {
     btn.onclick = function() {
@@ -384,8 +415,8 @@ function renderWorkspacePage() {
     const subj = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'This class');
     const safe = String(subj).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     scopeEl.style.display = 'block';
-    scopeEl.innerHTML = '<strong style="font-family:DM Sans,sans-serif;font-size:.92rem;">Workspace: ' + safe + '</strong>'
-      + '<span style="display:block;margin-top:.4rem;opacity:.95;font-weight:500;">Materials and assignments for this subject. <a href="teacher.html" style="color:#059669;font-weight:700;">Post announcements</a> from the main teacher page.</span>';
+    scopeEl.innerHTML = '<strong style="font-family:DM Sans,sans-serif;font-size:.92rem;">' + safe + '</strong>'
+      + '<span style="display:block;margin-top:.4rem;opacity:.95;font-weight:500;">Announcements, materials, assignments, and records for this subject.</span>';
   }
   loadWorkspaceSectionForClass(activeClassId);
   renderWorkspaceSectionPills();
@@ -402,11 +433,79 @@ function renderWorkspacePage() {
 }
 
 function switchSub(name, btn) {
+  if (activeSub === 'records' && name !== 'records' && typeof flushSave === 'function') flushSave();
   activeSub = name;
   document.querySelectorAll('.sub-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.sub-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('sub-'+name).classList.add('active');
-  btn.classList.add('active');
+  document.querySelectorAll('#class-content > .sub-tabs > .sub-tab').forEach(t=>t.classList.remove('active'));
+  var panel = document.getElementById('sub-' + name);
+  if (panel) panel.classList.add('active');
+  if (btn) btn.classList.add('active');
+  if (name === 'announcements') renderSubjectAnnouncements();
+  if (name === 'records' && typeof renderActiveSheet === 'function') renderActiveSheet();
+}
+
+function openSubjectRecords() {
+  var btn = document.querySelector('#class-content > .sub-tabs > .sub-tab[data-sub="records"]');
+  if (btn) switchSub('records', btn);
+}
+
+function showSheetKind(kind, btn) {
+  if (typeof flushSave === 'function') flushSave();
+  activeView = kind === 'assessment' ? 'assessment' : 'attendance';
+  var att = document.getElementById('view-attendance');
+  var ass = document.getElementById('view-assessment');
+  if (att) att.style.display = activeView === 'attendance' ? '' : 'none';
+  if (ass) ass.style.display = activeView === 'assessment' ? '' : 'none';
+  document.querySelectorAll('#sheet-kind-tabs .sub-tab').forEach(function (t) { t.classList.remove('active'); });
+  if (btn) btn.classList.add('active');
+  if (typeof loadCurrentSheet === 'function') loadCurrentSheet();
+}
+
+async function postSubjectAnnouncement() {
+  const box = document.getElementById('stream-text');
+  const text = box ? box.value.trim() : '';
+  if (!text || !activeClassId) return;
+  try {
+    await PrismPosts.add({
+      class_id: activeClassId,
+      teacherId: TEACHER_ID,
+      type: 'announcement',
+      body: text,
+      attachment: null,
+      author: sessionStorage.getItem('prism_user_name') || 'Teacher',
+      target_section: getWorkspaceTargetSectionForApi(),
+    });
+    box.value = '';
+    await refreshClassData(activeClassId);
+    renderSubjectAnnouncements();
+  } catch (e) { alert(e.message || 'Failed to post.'); }
+}
+
+function renderSubjectAnnouncements() {
+  const feed = document.getElementById('stream-feed');
+  if (!feed) return;
+  const posts = (getPosts() || []).filter(function (p) {
+    return (p.class_id === activeClassId || p.classId === activeClassId) && itemMatchesWorkspaceSectionFilter(p);
+  }).sort(function (a, b) {
+    return new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0);
+  });
+  if (!posts.length) {
+    feed.innerHTML = '<div style="text-align:center;padding:2rem;color:#6b7280;font-size:.95rem;">No announcements yet.</div>';
+    return;
+  }
+  feed.innerHTML = '';
+  posts.forEach(function (p) {
+    const dl = new Date(p.created_at || p.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const div = document.createElement('div');
+    div.className = 'stream-post';
+    div.innerHTML = '<div class="post-header"><div class="post-avatar"></div><div class="post-meta"><div class="post-author"></div><div class="post-date"></div></div><span class="post-badge ' + teacherEsc(p.type || 'announcement') + '"></span></div><div class="post-body"></div>';
+    div.querySelector('.post-avatar').textContent = String(p.author || 'T').charAt(0);
+    div.querySelector('.post-author').textContent = p.author || 'Teacher';
+    div.querySelector('.post-date').textContent = dl;
+    div.querySelector('.post-badge').textContent = p.type || 'announcement';
+    div.querySelector('.post-body').textContent = p.body || '';
+    feed.appendChild(div);
+  });
 }
 
 function copyJoinCode(code, btn) {
@@ -808,7 +907,7 @@ function renderAssignments(){
       + srcBtns
       +(dStr?'<div class="asgn-due'+(overdue?' overdue':'')+'">'+( overdue?' ':'' )+'Due '+dueDisp+'</div>':'')
       +'<a href="grading.html?class='+encodeURIComponent(activeClassId)+'" style="font-size:.72rem;color:#7c3aed;font-weight:700;white-space:nowrap;text-decoration:none;" title="View submissions and enter scores"> Grading →</a>'
-      +'<a href="records.html?class='+encodeURIComponent(activeClassId)+'" style="font-size:.72rem;color:#059669;font-weight:700;white-space:nowrap;text-decoration:none;" title="Attendance and assessment records"> Records →</a>'
+      +'<button type="button" onclick="openSubjectRecords()" style="font-size:.72rem;color:#059669;font-weight:700;white-space:nowrap;background:none;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Records</button>'
       +'<button class="mat-del" onclick="deleteAssignment(\''+it.id+'\')">Remove</button>'
       +'</div>';
   }).join('');

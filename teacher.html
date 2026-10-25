@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Teacher</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=11"/>
+  <link rel="stylesheet" href="portal.css?v=12"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -191,13 +191,31 @@
     .form-msg.ok  { color:var(--t); }
     .form-msg.err { color:#ef4444; }
 
-    @media(max-width:640px){ .stats-row{grid-template-columns:1fr 1fr;} }
+    .gc-head { display:flex; align-items:center; gap:.65rem; margin:0 0 1rem; }
+    .gc-head h2 { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:700; color:#202124; margin:0; }
+    .gc-plus { width:36px; height:36px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#059669; font-size:1.45rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
+    .gc-plus:hover { background:#ecfdf5; border-color:#10b981; }
+    .gc-create { display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:1rem; margin-bottom:1rem; max-width:420px; }
+    .gc-create.open { display:block; }
+    .gc-create input { width:100%; border:1px solid #dadce0; border-radius:8px; padding:.55rem .75rem; font-family:'DM Sans',sans-serif; font-size:.9rem; margin-bottom:.55rem; box-sizing:border-box; }
+    .gc-create-actions { display:flex; gap:.5rem; }
+    .gc-grid { display:flex; flex-wrap:wrap; gap:1rem; }
+    .gc-card { width:220px; max-width:100%; background:#fff; border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; text-align:left; padding:0; font-family:'DM Sans',sans-serif; }
+    .gc-card:hover { box-shadow:0 1px 3px rgba(60,64,67,.3); }
+    .gc-card-top { height:78px; padding:.75rem .85rem; display:flex; align-items:flex-end; }
+    .gc-card-title { color:#fff; font-size:.98rem; font-weight:700; line-height:1.25; }
+    .gc-card-body { padding:.7rem .85rem .8rem; display:flex; align-items:center; justify-content:space-between; gap:.4rem; }
+    .gc-meta { font-size:.75rem; color:#5f6368; }
+    .gc-del { border:none; background:none; color:#9ca3af; font-size:.72rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; padding:.2rem .35rem; border-radius:6px; }
+    .gc-del:hover { color:#ef4444; background:#fee2e2; }
+    .gc-empty { color:#5f6368; font-size:.92rem; padding:1.5rem 0; }
+    @media(max-width:640px){ .gc-card{ width:100%; } }
   </style>
 </head>
 <body>
 <script src="api.js?v=9"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=13"></script>
+<script src="portal-sidebar.js?v=14"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -228,74 +246,25 @@
     <div class="teacher-hero">
       <div class="teacher-hero-label">Teacher Panel</div>
       <h1 id="teacher-greeting">Good morning</h1>
-      <p>Post announcements for each class. Open a subject in the sidebar (or below) for materials, assignments, and join codes.</p>
+      <p>Open a class for announcements, materials, assignments, and records.</p>
 </div>
 
-    <div class="stats-row">
-      <div class="stat-card" style="animation-delay:.05s"><div class="sv" id="stat-classes">0</div><div class="sl">My Classes</div></div>
-      <div class="stat-card" style="animation-delay:.1s"><div class="sv" id="stat-students">0</div><div class="sl">Total Students</div></div>
-      <div class="stat-card" style="animation-delay:.15s"><div class="sv" id="stat-quizzes">0</div><div class="sl">Quizzes</div></div>
-      <div class="stat-card" style="animation-delay:.2s"><div class="sv" id="stat-materials">0</div><div class="sl">Materials</div></div>
-      <div class="stat-card" style="animation-delay:.25s"><div class="sv" id="stat-assignments">0</div><div class="sl">Assignments</div></div>
+    <div class="gc-head">
+      <h2>Classes</h2>
+      <button type="button" class="gc-plus" id="create-subject-toggle" onclick="toggleCreateSubject()" aria-expanded="false" title="Create subject">+</button>
     </div>
-
-    <div class="section-heading">Upcoming events</div>
-    <div class="panel-card" style="margin-bottom:2rem;">
-      <div id="dash-events-list" class="dash-events-list"></div>
-      <div style="text-align:right;margin-top:.65rem;"><a href="calendar.html" style="font-size:.82rem;font-weight:600;color:var(--t-dark);text-decoration:none;">Open calendar →</a></div>
-    </div>
-
-    <!-- CLASS SELECT (same idea as Records: dropdown instead of many subject tabs) -->
-    <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:1.5rem;">
-      <div class="class-bar" style="margin-bottom:0;flex:1;min-width:200px;display:flex;align-items:center;gap:.75rem;background:#fff;border-radius:14px;padding:.55rem 1rem;box-shadow:0 4px 24px rgba(16,185,129,.10);border:1px solid rgba(16,185,129,.12);flex-wrap:wrap;">
-        <span style="font-size:.82rem;font-weight:700;color:#9ca3af;white-space:nowrap;"> Class</span>
-        <select id="teacher-class-select" class="t-select" onchange="onTeacherClassChange(this.value)" style="min-width:220px;flex:1;max-width:100%;font-weight:600;"></select>
-        <button type="button" onclick="openCreateClass()" style="padding:.5rem 1rem;color:#10b981;border:1.5px dashed #10b981;background:none;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;">＋ Subject</button>
+    <div id="create-subject-panel" class="gc-create">
+      <input type="text" id="cc-subject" placeholder="Subject name"/>
+      <input type="text" id="cc-code" placeholder="Course code (optional)"/>
+      <div class="gc-create-actions">
+        <button class="m-btn primary" type="button" onclick="handleCreateClass()" style="flex:none;padding:.55rem 1rem;">Create</button>
+        <button class="m-btn ghost" type="button" onclick="closeCreateClass()" style="flex:none;padding:.55rem 1rem;">Cancel</button>
       </div>
-      <a id="teacher-open-workspace" class="t-btn outline" href="teacher-class.html" style="padding:.5rem 1rem;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:.35rem;"> Subject page</a>
-      <button onclick="deleteCurrentClass()" style="padding:.5rem 1rem;background:none;border:1.5px solid #fca5a5;color:#ef4444;border-radius:10px;font-size:.82rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;flex-shrink:0;" title="Delete current class"> Delete Class</button>
+      <div class="form-msg" id="cc-msg"></div>
     </div>
-
-    <div id="teacher-class-scope-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.15rem;border-radius:14px;background:linear-gradient(135deg,#ecfdf5 0%,#f0fdf4 100%);border:1.5px solid #a7f3d0;font-size:.84rem;line-height:1.55;color:#065f46;"></div>
-
-    <div id="teacher-section-pills-wrap" style="display:none;margin-bottom:1rem;"></div>
-
-    <div id="class-content">
-      <div class="t-card" style="margin-bottom:1.2rem;">
-        <div class="t-card-title"> Announcements</div>
-        <textarea class="composer" id="stream-text" placeholder="Write an announcement for your class…"></textarea>
-        <div class="composer-row" style="justify-content:flex-end;margin-top:.75rem;">
-          <button class="t-btn" onclick="postStream()">Post announcement →</button>
-        </div>
-      </div>
-      <div id="stream-feed"></div>
-    </div><!-- /class-content -->
-
-    <div class="section-heading">Portal announcements</div>
-    <div class="panel-card" style="margin-bottom:2rem;">
-      <p style="font-size:.8rem;color:#9ca3af;margin:-.25rem 0 1rem;line-height:1.5;">Messages from administrators for all portal users.</p>
-      <div id="teacher-portal-ann-feed"></div>
-    </div>
+    <div id="classes-grid" class="gc-grid"></div>
   </main>
 </div>
-
-<!-- Create Class Modal -->
-<div class="m-overlay" id="create-class-overlay">
-  <div class="m-box">
-    <button class="m-close" onclick="closeCreateClass()"></button>
-    <h3> Create New Subject</h3>
-    <div class="m-field"><label>Subject Name</label><input type="text" id="cc-subject" placeholder="e.g. Mathematics, Programming…"/></div>
-    <div class="m-field"><label>Course Code</label><input type="text" id="cc-code" placeholder="e.g. MATH 101 (auto-generated if blank)"/></div>
-    <p style="font-size:.8rem;color:#9ca3af;margin-bottom:1rem;">A 6-character join code will be automatically generated. Share it with your students so they can join this class.</p>
-    <div class="m-actions">
-      <button class="m-btn ghost" onclick="closeCreateClass()">Cancel</button>
-      <button class="m-btn primary" onclick="handleCreateClass()">Create Subject</button>
-    </div>
-    <div class="form-msg" id="cc-msg"></div>
-  </div>
-</div>
-
-<!-- Delete Class button (shown in class tabs area) -->
 
 <!-- Bulk Grade Modal -->
 <div class="m-overlay" id="bulk-overlay">
@@ -314,6 +283,6 @@
   </div>
 </div>
 
-<script src="pages/teacher.js?v=12"></script>
+<script src="pages/teacher.js?v=13"></script>
 </body>
 </html>

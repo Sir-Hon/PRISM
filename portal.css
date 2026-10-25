@@ -638,7 +638,10 @@ html[data-theme="dark"] .stream-post,
 html[data-theme="dark"] .class-view-topbar,
 html[data-theme="dark"] .class-view-tabs,
 html[data-theme="dark"] .quiz-item,
-html[data-theme="dark"] .portal-card {
+html[data-theme="dark"] .portal-card,
+html[data-theme="dark"] .gc-card,
+html[data-theme="dark"] .gc-create,
+html[data-theme="dark"] .m-box {
   background: var(--surface) !important;
   border-color: var(--border) !important;
   color: var(--text);
@@ -708,6 +711,55 @@ html[data-theme="dark"] td {
 html[data-theme="dark"] .empty-state {
   color: var(--text-muted);
 }
+
+.ann-author { font-weight: 700; color: #16132b; }
+.ann-text { color: #374151; }
+
+/* Near-black text written into the page is unreadable on dark surfaces. */
+html[data-theme="dark"] .ann-author,
+html[data-theme="dark"] .ann-text,
+html[data-theme="dark"] .post-body,
+html[data-theme="dark"] .class-teacher,
+html[data-theme="dark"] .class-code,
+html[data-theme="dark"] .mat-meta,
+html[data-theme="dark"] .asgn-meta,
+html[data-theme="dark"] .dash-ev-meta,
+html[data-theme="dark"] .src-hint,
+html[data-theme="dark"] .m-box h3,
+html[data-theme="dark"] .gc-meta,
+html[data-theme="dark"] .page-header h1,
+html[data-theme="dark"] .page-header p,
+html[data-theme="dark"] [style*="color:#16132b"],
+html[data-theme="dark"] [style*="color:#374151"],
+html[data-theme="dark"] [style*="color:#1f2937"],
+html[data-theme="dark"] [style*="color:#111827"],
+html[data-theme="dark"] [style*="color:#0f172a"] {
+  color: #f3f4f6 !important;
+}
+
+html[data-theme="dark"] .paper,
+html[data-theme="dark"] .paper [style*="color:#16132b"],
+html[data-theme="dark"] .paper [style*="color:#374151"],
+html[data-theme="dark"] .paper input,
+html[data-theme="dark"] .paper textarea,
+html[data-theme="dark"] .paper th,
+html[data-theme="dark"] .paper td {
+  color: #1f1630 !important;
+}
+
+html[data-theme="dark"] .paper {
+  background: #fffdfb !important;
+}
+
+html[data-theme="dark"] .gc-card-title,
+html[data-theme="dark"] .gc-head h2 {
+  color: #fff !important;
+}
+html[data-theme="dark"] .gc-head h2 { color: #f3f4f6 !important; }
+html[data-theme="dark"] .paper .mark-inp.mk-p { color: #047857 !important; }
+html[data-theme="dark"] .paper .mark-inp.mk-a { color: #b91c1c !important; }
+html[data-theme="dark"] .paper .mark-inp.mk-l { color: #b45309 !important; }
+html[data-theme="dark"] .paper .mark-inp.mk-h { color: #6d28d9 !important; }
 
 .p-empty-icon,
 .info-icon:empty,

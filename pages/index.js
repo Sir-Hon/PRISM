@@ -1155,8 +1155,8 @@ async function renderAnnouncements() {
     var text = String(a.text == null ? '' : a.text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     return '<div style="display:flex;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
       + '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">' + String(a.author || 'A').charAt(0) + '</div>'
-      + '<div><div style="font-size:.88rem;font-weight:700;color:#16132b;">' + String(a.author || 'Admin').replace(/</g, '&lt;') + pill + ' <span style="font-size:.74rem;color:#9ca3af;">' + dl + '</span></div>'
-      + '<div style="font-size:.88rem;color:#374151;line-height:1.65;margin-top:.25rem;">' + text + '</div></div></div>';
+      + '<div><div class="ann-author" style="font-size:.88rem;font-weight:700;">' + String(a.author || 'Admin').replace(/</g, '&lt;') + pill + ' <span style="font-size:.74rem;color:#9ca3af;">' + dl + '</span></div>'
+      + '<div class="ann-text" style="font-size:.88rem;line-height:1.65;margin-top:.25rem;">' + text + '</div></div></div>';
   }).join('');
 }
 

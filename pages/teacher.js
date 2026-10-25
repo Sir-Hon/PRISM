@@ -211,24 +211,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
   document.getElementById('teacher-greeting').textContent = `${g}, ${user.name}`;
   paintTeacherClassesFromCache();
-  renderDashboardIncomingEvents();
-  await Promise.all([
-    (async function(){
-      try {
-        if (typeof PrismEvents !== 'undefined' && PrismEvents.get) {
-          const apiEv = await PrismEvents.get();
-          const mapped = apiEv.map(e => ({
-            id: e.id, title: e.title, date: e.event_date, time: e.event_time || '', notes: e.notes || '', color: e.color || '#6d28d9', alarm: e.alarm
-          }));
-          localStorage.setItem('prism_events', JSON.stringify(mapped));
-          renderDashboardIncomingEvents();
-        }
-      } catch (evErr) { console.warn('Events sync:', evErr); }
-    })(),
-    renderTeacherPortalAnnouncements().catch(function(){}),
-    loadClasses(),
-  ]);
-  renderStats();
+  await loadClasses();
 });
 
 function paintTeacherClassesFromCache() {
@@ -240,10 +223,7 @@ function paintTeacherClassesFromCache() {
     const savedTab = sessionStorage.getItem('prism_teacher_active_class_id');
     if (savedTab && CLASSES.find(c => c.id === savedTab)) activeClassId = savedTab;
     else activeClassId = CLASSES[0].id;
-    ensureTeacherClassPanel();
-    buildClassSelect();
-    renderAll();
-    renderStats();
+    renderClassGrid();
     if (typeof initSidebar === 'function') initSidebar('home');
     return true;
   } catch (e) {
@@ -274,15 +254,11 @@ async function loadClasses() {
     else if (!activeClassId || !CLASSES.find(c=>c.id===activeClassId)) activeClassId = CLASSES[0].id;
   }
   try { sessionStorage.setItem('prism_teacher_active_class_id', activeClassId); } catch (e) {}
-  ensureTeacherClassPanel();
-  buildClassSelect();
-  renderAll();
-  renderStats();
+  renderClassGrid();
   if (typeof initSidebar === 'function') initSidebar('home');
   if (typeof markSidebarClassActive === 'function') markSidebarClassActive(activeClassId);
   await refreshClassData(activeClassId);
-  renderAll();
-  renderStats();
+  renderClassGrid();
   CLASSES.filter(function(c){ return c.id !== activeClassId; }).forEach(function(cls){
     refreshClassData(cls.id).catch(function(){});
   });
@@ -344,23 +320,61 @@ function ensureTeacherClassPanel() {
 }
 
 function showEmptyState() {
-  const tsel = document.getElementById('teacher-class-select');
-  if (tsel) {
-    tsel.innerHTML = '<option value="">No subjects yet — create your first one</option>';
-    tsel.disabled = true;
+  renderClassGrid();
+}
+
+function renderClassGrid() {
+  const grid = document.getElementById('classes-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  if (!CLASSES.length) {
+    const empty = document.createElement('div');
+    empty.className = 'gc-empty';
+    empty.textContent = 'No subjects yet. Use the plus button to create one.';
+    grid.appendChild(empty);
+    return;
   }
-  const ow = document.getElementById('teacher-open-workspace');
-  if (ow) { ow.style.display = 'none'; }
-  const scopeBanner = document.getElementById('teacher-class-scope-banner');
-  if (scopeBanner) { scopeBanner.style.display = 'none'; scopeBanner.innerHTML = ''; }
-  const secWrap = document.getElementById('teacher-section-pills-wrap');
-  if (secWrap) { secWrap.style.display = 'none'; secWrap.innerHTML = ''; }
-  document.getElementById('class-content').innerHTML = `
-    <div style="text-align:center;padding:4rem 2rem;background:#fff;border-radius:18px;border:2px dashed #d1fae5;">
-      <div style="font-family:'DM Sans',sans-serif;font-size:1.15rem;font-weight:700;color:#16132b;margin-bottom:.5rem;">No subjects yet</div>
-      <p style="color:#9ca3af;font-size:.95rem;margin-bottom:1.5rem;">Create your first subject to get started.</p>
-      <button class="t-btn" onclick="openCreateClass()" style="padding:.75rem 2rem;font-size:1rem;">+ Create Subject</button>
-    </div>`;
+  CLASSES.forEach(function (cls) {
+    const color = /^#[0-9a-fA-F]{3,8}$/.test(String(cls.color || '')) ? cls.color : '#0d9488';
+    const n = parseInt(cls.student_count, 10) || getStudents(cls.id).length || 0;
+    const card = document.createElement('div');
+    card.className = 'gc-card';
+    card.innerHTML = '<div class="gc-card-top" style="background:' + color + '"><div class="gc-card-title"></div></div>'
+      + '<div class="gc-card-body"><div class="gc-meta"></div><button type="button" class="gc-del">Delete</button></div>';
+    card.querySelector('.gc-card-title').textContent = cls.subject || 'Subject';
+    card.querySelector('.gc-meta').textContent = (cls.code ? cls.code + ' · ' : '') + n + ' student' + (n === 1 ? '' : 's');
+    card.addEventListener('click', function () {
+      window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id);
+    });
+    card.querySelector('.gc-del').addEventListener('click', function (ev) {
+      ev.preventDefault();
+      ev.stopPropagation();
+      activeClassId = cls.id;
+      deleteCurrentClass();
+    });
+    grid.appendChild(card);
+  });
+}
+
+function toggleCreateSubject() {
+  const panel = document.getElementById('create-subject-panel');
+  const plus = document.getElementById('create-subject-toggle');
+  if (!panel) return;
+  const open = !panel.classList.contains('open');
+  panel.classList.toggle('open', open);
+  if (plus) {
+    plus.setAttribute('aria-expanded', open ? 'true' : 'false');
+    plus.textContent = open ? '×' : '+';
+  }
+  if (open) {
+    const sub = document.getElementById('cc-subject');
+    const code = document.getElementById('cc-code');
+    const msg = document.getElementById('cc-msg');
+    if (sub) sub.value = '';
+    if (code) code.value = '';
+    if (msg) { msg.textContent = ''; msg.className = 'form-msg'; }
+    setTimeout(function () { if (sub) sub.focus(); }, 40);
+  }
 }
 
 function uniqueSectionsFromStudents(classId) {
@@ -431,6 +445,7 @@ function renderTeacherSectionPills() {
 }
 
 function renderStats() {
+  if (!document.getElementById('stat-classes')) return;
   const totalStudents = CLASSES.reduce((a,cls)=>a+(parseInt(cls.student_count,10)||getStudents(cls.id).length),0);
   document.getElementById('stat-classes').textContent    = CLASSES.length;
   document.getElementById('stat-students').textContent   = totalStudents;
@@ -464,15 +479,13 @@ function renderAll() {
 
 /* ═══════════════════════════ CREATE / DELETE CLASS ═══════════════════════════ */
 function openCreateClass() {
-  document.getElementById('cc-subject').value='';
-  document.getElementById('cc-code').value='';
-  const cm = document.getElementById('cc-msg');
-  cm.textContent='';
-  cm.className='form-msg';
-  document.getElementById('create-class-overlay').classList.add('active');
-  setTimeout(()=>document.getElementById('cc-subject').focus(),100);
+  const panel = document.getElementById('create-subject-panel');
+  if (panel && !panel.classList.contains('open')) toggleCreateSubject();
 }
-function closeCreateClass() { document.getElementById('create-class-overlay').classList.remove('active'); }
+function closeCreateClass() {
+  const panel = document.getElementById('create-subject-panel');
+  if (panel && panel.classList.contains('open')) toggleCreateSubject();
+}
 
 async function handleCreateClass() {
   const subject = document.getElementById('cc-subject').value.trim();
@@ -499,10 +512,7 @@ async function handleCreateClass() {
     document.getElementById('cc-code').value = code;
     msgEl.textContent = 'Class created. Share the join code above with students.';
     msgEl.className = 'form-msg ok';
-    ensureTeacherClassPanel();
-    buildClassSelect();
-    renderAll();
-    renderStats();
+    renderClassGrid();
     if (typeof initSidebar === 'function') initSidebar('home');
     setTimeout(() => {
       closeCreateClass();
@@ -688,7 +698,8 @@ function saveBulk(){
   students.forEach(s=>{const key=activeClassId+':'+s.id;if(!r[key])r[key]={};r[key][comp]=grade;});
   saveRecords(r); closeBulk(); renderRecords();
 }
-document.getElementById('bulk-overlay').addEventListener('click',function(e){if(e.target===this)closeBulk();});
+var bulkOverlay = document.getElementById('bulk-overlay');
+if (bulkOverlay) bulkOverlay.addEventListener('click',function(e){if(e.target===this)closeBulk();});
 
 /* ═══════════════════════════ QUIZ MAKER ═══════════════════════════ */
 function addQuestion(pre) {

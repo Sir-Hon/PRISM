@@ -31,7 +31,6 @@ var ROLE_NAV = {
   teacher: [
     { page: 'home', href: 'teacher.html', icon: 'classes', label: 'My Classes' },
     { page: 'quizmaker', href: 'quizmaker.html', icon: 'quizzes', label: 'Quiz Maker' },
-    { page: 'records', href: 'records.html', icon: 'records', label: 'Records' },
     { page: 'grading', href: 'grading.html', icon: 'grading', label: 'Grading' },
     { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
   ],

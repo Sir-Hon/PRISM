@@ -90,14 +90,10 @@ function refreshSheetBar() {
   var students = typeof getStudents === 'function' ? getStudents(activeClassId) : [];
   var prev = sheetStudentId || sel.value;
   sel.innerHTML = '';
-  if (!students.length) {
-    var empty = document.createElement('option');
-    empty.value = '';
-    empty.textContent = 'No students in this class';
-    sel.appendChild(empty);
-    sheetStudentId = '';
-    return;
-  }
+  var placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = students.length ? 'Choose a student' : 'No students in this class';
+  sel.appendChild(placeholder);
   students.forEach(function (s) {
     var opt = document.createElement('option');
     opt.value = s.id;
@@ -105,7 +101,7 @@ function refreshSheetBar() {
     sel.appendChild(opt);
   });
   var keep = students.some(function (s) { return s.id === prev; });
-  sheetStudentId = keep ? prev : students[0].id;
+  sheetStudentId = keep ? prev : '';
   sel.value = sheetStudentId;
 }
 
@@ -189,7 +185,7 @@ async function loadCurrentSheet() {
   if (!host) return;
   var student = selectedStudent();
   if (!activeClassId || !sheetStudentId || !student) {
-    host.innerHTML = '<div class="paper" style="color:#6b7280;">Choose a class that has students enrolled.</div>';
+    host.innerHTML = '<div class="paper" style="color:#6b7280;">Choose a student to open attendance and assessment.</div>';
     attendanceData = null;
     assessmentData = null;
     return;
