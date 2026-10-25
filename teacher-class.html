@@ -230,7 +230,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=13"></script>
+<script src="api.js?v=16"></script>
 <script src="script.js?v=11"></script>
 <script src="portal-sidebar.js?v=16"></script>
 <div class="topbar">
@@ -299,17 +299,18 @@
           <div class="t-card-title"> Add Material</div>
           <div class="m-field"><label>Title</label><input type="text" id="mat-title" placeholder="e.g. Week 1 reading or lab video"/></div>
           <div class="m-field" id="mat-file-row">
-            <label>Attach a file (optional)</label>
+            <label>Attach files (optional)</label>
             <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
-              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose a file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel — max 15 MB</span></div>
-              <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;"></div>
+              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose files, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel — up to 8 files, 15 MB each</span></div>
+              <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;text-align:left;"></div>
             </div>
-            <input type="file" id="mat-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
+            <input type="file" id="mat-file-input" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
           </div>
           <div class="m-field" id="mat-url-row">
-            <label id="mat-url-label">Link (optional)</label>
-            <input type="text" id="mat-url" placeholder="Paste a website or YouTube link…"/>
-            <p class="src-hint" id="mat-url-hint" style="margin-top:.4rem;">Valid links become clickable hyperlinks for students. You can attach a file and a link together.</p>
+            <label id="mat-url-label">Links (optional)</label>
+            <div id="mat-link-list"></div>
+            <button type="button" onclick="addMatLinkRow()" style="margin-top:.45rem;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:8px;padding:.35rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">Add another link</button>
+            <p class="src-hint" id="mat-url-hint" style="margin-top:.4rem;">Add as many files and links as you need, up to 8 of each. Students see files and videos in separate cards.</p>
           </div>
           <div class="m-field"><label>Notes (optional)</label><textarea id="mat-desc" rows="3" placeholder="Short note. URLs typed here also become links for students." style="width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:.6rem .85rem;font-size:.88rem;font-family:'DM Sans',sans-serif;color:#16132b;outline:none;background:#f0fdf4;resize:vertical;box-sizing:border-box;"></textarea></div>
           <button class="t-btn" onclick="addMaterial()" id="mat-upload-btn">Share with class</button>
@@ -384,7 +385,7 @@
   </main>
 </div>
 
-<script src="pages/teacher-class.js?v=14"></script>
+<script src="pages/teacher-class.js?v=16"></script>
 <script src="pages/sheets.js?v=2"></script>
 </body>
 </html>

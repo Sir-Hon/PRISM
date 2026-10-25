@@ -658,20 +658,37 @@ const PrismMaterials = {
     return data.materials || [];
   },
   async add(mat) {
-    if (mat && mat.file instanceof File) {
+    const files = [];
+    if (mat && Array.isArray(mat.files)) {
+      mat.files.forEach(function (f) { if (f instanceof File) files.push(f); });
+    }
+    if (mat && mat.file instanceof File) files.push(mat.file);
+    const urls = [];
+    if (mat && Array.isArray(mat.urls)) {
+      mat.urls.forEach(function (u) { if (u) urls.push(String(u)); });
+    } else if (mat && mat.url) {
+      urls.push(String(mat.url));
+    }
+    if (files.length) {
       const fd = new FormData();
       fd.append('class_id', mat.class_id || '');
       fd.append('title', mat.title || '');
       fd.append('type', mat.type || 'file');
-      fd.append('url', mat.url || '');
+      fd.append('url', urls[0] || '');
+      fd.append('urls', JSON.stringify(urls));
       fd.append('desc', mat.desc || '');
       if (mat.target_section != null && mat.target_section !== '') {
         fd.append('target_section', mat.target_section);
       }
-      fd.append('file', mat.file, mat.file.name);
+      files.forEach(function (f) { fd.append('files[]', f, f.name); });
       return await apiForm('content', 'add_material', fd);
     }
-    return await apiCall('content', 'add_material', 'POST', mat);
+    const payload = Object.assign({}, mat || {});
+    delete payload.file;
+    delete payload.files;
+    payload.urls = urls;
+    payload.url = urls[0] || '';
+    return await apiCall('content', 'add_material', 'POST', payload);
   },
   async delete(id) {
     return await apiCall('content', 'delete_material', 'POST', { id });

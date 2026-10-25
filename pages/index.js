@@ -1137,31 +1137,103 @@ function studentMaterialEmbedHtml(pageUrl) {
   return '<div class="student-mat-embed"><iframe src="' + prismEscAttr(emb.embed) + '" title="Video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>';
 }
 
-function studentMaterialAttachHtml(classId, it) {
-  var kind = typeof prismMaterialKind === 'function' ? prismMaterialKind(it.mime_type, it.file_name || it.url, it.type) : (it.type || 'file');
-  var fileSrc = it.file_path ? studentFileUrl(it.file_path) : (it.file_data || '');
-  var name = it.file_name || 'Attachment';
-  var html = '';
-  var isImage = kind === 'image' || studentIsImageMime(it.mime_type, it.file_name);
-  if (isImage && fileSrc) {
-    html += '<img class="student-mat-media" src="' + prismEscAttr(fileSrc) + '" alt="' + prismEscAttr(name) + '"/>';
-  } else if (kind === 'video-file' && fileSrc) {
-    html += '<video class="student-mat-video" src="' + prismEscAttr(fileSrc) + '" controls></video>';
-  } else if (kind === 'pdf' && fileSrc) {
-    html += '<iframe class="student-mat-frame" src="' + prismEscAttr(fileSrc) + '" title="' + prismEscAttr(name) + '"></iframe>';
-  } else if (it.file_path) {
-    html += '<button type="button" class="student-mat-file" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(it.file_path) + ',' + JSON.stringify(it.mime_type || '') + ',' + JSON.stringify(name) + ')\'>' + prismEscHtml(name) + '</button>';
-  } else if (it.file_data) {
-    html += '<button type="button" class="student-mat-file" onclick=\'previewStudentMaterialBlob(' + JSON.stringify(classId) + ',' + JSON.stringify(it.id) + ')\'>' + prismEscHtml(name) + '</button>';
+function studentMaterialPieces(it) {
+  var raw = it && (it.attachments_json || it.attachments);
+  if (typeof raw === 'string' && raw.trim()) {
+    try { raw = JSON.parse(raw); } catch (e) { raw = []; }
   }
-  var href = typeof prismMaterialHttpUrl === 'function' ? prismMaterialHttpUrl(it) : '';
-  if (href) {
+  var pieces = [];
+  if (Array.isArray(raw)) {
+    raw.forEach(function (a) {
+      if (!a) return;
+      var path = a.path || a.file_path || '';
+      var url = a.url || '';
+      if (path) {
+        pieces.push({ kind: 'file', file_path: path, file_name: a.name || a.file_name || 'Attachment', mime_type: a.mime || a.mime_type || '' });
+      } else if (url) {
+        pieces.push({ kind: 'link', url: url });
+      }
+    });
+  }
+  if (!pieces.length && it) {
+    if (it.file_path || it.file_data) {
+      pieces.push({
+        kind: 'file',
+        file_path: it.file_path || '',
+        file_name: it.file_name || 'Attachment',
+        mime_type: it.mime_type || '',
+        file_data: it.file_data || '',
+        id: it.id
+      });
+    }
+    var href = typeof prismMaterialHttpUrl === 'function' ? prismMaterialHttpUrl(it) : (it.url || '');
+    if (href) pieces.push({ kind: 'link', url: href });
+  }
+  return pieces;
+}
+
+function studentPieceIsVideo(piece) {
+  if (!piece) return false;
+  if (piece.kind === 'link') {
+    return typeof prismVideoEmbedFromUrl === 'function' && !!prismVideoEmbedFromUrl(piece.url);
+  }
+  var kind = typeof prismMaterialKind === 'function' ? prismMaterialKind(piece.mime_type, piece.file_name, 'file') : '';
+  return kind === 'video-file';
+}
+
+function studentMaterialPieceInner(classId, piece) {
+  if (piece.kind === 'link') {
+    var href = typeof prismNormalizeHttpUrl === 'function' ? (prismNormalizeHttpUrl(piece.url) || piece.url) : piece.url;
     var embedded = studentMaterialEmbedHtml(href);
-    html += embedded || ('<a class="student-mat-link" href="' + prismEscAttr(href) + '" target="_blank" rel="noopener">' + prismEscHtml(href) + '</a>');
-  } else if (kind === 'video' && it.url) {
-    html += studentMaterialEmbedHtml(it.url);
+    return embedded || ('<a class="student-mat-link" href="' + prismEscAttr(href) + '" target="_blank" rel="noopener">' + prismEscHtml(href) + '</a>');
   }
-  return html;
+  var kind = typeof prismMaterialKind === 'function' ? prismMaterialKind(piece.mime_type, piece.file_name, 'file') : 'file';
+  var fileSrc = piece.file_path ? studentFileUrl(piece.file_path) : (piece.file_data || '');
+  var name = piece.file_name || 'Attachment';
+  var isImage = kind === 'image' || studentIsImageMime(piece.mime_type, piece.file_name);
+  if (isImage && fileSrc) {
+    return '<img class="student-mat-media" src="' + prismEscAttr(fileSrc) + '" alt="' + prismEscAttr(name) + '"/>';
+  }
+  if (kind === 'video-file' && fileSrc) {
+    return '<video class="student-mat-video" src="' + prismEscAttr(fileSrc) + '" controls></video>';
+  }
+  if (kind === 'pdf' && fileSrc) {
+    return '<iframe class="student-mat-frame" src="' + prismEscAttr(fileSrc) + '" title="' + prismEscAttr(name) + '"></iframe>';
+  }
+  if (piece.file_path) {
+    return '<button type="button" class="student-mat-file" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(piece.file_path) + ',' + JSON.stringify(piece.mime_type || '') + ',' + JSON.stringify(name) + ')\'>' + prismEscHtml(name) + '</button>';
+  }
+  if (piece.file_data) {
+    return '<button type="button" class="student-mat-file" onclick=\'previewStudentMaterialBlob(' + JSON.stringify(classId) + ',' + JSON.stringify(piece.id || '') + ')\'>' + prismEscHtml(name) + '</button>';
+  }
+  return '';
+}
+
+function studentMaterialAttachHtml(classId, it) {
+  var pieces = studentMaterialPieces(it);
+  var groups = { file: [], video: [], link: [] };
+  pieces.forEach(function (piece) {
+    if (studentPieceIsVideo(piece)) groups.video.push(piece);
+    else if (piece.kind === 'link') groups.link.push(piece);
+    else groups.file.push(piece);
+  });
+  var order = [
+    ['file', 'Files', 'File'],
+    ['video', 'Videos', 'Video'],
+    ['link', 'Links', 'Link']
+  ];
+  return order.map(function (spec) {
+    var list = groups[spec[0]];
+    if (!list.length) return '';
+    return '<div class="student-mat-group"><div class="student-mat-group-label">' + spec[1] + '</div>'
+      + list.map(function (piece) {
+        return '<div class="student-mat-piece' + (spec[0] === 'video' ? ' is-video' : '') + '">'
+          + '<div class="student-mat-piece-label">' + spec[2] + '</div>'
+          + studentMaterialPieceInner(classId, piece)
+          + '</div>';
+      }).join('')
+      + '</div>';
+  }).join('');
 }
 
 function studentMaterialCardHtml(classId, it) {

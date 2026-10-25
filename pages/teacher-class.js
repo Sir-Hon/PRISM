@@ -172,6 +172,8 @@ function paintTeacherClassShell(cls) {
   renderWorkspacePage();
   bindMatDropZone();
   bindAsgnDropZone();
+  var linkList = document.getElementById('mat-link-list');
+  if (linkList && !linkList.querySelector('.mat-link-input')) linkList.innerHTML = matLinkRowHtml();
 }
 
 async function initTeacherClassPage() {
@@ -235,17 +237,18 @@ const TEACHER_CLASS_CONTENT_HTML = `
           <div class="t-card-title"> Add Material</div>
           <div class="m-field"><label>Title</label><input type="text" id="mat-title" placeholder="e.g. Week 1 reading or lab video"/></div>
           <div class="m-field" id="mat-file-row">
-            <label>Attach a file (optional)</label>
+            <label>Attach files (optional)</label>
             <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
-              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose a file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel — max 15 MB</span></div>
-              <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;"></div>
+              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose files, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel — up to 8 files, 15 MB each</span></div>
+              <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;text-align:left;"></div>
             </div>
-            <input type="file" id="mat-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
+            <input type="file" id="mat-file-input" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
           </div>
           <div class="m-field" id="mat-url-row">
-            <label id="mat-url-label">Link (optional)</label>
-            <input type="text" id="mat-url" placeholder="Paste a website or YouTube link…"/>
-            <p class="src-hint" id="mat-url-hint" style="margin-top:.4rem;">Valid links become clickable hyperlinks for students. You can attach a file and a link together.</p>
+            <label id="mat-url-label">Links (optional)</label>
+            <div id="mat-link-list"></div>
+            <button type="button" onclick="addMatLinkRow()" style="margin-top:.45rem;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:8px;padding:.35rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Add another link</button>
+            <p class="src-hint" id="mat-url-hint" style="margin-top:.4rem;">Add as many files and links as you need, up to 8 of each. Students see files and videos in separate cards.</p>
           </div>
           <div class="m-field"><label>Notes (optional)</label><textarea id="mat-desc" rows="3" placeholder="Short note. URLs typed here also become links for students." style="width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:.6rem .85rem;font-size:.88rem;font-family:'DM Sans',sans-serif;color:#16132b;outline:none;background:#f0fdf4;resize:vertical;box-sizing:border-box;"></textarea></div>
           <button class="t-btn" onclick="addMaterial()" id="mat-upload-btn">Share with class</button>
@@ -326,6 +329,7 @@ function ensureWorkspacePanel() {
   const matTab = wrap.querySelector('.sub-tab[data-sub="materials"]');
   if (matTab) matTab.classList.add('active');
   bindMatDropZone();
+  resetMatComposer();
   bindAsgnDropZone();
 }
 
@@ -610,7 +614,7 @@ function renderSavedQuizzes(){ /* moved to quizmaker.html */ }
 async function deleteQuiz(id){if(!confirm('Delete this quiz?'))return;try{await PrismQuizzes.delete(id);}catch(e){alert(e.message||'Could not delete quiz.');return;}saveQuizzes(getQuizzes().filter(q=>q.id!==id));renderSavedQuizzes();}
 
 /* ═══════════════════════════ MATERIALS ═══════════════════════════ */
-var _matFile = null;
+var _matFiles = [];
 var _asgnFile = null;
 var PRISM_MAT_ACCEPT = {
   file: '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip',
@@ -633,21 +637,84 @@ function prismTeacherCheckFile(file) {
 
 function onMatTypeChange() { /* type picker removed — file + link are always available */ }
 
-function onMatFileChosen(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const err = prismTeacherCheckFile(file);
-  if (err) { alert(err); input.value = ''; _matFile = null; return; }
-  _matFile = file;
-  const dropLabel = document.getElementById('mat-drop-label');
-  if (dropLabel) dropLabel.style.display = 'none';
-  const chosen = document.getElementById('mat-file-chosen');
-  if (chosen) {
-    chosen.style.display = 'block';
-    chosen.textContent = ' ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+function matLinkRowHtml() {
+  return '<div class="mat-link-row" style="display:flex;gap:.4rem;margin-top:.4rem;align-items:center;">'
+    + '<input type="text" class="mat-link-input" placeholder="Paste a website or YouTube link…" style="flex:1;"/>'
+    + '<button type="button" onclick="removeMatLinkRow(this)" style="background:#fff;color:#6b7280;border:1px solid #d1fae5;border-radius:8px;padding:.4rem .6rem;font-size:.75rem;font-weight:700;cursor:pointer;">Remove</button>'
+    + '</div>';
+}
+
+function addMatLinkRow() {
+  const list = document.getElementById('mat-link-list');
+  if (!list) return;
+  if (list.querySelectorAll('.mat-link-input').length >= 8) {
+    alert('You can attach up to 8 links.');
+    return;
   }
+  list.insertAdjacentHTML('beforeend', matLinkRowHtml());
+}
+
+function removeMatLinkRow(btn) {
+  const list = document.getElementById('mat-link-list');
+  const row = btn && btn.closest ? btn.closest('.mat-link-row') : null;
+  if (!list || !row) return;
+  if (list.querySelectorAll('.mat-link-row').length <= 1) {
+    const input = row.querySelector('.mat-link-input');
+    if (input) input.value = '';
+    return;
+  }
+  row.remove();
+}
+
+function renderMatChosenFiles() {
+  const chosen = document.getElementById('mat-file-chosen');
+  const dropLabel = document.getElementById('mat-drop-label');
+  if (!_matFiles.length) {
+    if (chosen) chosen.style.display = 'none';
+    if (dropLabel) dropLabel.style.display = 'block';
+    return;
+  }
+  if (dropLabel) dropLabel.style.display = 'none';
+  if (!chosen) return;
+  chosen.style.display = 'block';
+  chosen.innerHTML = _matFiles.map(function (file, i) {
+    return '<div onclick="event.stopPropagation()" style="display:flex;justify-content:space-between;gap:.5rem;align-items:center;margin-top:.35rem;">'
+      + '<span>' + teacherEsc(file.name) + ' (' + (file.size / 1024).toFixed(1) + ' KB)</span>'
+      + '<button type="button" onclick="event.stopPropagation();removeMatFile(' + i + ')" style="background:#fff;color:#6b7280;border:1px solid #a7f3d0;border-radius:8px;padding:.2rem .5rem;font-size:.72rem;font-weight:700;cursor:pointer;">Remove</button>'
+      + '</div>';
+  }).join('');
+}
+
+function removeMatFile(index) {
+  _matFiles.splice(index, 1);
+  renderMatChosenFiles();
+}
+
+function onMatFileChosen(input) {
+  const incoming = input && input.files ? Array.prototype.slice.call(input.files) : [];
+  if (!incoming.length) return;
+  incoming.forEach(function (file) {
+    if (_matFiles.length >= 8) {
+      alert('You can attach up to 8 files.');
+      return;
+    }
+    const err = prismTeacherCheckFile(file);
+    if (err) { alert(file.name + ': ' + err); return; }
+    _matFiles.push(file);
+  });
+  input.value = '';
   const titleEl = document.getElementById('mat-title');
-  if (titleEl && !titleEl.value.trim()) titleEl.value = file.name.replace(/\.[^.]+$/, '');
+  if (titleEl && !titleEl.value.trim() && _matFiles[0]) titleEl.value = _matFiles[0].name.replace(/\.[^.]+$/, '');
+  renderMatChosenFiles();
+}
+
+function resetMatComposer() {
+  _matFiles = [];
+  const fileInp = document.getElementById('mat-file-input');
+  if (fileInp) fileInp.value = '';
+  renderMatChosenFiles();
+  const list = document.getElementById('mat-link-list');
+  if (list) list.innerHTML = matLinkRowHtml();
 }
 
 function bindDropZone(zoneId, inputId, onChosen, hoverColor, restColor) {
@@ -700,34 +767,50 @@ function teacherEsc(s) {
   return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+function collectMatLinks() {
+  const urls = [];
+  document.querySelectorAll('.mat-link-input').forEach(function (input) {
+    const raw = input.value.trim();
+    if (!raw) return;
+    const normalized = typeof prismNormalizeHttpUrl === 'function' ? prismNormalizeHttpUrl(raw) : raw;
+    if (!normalized) {
+      urls.push(null);
+      return;
+    }
+    if (urls.indexOf(normalized) === -1) urls.push(normalized);
+  });
+  return urls;
+}
+
 async function addMaterial(){
   const title = document.getElementById('mat-title').value.trim();
   if (!title) { showMatMsg('Please enter a title.','err'); return; }
   const descEl = document.getElementById('mat-desc');
   const desc = descEl ? descEl.value.trim() : '';
-  let url = document.getElementById('mat-url') ? document.getElementById('mat-url').value.trim() : '';
-  if (url) {
-    const normalized = typeof prismNormalizeHttpUrl === 'function' ? prismNormalizeHttpUrl(url) : url;
-    if (!normalized) { showMatMsg('That link does not look valid. Use http:// or https://','err'); return; }
-    url = normalized;
-  } else if (typeof prismExtractFirstUrl === 'function') {
-    url = prismExtractFirstUrl(desc) || '';
+  let urls = collectMatLinks();
+  if (urls.indexOf(null) !== -1) {
+    showMatMsg('That link does not look valid. Use http:// or https://','err');
+    return;
   }
-  if (!_matFile && !url && !desc) {
+  if (!urls.length && typeof prismExtractFirstUrl === 'function') {
+    const found = prismExtractFirstUrl(desc) || '';
+    if (found) urls = [found];
+  }
+  if (!_matFiles.length && !urls.length && !desc) {
     showMatMsg('Attach a file, paste a link, or add a short note.','err');
     return;
   }
-  const type = _matFile ? 'file' : (url && typeof prismVideoEmbedFromUrl === 'function' && prismVideoEmbedFromUrl(url) ? 'video' : 'link');
+  const type = _matFiles.length ? 'file' : (urls[0] && typeof prismVideoEmbedFromUrl === 'function' && prismVideoEmbedFromUrl(urls[0]) ? 'video' : 'link');
   const btn=document.getElementById('mat-upload-btn');
   btn.disabled=true; btn.textContent='Saving…';
   try {
     const matRes = await PrismMaterials.add({
-      class_id:activeClassId, title, type, url,
-      file: _matFile || null,
+      class_id:activeClassId, title, type, urls: urls,
+      files: _matFiles.slice(),
       desc: desc,
       target_section: getWorkspaceTargetSectionForApi(),
     });
-    const streamAttach = (matRes && matRes.file_path) ? matRes.file_path : url;
+    const streamAttach = (matRes && matRes.file_path) ? matRes.file_path : (urls[0] || '');
     await PrismPosts.add({
       class_id:activeClassId, teacherId:TEACHER_ID, type:'material',
       body:'New material: "'+title+'"', attachment: streamAttach,
@@ -736,19 +819,33 @@ async function addMaterial(){
     });
     document.getElementById('mat-title').value='';
     if (descEl) descEl.value='';
-    if(document.getElementById('mat-url')) document.getElementById('mat-url').value='';
-    const fileInp = document.getElementById('mat-file-input');
-    if (fileInp) fileInp.value='';
-    _matFile=null;
-    const chosen = document.getElementById('mat-file-chosen');
-    const dropLabel = document.getElementById('mat-drop-label');
-    if (chosen) chosen.style.display='none';
-    if (dropLabel) dropLabel.style.display='block';
+    resetMatComposer();
     await refreshClassData(activeClassId);
     renderMaterials(); renderWorkspacePage();
     showMatMsg(' Shared with the class.','ok');
   } catch(e) { showMatMsg(e.message||'Upload failed.','err'); }
   finally { btn.disabled=false; btn.textContent='Share with class'; }
+}
+
+function teacherMaterialPieces(it) {
+  var raw = it && it.attachments_json;
+  if (typeof raw === 'string' && raw.trim()) {
+    try { raw = JSON.parse(raw); } catch (e) { raw = []; }
+  }
+  var pieces = [];
+  if (Array.isArray(raw)) {
+    raw.forEach(function (a) {
+      if (!a) return;
+      if (a.path) pieces.push({ kind: 'file', name: a.name || 'Attachment', path: a.path, mime: a.mime || '' });
+      else if (a.url) pieces.push({ kind: 'link', url: a.url });
+    });
+  }
+  if (!pieces.length && it) {
+    if (it.file_path || it.file_data) pieces.push({ kind: 'file', name: it.file_name || 'Attachment', path: it.file_path || '', mime: it.mime_type || '', legacyId: it.id });
+    var href = typeof prismMaterialHttpUrl === 'function' ? prismMaterialHttpUrl(it) : (it.url || '');
+    if (href) pieces.push({ kind: 'link', url: href });
+  }
+  return pieces;
 }
 
 function renderMaterials(){
@@ -771,27 +868,28 @@ function renderMaterials(){
     const icon = typeof prismMaterialIcon === 'function' ? prismMaterialIcon(kind) : '';
     const kindLabel = typeof prismMaterialKindLabel === 'function' ? prismMaterialKindLabel(kind) : (it.type || 'File');
     const secTag = (it.target_section && String(it.target_section).trim()) ? '<span style="font-size:.68rem;font-weight:700;color:#059669;margin-left:.35rem;">· '+teacherEsc(String(it.target_section).trim())+'</span>' : '';
-    let actionBtn='';
-    const btnBase = 'border:none;padding:.38rem .9rem;border-radius:8px;font-size:.78rem;font-weight:700;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;margin-left:.35rem;';
-    if (it.file_path) {
-      const prevT = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
-      actionBtn += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(it.file_path)+','+JSON.stringify(it.mime_type||'')+','+JSON.stringify(it.file_name||'')+')\' style="'+btnBase+'background:#10b981;color:white;margin-left:0;">'+(prevT?' View':' Open')+'</button>'
-        + '<a href="'+teacherEsc(it.file_path)+'" download="'+teacherEsc(it.file_name||'file')+'" style="'+btnBase+'background:#ecfdf5;color:#065f46;"> Save</a>';
-    } else if (it.file_data) {
-      actionBtn += '<button type="button" onclick="downloadMaterial(\''+it.id+'\')" style="'+btnBase+'background:#10b981;color:white;margin-left:0;"> Download</button>';
-    }
-    const httpUrl = typeof prismMaterialHttpUrl === 'function' ? prismMaterialHttpUrl(it) : '';
-    if (httpUrl) {
-      actionBtn += '<a href="'+teacherEsc(httpUrl)+'" target="_blank" rel="noopener" style="'+btnBase+'background:#6366f1;color:white;"> Link</a>';
-    }
+    const pieces = teacherMaterialPieces(it);
+    const filePieces = pieces.filter(function (p) { return p.kind === 'file'; });
+    const linkPieces = pieces.filter(function (p) { return p.kind === 'link'; });
+    const btnBase = 'border:none;padding:.38rem .9rem;border-radius:8px;font-size:.78rem;font-weight:700;white-space:nowrap;cursor:pointer;text-decoration:none;display:inline-block;margin:.2rem .35rem .2rem 0;';
+    let actionBtn = filePieces.map(function (p) {
+      if (p.path) {
+        return '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(p.path)+','+JSON.stringify(p.mime||'')+','+JSON.stringify(p.name||'')+')\' style="'+btnBase+'background:#10b981;color:white;">'+teacherEsc(p.name || 'File')+'</button>';
+      }
+      return '<button type="button" onclick="downloadMaterial(\''+it.id+'\')" style="'+btnBase+'background:#10b981;color:white;">'+teacherEsc(p.name || 'Download')+'</button>';
+    }).join('') + linkPieces.map(function (p) {
+      return '<a href="'+teacherEsc(p.url)+'" target="_blank" rel="noopener" style="'+btnBase+'background:#6366f1;color:white;">'+teacherEsc(p.url)+'</a>';
+    }).join('');
     let iconHtml;
     if (kind === 'image' && it.file_path) {
       iconHtml = '<img class="mat-thumb" src="'+teacherEsc(it.file_path)+'" alt=""/>';
     } else {
       iconHtml = '<div class="mat-icon" style="'+(bgColor[kind]||bgColor[it.type]||'')+'">'+icon+'</div>';
     }
-    const metaBits = [kindLabel];
-    if (it.file_name) metaBits.push(it.file_name);
+    const metaBits = [];
+    if (filePieces.length) metaBits.push(filePieces.length + (filePieces.length === 1 ? ' file' : ' files'));
+    if (linkPieces.length) metaBits.push(linkPieces.length + (linkPieces.length === 1 ? ' link' : ' links'));
+    if (!metaBits.length) metaBits.push(kindLabel);
     const note = it.description || it.desc || '';
     const noteHtml = note
       ? '<div class="mat-meta" style="margin-top:.25rem;white-space:pre-wrap;">'+(typeof prismLinkifyHtml==='function'?prismLinkifyHtml(note):teacherEsc(note))+'</div>'

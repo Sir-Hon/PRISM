@@ -217,6 +217,131 @@ function prism_material_type_from_ui($rawType, $url, $mime, $fileName) {
     return $t;
 }
 
+function prism_ensure_material_attachments(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) {
+        return $ready;
+    }
+    try {
+        $stmt = $db->query('SHOW COLUMNS FROM `materials` LIKE ' . $db->quote('attachments_json'));
+        $ready = $stmt && $stmt->rowCount() > 0;
+    } catch (PDOException $e) {
+        $ready = false;
+    }
+    if ($ready) {
+        return true;
+    }
+    try {
+        $db->exec('ALTER TABLE materials ADD COLUMN attachments_json MEDIUMTEXT NULL');
+        $ready = true;
+    } catch (PDOException $e) {
+        error_log('PRISM materials attachments: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
+function prism_read_multipart_files($key) {
+    if (empty($_FILES[$key]) || !is_array($_FILES[$key])) {
+        return [];
+    }
+    $f = $_FILES[$key];
+    if (!is_array($f['name'] ?? null)) {
+        $one = prism_read_multipart_file($key);
+        return $one ? [$one] : [];
+    }
+    $out = [];
+    $count = count($f['name']);
+    for ($i = 0; $i < $count; $i++) {
+        $err = $f['error'][$i] ?? UPLOAD_ERR_NO_FILE;
+        if ($err === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        if ($err !== UPLOAD_ERR_OK) {
+            fail('File upload failed. Try a smaller file or a link instead.', 400);
+        }
+        if (($f['size'][$i] ?? 0) > MAX_FILE_SIZE) {
+            fail('File too large. Max 15 MB. For longer videos, paste a YouTube or website link instead.', 400);
+        }
+        if (empty($f['tmp_name'][$i]) || !is_uploaded_file($f['tmp_name'][$i])) {
+            continue;
+        }
+        $bin = file_get_contents($f['tmp_name'][$i]);
+        if ($bin === false) {
+            fail('Could not read the uploaded file.', 400);
+        }
+        $out[] = [
+            'name' => $f['name'][$i] ?? 'file',
+            'mime' => $f['type'][$i] ?? 'application/octet-stream',
+            'bin'  => $bin,
+        ];
+    }
+    return $out;
+}
+
+function prism_collect_material_urls($b) {
+    $candidates = [];
+    if (isset($b['urls'])) {
+        $raw = $b['urls'];
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : preg_split('/\r\n|\r|\n/', $raw);
+        }
+        if (is_array($raw)) {
+            foreach ($raw as $item) {
+                if (is_array($item)) {
+                    $item = $item['url'] ?? '';
+                }
+                $candidates[] = trim((string) $item);
+            }
+        }
+    }
+    if (isset($b['url'])) {
+        $candidates[] = trim((string) $b['url']);
+    }
+    $urls = [];
+    foreach ($candidates as $cand) {
+        if ($cand === '') {
+            continue;
+        }
+        $norm = prism_normalize_http_url($cand);
+        if ($norm === '') {
+            fail('That link does not look valid. Use http:// or https://', 400);
+        }
+        if (!in_array($norm, $urls, true)) {
+            $urls[] = $norm;
+        }
+    }
+    if (count($urls) > 8) {
+        fail('You can attach up to 8 links.', 400);
+    }
+    return $urls;
+}
+
+function prism_delete_material_files($row) {
+    $paths = [];
+    if (!empty($row['file_path'])) {
+        $paths[] = $row['file_path'];
+    }
+    $raw = $row['attachments_json'] ?? '';
+    if (is_string($raw) && $raw !== '') {
+        $decoded = json_decode($raw, true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $item) {
+                if (is_array($item) && !empty($item['path'])) {
+                    $paths[] = $item['path'];
+                }
+            }
+        }
+    }
+    foreach (array_unique($paths) as $path) {
+        $disk = str_replace(UPLOAD_URL, UPLOAD_DIR, $path);
+        if ($disk && file_exists($disk)) {
+            @unlink($disk);
+        }
+    }
+}
+
 // ══════════════════════════════════════════════════════
 //  MATERIALS
 // ══════════════════════════════════════════════════════
@@ -226,9 +351,13 @@ if ($action === 'get_materials') {
     prism_assert_class_access($db, $user, $class_id);
     $stuSec = prism_student_section_for_filter($db, $user);
     $hasSec = prism_table_has_column($db, 'materials', 'target_section');
+    $hasAttach = prism_ensure_material_attachments($db);
     $sel = $hasSec
         ? 'id, class_id, teacher_id, target_section, title, type, url, file_name, IF(file_path IS NULL OR file_path = \'\', file_data, NULL) AS file_data, file_path, mime_type, description, created_at'
         : 'id, class_id, teacher_id, title, type, url, file_name, IF(file_path IS NULL OR file_path = \'\', file_data, NULL) AS file_data, file_path, mime_type, description, created_at';
+    if ($hasAttach) {
+        $sel .= ', attachments_json';
+    }
     if ($stuSec !== null && $hasSec) {
         $stmt = $db->prepare(
             'SELECT ' . $sel . ' FROM materials WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
@@ -249,6 +378,7 @@ if ($action === 'add_material') {
             'title' => $_POST['title'] ?? '',
             'type' => $_POST['type'] ?? 'file',
             'url' => $_POST['url'] ?? '',
+            'urls' => $_POST['urls'] ?? '',
             'desc' => $_POST['desc'] ?? '',
             'target_section' => $_POST['target_section'] ?? '',
         ];
@@ -263,25 +393,61 @@ if ($action === 'add_material') {
     $id = uniqid('mat_');
 
     $file_data = null; $file_name = null; $file_path = null; $mime = null;
-    $url = prism_normalize_http_url($b['url'] ?? '');
     $desc = trim((string) ($b['desc'] ?? $b['description'] ?? ''));
-    if ($url === '' && $desc !== '') {
+    $urls = prism_collect_material_urls($b);
+    if (!$urls && $desc !== '') {
         if (preg_match('#https?://[^\s<>"\']+|www\.[^\s<>"\']+#i', $desc, $mUrl)) {
-            $url = prism_normalize_http_url($mUrl[0]);
+            $found = prism_normalize_http_url($mUrl[0]);
+            if ($found !== '') {
+                $urls[] = $found;
+            }
         }
     }
-    $up = prism_read_multipart_file('file');
-    if (!$up) {
-        $up = prism_read_base64_file($b['fileData'] ?? $b['file_data'] ?? null);
+    $uploads = prism_read_multipart_files('files');
+    if (!$uploads) {
+        $single = prism_read_multipart_file('file');
+        if ($single) {
+            $uploads = [$single];
+        }
     }
-    if ($up) {
-        list($file_name, $file_path, $mime) = prism_store_binary_upload($id, '', $up['name'], $up['bin'], $up['mime']);
+    if (!$uploads) {
+        $single = prism_read_base64_file($b['fileData'] ?? $b['file_data'] ?? null);
+        if ($single) {
+            $uploads = [$single];
+        }
     }
-    if (!$up && $url === '' && $desc === '') {
+    if (count($uploads) > 8) {
+        fail('You can attach up to 8 files.', 400);
+    }
+    if (!$uploads && !$urls && $desc === '') {
         fail('Add a file, a link, or a short note.', 400);
     }
+    $hasAttach = prism_ensure_material_attachments($db);
+    if (!$hasAttach && (count($uploads) > 1 || count($urls) > 1)) {
+        fail('Could not save more than one file or link.', 500);
+    }
+    $attachments = [];
+    foreach ($uploads as $i => $up) {
+        $suffix = count($uploads) > 1 || $i > 0 ? ('_' . $i) : '';
+        list($storedName, $storedPath, $storedMime) = prism_store_binary_upload($id, $suffix, $up['name'], $up['bin'], $up['mime']);
+        if ($file_path === null) {
+            $file_name = $storedName;
+            $file_path = $storedPath;
+            $mime = $storedMime;
+        }
+        $attachments[] = [
+            'kind' => 'file',
+            'name' => $storedName,
+            'path' => $storedPath,
+            'mime' => $storedMime,
+        ];
+    }
+    foreach ($urls as $oneUrl) {
+        $attachments[] = ['kind' => 'link', 'url' => $oneUrl];
+    }
+    $url = $urls[0] ?? '';
     $uiType = strtolower(trim((string) ($b['type'] ?? '')));
-    if ($up) {
+    if ($uploads) {
         $uiType = 'file';
     } elseif ($url !== '') {
         $uiType = prism_is_video_page_url($url) ? 'video' : 'link';
@@ -289,27 +455,36 @@ if ($action === 'add_material') {
         $uiType = 'link';
     }
     $type = prism_material_type_from_ui($uiType, $url, $mime, $file_name);
+    $attachJson = $hasAttach ? json_encode($attachments) : null;
 
     $ts = prism_target_section_from_body($b);
+    $cols = ['id', 'class_id', 'teacher_id', 'title', 'type', 'url', 'file_name', 'file_data', 'file_path', 'mime_type', 'description'];
+    $vals = [$id, $b['class_id'], $user['id'], $title, $type, $url, $file_name, $file_data, $file_path, $mime, $b['desc'] ?? ''];
     if (prism_table_has_column($db, 'materials', 'target_section')) {
-        $db->prepare('INSERT INTO materials (id, class_id, teacher_id, target_section, title, type, url, file_name, file_data, file_path, mime_type, description) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-           ->execute([$id, $b['class_id'], $user['id'], $ts, $title, $type, $url, $file_name, $file_data, $file_path, $mime, $b['desc']??'']);
-    } else {
-        $db->prepare('INSERT INTO materials (id, class_id, teacher_id, title, type, url, file_name, file_data, file_path, mime_type, description) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-           ->execute([$id, $b['class_id'], $user['id'], $title, $type, $url, $file_name, $file_data, $file_path, $mime, $b['desc']??'']);
+        array_splice($cols, 3, 0, ['target_section']);
+        array_splice($vals, 3, 0, [$ts]);
     }
-    ok(['id' => $id, 'file_path' => $file_path, 'type' => $type]);
+    if ($hasAttach) {
+        $cols[] = 'attachments_json';
+        $vals[] = $attachJson;
+    }
+    $ph = implode(',', array_fill(0, count($vals), '?'));
+    $db->prepare('INSERT INTO materials (' . implode(',', $cols) . ') VALUES (' . $ph . ')')->execute($vals);
+    ok(['id' => $id, 'file_path' => $file_path, 'type' => $type, 'attachments' => $attachments]);
 }
 
 if ($action === 'delete_material') {
     $b = getBody();
     // Remove file from disk if exists
-    $stmt = $db->prepare('SELECT file_path FROM materials WHERE id = ?');
+    $cols = 'file_path';
+    if (prism_ensure_material_attachments($db)) {
+        $cols .= ', attachments_json';
+    }
+    $stmt = $db->prepare('SELECT ' . $cols . ' FROM materials WHERE id = ?');
     $stmt->execute([$b['id']]);
     $mat = $stmt->fetch();
-    if ($mat && $mat['file_path']) {
-        $disk_path = str_replace(UPLOAD_URL, UPLOAD_DIR, $mat['file_path']);
-        if (file_exists($disk_path)) unlink($disk_path);
+    if ($mat) {
+        prism_delete_material_files($mat);
     }
     $db->prepare('DELETE FROM materials WHERE id = ? AND teacher_id = ?')->execute([$b['id'], $user['id']]);
     ok();

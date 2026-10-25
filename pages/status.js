@@ -203,7 +203,14 @@ function renderStatusList() {
   }).join('');
   list.querySelectorAll('.status-card').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      statusSelected = btn.getAttribute('data-class') || '';
+      var id = btn.getAttribute('data-class') || '';
+      if (statusSelected === id) {
+        statusSelected = '';
+        renderStatusList();
+        renderStatusSheet();
+        return;
+      }
+      statusSelected = id;
       var row = statusSelectedRow();
       if (row && !row.assessment && row.attendance) statusKind = 'attendance';
       else statusKind = 'assessment';
