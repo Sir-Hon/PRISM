@@ -34,6 +34,12 @@ function prism_sheet_tables($db) {
     );
 }
 
+function prism_decode_sheet($raw) {
+    if ($raw === null || $raw === '') return null;
+    $decoded = json_decode($raw, true);
+    return is_array($decoded) ? $decoded : null;
+}
+
 function prism_clean_text($value, $max) {
     $text = trim(preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F]/', '', (string) $value));
     if (function_exists('mb_substr')) {
@@ -103,6 +109,38 @@ if ($method === 'POST' && $action === 'save_sheet') {
     );
     $stmt->execute([$classId, $studentId, $kind, $json]);
     ok(['saved' => true]);
+}
+
+if ($method === 'GET' && $action === 'my_status') {
+    if ($user['role'] !== 'student') fail('Forbidden', 403);
+    $stmt = $db->prepare(
+        'SELECT c.id AS class_id, c.subject, c.code, c.color, u.name AS teacher_name,
+                a.payload AS attendance_payload, a.updated_at AS attendance_updated,
+                s.payload AS assessment_payload, s.updated_at AS assessment_updated
+         FROM enrollments e
+         JOIN classes c ON e.class_id = c.id
+         JOIN users u ON c.teacher_id = u.id
+         LEFT JOIN learner_sheets a ON a.class_id = c.id AND a.student_id = e.student_id AND a.kind = \'attendance\'
+         LEFT JOIN learner_sheets s ON s.class_id = c.id AND s.student_id = e.student_id AND s.kind = \'assessment\'
+         WHERE e.student_id = ?
+         ORDER BY c.subject ASC, c.code ASC'
+    );
+    $stmt->execute([$user['id']]);
+    $records = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $records[] = [
+            'class_id' => $row['class_id'],
+            'subject' => $row['subject'],
+            'code' => $row['code'],
+            'color' => $row['color'],
+            'teacher_name' => $row['teacher_name'],
+            'attendance' => prism_decode_sheet($row['attendance_payload']),
+            'assessment' => prism_decode_sheet($row['assessment_payload']),
+            'attendance_updated' => $row['attendance_updated'],
+            'assessment_updated' => $row['assessment_updated'],
+        ];
+    }
+    ok(['records' => $records]);
 }
 
 if ($method === 'GET' && $action === 'cors') {

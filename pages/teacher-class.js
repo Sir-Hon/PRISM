@@ -906,7 +906,6 @@ function renderAssignments(){
       +'<div class="asgn-meta">'+(it.points||it.pts?((it.points||it.pts)+' pts · '):'')+((it.target_section&&String(it.target_section).trim())?('<span style="color:#059669;font-weight:700;">'+teacherEsc(String(it.target_section).trim())+'</span> · '):'')+(srcMeta?teacherEsc(srcMeta)+' · ':'')+(it.instructions?teacherEsc(it.instructions.slice(0,60))+'…':'')+'</div></div>'
       + srcBtns
       +(dStr?'<div class="asgn-due'+(overdue?' overdue':'')+'">'+( overdue?' ':'' )+'Due '+dueDisp+'</div>':'')
-      +'<a href="grading.html?class='+encodeURIComponent(activeClassId)+'" style="font-size:.72rem;color:#7c3aed;font-weight:700;white-space:nowrap;text-decoration:none;" title="View submissions and enter scores"> Grading →</a>'
       +'<button type="button" onclick="openSubjectRecords()" style="font-size:.72rem;color:#059669;font-weight:700;white-space:nowrap;background:none;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Records</button>'
       +'<button class="mat-del" onclick="deleteAssignment(\''+it.id+'\')">Remove</button>'
       +'</div>';

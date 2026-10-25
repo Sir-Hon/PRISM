@@ -33,10 +33,12 @@
     'quizmaker.html': ['teacher'],
     'records.html': ['teacher'],
     'grading.html': ['teacher'],
+    'lesson.html': ['teacher'],
     'admin.html': ['admin'],
     'manage.html': ['admin'],
     'profile.html': ['student', 'teacher', 'admin'],
     'cor.html': ['student', 'admin'],
+    'status.html': ['student'],
   };
 
   if (PUBLIC_PAGES.indexOf(currentPage) !== -1) {

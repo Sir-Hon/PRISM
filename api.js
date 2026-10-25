@@ -802,6 +802,10 @@ const PrismRecords = {
   async save(record) {
     return await apiCall('content', 'save_record', 'POST', record);
   },
+  async myStatus() {
+    const data = await apiGet('records', 'my_status');
+    return data.records || [];
+  },
   async getSheet(classId, studentId, kind) {
     return await apiGet('records', 'sheet', { class_id: classId, student_id: studentId, kind: kind });
   },
@@ -823,6 +827,27 @@ const PrismRecords = {
   },
   async sendCor(body) {
     return await apiCall('records', 'send_cor', 'POST', body);
+  },
+};
+
+const PrismLessons = {
+  async list(classId) {
+    const data = await apiGet('lessons', 'list', { class_id: classId });
+    return data.lessons || [];
+  },
+  async save(fields) {
+    const fd = new FormData();
+    fd.append('class_id', fields.class_id || '');
+    fd.append('title', fields.title || '');
+    fd.append('lesson_date', fields.lesson_date || '');
+    fd.append('plan', fields.plan || '');
+    (fields.files || []).forEach(function (file) {
+      if (file instanceof File) fd.append('files[]', file, file.name);
+    });
+    return await apiForm('lessons', 'save', fd);
+  },
+  async remove(id) {
+    return await apiCall('lessons', 'delete', 'POST', { id: id });
   },
 };
 

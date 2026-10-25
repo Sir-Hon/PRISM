@@ -245,6 +245,26 @@ CREATE TABLE IF NOT EXISTS learner_sheets (
   PRIMARY KEY (class_id, student_id, kind)
 );
 
+-- ── LESSON PLANS (teacher instruction materials) ──────
+CREATE TABLE IF NOT EXISTS lesson_plans (
+  id          VARCHAR(50)  PRIMARY KEY,
+  class_id    VARCHAR(50)  NOT NULL,
+  teacher_id  VARCHAR(50)  NOT NULL,
+  title       VARCHAR(160) NOT NULL,
+  lesson_date DATE         DEFAULT NULL,
+  plan        MEDIUMTEXT,
+  created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS lesson_files (
+  id         VARCHAR(50)  PRIMARY KEY,
+  lesson_id  VARCHAR(50)  NOT NULL,
+  file_name  VARCHAR(255) NOT NULL,
+  file_path  VARCHAR(255) NOT NULL,
+  mime_type  VARCHAR(120) DEFAULT '',
+  created_at DATETIME     DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ── CERTIFICATES OF REGISTRATION ───────────────────────
 CREATE TABLE IF NOT EXISTS student_cors (
   id          INT          AUTO_INCREMENT PRIMARY KEY,
