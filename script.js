@@ -42,15 +42,23 @@
     return;
   }
 
+  // Hide the shell until the session check finishes. Otherwise index.html
+  // (the student dashboard) paints, then the guard redirects to login.
+  document.documentElement.style.visibility = 'hidden';
+
   if (currentPage === 'call.html') {
     var r = (sessionStorage.getItem('prism_role') || 'student').toLowerCase();
     window.location.replace(r === 'teacher' ? 'teacher.html' : r === 'admin' ? 'admin.html' : 'index.html');
     return;
   }
 
+  function revealIfAllowed(user) {
+    if (user) document.documentElement.style.visibility = '';
+  }
+
   var allowed = PAGE_ROLES[currentPage];
   if (typeof prismAuthGuard === 'function') {
-    prismAuthGuard(allowed || []).catch(function () {
+    Promise.resolve(prismAuthGuard(allowed || [])).then(revealIfAllowed).catch(function () {
       window.location.replace('login.html');
     });
     return;
@@ -58,7 +66,9 @@
 
   if (sessionStorage.getItem('prism_logged_in') !== 'true') {
     window.location.replace('login.html');
+    return;
   }
+  document.documentElement.style.visibility = '';
 })();
 
 function getRoleHome(role) {

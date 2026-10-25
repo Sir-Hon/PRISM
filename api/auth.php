@@ -129,7 +129,7 @@ if ($method === 'POST' && $action === 'register') {
     $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
     $check->execute([$id]);
     if ($check->fetch()) fail('That ID is already registered');
-    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> ""');
+    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> \'\'');
     $emCheck->execute([$email]);
     if ($emCheck->fetch()) fail('That CTU email is already registered');
 
@@ -160,7 +160,7 @@ if ($method === 'POST' && $action === 'register_teacher') {
     $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
     $check->execute([$id]);
     if ($check->fetch()) fail('That ID is already registered');
-    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> ""');
+    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> \'\'');
     $emCheck->execute([$email]);
     if ($emCheck->fetch()) fail('That CTU email is already registered');
 

@@ -18,7 +18,7 @@ if ($action === 'get_posts') {
     $stuSec = prism_student_section_for_filter($db, $user);
     if ($stuSec !== null && prism_table_has_column($db, 'posts', 'target_section')) {
         $stmt = $db->prepare(
-            'SELECT * FROM posts WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = "" OR TRIM(target_section) = ?) ORDER BY created_at DESC'
+            'SELECT * FROM posts WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
         );
         $stmt->execute([$class_id, $stuSec]);
     } else {
@@ -227,11 +227,11 @@ if ($action === 'get_materials') {
     $stuSec = prism_student_section_for_filter($db, $user);
     $hasSec = prism_table_has_column($db, 'materials', 'target_section');
     $sel = $hasSec
-        ? 'id, class_id, teacher_id, target_section, title, type, url, file_name, IF(file_path IS NULL OR file_path = "", file_data, NULL) AS file_data, file_path, mime_type, description, created_at'
-        : 'id, class_id, teacher_id, title, type, url, file_name, IF(file_path IS NULL OR file_path = "", file_data, NULL) AS file_data, file_path, mime_type, description, created_at';
+        ? 'id, class_id, teacher_id, target_section, title, type, url, file_name, IF(file_path IS NULL OR file_path = \'\', file_data, NULL) AS file_data, file_path, mime_type, description, created_at'
+        : 'id, class_id, teacher_id, title, type, url, file_name, IF(file_path IS NULL OR file_path = \'\', file_data, NULL) AS file_data, file_path, mime_type, description, created_at';
     if ($stuSec !== null && $hasSec) {
         $stmt = $db->prepare(
-            'SELECT ' . $sel . ' FROM materials WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = "" OR TRIM(target_section) = ?) ORDER BY created_at DESC'
+            'SELECT ' . $sel . ' FROM materials WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
         );
         $stmt->execute([$class_id, $stuSec]);
     } else {
@@ -325,7 +325,7 @@ if ($action === 'get_assignments') {
     $stuSec = prism_student_section_for_filter($db, $user);
     if ($stuSec !== null && prism_table_has_column($db, 'assignments', 'target_section')) {
         $stmt = $db->prepare(
-            'SELECT * FROM assignments WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = "" OR TRIM(target_section) = ?) ORDER BY created_at DESC'
+            'SELECT * FROM assignments WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
         );
         $stmt->execute([$class_id, $stuSec]);
     } else {

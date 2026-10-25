@@ -80,6 +80,11 @@ function fail($msg, $code = 400) {
     prism_exit_json($out, $code);
 }
 
+set_exception_handler(function (Throwable $e) {
+    error_log('PRISM: ' . $e->getMessage());
+    fail('Something went wrong. Please try again.', 500);
+});
+
 /** CTU Daanbantayan student ID: exactly 7 digits (not UP-style year-xxxxx). */
 function prism_is_ctu_student_id($id): bool {
     return (bool) preg_match('/^[0-9]{7}$/', (string) $id);
@@ -418,7 +423,7 @@ function prism_assert_student_matches_quiz_section(PDO $db, array $user, array $
     if ($ts === '') {
         return;
     }
-    $su = $db->prepare('SELECT TRIM(COALESCE(section, "")) AS sec FROM users WHERE id = ?');
+    $su = $db->prepare('SELECT TRIM(COALESCE(section, \'\')) AS sec FROM users WHERE id = ?');
     $su->execute([$user['id']]);
     $sec = trim((string) ($su->fetch()['sec'] ?? ''));
     if ($sec !== $ts) {

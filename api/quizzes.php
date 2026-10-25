@@ -19,7 +19,7 @@ if ($action === 'get') {
         $stuSec = prism_student_section_for_filter($db, $user);
         if ($stuSec !== null && prism_table_has_column($db, 'quizzes', 'target_section')) {
             $stmt = $db->prepare(
-                'SELECT * FROM quizzes WHERE class_id = ? AND published = 1 AND (target_section IS NULL OR TRIM(target_section) = "" OR TRIM(target_section) = ?) ORDER BY created_at DESC'
+                'SELECT * FROM quizzes WHERE class_id = ? AND published = 1 AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
             );
             $stmt->execute([$class_id, $stuSec]);
         } else {
@@ -39,7 +39,7 @@ if ($action === 'get_mine') {
              JOIN enrollments e ON q.class_id = e.class_id
              JOIN users u ON u.id = e.student_id
              WHERE e.student_id = ? AND q.published = 1
-             AND (q.target_section IS NULL OR TRIM(q.target_section) = "" OR TRIM(q.target_section) = TRIM(COALESCE(u.section, "")))
+             AND (q.target_section IS NULL OR TRIM(q.target_section) = \'\' OR TRIM(q.target_section) = TRIM(COALESCE(u.section, \'\')))
              ORDER BY q.created_at DESC'
         );
     } else {
