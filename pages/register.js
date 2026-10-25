@@ -41,8 +41,11 @@ function togglePw(id, btn) {
 
     if (!fn)           { showMsg('Please enter your first name.', 'error'); return; }
     if (!ln)           { showMsg('Please enter your last name.', 'error'); return; }
-    if (!id)           { showMsg('Please enter your student ID.', 'error'); return; }
-    if (id.length < 4) { showMsg('ID must be at least 4 characters.', 'error'); return; }
+    if (!id)           { showMsg('Please enter your 7-digit student ID.', 'error'); return; }
+    if (typeof prismIsCtuStudentId === 'function' ? !prismIsCtuStudentId(id) : !/^[0-9]{7}$/.test(id)) {
+      showMsg('Student ID must be exactly 7 digits (CTU ID).', 'error');
+      return;
+    }
     if (!sec)          { showMsg('Please enter your section.', 'error'); return; }
     if (!pw)           { showMsg('Please create a password.', 'error'); return; }
     if (pw.length < 6) { showMsg('Password must be at least 6 characters.', 'error'); return; }
@@ -62,6 +65,13 @@ function togglePw(id, btn) {
       btn.classList.remove('loading'); btn.textContent = 'Create Student Account';
       showMsg(e.message || 'Registration failed. Please try again.', 'error');
     }
+  }
+
+  var regId = document.getElementById('f-id');
+  if (regId) {
+    regId.addEventListener('input', function () {
+      this.value = String(this.value || '').replace(/\D/g, '').slice(0, 7);
+    });
   }
 
   document.addEventListener('keydown', e => { if (e.key === 'Enter') handleRegister(); });

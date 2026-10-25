@@ -58,6 +58,11 @@
 
 const API_BASE = window.__PRISM_API_BASE__;
 
+/** CTU Daanbantayan student ID: exactly 7 digits. */
+function prismIsCtuStudentId(id) {
+  return /^[0-9]{7}$/.test(String(id || '').trim());
+}
+
 let __prismCsrf = '';
 let __prismCsrfSynced = false;
 try {

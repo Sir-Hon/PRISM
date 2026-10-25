@@ -7,8 +7,8 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     student: {
       label: 'Student', accent: '#6366f1',
       badgeBg: 'rgba(99,102,241,.15)', badgeColor: '#a5b4fc',
-      placeholder: 'e.g. 2024-10123',
-      note: '<strong>Students only.</strong> Use your student ID number. If you don\'t have an account yet, register first.'
+      placeholder: 'e.g. 1234567',
+      note: '<strong>Students only.</strong> Use your 7-digit CTU student ID. If you don\'t have an account yet, register first.'
     },
     teacher: {
       label: 'Teacher', accent: '#10b981',
@@ -39,9 +39,19 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     document.getElementById('modal-sub').textContent   = `Enter your ${role} credentials to continue`;
     document.getElementById('access-note').innerHTML   = cfg.note;
     document.getElementById('modal-box').style.setProperty('--modal-accent', cfg.accent);
-    document.getElementById('input-id').placeholder    = cfg.placeholder;
     document.getElementById('login-error').textContent = '';
-    document.getElementById('input-id').value = '';
+    var idField = document.getElementById('input-id');
+    idField.placeholder = cfg.placeholder;
+    idField.value = '';
+    if (role === 'student') {
+      idField.setAttribute('maxlength', '7');
+      idField.setAttribute('inputmode', 'numeric');
+      idField.setAttribute('pattern', '[0-9]{7}');
+    } else {
+      idField.removeAttribute('maxlength');
+      idField.setAttribute('inputmode', 'text');
+      idField.removeAttribute('pattern');
+    }
     document.getElementById('input-pw').value = '';
     document.getElementById('input-pw').type  = 'password';
     const btn = document.getElementById('submit-btn');
@@ -51,7 +61,7 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
       document.getElementById('login-error').textContent = 'Too many failed attempts. Please refresh the page.';
     } else { btn.disabled = false; btn.style.opacity = ''; }
     document.getElementById('modal-overlay').classList.add('active');
-    var inputId = document.getElementById('input-id');
+    var inputId = idField;
     function focusId() {
       try { inputId.focus({ preventScroll: true }); } catch (err) { inputId.focus(); }
     }
@@ -87,6 +97,10 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     const id = document.getElementById('input-id').value.trim();
     const pw = document.getElementById('input-pw').value;
     if (!id) { showError('Please enter your ID number.'); return; }
+    if (currentRole === 'student' && (typeof prismIsCtuStudentId === 'function' ? !prismIsCtuStudentId(id) : !/^[0-9]{7}$/.test(id))) {
+      showError('Enter your 7-digit CTU student ID.');
+      return;
+    }
     if (!pw) { showError('Please enter your password.'); return; }
 
     if (attempts[currentRole] >= MAX_ATTEMPTS) {
@@ -123,6 +137,14 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
       }
     });
   });
+  var loginIdInput = document.getElementById('input-id');
+  if (loginIdInput) {
+    loginIdInput.addEventListener('input', function () {
+      if (currentRole !== 'student') return;
+      this.value = String(this.value || '').replace(/\D/g, '').slice(0, 7);
+    });
+  }
+
   window.openModal = openModal;
   window.closeModal = closeModal;
   window.togglePw = togglePw;

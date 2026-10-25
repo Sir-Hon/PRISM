@@ -18,6 +18,9 @@ if ($method === 'POST' && $action === 'login') {
 
     if (!$id || $pw === '' || !$role) fail('Missing credentials');
     if (!in_array($role, ['student', 'teacher', 'admin'], true)) fail('Incorrect credentials', 401);
+    if ($role === 'student' && !prism_is_ctu_student_id($id)) {
+        fail('Enter your 7-digit CTU student ID');
+    }
 
     $db   = getDB();
     $stmt = $db->prepare('SELECT id, password, role, name, section FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
@@ -100,7 +103,7 @@ if ($method === 'POST' && $action === 'register') {
     $section = trim($b['section']  ?? '');
 
     if (!$id || !$pw || !$name) fail('Missing required fields');
-    if (strlen($id) < 4)        fail('ID must be at least 4 characters');
+    if (!prism_is_ctu_student_id($id)) fail('Student ID must be exactly 7 digits');
     if (strlen($pw) < 6)        fail('Password must be at least 6 characters');
 
     $db    = getDB();
