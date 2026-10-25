@@ -213,6 +213,17 @@ async function generateCode() {
   } catch(e) { alert(e.message || 'Failed to generate code.'); }
 }
 
+async function deleteInviteCode(code) {
+  if (!confirm('Delete invite code "' + code + '"? This cannot be undone.')) return;
+  try {
+    await PrismAdmin.deleteInvite(code);
+    await renderInviteCodes();
+    await renderStats();
+  } catch (e) {
+    alert(e.message || 'Failed to delete invite code.');
+  }
+}
+
 async function renderInviteCodes() {
   const grid = document.getElementById('invite-grid');
   try {
@@ -220,11 +231,13 @@ async function renderInviteCodes() {
     if (!codes.length) { grid.innerHTML='<p style="color:#9ca3af;font-size:.9rem;">No codes yet. Generate one above.</p>'; return; }
     grid.innerHTML = [...codes].reverse().map(c => {
       const invalid = c.used;
+      const safe = escJs(c.code);
       return `<div class="invite-card${invalid?' used':''}">
+        <button type="button" class="inv-del" onclick="deleteInviteCode('${safe}')">Delete</button>
         <span class="inv-role teacher"> teacher</span>
         <div class="invite-code-text">
-          ${c.code}
-          <button class="copy-btn" onclick="copyCode('${c.code}',this)">Copy</button>
+          ${escHtml(c.code)}
+          <button class="copy-btn" onclick="copyCode('${safe}',this)">Copy</button>
           ${invalid?'<span class="used-pill">Used</span>':''}
         </div>
         <div class="inv-meta">${c.used?'Used by: '+(c.used_by||'—'):'Available'}<br/>Created: ${new Date(c.created_at).toLocaleDateString()}</div>

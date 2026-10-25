@@ -155,10 +155,11 @@ let myId = '';
       }
       grid.innerHTML = codes.map(c => `
         <div class="invite-card ${c.used ? 'used' : ''}">
+          <button type="button" class="invite-del-btn" onclick="deleteInviteCode('${escJs(c.code)}')">Delete</button>
           <div class="inv-role teacher">Teacher</div>
           <div class="invite-code-text">
             ${c.code}
-            ${!c.used ? `<button class="copy-btn" onclick="navigator.clipboard.writeText('${c.code}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>` : ''}
+            ${!c.used ? `<button class="copy-btn" onclick="navigator.clipboard.writeText('${escJs(c.code)}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>` : ''}
           </div>
           <div class="inv-meta">
             ${c.used ? `Used by: ${c.used_by || '—'} on ${c.used_at ? c.used_at.split(' ')[0] : '—'}` : 'Not yet used'}
@@ -178,6 +179,16 @@ let myId = '';
       await renderInviteCodes();
     } catch(e) {
       alert(e.message || 'Failed to generate invite code.');
+    }
+  }
+
+  async function deleteInviteCode(code) {
+    if (!confirm('Delete invite code "' + code + '"? This cannot be undone.')) return;
+    try {
+      await PrismAdmin.deleteInvite(code);
+      await renderInviteCodes();
+    } catch (e) {
+      alert(e.message || 'Failed to delete invite code.');
     }
   }
 

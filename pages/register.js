@@ -10,6 +10,8 @@ function fillSelect(sel, placeholder, values, enabled) {
   var blank = document.createElement('option');
   blank.value = '';
   blank.textContent = placeholder;
+  blank.disabled = true;
+  blank.hidden = true;
   sel.appendChild(blank);
   (values || []).forEach(function (v) {
     var o = document.createElement('option');

@@ -149,6 +149,17 @@ if ($method === 'POST' && $action === 'create_invite') {
     ok(['code' => $code]);
 }
 
+if ($method === 'POST' && $action === 'delete_invite') {
+    requireAuth(['admin']);
+    $b = getBody();
+    $code = strtoupper(trim((string) ($b['code'] ?? '')));
+    if (!preg_match('/^[A-Z0-9]{4,30}$/', $code)) fail('Invalid invite code');
+    $st = $db->prepare('DELETE FROM invite_codes WHERE code = ?');
+    $st->execute([$code]);
+    if ($st->rowCount() < 1) fail('Invite code not found', 404);
+    ok();
+}
+
 if ($action === 'get_announcements') {
     $stmt = $db->query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 20');
     ok(['announcements' => $stmt->fetchAll()]);

@@ -854,6 +854,9 @@ const PrismAdmin = {
   async createInvite() {
     return await apiCall('profile', 'create_invite', 'POST');
   },
+  async deleteInvite(code) {
+    return await apiCall('profile', 'delete_invite', 'POST', { code });
+  },
   async getAnnouncements() {
     const data = await apiGet('profile', 'get_announcements');
     return data.announcements || [];
