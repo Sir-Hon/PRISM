@@ -296,7 +296,9 @@ function initSidebar(activePage) {
                 '<span class="sidebar-class-name">' + prismSidebarEsc(e.subject) + '</span>';
               btn.onclick = function (ev) {
                 if (ev) { ev.preventDefault(); ev.stopPropagation(); }
-                if (typeof openClassDetail === 'function') {
+                try { sessionStorage.setItem('prism_open_class', String(e.classId)); } catch (err) {}
+                var here = ((window.location.pathname || '').split('/').pop() || '').split('?')[0];
+                if (typeof openClassDetail === 'function' && (here === '' || here === 'index.html')) {
                   openClassDetail(e.classId, e.teacherId, e.subject, e.color || colors[i % colors.length]);
                 } else {
                   window.location.href = 'index.html?class=' + encodeURIComponent(e.classId);

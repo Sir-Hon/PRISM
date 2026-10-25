@@ -21,6 +21,29 @@
     .student-hero p  { font-size:.9rem; color:rgba(255,255,255,.72); max-width:560px; position:relative; }
     .hero-gem { display:none; }
 
+    .gc-head { display:flex; align-items:center; gap:.65rem; margin:0 0 1rem; }
+    .gc-head h2 { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:700; color:#202124; margin:0; }
+    .gc-plus { width:36px; height:36px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#7c3aed; font-size:1.45rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
+    .gc-plus:hover { background:#f5f3ff; border-color:#7c3aed; }
+    .gc-create { display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:1rem; margin-bottom:1rem; max-width:420px; }
+    .gc-create.open { display:block; }
+    .gc-create input { width:100%; border:1px solid #dadce0; border-radius:8px; padding:.55rem .75rem; font-family:'DM Sans',sans-serif; font-size:.9rem; margin-bottom:.55rem; box-sizing:border-box; color:#16132b; background:#fff; }
+    .gc-create-actions { display:flex; gap:.5rem; }
+    .m-btn { flex:1; padding:.62rem; border:none; border-radius:10px; font-size:.88rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .m-btn.primary { background:#7c3aed; color:white; }
+    .m-btn.ghost { background:#f5f3ff; color:#374151; }
+    .gc-grid { display:flex; flex-wrap:wrap; gap:1rem; }
+    .gc-card { width:220px; max-width:100%; background:#fff; border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; text-align:left; padding:0; font-family:'DM Sans',sans-serif; }
+    .gc-card:hover { box-shadow:0 1px 3px rgba(60,64,67,.3); }
+    .gc-card-top { height:78px; padding:.75rem .85rem; display:flex; align-items:flex-end; }
+    .gc-card-title { color:#fff; font-size:.98rem; font-weight:700; line-height:1.25; }
+    .gc-card-body { padding:.7rem .85rem .8rem; display:flex; align-items:center; justify-content:space-between; gap:.4rem; }
+    .gc-meta { font-size:.75rem; color:#5f6368; }
+    .gc-del { border:none; background:none; color:#9ca3af; font-size:.72rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; padding:.2rem .35rem; border-radius:6px; }
+    .gc-del:hover { color:#ef4444; background:#fee2e2; }
+    .gc-empty { color:#5f6368; font-size:.92rem; padding:1.5rem 0; }
+    @media(max-width:640px){ .gc-card{ width:100%; } }
+
     .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:0.85rem; margin-bottom:1.5rem; }
     .stat-card { background:#fff; border-radius:10px; padding:1rem 1.15rem; box-shadow:none; border:1px solid rgba(124,58,237,.12); }
     .stat-card .sv { font-family:'DM Sans',sans-serif; font-size:1.9rem; font-weight:800; color:#7c3aed; }
@@ -265,9 +288,9 @@
       </style>
 </head>
 <body>
-<script src="api.js?v=9"></script>
+<script src="api.js?v=17"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=16"></script>
+<script src="portal-sidebar.js?v=17"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -298,54 +321,29 @@
     <div class="student-hero">
       <div class="hero-label">Student Portal</div>
       <h1 id="student-greeting">Welcome back</h1>
-      <p>View your classes, assignments, materials and quizzes from your teachers.</p>
+      <p>Open a class for the stream and your work.</p>
 </div>
 
-    <div class="stats-row">
-      <div class="stat-card" style="animation-delay:.05s"><div class="sv" id="stat-classes">0</div><div class="sl">Joined Classes</div></div>
-      <div class="stat-card" style="animation-delay:.1s"><div class="sv" id="stat-quizzes">0</div><div class="sl">Quizzes</div></div>
-      <div class="stat-card" style="animation-delay:.15s"><div class="sv" id="stat-assignments">0</div><div class="sl">Assignments</div></div>
-      <div class="stat-card" style="animation-delay:.2s"><div class="sv" id="stat-materials">0</div><div class="sl">Materials</div></div>
+    <div class="gc-head">
+      <h2>Classes</h2>
+      <button type="button" class="gc-plus" id="join-class-toggle" onclick="toggleJoinClass()" aria-expanded="false" title="Join a class">+</button>
     </div>
-
-    <div class="section-heading">Upcoming events</div>
-    <div class="panel-card" style="margin-bottom:2rem;">
-      <div id="dash-events-list" class="dash-events-list"></div>
-      <div style="text-align:right;margin-top:.65rem;"><a href="calendar.html" style="font-size:.82rem;font-weight:600;color:#7c3aed;text-decoration:none;">Open calendar →</a></div>
-    </div>
-
-    <!-- JOIN CLASS BAR -->
-    <div class="join-bar">
-      <span style="font-size:.9rem;font-weight:700;color:#16132b;white-space:nowrap;">+ Join a Class</span>
-      <input class="join-input" id="join-code-input" placeholder="ENTER CODE" maxlength="6" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')joinClass()"/>
-      <button class="join-btn" onclick="joinClass()">Join →</button>
+    <div id="join-class-panel" class="gc-create">
+      <input type="text" id="join-code-input" placeholder="Join code" maxlength="6" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')joinClass()"/>
+      <div class="gc-create-actions">
+        <button class="m-btn primary" type="button" onclick="joinClass()" style="flex:none;padding:.55rem 1rem;">Join</button>
+        <button class="m-btn ghost" type="button" onclick="closeJoinClass()" style="flex:none;padding:.55rem 1rem;">Cancel</button>
+      </div>
       <div class="join-msg" id="join-msg"></div>
     </div>
-
-    <!-- MY CLASSES GRID -->
-    <div class="section-heading">My Classes</div>
-    <div id="classes-area"><div class="empty-state">No classes yet — enter a join code from your teacher above.</div></div>
-
-    <!-- BOTTOM: announcements + activity -->
-    <div class="bottom-grid" style="margin-top:2rem;">
-      <div>
-        <div class="section-heading">Portal Announcements</div>
-        <div class="panel-card"><div id="ann-feed"><div class="empty-state">No announcements yet.</div></div></div>
-      </div>
-      <div>
-        <div class="section-heading">Recent Activity</div>
-        <div class="panel-card"><div id="activity-feed"><div class="empty-state">No recent activity.</div></div></div>
-      </div>
-    </div>
+    <div id="classes-area" class="gc-grid"></div>
 
   </main>
 </div>
-  </div>
-</div>
 
 
 
 
-<script src="pages/index.js?v=17"></script>
+<script src="pages/index.js?v=19"></script>
 </body>
 </html>

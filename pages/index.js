@@ -108,25 +108,21 @@ window.addEventListener('DOMContentLoaded', async function() {
     }
   });
 
+  try {
+    var user = typeof prismAuthGuard === 'function' ? await prismAuthGuard(['student']) : null;
+    if (user) {
+      STUDENT_ID = user.id;
+      STUDENT_NAME = user.name || STUDENT_NAME;
+      if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
+    }
+  } catch (e) { console.warn('API session check failed:', e); }
+  try { await loadClassDataFromAPI(); } catch (loadErr) { console.warn('loadClassDataFromAPI failed:', loadErr); }
+  if (typeof initSidebar === 'function') initSidebar('home');
+  if (!document.getElementById('class-view-overlay')) renderClasses();
+  renderStats();
+  renderActivity();
+  tryOpenClassFromUrl();
   await Promise.all([
-    (async function() {
-      try {
-        var user = typeof prismAuthGuard === 'function' ? await prismAuthGuard(['student']) : null;
-        if (user) {
-          STUDENT_ID = user.id;
-          STUDENT_NAME = user.name || STUDENT_NAME;
-          if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
-        }
-      } catch (e) { console.warn('API session check failed:', e); }
-    })(),
-    loadClassDataFromAPI().then(function() {
-      if (typeof initSidebar === 'function') initSidebar('home');
-      if (!document.getElementById('class-view-overlay')) renderClasses();
-      renderStats();
-      renderActivity();
-      if (activeDetailId) refreshOpenClassPanel();
-      else tryOpenClassFromUrl();
-    }).catch(function() {}),
     (async function() {
       try {
         if (typeof PrismEvents !== 'undefined' && PrismEvents.get) {
@@ -139,7 +135,6 @@ window.addEventListener('DOMContentLoaded', async function() {
         }
       } catch (evErr) { console.warn('Events sync:', evErr); }
     })(),
-    renderAnnouncements(),
   ]);
   tryOpenClassFromUrl();
 });
@@ -156,7 +151,7 @@ async function loadClassDataFromAPI() {
     }
     var joined = {};
     classesList.forEach(function(cls) {
-      joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', joinedAt: cls.joined_at || '' };
+      joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', code: cls.code || '', joinedAt: cls.joined_at || '' };
       var prev = {};
       try { prev = JSON.parse(localStorage.getItem('prism_profile_' + cls.teacher_id) || '{}'); } catch (e) { prev = {}; }
       prev.name = cls.teacher_name || cls.teacher_id;
@@ -266,6 +261,7 @@ async function joinClass() {
     joined[cls.id] = { classId:cls.id, teacherId:cls.teacher_id, subject:cls.subject, joinedAt:new Date().toISOString() };
     saveJoinedClasses(joined);
     document.getElementById('join-code-input').value = '';
+    closeJoinClass();
     showJoinMsg(' Joined "' + cls.subject + '"!', 'ok');
     await loadClassDataFromAPI();
     renderClasses(); renderStats();
@@ -291,60 +287,109 @@ async function leaveClass(classId) {
 
 function showJoinMsg(msg, type) {
   var el = document.getElementById('join-msg');
+  if (!el) return;
   el.textContent = msg; el.className = 'join-msg ' + type;
   setTimeout(function(){ el.textContent = ''; }, 3000);
+}
+
+function toggleJoinClass() {
+  var panel = document.getElementById('join-class-panel');
+  var plus = document.getElementById('join-class-toggle');
+  if (!panel) return;
+  var open = !panel.classList.contains('open');
+  panel.classList.toggle('open', open);
+  if (plus) {
+    plus.setAttribute('aria-expanded', open ? 'true' : 'false');
+    plus.textContent = open ? '×' : '+';
+  }
+  if (open) {
+    var input = document.getElementById('join-code-input');
+    if (input) input.focus();
+  }
+}
+
+function closeJoinClass() {
+  var panel = document.getElementById('join-class-panel');
+  var plus = document.getElementById('join-class-toggle');
+  if (panel) panel.classList.remove('open');
+  if (plus) {
+    plus.setAttribute('aria-expanded', 'false');
+    plus.textContent = '+';
+  }
 }
 
 function renderClasses() {
   var joined  = getJoinedClasses();
   var entries = Object.values(joined);
   var area    = document.getElementById('classes-area');
+  if (!area) return;
+  area.innerHTML = '';
   if (!entries.length) {
-    area.innerHTML = '<div class="empty-state">No classes yet — enter a join code from your teacher above.</div>';
+    var empty = document.createElement('div');
+    empty.className = 'gc-empty';
+    empty.textContent = 'No classes yet. Use the plus button to join one.';
+    area.appendChild(empty);
     return;
   }
-  var frag = document.createDocumentFragment();
-  var grid = document.createElement('div');
-  grid.className = 'classes-grid';
-  entries.forEach(function(entry, i) {
+  entries.forEach(function(entry) {
     var info  = getTeacherClasses(entry.teacherId).find(function(c){ return c.id===entry.classId; });
-    var color = info ? info.color : '#7c3aed';
-    var initial = String(entry.subject || '?').charAt(0).toUpperCase();
-    var card  = document.createElement('div');
-    card.className = 'class-card';
-    if (activeDetailId === entry.classId) card.style.boxShadow = '0 0 0 2px '+color;
-    card.innerHTML = '<div class="class-card-bar" style="background:'+color+'"></div>'
-      + '<div class="class-card-body">'
-      + '<div class="class-icon" style="background:'+color+'">'+initial+'</div>'
-      + '<div class="class-name">'+entry.subject+'</div>'
-      + (info && info.code ? '<div class="class-code">'+info.code+'</div>' : '')
-      + '<div class="class-teacher" style="display:flex;align-items:center;gap:.45rem;">'
-      + buildTeacherChip(entry.teacherId)
-      + '</div>'
-      + '<button class="leave-btn" id="leave-'+entry.classId+'">Leave Class</button>'
-      + '</div>';
-    card.querySelector('.leave-btn').addEventListener('click', function(e) {
+    var rawColor = entry.color || (info && info.color) || '';
+    var color = /^#[0-9a-fA-F]{3,8}$/.test(String(rawColor)) ? rawColor : '#7c3aed';
+    var teacherName = '';
+    try {
+      var profile = JSON.parse(localStorage.getItem('prism_profile_' + entry.teacherId) || 'null');
+      if (profile && profile.name) teacherName = profile.name;
+    } catch (e) {}
+    var card = document.createElement('div');
+    card.className = 'gc-card';
+    if (activeDetailId === entry.classId) card.style.boxShadow = '0 0 0 2px ' + color;
+    card.innerHTML = '<div class="gc-card-top"><div class="gc-card-title"></div></div>'
+      + '<div class="gc-card-body"><div class="gc-meta"></div><button type="button" class="gc-del">Leave</button></div>';
+    card.querySelector('.gc-card-top').style.background = color;
+    card.querySelector('.gc-card-title').textContent = entry.subject || 'Class';
+    var bits = [];
+    var code = entry.code || (info && info.code) || '';
+    if (code) bits.push(code);
+    if (teacherName) bits.push(teacherName);
+    card.querySelector('.gc-meta').textContent = bits.join(' · ');
+    card.querySelector('.gc-del').addEventListener('click', function(e) {
+      e.preventDefault();
       e.stopPropagation();
       leaveClass(entry.classId);
     });
     card.addEventListener('click', function() {
       openClassDetail(entry.classId, entry.teacherId, entry.subject, color);
     });
-    grid.appendChild(card);
+    area.appendChild(card);
   });
-  frag.appendChild(grid);
-  area.innerHTML = '';
-  area.appendChild(frag);
 }
 
 var __openClassGen = 0;
 
+function wantedClassId() {
+  var fromUrl = '';
+  try { fromUrl = new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { fromUrl = ''; }
+  if (fromUrl) return fromUrl;
+  try { return sessionStorage.getItem('prism_open_class') || ''; } catch (e2) { return ''; }
+}
+
+function findJoinedClass(want) {
+  var map = getJoinedClasses();
+  if (map[want]) return map[want];
+  var keys = Object.keys(map);
+  for (var i = 0; i < keys.length; i++) {
+    var row = map[keys[i]];
+    if (row && String(row.classId || keys[i]) === String(want)) return row;
+  }
+  return null;
+}
+
 function tryOpenClassFromUrl() {
-  var want = '';
-  try { want = new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { want = ''; }
+  var want = wantedClassId();
   if (!want || activeDetailId) return;
-  var joined = getJoinedClasses()[want];
+  var joined = findJoinedClass(want);
   if (!joined) return;
+  try { sessionStorage.removeItem('prism_open_class'); } catch (e) {}
   var info = getTeacherClasses(joined.teacherId).find(function(c){ return c.id === joined.classId; });
   openClassDetail(joined.classId, joined.teacherId, joined.subject, (info && info.color) || joined.color || '#7c3aed');
 }
@@ -1265,9 +1310,11 @@ function buildMaterialsPanel(classId) {
 
 
 function renderStats() {
+  var classesEl = document.getElementById('stat-classes');
+  if (!classesEl) return;
   var joined   = getJoinedClasses();
   var classIds = Object.keys(joined);
-  document.getElementById('stat-classes').textContent = classIds.length;
+  classesEl.textContent = classIds.length;
   var qCount=0, aCount=0, mCount=0;
   classIds.forEach(function(cid) {
     getTeacherQuizzes().filter(function(q){ return String(q.classId || q.class_id) === String(cid) && q.published; }).forEach(function(){ qCount++; });
@@ -1316,6 +1363,7 @@ function renderActivity() {
     return classIds.indexOf(pc) !== -1;
   }));
   var feed     = document.getElementById('activity-feed');
+  if (!feed) return;
   if (!posts.length) { feed.innerHTML = '<div class="empty-state">No activity from your classes yet.</div>'; return; }
   var cfg = { announcement:{bg:'#ede9fe',icon:'AN'}, material:{bg:'#d1fae5',icon:'MT'}, assignment:{bg:'#fce7f3',icon:'AS'}, quiz:{bg:'#dbeafe',icon:'QZ'} };
   feed.innerHTML = posts.slice(0,8).map(function(p) {

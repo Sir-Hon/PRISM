@@ -141,7 +141,9 @@ function prism_store_binary_upload($id, $suffix, $fileName, $bin, $mime) {
     if (file_put_contents($upload_path, $bin) === false) {
         fail('Could not save the file on the server.', 500);
     }
-    return [$fileName, UPLOAD_URL . $safe_name, $mime];
+    $urlPath = UPLOAD_URL . $safe_name;
+    prism_save_upload_blob($urlPath, (string) $fileName, (string) $mime, $bin);
+    return [$fileName, $urlPath, $mime];
 }
 
 function prism_read_multipart_file($key) {
@@ -339,6 +341,7 @@ function prism_delete_material_files($row) {
         if ($disk && file_exists($disk)) {
             @unlink($disk);
         }
+        prism_delete_upload_blob($path);
     }
 }
 

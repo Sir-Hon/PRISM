@@ -21,6 +21,21 @@
     .admin-hero p     { font-size:.9rem; color:rgba(255,255,255,.75); position:relative; }
     .admin-hero-gem   { display:none; }
 
+    .gc-head { display:flex; align-items:center; gap:.65rem; margin:0 0 1rem; }
+    .gc-head h2 { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:700; color:#202124; margin:0; }
+    .gc-plus { width:36px; height:36px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#d97706; font-size:1.45rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
+    .gc-plus:hover { background:#fffbeb; border-color:#f59e0b; }
+    .gc-back { width:36px; height:36px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#202124; font-size:1.05rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
+    .gc-back:hover { background:#fffbeb; border-color:#f59e0b; }
+    .gc-grid { display:flex; flex-wrap:wrap; gap:1rem; }
+    .gc-card { width:220px; max-width:100%; background:#fff; border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; text-align:left; padding:0; font-family:'DM Sans',sans-serif; color:inherit; }
+    .gc-card:hover { box-shadow:0 1px 3px rgba(60,64,67,.3); }
+    .gc-card-top { height:78px; padding:.75rem .85rem; display:flex; align-items:flex-end; }
+    .gc-card-title { color:#fff; font-size:.98rem; font-weight:700; line-height:1.25; }
+    .gc-card-body { padding:.7rem .85rem .8rem; display:flex; align-items:center; justify-content:space-between; gap:.4rem; }
+    .gc-meta { font-size:.75rem; color:#5f6368; }
+    @media(max-width:640px){ .gc-card{ width:100%; } }
+
     /* tabs */
     .page-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.38rem; box-shadow:0 4px 24px rgba(245,158,11,.10); width:fit-content; margin-bottom:2rem; flex-wrap:wrap; }
     .page-tab  { padding:.55rem 1.25rem; border-radius:10px; font-size:.9rem; font-weight:600; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; transition:all .15s; }
@@ -190,43 +205,44 @@
     <div class="admin-hero">
       <div class="admin-hero-label">Admin Dashboard</div>
       <h1 id="admin-greeting">Welcome, Admin</h1>
-      <p>Monitor teachers, manage accounts, and keep the portal running smoothly.</p>
+      <p>Open a section to manage teachers, students, announcements, and security.</p>
 </div>
 
     <div id="admin-users-alert" style="display:none;margin-bottom:1rem;padding:.85rem 1.1rem;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:.88rem;"></div>
 
-    <!-- STATS -->
-    <div class="stats-row" id="stats-row">
-      <div class="stat-card" style="animation-delay:.05s">
-        <div class="sv" id="stat-teachers">0</div><div class="sl">Teachers</div>
+    <div id="admin-home">
+      <div class="gc-head">
+        <h2>Portal</h2>
+        <button type="button" class="gc-plus" onclick="openCreateModal('teacher')" title="Add teacher">+</button>
       </div>
-      <div class="stat-card" style="animation-delay:.1s">
-        <div class="sv" id="stat-students">0</div><div class="sl">Students</div>
-      </div>
-      <div class="stat-card" style="animation-delay:.2s">
-        <div class="sv" id="stat-quizzes">0</div><div class="sl">Quizzes Created</div>
-      </div>
-      <div class="stat-card" style="animation-delay:.25s">
-        <div class="sv" id="stat-posts">0</div><div class="sl">Posts Made</div>
+      <div class="gc-grid">
+        <button type="button" class="gc-card" onclick="openAdminCard('teachers')">
+          <div class="gc-card-top" style="background:#0d9488"><div class="gc-card-title">Teachers</div></div>
+          <div class="gc-card-body"><div class="gc-meta" id="card-teachers-meta">Teachers</div></div>
+        </button>
+        <button type="button" class="gc-card" onclick="openAdminCard('students')">
+          <div class="gc-card-top" style="background:#7c3aed"><div class="gc-card-title">Students</div></div>
+          <div class="gc-card-body"><div class="gc-meta" id="card-students-meta">Students</div></div>
+        </button>
+        <button type="button" class="gc-card" onclick="openAdminCard('announce')">
+          <div class="gc-card-top" style="background:#d97706"><div class="gc-card-title">Announcements</div></div>
+          <div class="gc-card-body"><div class="gc-meta">Portal-wide posts</div></div>
+        </button>
+        <button type="button" class="gc-card" onclick="openAdminCard('security')">
+          <div class="gc-card-top" style="background:#b45309"><div class="gc-card-title">Security</div></div>
+          <div class="gc-card-body"><div class="gc-meta">Passphrase and admins</div></div>
+        </button>
       </div>
     </div>
 
-    <div class="section-heading">Upcoming events</div>
-    <div class="panel-card" style="margin-bottom:2rem;">
-      <div id="dash-events-list" class="dash-events-list"></div>
-      <div style="text-align:right;margin-top:.65rem;"><a href="calendar.html" style="font-size:.82rem;font-weight:600;color:var(--a-dark);text-decoration:none;">Open calendar →</a></div>
-    </div>
-
-    <!-- TABS -->
-    <div class="page-tabs">
-      <button class="page-tab active" onclick="switchTab('teachers',this)">Teachers</button>
-      <button class="page-tab"        onclick="switchTab('students',this)">Students</button>
-      <button class="page-tab"        onclick="switchTab('announce',this)">Announcements</button>
-      <button class="page-tab"        onclick="switchTab('security',this)">Security</button>
-    </div>
+    <div id="admin-section" hidden>
+      <div class="gc-head">
+        <button type="button" class="gc-back" onclick="closeAdminCard()" title="Back to portal">←</button>
+        <h2 id="admin-section-title">Teachers</h2>
+      </div>
 
     <!-- ═══ TEACHERS ═══ -->
-    <div class="tab-panel active" id="tab-teachers">
+    <div class="tab-panel" id="tab-teachers">
       <div class="wrap-table">
         <div class="table-toolbar">
           <input class="t-search" id="teacher-search" placeholder=" Search teachers…" oninput="renderTeachers()"/>
@@ -301,6 +317,8 @@
       </div>
     </div>
 
+    </div>
+
   </main>
 </div>
 
@@ -344,6 +362,6 @@
   </div>
 </div>
 
-<script src="pages/admin.js?v=13"></script>
+<script src="pages/admin.js?v=14"></script>
 </body>
 </html>

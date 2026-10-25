@@ -94,12 +94,34 @@ window.addEventListener('DOMContentLoaded', async () => {
 /* ── STATS ── */
 async function renderStats() {
   try {
-    const users = adminUsersCache;
-    document.getElementById('stat-teachers').textContent = users.filter(a => userRole(a) === 'teacher').length;
-    document.getElementById('stat-students').textContent = users.filter(a => userRole(a) === 'student').length;
-    document.getElementById('stat-quizzes').textContent  = '—';
-    document.getElementById('stat-posts').textContent    = '—';
+    const users = adminUsersCache || [];
+    const teachers = users.filter(a => userRole(a) === 'teacher').length;
+    const students = users.filter(a => userRole(a) === 'student').length;
+    const teacherMeta = document.getElementById('card-teachers-meta');
+    const studentMeta = document.getElementById('card-students-meta');
+    if (teacherMeta) teacherMeta.textContent = teachers + ' teacher' + (teachers === 1 ? '' : 's');
+    if (studentMeta) studentMeta.textContent = students + ' student' + (students === 1 ? '' : 's');
   } catch(e) { console.error('renderStats:', e); }
+}
+
+function openAdminCard(name) {
+  const titles = { teachers: 'Teachers', students: 'Students', announce: 'Announcements', security: 'Security' };
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  const title = document.getElementById('admin-section-title');
+  if (title) title.textContent = titles[name] || 'Portal';
+  const home = document.getElementById('admin-home');
+  const section = document.getElementById('admin-section');
+  if (home) home.hidden = true;
+  if (section) section.hidden = false;
+}
+
+function closeAdminCard() {
+  const home = document.getElementById('admin-home');
+  const section = document.getElementById('admin-section');
+  if (section) section.hidden = true;
+  if (home) home.hidden = false;
 }
 
 /* ── TEACHERS TABLE ── */
@@ -308,8 +330,6 @@ function copyAdminUrl() {
 
 /* ── TAB SWITCHER ── */
 function switchTab(name, btn) {
-  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
-  document.querySelectorAll('.page-tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('tab-'+name).classList.add('active');
-  btn.classList.add('active');
+  openAdminCard(name);
+  if (btn) btn.classList.add('active');
 }

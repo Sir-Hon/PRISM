@@ -382,7 +382,7 @@ function prismOpenMaterialUrl(url, mime, fileName) {
   } catch (e) { /* fall through to fetch */ }
   fetch(abs, { credentials: 'same-origin' })
     .then((r) => {
-      if (!r.ok) throw new Error();
+      if (!r.ok) throw new Error('missing');
       return r.blob();
     })
     .then((blob) => {
@@ -395,6 +395,17 @@ function prismOpenMaterialUrl(url, mime, fileName) {
       if (!type) type = blob.type || 'application/octet-stream';
       const b = new Blob([blob], { type });
       const u = URL.createObjectURL(b);
+      const preview = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(type, fn);
+      if (!preview) {
+        const a = document.createElement('a');
+        a.href = u;
+        a.download = fn || 'download';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(u), 2000);
+        return;
+      }
       const w = window.open(u, '_blank', 'noopener');
       if (!w) {
         URL.revokeObjectURL(u);
@@ -404,7 +415,7 @@ function prismOpenMaterialUrl(url, mime, fileName) {
       setTimeout(() => URL.revokeObjectURL(u), 180000);
     })
     .catch(() => {
-      window.open(abs, '_blank', 'noopener');
+      alert('This file could not be opened. Ask your teacher to share it again.');
     });
 }
 
@@ -469,11 +480,16 @@ function prismResolveUploadUrl(path) {
   if (/^https?:\/\//i.test(s) || s.indexOf('data:') === 0) return s;
   const root = prismAppRootPrefix();
   if (s.indexOf('/prism/uploads/') === 0) {
-    s = (root || '') + '/uploads/' + s.slice('/prism/uploads/'.length);
+    s = '/uploads/' + s.slice('/prism/uploads/'.length);
   } else if (s.indexOf('uploads/') === 0) {
-    s = (root ? root + '/' : '/') + s;
+    s = '/' + s;
   }
-  if (/^https?:\/\//i.test(s) || s.indexOf('data:') === 0) return s;
+  const uploadAt = s.indexOf('/uploads/');
+  if (uploadAt !== -1) {
+    const stored = s.slice(uploadAt);
+    const api = (typeof API_BASE === 'string' && API_BASE) ? API_BASE.replace(/\/$/, '') : ((root || '') + '/api');
+    return (window.location.origin || '') + api + '/file.php?path=' + encodeURIComponent(stored);
+  }
   if (s.charAt(0) === '/') return (window.location.origin || '') + s;
   try {
     return new URL(s, window.location.href).href;

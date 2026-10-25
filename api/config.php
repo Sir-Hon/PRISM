@@ -473,6 +473,62 @@ function prism_is_past_deadline(?string $date, $time = null): bool {
     return date('Y-m-d H:i:s') > $end;
 }
 
+function prism_ensure_upload_blobs(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) {
+        return $ready;
+    }
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS upload_blobs (
+                path VARCHAR(500) PRIMARY KEY,
+                mime VARCHAR(120) DEFAULT NULL,
+                name VARCHAR(200) DEFAULT NULL,
+                bytes LONGBLOB NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+        );
+        $ready = true;
+    } catch (PDOException $e) {
+        error_log('PRISM upload blobs: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
+function prism_save_upload_blob(string $urlPath, string $name, string $mime, string $bin): void {
+    try {
+        $db = getDB();
+        if (!prism_ensure_upload_blobs($db)) {
+            fail('Could not save the file on the server.', 500);
+        }
+        $stmt = $db->prepare(
+            'INSERT INTO upload_blobs (path, mime, name, bytes) VALUES (?,?,?,?)
+             ON DUPLICATE KEY UPDATE mime=VALUES(mime), name=VALUES(name), bytes=VALUES(bytes)'
+        );
+        $stmt->bindValue(1, $urlPath);
+        $stmt->bindValue(2, $mime);
+        $stmt->bindValue(3, $name);
+        $stmt->bindValue(4, $bin, PDO::PARAM_LOB);
+        $stmt->execute();
+    } catch (PDOException $e) {
+        error_log('PRISM save upload blob: ' . $e->getMessage());
+        fail('Could not save the file on the server.', 500);
+    }
+}
+
+function prism_delete_upload_blob(string $urlPath): void {
+    try {
+        $db = getDB();
+        if (!prism_ensure_upload_blobs($db)) {
+            return;
+        }
+        $db->prepare('DELETE FROM upload_blobs WHERE path = ?')->execute([$urlPath]);
+    } catch (PDOException $e) {
+        error_log('PRISM delete upload blob: ' . $e->getMessage());
+    }
+}
+
 /** True if the column exists (cached per request). Safe for known table/column names only. */
 function prism_table_has_column(PDO $db, string $table, string $column): bool {
     static $cache = [];
