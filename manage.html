@@ -56,7 +56,24 @@
     .invite-heading { font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:800; color:#16132b; margin-bottom:.4rem; display:flex; align-items:center; gap:.5rem; }
     .invite-sub { font-size:.85rem; color:#9ca3af; margin-bottom:1.2rem; }
 
-    .invite-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:.9rem; }
+    .invite-grid { display:flex; flex-direction:column; }
+    .invite-row { background:#fff; border:1px solid #e4dffa; border-bottom:none; }
+    .invite-row:first-child { border-radius:12px 12px 0 0; }
+    .invite-row:last-child { border-bottom:1px solid #e4dffa; border-radius:0 0 12px 12px; }
+    .invite-row:only-child { border-radius:12px; }
+    .invite-row-main { display:flex; align-items:center; gap:.75rem; padding:.8rem 1rem; flex-wrap:wrap; }
+    .invite-code { font-family:'DM Sans',sans-serif; font-weight:800; letter-spacing:.06em; color:#7c3aed; min-width:7.2rem; }
+    .invite-name { background:none; border:none; padding:0; color:#6d28d9; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:.92rem; text-align:left; }
+    .invite-name:hover, .invite-name.open { text-decoration:underline; }
+    .invite-unused, .invite-missing { color:#9ca3af; font-size:.85rem; }
+    .invite-when { margin-left:auto; color:#9ca3af; font-size:.78rem; }
+    .invite-teacher-info { list-style:none; margin:0; padding:0 1rem .9rem 1rem; display:grid; gap:.35rem; }
+    .invite-teacher-info li { display:flex; gap:.8rem; font-size:.88rem; color:#374151; }
+    .invite-teacher-info span { width:7.2rem; flex-shrink:0; color:#9ca3af; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding-top:.15rem; }
+    .invite-empty { color:#c4b5fd; font-size:.9rem; margin:0; }
+    .invite-search { width:100%; max-width:360px; border:1.5px solid #e4dffa; border-radius:10px; padding:.6rem .9rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#16132b; outline:none; background:#faf9ff; margin-bottom:.9rem; }
+    .invite-search:focus { border-color:#a78bfa; background:#fff; }
+    .invite-row .copy-btn { background:none; border:1.5px solid #e4dffa; border-radius:7px; padding:2px 9px; font-size:.72rem; font-weight:700; color:#7c3aed; cursor:pointer; font-family:'DM Sans',sans-serif; }
     .invite-card { background:#faf9ff; border:1.5px solid #e4dffa; border-radius:14px; padding:1.2rem; position:relative; transition:border-color .2s; }
     .invite-card:hover { border-color:#a78bfa; }
     .invite-card.used  { opacity:.5; }
@@ -68,8 +85,8 @@
     .invite-role-badge { display:inline-block; font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:20px; margin-bottom:.4rem; }
     .invite-role-badge.teacher { background:rgba(16,185,129,.12); color:var(--teacher); }
     .invite-role-badge.admin   { background:rgba(245,158,11,.12); color:var(--admin-c); }
-    .invite-del-btn { position:absolute; top:.8rem; right:.8rem; background:none; border:none; color:#fca5a5; cursor:pointer; font-size:.9rem; }
-    .invite-del-btn:hover { color:#ef4444; }
+    .invite-del-btn { background:none; border:none; color:#ef4444; cursor:pointer; font-size:.8rem; font-weight:700; font-family:'DM Sans',sans-serif; padding:.2rem .35rem; }
+    .invite-del-btn:hover { text-decoration:underline; }
     .used-badge { font-size:.72rem; background:#f3f4f6; color:#9ca3af; border-radius:20px; padding:2px 8px; }
 
     .gen-invite-btn { padding:.68rem 1.4rem; background:linear-gradient(135deg,#7c3aed,#6d28d9); color:white; border:none; border-radius:11px; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; transition:opacity .2s; display:flex; align-items:center; gap:.5rem; margin-bottom:1.2rem; }
@@ -202,6 +219,7 @@
           </select>
           <button class="gen-invite-btn" onclick="generateInviteCode()"> Generate Code</button>
         </div>
+        <input class="invite-search" id="invite-search" placeholder="Search by code or teacher name" oninput="filterInviteCodes()"/>
 
         <div class="invite-grid" id="invite-grid">
           <p style="color:#c4b5fd;font-size:.9rem;">No invite codes yet. Generate one above.</p>
@@ -295,6 +313,6 @@
   </main>
 </div>
 
-<script src="pages/manage.js?v=11"></script>
+<script src="pages/manage.js?v=12"></script>
 </body>
 </html>

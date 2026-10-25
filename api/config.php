@@ -133,6 +133,8 @@ function getDB() {
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES   => false,
             ]);
+            // Render's MySQL treats double quotes as column names. Keep strings as strings.
+            $pdo->exec("SET SESSION sql_mode = REPLACE(@@SESSION.sql_mode, 'ANSI_QUOTES', '')");
         } catch (PDOException $e) {
             error_log('PRISM DB connection failed: ' . $e->getMessage());
             fail('Database connection failed', 500);

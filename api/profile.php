@@ -138,7 +138,13 @@ if ($method === 'POST' && $action === 'delete_user') {
 
 if ($action === 'get_invite_codes') {
     requireAuth(['admin']);
-    $stmt = $db->query('SELECT * FROM invite_codes ORDER BY created_at DESC');
+    $stmt = $db->query(
+        'SELECT ic.code, ic.created_by, ic.used, ic.used_by, ic.used_at, ic.created_at,
+                u.name AS teacher_name, u.email AS teacher_email, u.section AS teacher_section, u.role AS teacher_role
+         FROM invite_codes ic
+         LEFT JOIN users u ON u.id = ic.used_by
+         ORDER BY ic.created_at DESC'
+    );
     ok(['codes' => $stmt->fetchAll()]);
 }
 

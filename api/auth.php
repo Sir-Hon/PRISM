@@ -134,7 +134,7 @@ if ($method === 'POST' && $action === 'register') {
     if ($emCheck->fetch()) fail('That CTU email is already registered');
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
-    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, "student", ?, ?, ?)')->execute([$id, $hash, $name, $section, $email]);
+    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, ?, ?, ?, ?)')->execute([$id, $hash, 'student', $name, $section, $email]);
     ok(['id' => $id]);
 }
 
@@ -165,7 +165,7 @@ if ($method === 'POST' && $action === 'register_teacher') {
     if ($emCheck->fetch()) fail('That CTU email is already registered');
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
-    $db->prepare('INSERT INTO users (id, `password`, role, name, email) VALUES (?, ?, "teacher", ?, ?)')->execute([$id, $hash, $name, $email]);
+    $db->prepare('INSERT INTO users (id, `password`, role, name, email) VALUES (?, ?, ?, ?, ?)')->execute([$id, $hash, 'teacher', $name, $email]);
     $db->prepare('UPDATE invite_codes SET used=1, used_by=?, used_at=NOW() WHERE code=?')->execute([$id, $code]);
     ok(['id' => $id]);
 }

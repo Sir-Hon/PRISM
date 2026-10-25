@@ -224,26 +224,91 @@ async function deleteInviteCode(code) {
   }
 }
 
+let inviteCodesCache = [];
+let inviteOpenCode = '';
+
+function inviteIsUsed(c) {
+  return c && (c.used === 1 || c.used === '1' || c.used === true);
+}
+
+function fmtInviteDate(v) {
+  if (!v) return '—';
+  const d = new Date(String(v).replace(' ', 'T'));
+  if (isNaN(d.getTime())) return String(v).split(' ')[0];
+  return d.toLocaleDateString();
+}
+
+function teacherInfoList(c) {
+  const rows = [
+    ['Name', c.teacher_name || '—'],
+    ['Teacher ID', c.used_by || '—'],
+    ['Email', c.teacher_email || '—'],
+    ['Department', c.teacher_section || '—'],
+    ['Registered', fmtInviteDate(c.used_at)],
+  ];
+  return '<ul class="invite-teacher-info">' + rows.map(function (row) {
+    return '<li><span>' + escHtml(row[0]) + '</span>' + escHtml(row[1]) + '</li>';
+  }).join('') + '</ul>';
+}
+
 async function renderInviteCodes() {
   const grid = document.getElementById('invite-grid');
   try {
-    const codes = await PrismAdmin.getInviteCodes();
-    if (!codes.length) { grid.innerHTML='<p style="color:#9ca3af;font-size:.9rem;">No codes yet. Generate one above.</p>'; return; }
-    grid.innerHTML = [...codes].reverse().map(c => {
-      const invalid = c.used;
-      const safe = escJs(c.code);
-      return `<div class="invite-card${invalid?' used':''}">
-        <button type="button" class="inv-del" onclick="deleteInviteCode('${safe}')">Delete</button>
-        <span class="inv-role teacher"> teacher</span>
-        <div class="invite-code-text">
-          ${escHtml(c.code)}
-          <button class="copy-btn" onclick="copyCode('${safe}',this)">Copy</button>
-          ${invalid?'<span class="used-pill">Used</span>':''}
-        </div>
-        <div class="inv-meta">${c.used?'Used by: '+(c.used_by||'—'):'Available'}<br/>Created: ${new Date(c.created_at).toLocaleDateString()}</div>
-      </div>`;
-    }).join('');
-  } catch(e) { console.error('renderInviteCodes:', e); }
+    inviteCodesCache = await PrismAdmin.getInviteCodes();
+    paintInviteList();
+  } catch (e) {
+    console.error('renderInviteCodes:', e);
+    if (grid) grid.innerHTML = '<p class="invite-empty">Failed to load invite codes.</p>';
+  }
+}
+
+function paintInviteList() {
+  const grid = document.getElementById('invite-grid');
+  if (!grid) return;
+  const q = (document.getElementById('invite-search')?.value || '').trim().toLowerCase();
+  const codes = inviteCodesCache.filter(function (c) {
+    if (!q) return true;
+    return String(c.code || '').toLowerCase().indexOf(q) !== -1
+      || String(c.teacher_name || '').toLowerCase().indexOf(q) !== -1;
+  });
+  if (!inviteCodesCache.length) {
+    grid.innerHTML = '<p class="invite-empty">No codes yet. Generate one above.</p>';
+    return;
+  }
+  if (!codes.length) {
+    grid.innerHTML = '<p class="invite-empty">No codes match that search.</p>';
+    return;
+  }
+  grid.innerHTML = codes.map(function (c) {
+    const used = inviteIsUsed(c);
+    const safe = escJs(c.code);
+    const name = String(c.teacher_name || '').trim();
+    const open = inviteOpenCode === c.code && used;
+    let who = '<span class="invite-unused">Not used</span>';
+    if (used) {
+      const label = name || c.used_by || 'Unknown teacher';
+      who = '<button type="button" class="invite-name' + (open ? ' open' : '') + '" onclick="toggleTeacherInfo(\'' + safe + '\')">' + escHtml(label) + '</button>';
+    }
+    return '<div class="invite-row">'
+      + '<div class="invite-row-main">'
+      + '<span class="invite-code">' + escHtml(c.code) + '</span>'
+      + '<button type="button" class="copy-btn" onclick="copyCode(\'' + safe + '\',this)">Copy</button>'
+      + who
+      + '<span class="invite-when">' + (used ? 'Registered ' + escHtml(fmtInviteDate(c.used_at)) : 'Created ' + escHtml(fmtInviteDate(c.created_at))) + '</span>'
+      + '<button type="button" class="inv-del" onclick="deleteInviteCode(\'' + safe + '\')">Delete</button>'
+      + '</div>'
+      + (open ? teacherInfoList(c) : '')
+      + '</div>';
+  }).join('');
+}
+
+function filterInviteCodes() {
+  paintInviteList();
+}
+
+function toggleTeacherInfo(code) {
+  inviteOpenCode = inviteOpenCode === code ? '' : code;
+  paintInviteList();
 }
 
 function copyCode(code, btn) {
