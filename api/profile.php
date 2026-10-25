@@ -32,6 +32,16 @@ if ($method === 'POST' && $action === 'save') {
     $avatar  = $b['avatar'] ?? null;
 
     if (!$name) fail('Name cannot be empty');
+    if ($email === '') {
+        $keep = $db->prepare('SELECT email FROM users WHERE id = ?');
+        $keep->execute([$user['id']]);
+        $row = $keep->fetch();
+        $email = (string) ($row['email'] ?? '');
+    } elseif (($user['role'] === 'student' || $user['role'] === 'teacher') && !prism_is_ctu_email($email)) {
+        fail('Email must be your CTU address (@ctu.edu.ph)');
+    } else {
+        $email = prism_normalize_ctu_email($email);
+    }
 
     $params = [$name, $section, $email, $bio, $user['id']];
     $sql    = 'UPDATE users SET name=?, section=?, email=?, bio=?';

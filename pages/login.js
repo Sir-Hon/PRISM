@@ -8,13 +8,13 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
       label: 'Student', accent: '#6366f1',
       badgeBg: 'rgba(99,102,241,.15)', badgeColor: '#a5b4fc',
       placeholder: 'e.g. 1234567',
-      note: '<strong>Students only.</strong> Use your 7-digit CTU student ID. If you don\'t have an account yet, register first.'
+      note: '<strong>Students only.</strong> Use your 7-digit CTU student ID and your CTU email (@ctu.edu.ph). If you don\'t have an account yet, register first.'
     },
     teacher: {
       label: 'Teacher', accent: '#10b981',
       badgeBg: 'rgba(16,185,129,.15)', badgeColor: '#6ee7b7',
       placeholder: 'e.g. 2024-00001',
-      note: '<strong>Teachers only.</strong> Use your teacher ID. New teacher? <a href="teacher-register.html" style="color:#6ee7b7;">Register with your invite code.</a>'
+      note: '<strong>Teachers only.</strong> Use your teacher ID and CTU email (@ctu.edu.ph). New teacher? <a href="teacher-register.html" style="color:#6ee7b7;">Register with your invite code.</a>'
     },
     admin: {
       label: 'Admin', accent: '#f59e0b',
@@ -51,6 +51,18 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
       idField.removeAttribute('maxlength');
       idField.setAttribute('inputmode', 'text');
       idField.removeAttribute('pattern');
+    }
+    var emailWrap = document.getElementById('email-field');
+    var emailField = document.getElementById('input-email');
+    if (emailWrap && emailField) {
+      emailField.value = '';
+      if (role === 'admin') {
+        emailWrap.style.display = 'none';
+        emailField.removeAttribute('required');
+      } else {
+        emailWrap.style.display = '';
+        emailField.placeholder = 'e.g. name.surname@ctu.edu.ph';
+      }
     }
     document.getElementById('input-pw').value = '';
     document.getElementById('input-pw').type  = 'password';
@@ -95,11 +107,20 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
 
   async function handleLogin() {
     const id = document.getElementById('input-id').value.trim();
+    const emailEl = document.getElementById('input-email');
+    const email = emailEl ? emailEl.value.trim().toLowerCase() : '';
     const pw = document.getElementById('input-pw').value;
     if (!id) { showError('Please enter your ID number.'); return; }
     if (currentRole === 'student' && (typeof prismIsCtuStudentId === 'function' ? !prismIsCtuStudentId(id) : !/^[0-9]{7}$/.test(id))) {
       showError('Enter your 7-digit CTU student ID.');
       return;
+    }
+    if (currentRole === 'student' || currentRole === 'teacher') {
+      if (!email) { showError('Please enter your CTU email.'); return; }
+      if (typeof prismIsCtuEmail === 'function' ? !prismIsCtuEmail(email) : !/^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@ctu\.edu\.ph$/.test(email)) {
+        showError('Use your CTU email (@ctu.edu.ph), not a personal Gmail.');
+        return;
+      }
     }
     if (!pw) { showError('Please enter your password.'); return; }
 
@@ -112,7 +133,7 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     btn.classList.add('loading'); btn.textContent = 'Signing in…';
 
     try {
-      const data = await PrismAuth.login(id, pw, currentRole);
+      const data = await PrismAuth.login(id, pw, currentRole, email);
       if (data.role === 'teacher')    window.location.href = 'teacher.html';
       else if (data.role === 'admin') window.location.href = 'admin.html';
       else                            window.location.href = 'index.html';
@@ -156,6 +177,14 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
     if (e.key !== 'Enter' || !document.getElementById('modal-overlay').classList.contains('active')) return;
     var t = e.target;
     if (t && t.id === 'input-id') {
+      e.preventDefault();
+      var em = document.getElementById('input-email');
+      var emWrap = document.getElementById('email-field');
+      if (em && emWrap && emWrap.style.display !== 'none') em.focus();
+      else document.getElementById('input-pw').focus();
+      return;
+    }
+    if (t && t.id === 'input-email') {
       e.preventDefault();
       document.getElementById('input-pw').focus();
       return;

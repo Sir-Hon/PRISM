@@ -67,6 +67,7 @@ if (sessionStorage.getItem('prism_logged_in') === 'true') {
     const fn  = document.getElementById('f-firstname').value.trim();
     const ln  = document.getElementById('f-lastname').value.trim();
     const id  = document.getElementById('f-id').value.trim();
+    const email = (document.getElementById('f-email').value || '').trim().toLowerCase();
     const pw  = document.getElementById('f-pw').value;
     const pw2 = document.getElementById('f-pw2').value;
 
@@ -74,6 +75,11 @@ if (sessionStorage.getItem('prism_logged_in') === 'true') {
     if (!ln)           { showMsg('Please enter your last name.','error'); return; }
     if (!id)           { showMsg('Please enter your teacher ID.','error'); return; }
     if (id.length < 4) { showMsg('ID must be at least 4 characters.','error'); return; }
+    if (!email)        { showMsg('Please enter your CTU email.','error'); return; }
+    if (typeof prismIsCtuEmail === 'function' ? !prismIsCtuEmail(email) : !/^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@ctu\.edu\.ph$/.test(email)) {
+      showMsg('Use your CTU email (@ctu.edu.ph), not a personal Gmail.','error');
+      return;
+    }
     if (!pw)           { showMsg('Please create a password.','error'); return; }
     if (pw.length < 6) { showMsg('Password must be at least 6 characters.','error'); return; }
     if (pw !== pw2)    { showMsg('Passwords do not match.','error'); return; }
@@ -82,7 +88,7 @@ if (sessionStorage.getItem('prism_logged_in') === 'true') {
     btn.classList.add('loading'); btn.textContent = 'Creating account…';
 
     try {
-      await PrismAuth.registerTeacher(id, pw, fn + ' ' + ln, verifiedCode);
+      await PrismAuth.registerTeacher(id, pw, fn + ' ' + ln, verifiedCode, email);
       document.getElementById('reg-form').style.display = 'none';
       btn.style.display = 'none';
       document.getElementById('reg-msg').style.display = 'none';

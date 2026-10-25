@@ -15,15 +15,19 @@ if ($method === 'POST' && $action === 'login') {
     $id   = trim($b['id']       ?? '');
     $pw   = $b['password'] ?? '';
     $role = trim($b['role']     ?? '');
+    $email = prism_normalize_ctu_email($b['email'] ?? '');
 
     if (!$id || $pw === '' || !$role) fail('Missing credentials');
     if (!in_array($role, ['student', 'teacher', 'admin'], true)) fail('Incorrect credentials', 401);
     if ($role === 'student' && !prism_is_ctu_student_id($id)) {
         fail('Enter your 7-digit CTU student ID');
     }
+    if (($role === 'student' || $role === 'teacher') && !prism_is_ctu_email($email)) {
+        fail('Enter your CTU email (@ctu.edu.ph)');
+    }
 
     $db   = getDB();
-    $stmt = $db->prepare('SELECT id, password, role, name, section FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
+    $stmt = $db->prepare('SELECT id, password, role, name, section, email FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
     $stmt->execute([$id, $role]);
     $user = $stmt->fetch();
 
@@ -41,6 +45,18 @@ if ($method === 'POST' && $action === 'login') {
     }
 
     if (!$valid) fail('Incorrect credentials', 401);
+
+    if ($role === 'student' || $role === 'teacher') {
+        $storedEmail = prism_normalize_ctu_email($user['email'] ?? '');
+        if ($storedEmail === '') {
+            $taken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?');
+            $taken->execute([$email, $user['id']]);
+            if ($taken->fetch()) fail('That CTU email is already used on another account');
+            $db->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $user['id']]);
+        } elseif ($storedEmail !== $email) {
+            fail('Incorrect credentials', 401);
+        }
+    }
 
     session_regenerate_id(true);
     $_SESSION['user_id'] = $user['id'];
@@ -101,18 +117,24 @@ if ($method === 'POST' && $action === 'register') {
     $pw      = trim($b['password'] ?? '');
     $name    = trim($b['name']     ?? '');
     $section = trim($b['section']  ?? '');
+    $email   = prism_normalize_ctu_email($b['email'] ?? '');
 
     if (!$id || !$pw || !$name) fail('Missing required fields');
     if (!prism_is_ctu_student_id($id)) fail('Student ID must be exactly 7 digits');
+    if (!prism_is_ctu_email($email)) fail('Enter your CTU email (@ctu.edu.ph)');
+    if (!prism_is_ctu_student_section($section)) fail('Select your college, program, year, and section');
     if (strlen($pw) < 6)        fail('Password must be at least 6 characters');
 
     $db    = getDB();
     $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
     $check->execute([$id]);
     if ($check->fetch()) fail('That ID is already registered');
+    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> ""');
+    $emCheck->execute([$email]);
+    if ($emCheck->fetch()) fail('That CTU email is already registered');
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
-    $db->prepare('INSERT INTO users (id, `password`, role, name, section) VALUES (?, ?, "student", ?, ?)')->execute([$id, $hash, $name, $section]);
+    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, "student", ?, ?, ?)')->execute([$id, $hash, $name, $section, $email]);
     ok(['id' => $id]);
 }
 
@@ -124,8 +146,10 @@ if ($method === 'POST' && $action === 'register_teacher') {
     $pw   = trim($b['password']    ?? '');
     $name = trim($b['name']        ?? '');
     $code = strtoupper(trim($b['invite_code'] ?? ''));
+    $email = prism_normalize_ctu_email($b['email'] ?? '');
 
     if (!$id || !$pw || !$name || !$code) fail('Missing required fields');
+    if (!prism_is_ctu_email($email)) fail('Enter your CTU email (@ctu.edu.ph)');
 
     $db = getDB();
     $inv = $db->prepare('SELECT * FROM invite_codes WHERE code = ? AND used = 0');
@@ -136,9 +160,12 @@ if ($method === 'POST' && $action === 'register_teacher') {
     $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
     $check->execute([$id]);
     if ($check->fetch()) fail('That ID is already registered');
+    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> ""');
+    $emCheck->execute([$email]);
+    if ($emCheck->fetch()) fail('That CTU email is already registered');
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
-    $db->prepare('INSERT INTO users (id, `password`, role, name) VALUES (?, ?, "teacher", ?)')->execute([$id, $hash, $name]);
+    $db->prepare('INSERT INTO users (id, `password`, role, name, email) VALUES (?, ?, "teacher", ?, ?)')->execute([$id, $hash, $name, $email]);
     $db->prepare('UPDATE invite_codes SET used=1, used_by=?, used_at=NOW() WHERE code=?')->execute([$id, $code]);
     ok(['id' => $id]);
 }

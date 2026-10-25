@@ -85,6 +85,39 @@ function prism_is_ctu_student_id($id): bool {
     return (bool) preg_match('/^[0-9]{7}$/', (string) $id);
 }
 
+/** College → program list for CTU Daanbantayan student registration. */
+function prism_ctu_programs_by_college(): array {
+    return [
+        'CoED' => ['BEEd', 'BSEd-Mathematics', 'BTLEd-HE'],
+        'CoTE' => ['BSFI', 'BSIE', 'BSIT', 'BSHM', 'BIT-ELEC', 'BIT-COMPTECH', 'BIT-AUTO'],
+    ];
+}
+
+/** CTU Google Workspace / institutional email, e.g. name.surname@ctu.edu.ph */
+function prism_normalize_ctu_email($email): string {
+    return strtolower(trim((string) $email));
+}
+
+function prism_is_ctu_email($email): bool {
+    $email = prism_normalize_ctu_email($email);
+    return (bool) preg_match('/^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@ctu\.edu\.ph$/', $email);
+}
+
+/** Stored as "PROGRAM YEAR-LETTER", e.g. "BSIT 1-A". */
+function prism_is_ctu_student_section($section): bool {
+    $section = trim((string) $section);
+    if (!preg_match('/^(.+) ([1-4])-([A-F])$/', $section, $m)) {
+        return false;
+    }
+    $program = $m[1];
+    foreach (prism_ctu_programs_by_college() as $list) {
+        if (in_array($program, $list, true)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 function getDB() {
     static $pdo = null;
     if ($pdo === null) {

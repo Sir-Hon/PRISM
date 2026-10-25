@@ -63,6 +63,11 @@ function prismIsCtuStudentId(id) {
   return /^[0-9]{7}$/.test(String(id || '').trim());
 }
 
+/** CTU institutional email (Google Workspace), e.g. name.surname@ctu.edu.ph */
+function prismIsCtuEmail(email) {
+  return /^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@ctu\.edu\.ph$/.test(String(email || '').trim().toLowerCase());
+}
+
 let __prismCsrf = '';
 let __prismCsrfSynced = false;
 try {
@@ -559,8 +564,8 @@ function prismCacheUserProfile(user) {
 }
 
 const PrismAuth = {
-  async login(id, password, role) {
-    const data = await apiCall('auth', 'login', 'POST', { id, password, role });
+  async login(id, password, role, email) {
+    const data = await apiCall('auth', 'login', 'POST', { id, password, role, email: email || '' });
     sessionStorage.setItem('prism_logged_in', 'true');
     sessionStorage.setItem('prism_user_id',   data.id);
     sessionStorage.setItem('prism_user_name', data.name);
@@ -591,12 +596,12 @@ const PrismAuth = {
     return data;
   },
 
-  async register(id, password, name, section) {
-    return await apiCall('auth', 'register', 'POST', { id, password, name, section });
+  async register(id, password, name, section, email) {
+    return await apiCall('auth', 'register', 'POST', { id, password, name, section, email: email || '' });
   },
 
-  async registerTeacher(id, password, name, invite_code) {
-    return await apiCall('auth', 'register_teacher', 'POST', { id, password, name, invite_code });
+  async registerTeacher(id, password, name, invite_code, email) {
+    return await apiCall('auth', 'register_teacher', 'POST', { id, password, name, invite_code, email: email || '' });
   },
 };
 
