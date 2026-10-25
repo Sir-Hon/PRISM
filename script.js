@@ -36,6 +36,7 @@
     'admin.html': ['admin'],
     'manage.html': ['admin'],
     'profile.html': ['student', 'teacher', 'admin'],
+    'cor.html': ['student', 'admin'],
   };
 
   if (PUBLIC_PAGES.indexOf(currentPage) !== -1) {

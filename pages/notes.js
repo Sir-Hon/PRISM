@@ -63,13 +63,30 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
 
   function deleteNotebook(id){if(!confirm('Delete this notebook and all its notes?'))return;notebooks=notebooks.filter(n=>n.id!==id);if(activeNbId===id)closeEditor();saveData();renderNotebooks();}
 
+  function syncNotePane() {
+    var side = document.querySelector('.notes-list-sidebar');
+    var back = document.getElementById('editor-back-btn');
+    var narrow = window.matchMedia('(max-width: 760px)').matches;
+    if (side) side.classList.toggle('note-open', !!activeNoteId);
+    document.body.classList.toggle('note-editing', !!activeNbId);
+    if (back) back.textContent = (narrow && activeNoteId) ? '← Notes' : '← Back';
+  }
+
   function openEditor(nbId){activeNbId=nbId;const nb=notebooks.find(n=>n.id===nbId);document.getElementById('notes-editor-wrap').classList.add('visible');const badge=document.getElementById('editor-nb-badge');badge.textContent=nb.name;badge.style.background=nb.color;renderNoteList();renderNotebooks();if(nb.notes&&nb.notes.length)loadNote(nb.notes[0].id);else clearEditor();}
-  function closeEditor(){activeNbId=null;activeNoteId=null;document.getElementById('notes-editor-wrap').classList.remove('visible');renderNotebooks();}
+  function closeEditor(){activeNbId=null;activeNoteId=null;document.getElementById('notes-editor-wrap').classList.remove('visible');syncNotePane();renderNotebooks();}
+  function editorBack(){
+    if (window.matchMedia('(max-width: 760px)').matches && activeNoteId) {
+      clearEditor();
+      renderNoteList();
+      return;
+    }
+    closeEditor();
+  }
 
   function renderNoteList(){const nb=notebooks.find(n=>n.id===activeNbId);if(!nb)return;const c=document.getElementById('note-list-items');c.innerHTML='';(nb.notes||[]).forEach(note=>{const item=document.createElement('div');item.className='note-list-item'+(note.id===activeNoteId?' active':'');item.innerHTML=`<div class="note-list-title">${note.title||'Untitled'}</div><div class="note-list-date">${fmtDate(note.updated)}</div>`;item.onclick=()=>loadNote(note.id);c.appendChild(item);});}
 
-  function loadNote(noteId){const nb=notebooks.find(n=>n.id===activeNbId);const note=(nb.notes||[]).find(n=>n.id===noteId);if(!note)return;activeNoteId=noteId;document.getElementById('empty-msg').style.display='none';const ed=document.getElementById('active-note-editor');ed.style.display='flex';document.getElementById('note-title').value=note.title||'';document.getElementById('note-body').innerHTML=note.body||'';document.getElementById('note-meta').textContent='Last edited: '+fmtDate(note.updated);renderNoteList();}
-  function clearEditor(){activeNoteId=null;document.getElementById('empty-msg').style.display='flex';document.getElementById('active-note-editor').style.display='none';}
+  function loadNote(noteId){const nb=notebooks.find(n=>n.id===activeNbId);const note=(nb.notes||[]).find(n=>n.id===noteId);if(!note)return;activeNoteId=noteId;document.getElementById('empty-msg').style.display='none';const ed=document.getElementById('active-note-editor');ed.style.display='flex';document.getElementById('note-title').value=note.title||'';document.getElementById('note-body').innerHTML=note.body||'';document.getElementById('note-meta').textContent='Last edited: '+fmtDate(note.updated);renderNoteList();syncNotePane();}
+  function clearEditor(){activeNoteId=null;document.getElementById('empty-msg').style.display='flex';document.getElementById('active-note-editor').style.display='none';syncNotePane();}
 
   function addNote(){const nb=notebooks.find(n=>n.id===activeNbId);if(!nb)return;if(!nb.notes)nb.notes=[];const note={id:Date.now().toString(),title:'',body:'',updated:Date.now()};nb.notes.unshift(note);saveData();renderNoteList();loadNote(note.id);document.getElementById('note-title').focus();}
   function deleteNote(){if(!confirm('Delete this note?'))return;const nb=notebooks.find(n=>n.id===activeNbId);nb.notes=(nb.notes||[]).filter(n=>n.id!==activeNoteId);saveData();renderNoteList();if(nb.notes.length)loadNote(nb.notes[0].id);else clearEditor();renderNotebooks();}
@@ -86,6 +103,7 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
   function bootNotesPage() {
     if (typeof initSidebar === 'function') initSidebar('notes');
     renderNotebooks();
+    window.addEventListener('resize', syncNotePane);
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bootNotesPage);

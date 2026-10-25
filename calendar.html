@@ -5,7 +5,7 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
  <title>PRISM Calendar</title>
  <link rel="icon" type="image/png" href="Prismcrys.png"/>
- <link rel="stylesheet" href="portal.css?v=10"/>
+ <link rel="stylesheet" href="portal.css?v=11"/>
  <script src="portal-mobile.js?v=4" defer></script>
  <style>
  :root { --cal-accent: #7c3aed; --cal-dark: #6d28d9; }
@@ -139,13 +139,23 @@
  .ev-close { position: absolute; top: 1rem; right: 1rem; background: #f0ecff; border: none; width: 32px; height: 32px; border-radius: 50%; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #555; }
  .ev-close:hover { background: #ddd6fe; }
 
- @media(max-width:600px) { .cal-cell { min-height: 58px; } .event-dot { display: none; } }
+ @media(max-width:640px) {
+ .cal-wrap { padding: 1rem; border-radius: 14px; }
+ .cal-header h2 { font-size: 1.2rem; }
+ .cal-grid { gap: 3px; }
+ .cal-day-name { font-size: 0.62rem; letter-spacing: 0; padding: 0.25rem 0; }
+ .cal-cell { min-height: 44px; padding: 3px; border-radius: 8px; }
+ .cell-num { font-size: 0.72rem; }
+ .event-dot { display: none; }
+ #month-label { min-width: 0; font-size: 0.92rem; }
+ .add-ev-btn { padding: 0.5rem 0.85rem; font-size: 0.85rem; }
+ }
  </style>
 </head>
 <body>
 <script src="api.js?v=9"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=11"></script>
+<script src="portal-sidebar.js?v=13"></script>
 <!-- TOPBAR -->
 <div class="topbar">
  <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>

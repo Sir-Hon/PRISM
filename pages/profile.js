@@ -144,7 +144,7 @@ async function syncProfileClasses(user) {
 window.addEventListener('DOMContentLoaded', async () => {
  const cachedId = sessionStorage.getItem('prism_user_id') || '';
  if (cachedId) {
-   initSidebar('profile');
+   initSidebar('home');
    const savedEarly = loadProfile();
    if (savedEarly && (savedEarly.name || savedEarly.avatar)) {
      paintProfilePage({
@@ -162,7 +162,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
  const user = await prismAuthGuard();
  if (!user) return;
- initSidebar('profile');
+ initSidebar('home');
 
  const userId = user.id;
  const role   = user.role;
@@ -191,7 +191,7 @@ window.addEventListener('DOMContentLoaded', async () => {
  sessionStorage.setItem('prism_user_name', profile.name);
  sessionStorage.setItem('prism_section', profile.section);
  paintProfilePage(profile);
- if (typeof initSidebar === 'function') initSidebar('profile');
+ if (typeof initSidebar === 'function') initSidebar('home');
 });
 
 // 
@@ -461,7 +461,6 @@ function renderQuickStats() {
     var stats = [
       { icon:'', label:'Teachers', val: (typeof window.__prismProfileAdminT === 'number') ? window.__prismProfileAdminT : allAccounts.filter(function(a){ return a.role==='teacher'; }).length },
       { icon:'',  label:'Students', val: (typeof window.__prismProfileAdminS === 'number') ? window.__prismProfileAdminS : allAccounts.filter(function(a){ return a.role==='student'; }).length },
-      { icon:'',  label:'Invite Codes', val: JSON.parse(localStorage.getItem('prism_invite_codes')||'[]').filter(function(c){ return !c.used; }).length },
     ];
     renderStatCards(stats);
     return;
@@ -552,7 +551,7 @@ function handleAvatarUpload(event) {
        console.warn('Avatar server sync failed:', err);
        alert('Photo updated on this device only. Could not save to the server: ' + (err && err.message ? err.message : 'try a smaller image or check PHP upload/body limits.'));
      }
-     initSidebar('profile');
+     initSidebar('home');
    });
  };
  reader.readAsDataURL(file);
@@ -614,7 +613,7 @@ async function saveProfile() {
  const profile = { ...saved, id: userId, role };
  renderHero(profile);
  renderInfoCard(profile);
- initSidebar('profile');
+ initSidebar('home');
 }
 
 document.getElementById('edit-overlay').addEventListener('click', function(e) {

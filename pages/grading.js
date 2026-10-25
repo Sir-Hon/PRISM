@@ -200,6 +200,7 @@ function onClassChange(id){
   activeClassId=id;
   activeSectionGrading='all';
   try { sessionStorage.setItem('prism_teacher_active_class_id', id); } catch (e) {}
+  if (typeof markSidebarClassActive === 'function') markSidebarClassActive(id);
   loadGradingAssignmentFilter();
   renderGradingSectionPills();
   renderGrading().catch(function(e){ console.error(e); });
@@ -876,7 +877,7 @@ window.addEventListener('DOMContentLoaded',function(){
     try {
       var apiClasses = await PrismClasses.getMyClasses();
       var normalized = apiClasses.map(function(c){
-        return { id:c.id, subject:c.subject, color:c.color||'#7c3aed', code:c.code, teacher_id:c.teacher_id||TEACHER_ID };
+        return { id:c.id, subject:c.subject, color:c.color||'#7c3aed', code:c.code, teacher_id:c.teacher_id||TEACHER_ID, student_count: parseInt(c.student_count, 10) || 0 };
       });
       localStorage.setItem('prism_classes_'+TEACHER_ID, JSON.stringify(normalized));
       fillClassSelect(normalized);
@@ -895,5 +896,7 @@ window.addEventListener('DOMContentLoaded',function(){
       localStorage.setItem('prism_teacher_assignments', JSON.stringify(allA));
     } catch(e) { console.warn('grading class sync', e); }
     fillClassSelect(getClasses());
+    if (typeof initSidebar === 'function') initSidebar('grading');
+    if (typeof markSidebarClassActive === 'function') markSidebarClassActive(activeClassId);
   })();
 });

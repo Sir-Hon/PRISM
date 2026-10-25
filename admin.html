@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Admin Dashboard</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=10"/>
+  <link rel="stylesheet" href="portal.css?v=11"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --a:#f59e0b; --a-dark:#d97706; --a-light:#fef3c7; --a-mid:#fcd34d; }
@@ -162,9 +162,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=10"></script>
+<script src="api.js?v=12"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=11"></script>
+<script src="portal-sidebar.js?v=13"></script>
 <div class="topbar">
   <a class="topbar-logo" href="admin.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -203,9 +203,6 @@
       <div class="stat-card" style="animation-delay:.1s">
         <div class="sv" id="stat-students">0</div><div class="sl">Students</div>
       </div>
-      <div class="stat-card" style="animation-delay:.15s">
-        <div class="sv" id="stat-codes">0</div><div class="sl">Active Invite Codes</div>
-      </div>
       <div class="stat-card" style="animation-delay:.2s">
         <div class="sv" id="stat-quizzes">0</div><div class="sl">Quizzes Created</div>
       </div>
@@ -224,7 +221,6 @@
     <div class="page-tabs">
       <button class="page-tab active" onclick="switchTab('teachers',this)">Teachers</button>
       <button class="page-tab"        onclick="switchTab('students',this)">Students</button>
-      <button class="page-tab"        onclick="switchTab('codes',this)">Invite Codes</button>
       <button class="page-tab"        onclick="switchTab('announce',this)">Announcements</button>
       <button class="page-tab"        onclick="switchTab('security',this)">Security</button>
     </div>
@@ -238,7 +234,7 @@
           <span style="margin-left:auto;font-size:.82rem;color:#9ca3af;" id="teacher-count"></span>
         </div>
         <table>
-          <thead><tr><th>Name</th><th>ID</th><th>Department</th><th>Status</th><th>Source</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>ID</th><th>Department</th><th>CTU Email</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="teacher-tbody"></tbody>
         </table>
       </div>
@@ -249,36 +245,13 @@
       <div class="wrap-table">
         <div class="table-toolbar">
           <input class="t-search" id="student-search" placeholder=" Search students…" oninput="renderStudents()"/>
+          <span style="font-size:.82rem;color:#9ca3af;">Assign a CTU email before the student can sign in.</span>
           <span style="margin-left:auto;font-size:.82rem;color:#9ca3af;" id="student-count"></span>
         </div>
         <table>
-          <thead><tr><th>Name</th><th>ID</th><th>Section</th><th>Source</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>ID</th><th>Section</th><th>CTU Email</th><th>Actions</th></tr></thead>
           <tbody id="student-tbody"></tbody>
         </table>
-      </div>
-    </div>
-
-    <!-- ═══ INVITE CODES ═══ -->
-    <div class="tab-panel" id="tab-codes">
-      <div class="a-card">
-        <div class="a-card-title"> Generate Invite Code</div>
-        <div class="gen-row">
-          <select class="a-select" id="code-role">
-            <option value="teacher"> Teacher</option>
-            <option value="admin"> Admin</option>
-          </select>
-          <select class="a-select" id="code-exp">
-            <option value="7">Expires in 7 days</option>
-            <option value="30">Expires in 30 days</option>
-            <option value="0">Never expires</option>
-          </select>
-          <button class="a-btn" onclick="generateCode()">Generate Code</button>
-        </div>
-        <p style="font-size:.8rem;color:#9ca3af;margin-top:.5rem;">Share the generated code + the registration URL privately. Admin codes also require the portal passphrase.</p>
-        <input class="t-search" id="invite-search" placeholder="Search by code or teacher name" oninput="filterInviteCodes()" style="margin-top:.9rem;width:100%;max-width:360px;"/>
-      </div>
-      <div class="invite-grid" id="invite-grid">
-        <p style="color:#9ca3af;font-size:.9rem;">No codes yet.</p>
       </div>
     </div>
 
@@ -308,7 +281,7 @@
 
         <div class="a-card">
           <div class="a-card-title"> Admin Passphrase</div>
-          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;line-height:1.65;">Required alongside an admin invite code to self-register at <code style="background:#fef3c7;padding:1px 6px;border-radius:5px;font-size:.82em;color:#92400e;">admin-register.html</code>.</p>
+          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;line-height:1.65;">New administrator accounts are created from this panel with Add Admin. Invite codes are no longer used.</p>
           <div id="pp-status" style="margin-bottom:1rem;"></div>
           <div class="pp-row">
             <input type="password" class="pp-input" id="new-pp" placeholder="New passphrase…"/>
@@ -316,13 +289,6 @@
             <button class="a-btn outline" onclick="clearPassphrase()">Clear</button>
           </div>
           <div class="form-msg" id="pp-msg"></div>
-          <div style="margin-top:1.2rem;padding-top:1rem;border-top:1px solid #fef3c7;">
-            <div style="font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem;">Admin Registration URL</div>
-            <div style="background:#fef9e7;border:1px solid #fde68a;border-radius:10px;padding:.65rem 1rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;">
-              <code style="font-size:.8rem;color:#92400e;flex:1;word-break:break-all;" id="admin-url"></code>
-              <button class="copy-btn" onclick="copyAdminUrl()" id="copy-url-btn">Copy</button>
-            </div>
-          </div>
         </div>
 
         <div class="a-card">
@@ -347,6 +313,9 @@
     <div class="m-field"><label>Last Name</label><input type="text" id="m-lname" placeholder="Dela Cruz"/></div>
     <div class="m-field"><label>ID / Username</label><input type="text" id="m-id" placeholder="e.g. 2024-00005"/></div>
     <div class="m-field"><label>Department / Subject</label><input type="text" id="m-dept" placeholder="e.g. Mathematics Dept."/></div>
+    <div class="m-field"><label>CTU Email</label><input type="email" id="m-email" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/>
+      <p id="m-email-hint" style="font-size:.75rem;color:#9ca3af;margin-top:.35rem;">Required for teachers. They sign in with this address.</p>
+    </div>
     <div class="m-field"><label>Password</label><input type="password" id="m-pw" placeholder="Minimum 6 characters"/></div>
     <div class="m-actions">
       <button class="m-btn ghost" onclick="closeCreateModal()">Cancel</button>
@@ -361,6 +330,20 @@
   @media(max-width:700px){ .security-grid-layout{ grid-template-columns:1fr; } }
 </style>
 
-<script src="pages/admin.js?v=12"></script>
+<div class="m-overlay" id="email-overlay">
+  <div class="m-box">
+    <button class="m-close" onclick="closeEmailModal()"></button>
+    <h3>Assign CTU email</h3>
+    <p id="email-who" style="font-size:.88rem;color:#6b7280;margin:-.4rem 0 1rem;"></p>
+    <div class="m-field"><label>CTU Email</label><input type="email" id="email-input" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/></div>
+    <div class="m-actions">
+      <button class="m-btn ghost" onclick="closeEmailModal()">Cancel</button>
+      <button class="m-btn primary" onclick="saveUserEmail()">Save email</button>
+    </div>
+    <div class="form-msg" id="email-msg"></div>
+  </div>
+</div>
+
+<script src="pages/admin.js?v=13"></script>
 </body>
 </html>

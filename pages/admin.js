@@ -72,7 +72,8 @@ window.addEventListener('DOMContentLoaded', async () => {
   const hour = new Date().getHours();
   const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
   document.getElementById('admin-greeting').textContent = `${g}, ${user.name}`;
-  document.getElementById('admin-url').textContent = location.origin + location.pathname.replace(/[^/]+$/, '') + 'admin-register.html';
+  var adminUrl = document.getElementById('admin-url');
+  if (adminUrl) adminUrl.textContent = location.origin + location.pathname.replace(/[^/]+$/, '') + 'admin-register.html';
   try {
     if (typeof PrismEvents !== 'undefined' && PrismEvents.get) {
       const apiEv = await PrismEvents.get();
@@ -87,7 +88,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   await renderStats();
   await renderTeachers();
   await renderStudents();
-  await renderInviteCodes();
   await renderAnnouncements();
 });
 
@@ -95,10 +95,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 async function renderStats() {
   try {
     const users = adminUsersCache;
-    const codes = await PrismAdmin.getInviteCodes();
     document.getElementById('stat-teachers').textContent = users.filter(a => userRole(a) === 'teacher').length;
     document.getElementById('stat-students').textContent = users.filter(a => userRole(a) === 'student').length;
-    document.getElementById('stat-codes').textContent    = codes.filter(c=>!c.used).length;
     document.getElementById('stat-quizzes').textContent  = '—';
     document.getElementById('stat-posts').textContent    = '—';
   } catch(e) { console.error('renderStats:', e); }
@@ -115,7 +113,7 @@ async function renderTeachers() {
   }
   try {
     const teachers = adminUsersCache.filter(a => userRole(a) === 'teacher' && (
-      (a.name||'').toLowerCase().includes(q) || String(a.id||'').toLowerCase().includes(q)
+      (a.name||'').toLowerCase().includes(q) || String(a.id||'').toLowerCase().includes(q) || String(a.email||'').toLowerCase().includes(q)
     ));
     document.getElementById('teacher-count').textContent = teachers.length + ' teacher' + (teachers.length!==1?'s':'');
     if (!teachers.length) { tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#9ca3af;padding:2rem;">No teachers in the database yet.</td></tr>'; return; }
@@ -123,9 +121,12 @@ async function renderTeachers() {
       <td><strong style="color:#16132b;">${escHtml(t.name)}</strong></td>
       <td style="font-family:monospace;font-size:.85rem;color:#6b7280;">${escHtml(t.id)}</td>
       <td style="color:#9ca3af;">${escHtml(t.section)}</td>
+      <td style="font-size:.82rem;">${emailCell(t.email)}</td>
       <td><span class="badge badge-active">Active</span></td>
-      <td><span class="badge badge-teacher" style="font-size:.68rem;">database</span></td>
-      <td><button class="icon-btn red" onclick="deleteAccount('${escJs(t.id)}')">Delete</button></td>
+      <td>
+        <button class="icon-btn" onclick="openEmailModal('${escJs(t.id)}','${escJs(t.name)}','${escJs(t.email||'')}')">Email</button>
+        <button class="icon-btn red" onclick="deleteAccount('${escJs(t.id)}')">Delete</button>
+      </td>
     </tr>`).join('');
   } catch(e) {
     console.error('renderTeachers:', e);
@@ -144,7 +145,7 @@ async function renderStudents() {
   }
   try {
     const students = adminUsersCache.filter(a => userRole(a) === 'student' && (
-      (a.name||'').toLowerCase().includes(q) || String(a.id||'').toLowerCase().includes(q)
+      (a.name||'').toLowerCase().includes(q) || String(a.id||'').toLowerCase().includes(q) || String(a.email||'').toLowerCase().includes(q)
     ));
     document.getElementById('student-count').textContent = students.length + ' student' + (students.length!==1?'s':'');
     if (!students.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#9ca3af;padding:2rem;">No students in the database yet.</td></tr>'; return; }
@@ -152,8 +153,11 @@ async function renderStudents() {
       <td><strong style="color:#16132b;">${escHtml(s.name)}</strong></td>
       <td style="font-family:monospace;font-size:.85rem;color:#6b7280;">${escHtml(s.id)}</td>
       <td style="color:#9ca3af;">${escHtml(s.section)}</td>
-      <td><span class="badge badge-student" style="font-size:.68rem;">database</span></td>
-      <td><button class="icon-btn red" onclick="deleteAccount('${escJs(s.id)}')">Delete</button></td>
+      <td style="font-size:.82rem;">${emailCell(s.email)}</td>
+      <td>
+        <button class="icon-btn" onclick="openEmailModal('${escJs(s.id)}','${escJs(s.name)}','${escJs(s.email||'')}')">Email</button>
+        <button class="icon-btn red" onclick="deleteAccount('${escJs(s.id)}')">Delete</button>
+      </td>
     </tr>`).join('');
   } catch(e) {
     console.error('renderStudents:', e);
@@ -172,11 +176,21 @@ async function deleteAccount(id) {
 
 /* ── CREATE ACCOUNT MODAL ── */
 let createRole = 'teacher';
+function emailCell(email) {
+  const value = String(email || '').trim();
+  if (!value) return '<span style="color:#d97706;font-weight:700;">Not assigned</span>';
+  return escHtml(value);
+}
+
 function openCreateModal(role) {
   createRole = role;
   document.getElementById('create-modal-title').textContent = role==='teacher'?' Add Teacher':' Add Admin';
   document.getElementById('m-id').placeholder = role==='teacher'?'e.g. 2024-00005':'e.g. admin002';
-  ['m-fname','m-lname','m-id','m-dept','m-pw'].forEach(id=>document.getElementById(id).value='');
+  var hint = document.getElementById('m-email-hint');
+  if (hint) hint.textContent = role==='teacher'
+    ? 'Required. The teacher signs in with this CTU email.'
+    : 'Optional for an admin account.';
+  ['m-fname','m-lname','m-id','m-dept','m-pw','m-email'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('create-msg').textContent = '';
   document.getElementById('create-overlay').classList.add('active');
 }
@@ -188,16 +202,19 @@ async function createAccount() {
   const id   = document.getElementById('m-id').value.trim();
   const dept = document.getElementById('m-dept').value.trim();
   const pw   = document.getElementById('m-pw').value;
+  const email = document.getElementById('m-email').value.trim().toLowerCase();
   const showMsg = (t,c) => { const el=document.getElementById('create-msg'); el.textContent=t; el.className='form-msg '+c; };
   if(!fn) { showMsg('First name required.','err'); return; }
   if(!ln) { showMsg('Last name required.','err'); return; }
   if(!id||id.length<4) { showMsg('ID must be at least 4 characters.','err'); return; }
   if(!dept) { showMsg('Department required.','err'); return; }
+  if(createRole === 'teacher' && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) { showMsg('Enter a CTU email (@ctu.edu.ph).','err'); return; }
+  if(createRole !== 'teacher' && email && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) { showMsg('Enter a CTU email (@ctu.edu.ph).','err'); return; }
   if(!pw||pw.length<6) { showMsg('Password must be at least 6 characters.','err'); return; }
   try {
     // Must use register_admin: the public "register" action always creates students only.
     await apiCall('auth', 'register_admin', 'POST', {
-      id, password:pw, name:fn+' '+ln, section:dept, role: createRole === 'admin' ? 'admin' : 'teacher'
+      id, password:pw, name:fn+' '+ln, section:dept, email, role: createRole === 'admin' ? 'admin' : 'teacher'
     });
     showMsg(' Account created!','ok');
     setTimeout(async ()=>{ closeCreateModal(); await refreshAdminUsers(); await renderTeachers(); await renderStudents(); await renderStats(); },900);
@@ -205,118 +222,43 @@ async function createAccount() {
 }
 document.getElementById('create-overlay').addEventListener('click',function(e){if(e.target===this)closeCreateModal();});
 
-/* ── INVITE CODES ── */
-async function generateCode() {
-  try {
-    const data = await PrismAdmin.createInvite();
-    await renderInviteCodes(); await renderStats();
-  } catch(e) { alert(e.message || 'Failed to generate code.'); }
+/* ── ASSIGN CTU EMAIL ── */
+let emailTargetId = '';
+function openEmailModal(id, name, email) {
+  emailTargetId = id;
+  document.getElementById('email-who').textContent = (name || 'Account') + ' (' + id + ')';
+  document.getElementById('email-input').value = email || '';
+  document.getElementById('email-msg').textContent = '';
+  document.getElementById('email-msg').className = 'form-msg';
+  document.getElementById('email-overlay').classList.add('active');
+  setTimeout(function () { document.getElementById('email-input').focus(); }, 50);
 }
-
-async function deleteInviteCode(code) {
-  if (!confirm('Delete invite code "' + code + '"? This cannot be undone.')) return;
-  try {
-    await PrismAdmin.deleteInvite(code);
-    await renderInviteCodes();
-    await renderStats();
-  } catch (e) {
-    alert(e.message || 'Failed to delete invite code.');
-  }
-}
-
-let inviteCodesCache = [];
-let inviteOpenCode = '';
-
-function inviteIsUsed(c) {
-  return c && (c.used === 1 || c.used === '1' || c.used === true);
-}
-
-function fmtInviteDate(v) {
-  if (!v) return '—';
-  const d = new Date(String(v).replace(' ', 'T'));
-  if (isNaN(d.getTime())) return String(v).split(' ')[0];
-  return d.toLocaleDateString();
-}
-
-function teacherInfoList(c) {
-  const rows = [
-    ['Name', c.teacher_name || '—'],
-    ['Teacher ID', c.used_by || '—'],
-    ['Email', c.teacher_email || '—'],
-    ['Department', c.teacher_section || '—'],
-    ['Registered', fmtInviteDate(c.used_at)],
-  ];
-  return '<ul class="invite-teacher-info">' + rows.map(function (row) {
-    return '<li><span>' + escHtml(row[0]) + '</span>' + escHtml(row[1]) + '</li>';
-  }).join('') + '</ul>';
-}
-
-async function renderInviteCodes() {
-  const grid = document.getElementById('invite-grid');
-  try {
-    inviteCodesCache = await PrismAdmin.getInviteCodes();
-    paintInviteList();
-  } catch (e) {
-    console.error('renderInviteCodes:', e);
-    if (grid) grid.innerHTML = '<p class="invite-empty">Failed to load invite codes.</p>';
-  }
-}
-
-function paintInviteList() {
-  const grid = document.getElementById('invite-grid');
-  if (!grid) return;
-  const q = (document.getElementById('invite-search')?.value || '').trim().toLowerCase();
-  const codes = inviteCodesCache.filter(function (c) {
-    if (!q) return true;
-    return String(c.code || '').toLowerCase().indexOf(q) !== -1
-      || String(c.teacher_name || '').toLowerCase().indexOf(q) !== -1;
-  });
-  if (!inviteCodesCache.length) {
-    grid.innerHTML = '<p class="invite-empty">No codes yet. Generate one above.</p>';
+function closeEmailModal() { document.getElementById('email-overlay').classList.remove('active'); }
+async function saveUserEmail() {
+  const email = document.getElementById('email-input').value.trim().toLowerCase();
+  const el = document.getElementById('email-msg');
+  if (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email)) {
+    el.textContent = 'Enter a CTU email (@ctu.edu.ph).';
+    el.className = 'form-msg err';
     return;
   }
-  if (!codes.length) {
-    grid.innerHTML = '<p class="invite-empty">No codes match that search.</p>';
-    return;
+  try {
+    await PrismAdmin.setUserEmail(emailTargetId, email);
+    el.textContent = 'Email saved.';
+    el.className = 'form-msg ok';
+    await refreshAdminUsers();
+    await renderTeachers();
+    await renderStudents();
+    setTimeout(closeEmailModal, 500);
+  } catch (e) {
+    el.textContent = e.message || 'Could not save that email.';
+    el.className = 'form-msg err';
   }
-  grid.innerHTML = codes.map(function (c) {
-    const used = inviteIsUsed(c);
-    const safe = escJs(c.code);
-    const name = String(c.teacher_name || '').trim();
-    const open = inviteOpenCode === c.code && used;
-    let who = '<span class="invite-unused">Not used</span>';
-    if (used) {
-      const label = name || c.used_by || 'Unknown teacher';
-      who = '<button type="button" class="invite-name' + (open ? ' open' : '') + '" onclick="toggleTeacherInfo(\'' + safe + '\')">' + escHtml(label) + '</button>';
-    }
-    return '<div class="invite-row">'
-      + '<div class="invite-row-main">'
-      + '<span class="invite-code">' + escHtml(c.code) + '</span>'
-      + '<button type="button" class="copy-btn" onclick="copyCode(\'' + safe + '\',this)">Copy</button>'
-      + who
-      + '<span class="invite-when">' + (used ? 'Registered ' + escHtml(fmtInviteDate(c.used_at)) : 'Created ' + escHtml(fmtInviteDate(c.created_at))) + '</span>'
-      + '<button type="button" class="inv-del" onclick="deleteInviteCode(\'' + safe + '\')">Delete</button>'
-      + '</div>'
-      + (open ? teacherInfoList(c) : '')
-      + '</div>';
-  }).join('');
 }
+var emailOverlay = document.getElementById('email-overlay');
+if (emailOverlay) emailOverlay.addEventListener('click', function (e) { if (e.target === this) closeEmailModal(); });
 
-function filterInviteCodes() {
-  paintInviteList();
-}
 
-function toggleTeacherInfo(code) {
-  inviteOpenCode = inviteOpenCode === code ? '' : code;
-  paintInviteList();
-}
-
-function copyCode(code, btn) {
-  navigator.clipboard.writeText(code).then(()=>{
-    const o=btn.textContent; btn.textContent='Copied!'; btn.style.color='#10b981';
-    setTimeout(()=>{btn.textContent=o;btn.style.color='';},1800);
-  });
-}
 
 /* ── ANNOUNCEMENTS ── */
 async function postAnnouncement() {
@@ -355,7 +297,9 @@ async function renderAnnouncements() {
 }
 
 function copyAdminUrl() {
-  const url = document.getElementById('admin-url').textContent;
+  const urlEl = document.getElementById('admin-url');
+  if (!urlEl) return;
+  const url = urlEl.textContent;
   navigator.clipboard.writeText(url).then(()=>{
     const b=document.getElementById('copy-url-btn'); const o=b.textContent;
     b.textContent='Copied!'; setTimeout(()=>b.textContent=o,1800);

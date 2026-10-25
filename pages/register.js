@@ -100,7 +100,6 @@ function togglePw(id, btn) {
     const fn  = document.getElementById('f-firstname').value.trim();
     const ln  = document.getElementById('f-lastname').value.trim();
     const id  = document.getElementById('f-id').value.trim();
-    const email = (document.getElementById('f-email').value || '').trim().toLowerCase();
     const college = document.getElementById('f-college').value.trim();
     const program = document.getElementById('f-program').value.trim();
     const year = document.getElementById('f-year').value.trim();
@@ -116,11 +115,6 @@ function togglePw(id, btn) {
       showMsg('Student ID must be exactly 7 digits (CTU ID).', 'error');
       return;
     }
-    if (!email)        { showMsg('Please enter your CTU email.', 'error'); return; }
-    if (typeof prismIsCtuEmail === 'function' ? !prismIsCtuEmail(email) : !/^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@ctu\.edu\.ph$/.test(email)) {
-      showMsg('Use your CTU email (@ctu.edu.ph), not a personal Gmail.', 'error');
-      return;
-    }
     if (!college)      { showMsg('Please select your college.', 'error'); return; }
     if (!program)      { showMsg('Please select your program.', 'error'); return; }
     if (!year)         { showMsg('Please select your year.', 'error'); return; }
@@ -134,7 +128,7 @@ function togglePw(id, btn) {
     btn.classList.add('loading'); btn.textContent = 'Creating account…';
 
     try {
-      await PrismAuth.register(id, pw, fn + ' ' + ln, sec, email);
+      await PrismAuth.register(id, pw, fn + ' ' + ln, sec, '');
       document.getElementById('reg-form').style.display = 'none';
       btn.style.display = 'none';
       document.getElementById('reg-msg').style.display = 'none';

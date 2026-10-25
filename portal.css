@@ -600,6 +600,15 @@ body.sidebar-open {
   }
 }
 
+/* Phone: keep the bar readable and stop wide blocks from shoving the page sideways */
+@media (max-width: 640px) {
+  .topbar-name { display: none; }
+  .page-header { margin-bottom: 1.15rem; }
+  .page-header h1 { font-size: 1.4rem; letter-spacing: -0.3px; }
+  .page-header p { font-size: 0.92rem; }
+  .main-content > * { min-width: 0; max-width: 100%; }
+}
+
 /* ── DARK MODE ── */
 html[data-theme="dark"] {
   color-scheme: dark;

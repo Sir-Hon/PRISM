@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Student Dashboard</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=10"/>
+  <link rel="stylesheet" href="portal.css?v=11"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -37,7 +37,7 @@
     .join-msg.ok  { color:#10b981; }
     .join-msg.err { color:#ef4444; }
 
-    .classes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .classes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr)); gap:1rem; margin-bottom:2rem; }
     .class-card { background:#fff; border-radius:12px; overflow:hidden; box-shadow:none; border:1px solid rgba(124,58,237,.12); cursor:pointer; transition:box-shadow .18s, border-color .18s; }
     .class-card:hover { box-shadow:0 8px 22px rgba(15,23,42,.08); border-color:rgba(124,58,237,.28); }
     .class-card-bar  { height:4px; }
@@ -192,7 +192,15 @@
 
     .bottom-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
     @media(max-width:860px){ .bottom-grid{ grid-template-columns:1fr; } }
-    @media(max-width:640px){ .stats-row{ grid-template-columns:1fr 1fr; } }
+    @media(max-width:640px){
+      .stats-row{ grid-template-columns:1fr 1fr; }
+      .classes-grid { grid-template-columns: 1fr; }
+      .class-view-banner { height: auto; min-height: 110px; padding: 1rem; flex-direction: column; align-items: flex-start; }
+      .class-view-name { font-size: 1.25rem; }
+      .class-view-code { position: static; margin-top: 0.7rem; }
+      .class-view-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .join-input { min-width: 0; width: 100%; }
+    }
     .empty-state { text-align:center; padding:2rem; color:#9ca3af; font-size:.9rem; }
     .panel-card { background:#fff; border-radius:18px; padding:1.4rem; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.08); }
 
@@ -212,7 +220,7 @@
 <body>
 <script src="api.js?v=9"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=11"></script>
+<script src="portal-sidebar.js?v=13"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>

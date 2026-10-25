@@ -49,11 +49,9 @@ if ($method === 'POST' && $action === 'login') {
     if ($role === 'student' || $role === 'teacher') {
         $storedEmail = prism_normalize_ctu_email($user['email'] ?? '');
         if ($storedEmail === '') {
-            $taken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?');
-            $taken->execute([$email, $user['id']]);
-            if ($taken->fetch()) fail('That CTU email is already used on another account');
-            $db->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $user['id']]);
-        } elseif ($storedEmail !== $email) {
+            fail('An administrator has not assigned a CTU email to this account yet.');
+        }
+        if (!prism_is_ctu_email($email) || $storedEmail !== $email) {
             fail('Incorrect credentials', 401);
         }
     }
@@ -117,11 +115,9 @@ if ($method === 'POST' && $action === 'register') {
     $pw      = trim($b['password'] ?? '');
     $name    = trim($b['name']     ?? '');
     $section = trim($b['section']  ?? '');
-    $email   = prism_normalize_ctu_email($b['email'] ?? '');
 
     if (!$id || !$pw || !$name) fail('Missing required fields');
     if (!prism_is_ctu_student_id($id)) fail('Student ID must be exactly 7 digits');
-    if (!prism_is_ctu_email($email)) fail('Enter your CTU email (@ctu.edu.ph)');
     if (!prism_is_ctu_student_section($section)) fail('Select your college, program, year, and section');
     if (strlen($pw) < 6)        fail('Password must be at least 6 characters');
 
@@ -129,45 +125,16 @@ if ($method === 'POST' && $action === 'register') {
     $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
     $check->execute([$id]);
     if ($check->fetch()) fail('That ID is already registered');
-    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> \'\'');
-    $emCheck->execute([$email]);
-    if ($emCheck->fetch()) fail('That CTU email is already registered');
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
-    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, ?, ?, ?, ?)')->execute([$id, $hash, 'student', $name, $section, $email]);
+    // The CTU email is assigned later by an administrator.
+    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, ?, ?, ?, ?)')->execute([$id, $hash, 'student', $name, $section, '']);
     ok(['id' => $id]);
 }
 
-// ── REGISTER TEACHER (with invite code) ────────────────
+// ── REGISTER TEACHER (closed: admins create teacher accounts) ──
 if ($method === 'POST' && $action === 'register_teacher') {
-    prism_rate_limit('register_teacher', 6, 900);
-    $b    = getBody();
-    $id   = trim($b['id']          ?? '');
-    $pw   = trim($b['password']    ?? '');
-    $name = trim($b['name']        ?? '');
-    $code = strtoupper(trim($b['invite_code'] ?? ''));
-    $email = prism_normalize_ctu_email($b['email'] ?? '');
-
-    if (!$id || !$pw || !$name || !$code) fail('Missing required fields');
-    if (!prism_is_ctu_email($email)) fail('Enter your CTU email (@ctu.edu.ph)');
-
-    $db = getDB();
-    $inv = $db->prepare('SELECT * FROM invite_codes WHERE code = ? AND used = 0');
-    $inv->execute([$code]);
-    $invite = $inv->fetch();
-    if (!$invite) fail('Invalid or already used invite code');
-
-    $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
-    $check->execute([$id]);
-    if ($check->fetch()) fail('That ID is already registered');
-    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> \'\'');
-    $emCheck->execute([$email]);
-    if ($emCheck->fetch()) fail('That CTU email is already registered');
-
-    $hash = password_hash($pw, PASSWORD_DEFAULT);
-    $db->prepare('INSERT INTO users (id, `password`, role, name, email) VALUES (?, ?, ?, ?, ?)')->execute([$id, $hash, 'teacher', $name, $email]);
-    $db->prepare('UPDATE invite_codes SET used=1, used_by=?, used_at=NOW() WHERE code=?')->execute([$id, $code]);
-    ok(['id' => $id]);
+    fail('Teacher accounts are created by an administrator.', 403);
 }
 
 // ── CREATE ACCOUNT (admin creates teacher/admin directly) ──
@@ -180,16 +147,24 @@ if ($method === 'POST' && $action === 'register_admin') {
     $name = trim($b['name']     ?? '');
     $role = in_array($b['role']??'', ['teacher','admin']) ? $b['role'] : 'teacher';
     $section = trim($b['section'] ?? '');
+    $email = prism_normalize_ctu_email($b['email'] ?? '');
 
     if (!$id || !$pw || !$name) fail('Missing required fields');
+    if ($role === 'teacher' && !prism_is_ctu_email($email)) fail('Enter a CTU email (@ctu.edu.ph)');
+    if ($role !== 'teacher' && $email !== '' && !prism_is_ctu_email($email)) fail('Enter a CTU email (@ctu.edu.ph)');
 
     $db = getDB();
     $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
     $check->execute([$id]);
     if ($check->fetch()) fail('That ID is already in use');
+    if ($email !== '') {
+        $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> \'\'');
+        $emCheck->execute([$email]);
+        if ($emCheck->fetch()) fail('That CTU email is already used on another account');
+    }
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
-    $db->prepare('INSERT INTO users (id, `password`, role, name, section) VALUES (?, ?, ?, ?, ?)')->execute([$id, $hash, $role, $name, $section]);
+    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, ?, ?, ?, ?)')->execute([$id, $hash, $role, $name, $section, $email]);
     ok(['id' => $id]);
 }
 

@@ -8,13 +8,13 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
       label: 'Student', accent: '#6366f1',
       badgeBg: 'rgba(99,102,241,.15)', badgeColor: '#a5b4fc',
       placeholder: 'e.g. 1234567',
-      note: '<strong>Students only.</strong> Use your 7-digit CTU student ID and your CTU email (@ctu.edu.ph). If you don\'t have an account yet, register first.'
+      note: '<strong>Students only.</strong> Use your 7-digit CTU student ID and the CTU email your administrator assigned. If you don\'t have an account yet, register first.'
     },
     teacher: {
       label: 'Teacher', accent: '#10b981',
       badgeBg: 'rgba(16,185,129,.15)', badgeColor: '#6ee7b7',
       placeholder: 'e.g. 2024-00001',
-      note: '<strong>Teachers only.</strong> Use your teacher ID and CTU email (@ctu.edu.ph). New teacher? <a href="teacher-register.html" style="color:#6ee7b7;">Register with your invite code.</a>'
+      note: '<strong>Teachers only.</strong> Use the teacher ID and CTU email an administrator created for you.'
     },
     admin: {
       label: 'Admin', accent: '#f59e0b',

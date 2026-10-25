@@ -73,6 +73,11 @@
     .id-box { background:#0e0e16; border:1px solid #22222e; border-radius:10px; padding:.55rem 1.4rem; font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:700; color:var(--student); letter-spacing:.05em; margin:.2rem 0; }
     .go-btn { width:100%; padding:.78rem; border:none; border-radius:12px; background:var(--student); color:#fff; font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:700; cursor:pointer; margin-top:.5rem; transition:opacity .2s; }
     .go-btn:hover { opacity:.88; }
+    @media (max-width: 520px) {
+      body { padding: 1rem 0.75rem; align-items: flex-start; }
+      .reg-card { padding: 1.25rem 1rem; border-radius: 18px; }
+      .fields-grid { grid-template-columns: 1fr; }
+    }
 
     .login-link { text-align:center; margin-top:1.2rem; font-size:.82rem; color:#6b7280; animation:fadeUp .5s ease .2s both; }
     .login-link a { color:var(--prism-mid); font-weight:600; text-decoration:none; }
@@ -85,7 +90,7 @@
   <div class="page-header">
     <a class="logo" href="login.html"><div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div><span class="logo-text">PRISM</span></a>
     <h1 class="page-title">Student Registration</h1>
-    <p class="page-sub">Create your student account to access the portal</p>
+    <p class="page-sub">Create your student account. An administrator assigns your CTU email.</p>
   </div>
 
   <div class="reg-card" id="reg-card">
@@ -93,7 +98,7 @@
     <div class="notice">
       <strong>Note:</strong> This page is for <strong>student accounts only</strong>.
       Teacher and admin accounts are created exclusively by the portal administrator.
-      Contact your admin if you need a different account type.
+      Your CTU email is also assigned by an administrator after you register. You can sign in once that address is on your account.
     </div>
 
     <div class="fields-grid" id="reg-form">
@@ -103,11 +108,6 @@
         <label>Student ID Number</label>
         <input type="text" id="f-id" placeholder="e.g. 1234567" inputmode="numeric" maxlength="7" pattern="[0-9]{7}" autocomplete="off"/>
         <div class="field-hint">Exactly 7 digits — your CTU student ID. This is also your login.</div>
-      </div>
-      <div class="field full">
-        <label>CTU Email</label>
-        <input type="email" id="f-email" placeholder="e.g. name.surname@ctu.edu.ph" autocomplete="email" autocapitalize="none" spellcheck="false"/>
-        <div class="field-hint">Must be your official CTU email ending in @ctu.edu.ph</div>
       </div>
       <div class="field full">
         <label>College</label>
@@ -173,7 +173,7 @@
       <h3>Account Created!</h3>
       <p>Your student account has been registered.<br/>Your login ID is:</p>
       <div class="id-box" id="success-id"></div>
-      <p style="font-size:.76rem;">Keep your ID safe — you'll need it every time you log in.</p>
+      <p style="font-size:.76rem;">An administrator will assign your CTU email. Sign in with your student ID, that email, and your password.</p>
       <button class="go-btn" onclick="window.location.href='login.html'">Go to Login →</button>
     </div>
   </div>
@@ -181,6 +181,6 @@
   <p class="login-link">Already have an account? <a href="login.html">Sign in here</a></p>
 </div>
 
-<script src="pages/register.js?v=13"></script>
+<script src="pages/register.js?v=14"></script>
 </body>
 </html>

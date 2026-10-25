@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Student Records</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=10"/>
+  <link rel="stylesheet" href="portal.css?v=11"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -23,7 +23,7 @@
     .class-bar { background:#fff; border-radius:14px; padding:.7rem 1.3rem; box-shadow:0 4px 18px rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.1); margin-bottom:1.2rem; display:flex; align-items:center; gap:.8rem; flex-wrap:wrap; }
 
     /* ── TAB ROW: Sessions | History | Summary ── */
-    .view-tabs { display:flex; gap:.3rem; background:#fff; border-radius:12px; padding:.3rem; box-shadow:0 2px 12px rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.08); margin-bottom:1.2rem; width:fit-content; }
+    .view-tabs { display:flex; gap:.3rem; background:#fff; border-radius:12px; padding:.3rem; box-shadow:0 2px 12px rgba(16,185,129,.08); border:1px solid rgba(16,185,129,.08); margin-bottom:0; width:auto; max-width:100%; flex-wrap:wrap; }
     .view-tab { padding:.45rem 1.1rem; border-radius:9px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .view-tab:hover:not(.active) { background:var(--t-light); color:var(--t-dark); }
     .view-tab.active { background:var(--t); color:white; }
@@ -72,7 +72,7 @@
     .student-avatar img { width:100%; height:100%; object-fit:cover; display:block; }
 
     /* ── HISTORY VIEW ── */
-    .history-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem; }
+    .history-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:1rem; }
     .history-card { background:#fff; border-radius:14px; border:1.5px solid #d1fae5; padding:1.2rem; box-shadow:0 2px 12px rgba(16,185,129,.06); transition:border-color .2s, box-shadow .2s; cursor:pointer; }
     .history-card:hover { border-color:var(--t); box-shadow:0 4px 20px rgba(16,185,129,.15); }
     .hc-date { font-family:'DM Sans',sans-serif; font-size:.85rem; font-weight:800; color:#16132b; margin-bottom:.6rem; display:flex; align-items:center; gap:.5rem; }
@@ -118,14 +118,59 @@
     .te-grade-box .tgb-val { font-size:.88rem; font-weight:800; color:#16132b; font-family:'DM Sans',sans-serif; }
     .te-grade-box .tgb-lbl { font-size:.62rem; color:#9ca3af; text-transform:uppercase; font-weight:700; margin-top:1px; }
 
+    @media(max-width:640px){
+      .hc-stats { grid-template-columns: repeat(2, 1fr); }
+      .te-grades { grid-template-columns: repeat(2, 1fr); }
+      .m-header, .m-body { padding-left: 1rem; padding-right: 1rem; }
+    }
+    .sheet-bar { display:none; align-items:center; gap:.75rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .sheet-bar label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#9ca3af; }
+    .sheet-bar select { border:1.5px solid #e4dffa; border-radius:10px; padding:.5rem .7rem; font-family:'DM Sans',sans-serif; font-size:.9rem; min-width:min(100%, 240px); background:#fff; color:#16132b; }
+    .sheet-status { font-size:.78rem; color:#6b7280; }
+    .paper { background:#fffdfb; color:#1f1630; border:1px solid #eadff2; border-radius:14px; padding:1rem 1rem 1.2rem; }
+    .paper-title { font-family:'Segoe Script','Brush Script MT',cursive; font-size:1.7rem; color:#5b3d73; line-height:1.1; }
+    .paper-year { font-size:.82rem; color:#7c6a86; margin-bottom:.8rem; }
+    .paper-head { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:.55rem; margin-bottom:.8rem; }
+    .paper-head label { display:block; font-size:.62rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#9a6ea8; margin-bottom:.2rem; }
+    .paper-head input { width:100%; border:1px solid #e7d5ee; background:#fff; border-radius:8px; padding:.4rem .5rem; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#1f1630; }
+    .legend { display:flex; flex-wrap:wrap; gap:.45rem .8rem; font-size:.75rem; color:#6b5478; margin-bottom:.6rem; }
+    .legend b { color:#5b3d73; }
+    .att-scroll, .score-scroll { overflow-x:auto; }
+    .att-table, .score-table { border-collapse:collapse; width:max-content; min-width:100%; }
+    .att-table th, .att-table td, .score-table th, .score-table td { border:1px solid #ead7f0; background:#fff; text-align:center; padding:0; color:#1f1630; }
+    .att-table th { background:#f8eef6; font-size:.68rem; font-weight:800; color:#6b4c7a; padding:.25rem .15rem; }
+    .att-table .month { text-align:left; padding:.25rem .45rem; font-size:.75rem; white-space:nowrap; background:#f8eef6; }
+    .mark-cell { min-width:30px; width:30px; position:relative; }
+    .mark-cell .wd { display:block; font-size:.55rem; line-height:1; color:#a78bba; padding-top:2px; }
+    .mark-cell.weekend { background:#f6f4f8; }
+    .mark-cell.invalid { background:#f3f4f6; }
+    .mark-inp, .box-inp { width:100%; border:none; background:transparent; text-align:center; font-family:'DM Sans',sans-serif; font-weight:800; font-size:.78rem; color:#1f1630; height:22px; padding:0; }
+    .mark-inp:focus, .box-inp:focus { outline:2px solid #c4b5fd; outline-offset:-2px; }
+    .mk-p { color:#047857; } .mk-a { color:#b91c1c; } .mk-l { color:#b45309; } .mk-h { color:#6d28d9; }
+    .att-total { min-width:42px; font-size:.72rem; font-weight:800; background:#f8eef6; }
+    .sheet-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+    .sheet-block { border:1px solid #ead7f0; border-radius:10px; overflow:hidden; background:#fff; }
+    .sheet-block h3 { margin:0; padding:.45rem .65rem; background:#f8eef6; color:#6b3f86; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; }
+    .score-table th { background:#fbf7fb; font-size:.65rem; font-weight:800; color:#6b4c7a; padding:.3rem .2rem; }
+    .score-table td { min-width:34px; }
+    .score-table .q-name { text-align:left; padding:.2rem .45rem; font-size:.75rem; font-weight:700; white-space:nowrap; background:#fbf7fb; }
+    .score-total { font-size:.75rem; font-weight:800; min-width:48px; background:#f8eef6; }
+    .remarks-inp { width:100%; min-height:72px; border:none; resize:vertical; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#1f1630; padding:.55rem .65rem; }
+    .sched-days { display:flex; flex-wrap:wrap; gap:.45rem .8rem; padding:.65rem; align-items:center; font-size:.82rem; }
+    .sched-days input[type="text"] { border:1px solid #e7d5ee; border-radius:8px; padding:.35rem .5rem; font-family:'DM Sans',sans-serif; color:#1f1630; }
+    .avg-row { display:flex; flex-wrap:wrap; gap:.4rem; padding:.65rem; }
+    .avg-box { min-width:72px; border:1px solid #ead7f0; border-radius:8px; padding:.35rem .4rem; text-align:center; background:#fff; }
+    .avg-box span { display:block; font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#9a6ea8; }
+    .avg-box strong { font-size:.95rem; color:#1f1630; }
+    @media(max-width:900px){ .sheet-grid { grid-template-columns:1fr; } .paper-head { grid-template-columns:1fr 1fr; } }
     @keyframes popIn { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
     @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
   </style>
 </head>
 <body>
-<script src="api.js?v=9"></script>
-<script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=11"></script>
+<script src="api.js?v=13"></script>
+<script src="script.js?v=12"></script>
+<script src="portal-sidebar.js?v=13"></script>
 <!-- TOPBAR -->
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
@@ -174,8 +219,16 @@
         <button class="view-tab active" onclick="switchView('session',this)"> Session Entry</button>
         <button class="view-tab" onclick="switchView('history',this)"> History</button>
         <button class="view-tab" onclick="switchView('summary',this)"> Summary</button>
+        <button class="view-tab" onclick="switchView('attendance',this)"> Attendance</button>
+        <button class="view-tab" onclick="switchView('assessment',this)"> Assessment</button>
       </div>
       <div style="font-size:.8rem;color:#9ca3af;" id="view-hint">Enter grades for the selected date below</div>
+    </div>
+
+    <div class="sheet-bar" id="sheet-bar">
+      <label for="sheet-student">Student</label>
+      <select id="sheet-student" onchange="onSheetStudentChange()"></select>
+      <span class="sheet-status" id="sheet-status"></span>
     </div>
 
     <!-- ══ SESSION VIEW ══ -->
@@ -265,6 +318,14 @@
       </div>
     </div>
 
+    <div id="view-attendance" style="display:none;">
+      <div id="attendance-sheet"></div>
+    </div>
+
+    <div id="view-assessment" style="display:none;">
+      <div id="assessment-sheet"></div>
+    </div>
+
   </main>
 </div>
 
@@ -332,6 +393,7 @@
 </div>
 
 
-<script src="pages/records.js?v=10"></script>
+<script src="pages/records.js?v=13"></script>
+<script src="pages/sheets.js?v=1"></script>
 </body>
 </html>

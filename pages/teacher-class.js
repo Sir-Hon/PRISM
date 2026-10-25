@@ -151,7 +151,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   if (!user) return;
   TEACHER_ID = user.id;
   if (typeof initSidebar === 'function') initSidebar('home');
-  document.querySelectorAll('.sidebar-link').forEach(function(a) { a.classList.remove('active'); });
   try {
     const cached = JSON.parse(localStorage.getItem('prism_classes_' + TEACHER_ID) || '[]');
     if (cached.length) CLASSES = cached;
@@ -201,6 +200,8 @@ async function initTeacherClassPage() {
     return;
   }
   paintTeacherClassShell(cls);
+  if (typeof initSidebar === 'function') initSidebar('home');
+  if (typeof markSidebarClassActive === 'function') markSidebarClassActive(activeClassId);
   await refreshClassData(activeClassId);
   renderWorkspacePage();
 }
@@ -806,7 +807,8 @@ function renderAssignments(){
       +'<div class="asgn-meta">'+(it.points||it.pts?((it.points||it.pts)+' pts · '):'')+((it.target_section&&String(it.target_section).trim())?('<span style="color:#059669;font-weight:700;">'+teacherEsc(String(it.target_section).trim())+'</span> · '):'')+(srcMeta?teacherEsc(srcMeta)+' · ':'')+(it.instructions?teacherEsc(it.instructions.slice(0,60))+'…':'')+'</div></div>'
       + srcBtns
       +(dStr?'<div class="asgn-due'+(overdue?' overdue':'')+'">'+( overdue?' ':'' )+'Due '+dueDisp+'</div>':'')
-      +'<a href="grading.html" style="font-size:.72rem;color:#7c3aed;font-weight:700;white-space:nowrap;text-decoration:none;" title="View submissions and enter scores"> Grading →</a>'
+      +'<a href="grading.html?class='+encodeURIComponent(activeClassId)+'" style="font-size:.72rem;color:#7c3aed;font-weight:700;white-space:nowrap;text-decoration:none;" title="View submissions and enter scores"> Grading →</a>'
+      +'<a href="records.html?class='+encodeURIComponent(activeClassId)+'" style="font-size:.72rem;color:#059669;font-weight:700;white-space:nowrap;text-decoration:none;" title="Attendance and assessment records"> Records →</a>'
       +'<button class="mat-del" onclick="deleteAssignment(\''+it.id+'\')">Remove</button>'
       +'</div>';
   }).join('');

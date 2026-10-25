@@ -235,6 +235,29 @@ CREATE TABLE IF NOT EXISTS org_memberships (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
+-- ── LEARNER SHEETS (attendance + assessment forms) ─────
+CREATE TABLE IF NOT EXISTS learner_sheets (
+  class_id   VARCHAR(50)  NOT NULL,
+  student_id VARCHAR(50)  NOT NULL,
+  kind       VARCHAR(20)  NOT NULL,
+  payload    MEDIUMTEXT   NOT NULL,
+  updated_at DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (class_id, student_id, kind)
+);
+
+-- ── CERTIFICATES OF REGISTRATION ───────────────────────
+CREATE TABLE IF NOT EXISTS student_cors (
+  id          INT          AUTO_INCREMENT PRIMARY KEY,
+  student_id  VARCHAR(50)  NOT NULL,
+  school_year VARCHAR(20)  NOT NULL,
+  semester    VARCHAR(40)  NOT NULL,
+  label       VARCHAR(80)  NOT NULL,
+  payload     MEDIUMTEXT   NOT NULL,
+  sent_by     VARCHAR(50)  NOT NULL,
+  sent_at     DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_student_term (student_id, school_year, semester)
+);
+
 -- ── DEFAULT ADMIN ACCOUNT ──────────────────────────────
 INSERT IGNORE INTO users (id, password, role, name, section)
 VALUES ('admin001', '$2y$10$YourHashedPasswordHere', 'admin', 'Portal Admin', 'Admin Office');

@@ -136,34 +136,27 @@ if ($method === 'POST' && $action === 'delete_user') {
     ok();
 }
 
-if ($action === 'get_invite_codes') {
-    requireAuth(['admin']);
-    $stmt = $db->query(
-        'SELECT ic.code, ic.created_by, ic.used, ic.used_by, ic.used_at, ic.created_at,
-                u.name AS teacher_name, u.email AS teacher_email, u.section AS teacher_section, u.role AS teacher_role
-         FROM invite_codes ic
-         LEFT JOIN users u ON u.id = ic.used_by
-         ORDER BY ic.created_at DESC'
-    );
-    ok(['codes' => $stmt->fetchAll()]);
+if (in_array($action, ['get_invite_codes', 'create_invite', 'delete_invite'], true)) {
+    fail('Invite codes are no longer used. Administrators create teacher accounts directly.', 410);
 }
 
-if ($method === 'POST' && $action === 'create_invite') {
-    requireAuth(['admin']);
-    $code = strtoupper(substr(md5(uniqid()), 0, 7));
-    $db->prepare('INSERT INTO invite_codes (code, created_by) VALUES (?,?)')->execute([$code, $user['id']]);
-    ok(['code' => $code]);
-}
-
-if ($method === 'POST' && $action === 'delete_invite') {
+if ($method === 'POST' && $action === 'set_user_email') {
     requireAuth(['admin']);
     $b = getBody();
-    $code = strtoupper(trim((string) ($b['code'] ?? '')));
-    if (!preg_match('/^[A-Z0-9]{4,30}$/', $code)) fail('Invalid invite code');
-    $st = $db->prepare('DELETE FROM invite_codes WHERE code = ?');
-    $st->execute([$code]);
-    if ($st->rowCount() < 1) fail('Invite code not found', 404);
-    ok();
+    $targetId = trim($b['id'] ?? '');
+    $email = prism_normalize_ctu_email($b['email'] ?? '');
+    if ($targetId === '') fail('Missing account');
+    if (!prism_is_ctu_email($email)) fail('Enter a CTU email (@ctu.edu.ph)');
+    $lookup = $db->prepare('SELECT id, role FROM users WHERE id = ?');
+    $lookup->execute([$targetId]);
+    $row = $lookup->fetch();
+    if (!$row) fail('Account not found', 404);
+    if (!in_array($row['role'], ['student', 'teacher'], true)) fail('CTU email is set on student and teacher accounts');
+    $taken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?');
+    $taken->execute([$email, $targetId]);
+    if ($taken->fetch()) fail('That CTU email is already used on another account');
+    $db->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $targetId]);
+    ok(['id' => $targetId, 'email' => $email]);
 }
 
 if ($action === 'get_announcements') {

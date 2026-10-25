@@ -83,7 +83,7 @@ window.addEventListener('DOMContentLoaded', async function(){
   try {
     var apiClasses = await PrismClasses.getMyClasses();
     var normalized = apiClasses.map(function(c){
-      return { id:c.id, subject:c.subject, color:c.color||'#7c3aed', code:c.code, teacher_id:c.teacher_id||TEACHER_ID };
+      return { id:c.id, subject:c.subject, color:c.color||'#7c3aed', code:c.code, teacher_id:c.teacher_id||TEACHER_ID, student_count: parseInt(c.student_count, 10) || 0 };
     });
     localStorage.setItem('prism_classes_'+TEACHER_ID, JSON.stringify(normalized));
     await Promise.all(normalized.map(function(cls) {
@@ -94,6 +94,7 @@ window.addEventListener('DOMContentLoaded', async function(){
       }).catch(function() {});
     }));
   } catch(e) { console.warn('records class sync', e); }
+  if (typeof initSidebar === 'function') initSidebar('records');
   var classes = getClasses();
   var sel = document.getElementById('class-select');
   if (!classes.length) {
@@ -103,21 +104,28 @@ window.addEventListener('DOMContentLoaded', async function(){
   }
   var params = new URLSearchParams(window.location.search);
   var urlClass = params.get('class');
+  var savedClass = '';
+  try { savedClass = sessionStorage.getItem('prism_teacher_active_class_id') || ''; } catch (e) {}
   classes.forEach(function(cls){
     var opt = document.createElement('option');
     opt.value = cls.id; opt.textContent = cls.subject;
-    if (cls.id === urlClass) opt.selected = true;
     sel.appendChild(opt);
   });
-  activeClassId = urlClass && classes.find(c=>c.id===urlClass) ? urlClass : classes[0].id;
+  if (urlClass && classes.find(function(c){ return c.id === urlClass; })) activeClassId = urlClass;
+  else if (savedClass && classes.find(function(c){ return c.id === savedClass; })) activeClassId = savedClass;
+  else activeClassId = classes[0].id;
   sel.value = activeClassId;
+  try { sessionStorage.setItem('prism_teacher_active_class_id', activeClassId); } catch (e2) {}
 
   document.getElementById('session-date').value = activeDate;
   onClassChange(activeClassId);
 });
 
 function onClassChange(id){
+  if (typeof flushSave === 'function') flushSave();
   activeClassId = id;
+  try { sessionStorage.setItem('prism_teacher_active_class_id', id); } catch (e) {}
+  if (typeof markSidebarClassActive === 'function') markSidebarClassActive(id);
   activeSectionSession = 'all';
   activeSectionHistory = 'all';
   activeSectionSummary = 'all';
@@ -127,6 +135,8 @@ function onClassChange(id){
   renderHistory();
   renderSummary();
   populateBulkSections();
+  if (typeof refreshSheetBar === 'function') refreshSheetBar();
+  if ((activeView === 'attendance' || activeView === 'assessment') && typeof loadCurrentSheet === 'function') loadCurrentSheet();
 }
 
 function onDateChange(val){
@@ -153,16 +163,29 @@ function shiftDate(delta){
 
 // ── VIEW SWITCHER ──
 function switchView(view, btn){
+  if ((activeView === 'attendance' || activeView === 'assessment') && typeof flushSave === 'function') flushSave();
   activeView = view;
-  ['session','history','summary'].forEach(function(v){
-    document.getElementById('view-'+v).style.display = v===view ? 'block' : 'none';
+  ['session','history','summary','attendance','assessment'].forEach(function(v){
+    var el = document.getElementById('view-'+v);
+    if (el) el.style.display = v===view ? 'block' : 'none';
   });
+  var sheetBar = document.getElementById('sheet-bar');
+  if (sheetBar) sheetBar.style.display = (view==='attendance' || view==='assessment') ? 'flex' : 'none';
   document.querySelectorAll('.view-tab').forEach(t=>t.classList.remove('active'));
   if(btn) btn.classList.add('active');
-  var hints = {session:'Enter grades for the selected date below', history:'View all recorded sessions', summary:'Aggregated performance per student across all sessions'};
+  var hints = {
+    session:'Enter grades for the selected date below',
+    history:'View all recorded sessions',
+    summary:'Aggregated performance per student across all sessions',
+    attendance:'Type P, A, L, or H in each day box',
+    assessment:'Type scores in the boxes. Totals and the general average update as you type.'
+  };
   document.getElementById('view-hint').textContent = hints[view]||'';
   if(view==='history') renderHistory();
   if(view==='summary') renderSummary();
+  if(view==='attendance' || view==='assessment'){
+    if (typeof renderActiveSheet === 'function') renderActiveSheet();
+  }
 }
 
 // ── SECTION PILLS ──

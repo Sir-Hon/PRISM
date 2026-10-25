@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Account Management</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=10"/>
+  <link rel="stylesheet" href="portal.css?v=11"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --teacher:#10b981; --admin-c:#f59e0b; --student:#6366f1; }
@@ -133,9 +133,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=10"></script>
+<script src="api.js?v=12"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=11"></script>
+<script src="portal-sidebar.js?v=13"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <span class="admin-badge"> Admin Panel</span>
@@ -160,12 +160,11 @@
   <main class="main-content">
     <div class="page-header">
       <h1> Account Management</h1>
-      <p>Create accounts directly, generate invite codes for teachers, and manage all portal users.</p>
+      <p>Create teacher and admin accounts, assign CTU emails, and manage portal users.</p>
     </div>
 
     <div class="page-tabs">
       <button class="page-tab active" onclick="switchTab('create',this)"> Create Account</button>
-      <button class="page-tab"        onclick="switchTab('invites',this)"> Invite Codes</button>
       <button class="page-tab"        onclick="switchTab('users',this)"> All Users</button>
       <button class="page-tab"        onclick="switchTab('security',this)"> Admin Security</button>
     </div>
@@ -174,7 +173,7 @@
     <div class="tab-panel active" id="tab-create">
       <div class="create-card">
         <div class="card-heading">New Account</div>
-        <div class="card-sub">Directly create a teacher or admin account.</div>
+        <div class="card-sub">Create a teacher or admin account. Teachers need the CTU email they will use to sign in.</div>
         <div class="role-pills">
           <button class="role-pill sel-teacher" data-role="teacher" onclick="selectRole('teacher')"> Teacher</button>
           <button class="role-pill"             data-role="admin"   onclick="selectRole('admin')"> Admin</button>
@@ -189,6 +188,11 @@
           </div>
           <div class="f full"><label>Department / Subject</label><input type="text" id="c-dept" placeholder="e.g. Mathematics Dept."/></div>
           <div class="f full">
+            <label>CTU Email</label>
+            <input type="email" id="c-email" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/>
+            <div class="f-hint">Required for teachers. Students get their email from the user list after they register.</div>
+          </div>
+          <div class="f full">
             <label>Password</label>
             <div class="pw-wrap">
               <input type="password" id="c-pw" placeholder="Minimum 6 characters"/>
@@ -198,32 +202,6 @@
         </div>
         <button class="create-btn" id="create-btn" onclick="handleCreate()">Create Account</button>
         <div class="form-msg" id="create-msg"></div>
-      </div>
-    </div>
-
-    <!-- ═══ TAB: INVITE CODES ═══ -->
-    <div class="tab-panel" id="tab-invites">
-      <div class="create-card" style="max-width:100%">
-        <div class="card-heading"> Teacher Invite Codes</div>
-        <div class="card-sub">Generate single-use codes that teachers can use to register their own accounts. Share these codes with new teachers privately.</div>
-
-        <div class="gen-invite-controls">
-          <select class="invite-type-sel" id="invite-role-sel">
-            <option value="teacher"> Teacher</option>
-            <option value="admin"> Admin</option>
-          </select>
-          <select class="invite-exp-sel" id="invite-exp-sel">
-            <option value="7">Expires in 7 days</option>
-            <option value="30">Expires in 30 days</option>
-            <option value="0">Never expires</option>
-          </select>
-          <button class="gen-invite-btn" onclick="generateInviteCode()"> Generate Code</button>
-        </div>
-        <input class="invite-search" id="invite-search" placeholder="Search by code or teacher name" oninput="filterInviteCodes()"/>
-
-        <div class="invite-grid" id="invite-grid">
-          <p style="color:#c4b5fd;font-size:.9rem;">No invite codes yet. Generate one above.</p>
-        </div>
       </div>
     </div>
 
@@ -242,7 +220,7 @@
       <div class="users-table-wrap">
         <div class="prism-table-scroll">
         <table>
-          <thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Section</th><th>Source</th><th>Action</th></tr></thead>
+          <thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Section</th><th>CTU Email</th><th>Action</th></tr></thead>
           <tbody id="users-tbody"></tbody>
         </table>
         </div>
@@ -256,10 +234,10 @@
         <!-- Passphrase card -->
         <div class="create-card" style="max-width:100%">
           <div class="card-heading"> Admin Registration Passphrase</div>
-          <div class="card-sub">This passphrase is required alongside an admin invite code to register a new admin account at <code style="background:#f5f3ff;padding:2px 7px;border-radius:6px;font-size:.85em;color:#7c3aed;">admin-register.html</code>. Keep it secret — share only with incoming admins.</div>
+          <div class="card-sub">New administrator accounts are created from the Create Account tab. Invite codes are no longer used.</div>
 
           <div style="background:#fef9e7;border:1.5px solid #fde68a;border-radius:12px;padding:.9rem 1rem;margin-bottom:1.3rem;font-size:.8rem;color:#92400e;line-height:1.6;">
-             <strong>Without a passphrase set, no one can self-register as admin</strong> — even with a valid invite code. If no passphrase is configured, admin accounts can only be created directly from this panel.
+             Administrator accounts are created from the Create Account tab. Public signup with an invite code is closed.
           </div>
 
           <div id="current-pp-status" style="margin-bottom:1.2rem;"></div>
@@ -290,13 +268,8 @@
           </div>
           <div class="form-msg" id="pp-msg"></div>
 
-          <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;">
-            <div style="font-size:.8rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.7rem;">Admin Registration URL</div>
-            <div style="background:#faf9ff;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;">
-              <code style="font-size:.82rem;color:#7c3aed;flex:1;word-break:break-all;" id="admin-reg-url"></code>
-              <button onclick="copyAdminUrl()" style="background:none;border:1.5px solid #e4dffa;border-radius:8px;padding:.35rem .9rem;font-size:.78rem;font-weight:700;color:#6b7280;cursor:pointer;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:all .15s;" id="copy-url-btn">Copy URL</button>
-            </div>
-            <div style="font-size:.72rem;color:#c4b5fd;margin-top:.4rem;">Share this URL privately with incoming admins — it is not linked anywhere on the site.</div>
+          <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;font-size:.82rem;color:#6b7280;line-height:1.55;">
+            Teacher and administrator accounts are created on the Create Account tab. Their CTU email is set there, or later from All Users.
           </div>
         </div>
 
@@ -313,6 +286,18 @@
   </main>
 </div>
 
-<script src="pages/manage.js?v=12"></script>
+<div class="m-overlay" id="email-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:1.4rem 1.3rem;width:min(420px,92vw);">
+    <h3 style="font-family:'DM Sans',sans-serif;margin-bottom:.35rem;">Assign CTU email</h3>
+    <p id="email-who" style="font-size:.88rem;color:#6b7280;margin-bottom:.9rem;"></p>
+    <input id="email-input" type="email" placeholder="name.surname@ctu.edu.ph" autocomplete="off" style="width:100%;border:1.5px solid #e4dffa;border-radius:10px;padding:.65rem .85rem;font-family:'DM Sans',sans-serif;"/>
+    <div style="display:flex;gap:.6rem;margin-top:1rem;">
+      <button type="button" onclick="closeEmailModal()" style="flex:1;padding:.65rem;border:none;border-radius:10px;background:#f0ecff;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">Cancel</button>
+      <button type="button" onclick="saveUserEmail()" style="flex:1;padding:.65rem;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">Save email</button>
+    </div>
+    <div id="email-msg" style="font-size:.82rem;margin-top:.6rem;min-height:1em;"></div>
+  </div>
+</div>
+<script src="pages/manage.js?v=13"></script>
 </body>
 </html>

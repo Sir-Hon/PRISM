@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Notes</title>
   <link rel="icon" type="image/png" href="icon-dog.png"/>
-  <link rel="stylesheet" href="portal.css?v=10"/>
+  <link rel="stylesheet" href="portal.css?v=11"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --n: #7c3aed; --n-dark: #6d28d9; --n-light: #ede9fe; }
@@ -108,12 +108,40 @@
     .nb-mod-btn.cancel { background:#f0ecff; color:#555; }
 
     .section-label-small { font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.07em; color:#9ca3af; font-family:'DM Sans',sans-serif; margin-bottom:0.5rem; }
+
+    .fmt-size, .fmt-color { flex: 0 0 auto; }
+    .fmt-size { border:1px solid #e4dffa; border-radius:7px; font-size:0.8rem; padding:0.32rem 0.4rem; color:#374151; background:#fff; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .fmt-color { width:32px; height:32px; border:1px solid #e4dffa; border-radius:7px; cursor:pointer; padding:2px; background:#fff; }
+
+    @media (max-width: 760px) {
+      body.note-editing .notes-topbar,
+      body.note-editing .notebooks-grid { display: none; }
+      .notes-topbar { padding: 0.85rem 1rem; margin-bottom: 1rem; }
+      .notes-topbar h2 { font-size: 1.2rem; }
+      .btn-new-nb { padding: 0.55rem 1rem; font-size: 0.88rem; }
+      .notebooks-grid { grid-template-columns: 1fr; gap: 0.85rem; }
+      .notes-editor-wrap { overflow: visible; }
+      .editor-topbar { padding: 0.7rem 0.85rem; gap: 0.5rem; }
+      .notes-list-sidebar { flex-direction: column; min-height: 0; }
+      .note-list-panel { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid #f0ecff; padding-bottom: 0.4rem; }
+      .note-list-item { padding: 0.85rem 1rem; }
+      .notes-list-sidebar.note-open .note-list-panel { display: none; }
+      .notes-list-sidebar:not(.note-open) .note-editor-panel { display: none; }
+      .note-editor-panel { padding: 0.85rem 0.9rem 1rem; min-width: 0; }
+      .note-title-input { font-size: 1.3rem; }
+      .fmt-bar { gap: 0.4rem; }
+      .fmt-btn { min-height: 36px; padding: 0.35rem 0.65rem; }
+      .note-body-input { min-height: 160px; }
+      .note-footer { flex-wrap: wrap; gap: 0.55rem; }
+      .note-footer span { flex: 1 1 8rem; min-width: 0; }
+      .nb-modal { padding: 1.4rem 1.15rem; }
+    }
   </style>
 </head>
 <body>
 <script src="api.js?v=9"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=11"></script>
+<script src="portal-sidebar.js?v=13"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -149,7 +177,7 @@
 
     <div class="notes-editor-wrap" id="notes-editor-wrap">
       <div class="editor-topbar" id="editor-topbar">
-        <button onclick="closeEditor()" style="background:#f0ecff;border:none;border-radius:9px;padding:0.42rem 0.9rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:#6b7280;">← Back</button>
+        <button type="button" id="editor-back-btn" onclick="editorBack()" style="background:#f0ecff;border:none;border-radius:9px;padding:0.42rem 0.9rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:#6b7280;">← Back</button>
         <span class="nb-badge" id="editor-nb-badge"></span>
         <span style="flex:1"></span>
         <span id="autosave-label" style="font-size:0.78rem;color:#c4b5fd;font-family:'DM Sans',sans-serif;"></span>
@@ -173,11 +201,11 @@
               <button class="fmt-btn" onclick="execFmt('justifyLeft')">Left</button>
               <button class="fmt-btn" onclick="execFmt('justifyCenter')">Center</button>
               <button class="fmt-btn" onclick="execFmt('justifyRight')">Right</button>
-              <select onchange="execFmtArg('fontSize',this.value);this.value=''" style="border:1px solid #e4dffa;border-radius:7px;font-size:0.8rem;padding:2px 5px;color:#374151;cursor:pointer;">
+              <select class="fmt-size" onchange="execFmtArg('fontSize',this.value);this.value=''">
                 <option value="">Size</option>
                 <option value="1">Small</option><option value="3">Normal</option><option value="5">Large</option><option value="7">Huge</option>
               </select>
-              <input type="color" onchange="execFmtArg('foreColor',this.value)" style="width:30px;height:28px;border:1px solid #e4dffa;border-radius:7px;cursor:pointer;padding:2px;"/>
+              <input class="fmt-color" type="color" onchange="execFmtArg('foreColor',this.value)" aria-label="Text color"/>
               <button class="fmt-btn" onclick="execFmt('removeFormat')"> Fmt</button>
             </div>
             <div id="note-body" contenteditable="true" class="note-body-input" oninput="autosave()" style="outline:none;"></div>
@@ -212,6 +240,6 @@
 
 
 
-<script src="pages/notes.js?v=11"></script>
+<script src="pages/notes.js?v=13"></script>
 </body>
 </html>

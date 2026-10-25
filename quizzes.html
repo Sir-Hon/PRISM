@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Quizzes</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=10"/>
+  <link rel="stylesheet" href="portal.css?v=11"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -16,7 +16,12 @@
     .q-filter-btn:hover         { border-color:#a78bfa; color:#7c3aed; }
     .q-filter-btn.active        { background:#7c3aed; color:white; border-color:#7c3aed; }
 
-    .quizzes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:1.4rem; }
+    .quizzes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr)); gap:1.4rem; }
+    @media (max-width:640px) {
+      .quizzes-grid { gap: 0.9rem; }
+      .quiz-card-body { padding: 1.05rem 1rem; }
+      .quiz-card:hover { transform: none; }
+    }
 
     .quiz-card {
       background:#fff; border-radius:18px; overflow:hidden;
@@ -124,7 +129,7 @@
 <body>
 <script src="api.js?v=9"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=11"></script>
+<script src="portal-sidebar.js?v=13"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>

@@ -802,6 +802,28 @@ const PrismRecords = {
   async save(record) {
     return await apiCall('content', 'save_record', 'POST', record);
   },
+  async getSheet(classId, studentId, kind) {
+    return await apiGet('records', 'sheet', { class_id: classId, student_id: studentId, kind: kind });
+  },
+  async saveSheet(classId, studentId, kind, payload) {
+    return await apiCall('records', 'save_sheet', 'POST', {
+      class_id: classId,
+      student_id: studentId,
+      kind: kind,
+      payload: payload,
+    });
+  },
+  async listCors() {
+    const data = await apiGet('records', 'cors');
+    return data.cors || [];
+  },
+  async getCor(id) {
+    const data = await apiGet('records', 'cor', { id: id });
+    return data.cor;
+  },
+  async sendCor(body) {
+    return await apiCall('records', 'send_cor', 'POST', body);
+  },
 };
 
 // ══════════════════════════════════════════════════════
@@ -856,6 +878,9 @@ const PrismAdmin = {
   },
   async deleteInvite(code) {
     return await apiCall('profile', 'delete_invite', 'POST', { code });
+  },
+  async setUserEmail(id, email) {
+    return await apiCall('profile', 'set_user_email', 'POST', { id, email });
   },
   async getAnnouncements() {
     const data = await apiGet('profile', 'get_announcements');

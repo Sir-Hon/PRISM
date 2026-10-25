@@ -279,6 +279,7 @@ async function loadClasses() {
   renderAll();
   renderStats();
   if (typeof initSidebar === 'function') initSidebar('home');
+  if (typeof markSidebarClassActive === 'function') markSidebarClassActive(activeClassId);
   await refreshClassData(activeClassId);
   renderAll();
   renderStats();
@@ -291,6 +292,7 @@ async function onTeacherClassChange(id) {
   if (!id || !CLASSES.find(c => c.id === id)) return;
   activeClassId = id;
   try { sessionStorage.setItem('prism_teacher_active_class_id', id); } catch (e) {}
+  if (typeof markSidebarClassActive === 'function') markSidebarClassActive(id);
   activeSection = 'all';
   loadStreamSectionForClass(id);
   await refreshClassData(id);

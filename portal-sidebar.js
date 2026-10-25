@@ -12,6 +12,7 @@ function prismNavIcon(name) {
     quizzes: '<svg ' + common + '><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.6 2.2c-.7.4-1.1.9-1.1 1.8"/><path d="M12 17h.01"/></svg>',
     classes: '<svg ' + common + '><path d="M4 19V6a2 2 0 0 1 2-2h9l5 5v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M15 4v5h5"/></svg>',
     records: '<svg ' + common + '><path d="M8 6h13M8 12h13M8 18h13"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+    cor: '<svg ' + common + '><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M14 3v5h5M8 13h8M8 17h5"/></svg>',
     grading: '<svg ' + common + '><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
     users: '<svg ' + common + '><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     dashboard: '<svg ' + common + '><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
@@ -25,6 +26,7 @@ var ROLE_NAV = {
     { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
     { page: 'notes', href: 'notes.html', icon: 'notes', label: 'Notes' },
     { page: 'quizzes', href: 'quizzes.html', icon: 'quizzes', label: 'Quizzes' },
+    { page: 'cor', href: 'cor.html', icon: 'cor', label: 'COR' },
   ],
   teacher: [
     { page: 'home', href: 'teacher.html', icon: 'classes', label: 'My Classes' },
@@ -36,6 +38,7 @@ var ROLE_NAV = {
   admin: [
     { page: 'home', href: 'admin.html', icon: 'dashboard', label: 'Dashboard' },
     { page: 'manage', href: 'manage.html', icon: 'users', label: 'Manage Users' },
+    { page: 'cor', href: 'cor.html', icon: 'cor', label: 'COR' },
     { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
   ],
 };
@@ -307,6 +310,49 @@ function initSidebar(activePage) {
   }
 
   prismBindLogoutButtons();
+  if (!window.__prismSidebarSkipRefresh && role !== 'admin') {
+    prismRefreshSidebarClasses(role, activePage);
+  }
+}
+
+var __prismSidebarRefreshGen = 0;
+
+function prismRefreshSidebarClasses(role, activePage) {
+  if (typeof PrismClasses === 'undefined' || !PrismClasses.getMyClasses) return;
+  var gen = ++__prismSidebarRefreshGen;
+  PrismClasses.getMyClasses().then(function (list) {
+    if (gen !== __prismSidebarRefreshGen) return;
+    var uid = sessionStorage.getItem('prism_user_id') || '';
+    if (!uid) return;
+    if (role === 'teacher') {
+      var normalized = (list || []).map(function (c) {
+        return {
+          id: c.id,
+          subject: c.subject,
+          color: c.color || '#7c3aed',
+          code: c.code,
+          teacher_id: c.teacher_id || uid,
+          student_count: parseInt(c.student_count, 10) || 0
+        };
+      });
+      localStorage.setItem('prism_classes_' + uid, JSON.stringify(normalized));
+    } else {
+      var joined = {};
+      (list || []).forEach(function (cls) {
+        joined[cls.id] = {
+          classId: cls.id,
+          teacherId: cls.teacher_id,
+          subject: cls.subject,
+          color: cls.color || '',
+          joinedAt: cls.joined_at || ''
+        };
+      });
+      localStorage.setItem('prism_joined_' + uid, JSON.stringify(joined));
+    }
+    window.__prismSidebarSkipRefresh = true;
+    initSidebar(activePage || prismActivePageFromPath());
+    window.__prismSidebarSkipRefresh = false;
+  }).catch(function () { /* keep the list already on screen */ });
 }
 
 function prismActivePageFromPath() {
@@ -323,6 +369,7 @@ function prismActivePageFromPath() {
     quizmaker: 'quizmaker',
     records: 'records',
     grading: 'grading',
+    cor: 'cor',
     manage: 'manage',
     profile: 'home',
   };

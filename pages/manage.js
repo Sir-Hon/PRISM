@@ -17,7 +17,6 @@ let myId = '';
     myId = sessionStorage.getItem('prism_user_id') || '';
     if (typeof initSidebar === 'function') initSidebar('manage');
     await loadUsers();
-    await renderInviteCodes();
     renderPassphraseStatus();
   });
 
@@ -42,7 +41,6 @@ let myId = '';
     document.getElementById('tab-' + name).classList.add('active');
     btn.classList.add('active');
     if (name === 'users') renderTable();
-    if (name === 'invites') renderInviteCodes();
     if (name === 'security') { renderPassphraseStatus(); renderAuditLog(); }
   }
 
@@ -60,11 +58,18 @@ let myId = '';
     const ln   = document.getElementById('c-lname').value.trim();
     const id   = document.getElementById('c-id').value.trim();
     const dept = document.getElementById('c-dept').value.trim();
+    const email = document.getElementById('c-email').value.trim().toLowerCase();
     const pw   = document.getElementById('c-pw').value;
     const msg  = document.getElementById('create-msg');
 
     if (!fn || !ln) { showFormMsg('Please enter first and last name.', 'error'); return; }
     if (!id)        { showFormMsg('Please enter an ID.', 'error'); return; }
+    if (createRole === 'teacher' && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) {
+      showFormMsg('Enter a CTU email (@ctu.edu.ph) for the teacher.', 'error'); return;
+    }
+    if (createRole !== 'teacher' && email && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) {
+      showFormMsg('Enter a CTU email (@ctu.edu.ph).', 'error'); return;
+    }
     if (!pw || pw.length < 6) { showFormMsg('Password must be at least 6 characters.', 'error'); return; }
 
     const btn = document.getElementById('create-btn');
@@ -72,13 +77,14 @@ let myId = '';
 
     try {
       await apiCall('auth', 'register_admin', 'POST', {
-        id, password: pw, name: fn + ' ' + ln, role: createRole, section: dept
+        id, password: pw, name: fn + ' ' + ln, role: createRole, section: dept, email
       });
       showFormMsg('Account created successfully!', 'success');
       document.getElementById('c-fname').value = '';
       document.getElementById('c-lname').value = '';
       document.getElementById('c-id').value = '';
       document.getElementById('c-dept').value = '';
+      document.getElementById('c-email').value = '';
       document.getElementById('c-pw').value = '';
       await loadUsers();
     } catch(e) {
@@ -102,7 +108,7 @@ let myId = '';
     let users = allUsers.slice();
     if (filterRole !== 'all') users = users.filter(u => String(u.role || '').toLowerCase() === filterRole);
     if (query) users = users.filter(u =>
-      (u.name || '').toLowerCase().includes(query) || String(u.id || '').toLowerCase().includes(query)
+      (u.name || '').toLowerCase().includes(query) || String(u.id || '').toLowerCase().includes(query) || String(u.email || '').toLowerCase().includes(query)
     );
     document.getElementById('total-badge').textContent = users.length + ' user' + (users.length !== 1 ? 's' : '');
     if (usersLoadError) {
@@ -116,13 +122,19 @@ let myId = '';
     const me = myId.toLowerCase();
     tbody.innerHTML = users.map(u => {
       const canDel = u.id.toLowerCase() !== me;
+      const role = String(u.role || '').toLowerCase();
+      const email = String(u.email || '').trim();
+      const emailHtml = email ? escHtml(email) : '<span style="color:#d97706;font-weight:700;">Not assigned</span>';
+      const emailBtn = (role === 'student' || role === 'teacher')
+        ? '<button class="del-btn" style="border-color:#e4dffa;color:#6d28d9;margin-right:.35rem;" onclick="openEmailModal(\'' + escJs(u.id) + '\',\'' + escJs(u.name || '') + '\',\'' + escJs(email) + '\')">Email</button>'
+        : '';
       return `<tr>
-        <td><strong style="color:#16132b;">${u.name || '—'}</strong></td>
-        <td style="font-family:monospace;font-size:.88rem;color:#6b7280;">${u.id}</td>
-        <td><span class="role-tag ${String(u.role || '').toLowerCase()}">${u.role || '—'}</span></td>
-        <td style="color:#9ca3af;">${u.section || '—'}</td>
-        <td><span class="source-tag">database</span></td>
-        <td><button class="del-btn" ${!canDel ? 'disabled' : ''} onclick="deleteAccount('${escJs(u.id)}')"> Delete</button></td>
+        <td><strong style="color:#16132b;">${escHtml(u.name || '—')}</strong></td>
+        <td style="font-family:monospace;font-size:.88rem;color:#6b7280;">${escHtml(u.id)}</td>
+        <td><span class="role-tag ${role}">${escHtml(u.role || '—')}</span></td>
+        <td style="color:#9ca3af;">${escHtml(u.section || '—')}</td>
+        <td style="font-size:.82rem;">${emailHtml}</td>
+        <td>${emailBtn}<button class="del-btn" ${!canDel ? 'disabled' : ''} onclick="deleteAccount('${escJs(u.id)}')"> Delete</button></td>
       </tr>`;
     }).join('');
   }
@@ -148,117 +160,34 @@ let myId = '';
     }
   }
 
-  // ── INVITE CODES (via API) ──
-  let inviteCodesCache = [];
-  let inviteOpenCode = '';
-
-  function inviteIsUsed(c) {
-    return c && (c.used === 1 || c.used === '1' || c.used === true);
+  let emailTargetId = '';
+  function openEmailModal(id, name, email) {
+    emailTargetId = id;
+    document.getElementById('email-who').textContent = (name || 'Account') + ' (' + id + ')';
+    document.getElementById('email-input').value = email || '';
+    document.getElementById('email-msg').textContent = '';
+    document.getElementById('email-overlay').style.display = 'flex';
   }
-
-  function fmtInviteDate(v) {
-    if (!v) return '—';
-    const d = new Date(String(v).replace(' ', 'T'));
-    if (isNaN(d.getTime())) return String(v).split(' ')[0];
-    return d.toLocaleDateString();
+  function closeEmailModal() {
+    document.getElementById('email-overlay').style.display = 'none';
   }
-
-  function teacherInfoList(c) {
-    const rows = [
-      ['Name', c.teacher_name || '—'],
-      ['Teacher ID', c.used_by || '—'],
-      ['Email', c.teacher_email || '—'],
-      ['Department', c.teacher_section || '—'],
-      ['Registered', fmtInviteDate(c.used_at)],
-    ];
-    return '<ul class="invite-teacher-info">' + rows.map(function (row) {
-      return '<li><span>' + escHtml(row[0]) + '</span>' + escHtml(row[1]) + '</li>';
-    }).join('') + '</ul>';
-  }
-
-  async function renderInviteCodes() {
-    const grid = document.getElementById('invite-grid');
-    try {
-      inviteCodesCache = await PrismAdmin.getInviteCodes();
-      paintInviteList();
-    } catch (e) {
-      if (grid) grid.innerHTML = '<p class="invite-empty">Failed to load invite codes.</p>';
-    }
-  }
-
-  function paintInviteList() {
-    const grid = document.getElementById('invite-grid');
-    if (!grid) return;
-    const q = (document.getElementById('invite-search')?.value || '').trim().toLowerCase();
-    const codes = inviteCodesCache.filter(function (c) {
-      if (!q) return true;
-      return String(c.code || '').toLowerCase().indexOf(q) !== -1
-        || String(c.teacher_name || '').toLowerCase().indexOf(q) !== -1;
-    });
-    if (!inviteCodesCache.length) {
-      grid.innerHTML = '<p class="invite-empty">No invite codes yet. Generate one above.</p>';
+  async function saveUserEmail() {
+    const email = document.getElementById('email-input').value.trim().toLowerCase();
+    const el = document.getElementById('email-msg');
+    if (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email)) {
+      el.textContent = 'Enter a CTU email (@ctu.edu.ph).';
+      el.style.color = '#ef4444';
       return;
     }
-    if (!codes.length) {
-      grid.innerHTML = '<p class="invite-empty">No codes match that search.</p>';
-      return;
-    }
-    grid.innerHTML = codes.map(function (c) {
-      const used = inviteIsUsed(c);
-      const safe = escJs(c.code);
-      const name = String(c.teacher_name || '').trim();
-      const open = inviteOpenCode === c.code && used;
-      let who = '<span class="invite-unused">Not used</span>';
-      if (used) {
-        const label = name || c.used_by || 'Unknown teacher';
-        who = '<button type="button" class="invite-name' + (open ? ' open' : '') + '" onclick="toggleTeacherInfo(\'' + safe + '\')">' + escHtml(label) + '</button>';
-      }
-      return '<div class="invite-row">'
-        + '<div class="invite-row-main">'
-        + '<span class="invite-code">' + escHtml(c.code) + '</span>'
-        + '<button type="button" class="copy-btn" onclick="copyInviteCode(\'' + safe + '\',this)">Copy</button>'
-        + who
-        + '<span class="invite-when">' + (used ? 'Registered ' + escHtml(fmtInviteDate(c.used_at)) : 'Created ' + escHtml(fmtInviteDate(c.created_at))) + '</span>'
-        + '<button type="button" class="invite-del-btn" onclick="deleteInviteCode(\'' + safe + '\')">Delete</button>'
-        + '</div>'
-        + (open ? teacherInfoList(c) : '')
-        + '</div>';
-    }).join('');
-  }
-
-  function filterInviteCodes() {
-    paintInviteList();
-  }
-
-  function toggleTeacherInfo(code) {
-    inviteOpenCode = inviteOpenCode === code ? '' : code;
-    paintInviteList();
-  }
-
-  function copyInviteCode(code, btn) {
-    navigator.clipboard.writeText(code).then(function () {
-      const o = btn.textContent;
-      btn.textContent = 'Copied!';
-      setTimeout(function () { btn.textContent = o; }, 1500);
-    });
-  }
-
-  async function generateInviteCode() {
     try {
-      const result = await PrismAdmin.createInvite();
-      await renderInviteCodes();
-    } catch(e) {
-      alert(e.message || 'Failed to generate invite code.');
-    }
-  }
-
-  async function deleteInviteCode(code) {
-    if (!confirm('Delete invite code "' + code + '"? This cannot be undone.')) return;
-    try {
-      await PrismAdmin.deleteInvite(code);
-      await renderInviteCodes();
+      await PrismAdmin.setUserEmail(emailTargetId, email);
+      el.textContent = 'Email saved.';
+      el.style.color = '#10b981';
+      await loadUsers();
+      setTimeout(closeEmailModal, 400);
     } catch (e) {
-      alert(e.message || 'Failed to delete invite code.');
+      el.textContent = e.message || 'Could not save that email.';
+      el.style.color = '#ef4444';
     }
   }
 
