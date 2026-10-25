@@ -477,7 +477,19 @@ function prismAppRootPrefix() {
 function prismResolveUploadUrl(path) {
   if (!path) return '';
   let s = String(path);
-  if (/^https?:\/\//i.test(s) || s.indexOf('data:') === 0) return s;
+  if (s.indexOf('data:') === 0) return s;
+  if (/^https?:\/\//i.test(s)) {
+    try {
+      const abs = new URL(s, window.location.href);
+      if (abs.pathname.indexOf('/uploads/') !== -1) {
+        s = abs.pathname;
+      } else {
+        return s;
+      }
+    } catch (e) {
+      return s;
+    }
+  }
   const root = prismAppRootPrefix();
   if (s.indexOf('/prism/uploads/') === 0) {
     s = '/uploads/' + s.slice('/prism/uploads/'.length);

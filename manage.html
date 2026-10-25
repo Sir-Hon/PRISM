@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PRISM — Account Management</title>
+  <title>PRISM � Account Management</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
   <link rel="stylesheet" href="portal.css?v=13"/>
   <script src="portal-mobile.js?v=4" defer></script>
@@ -22,7 +22,7 @@
     .tab-panel { display:none; animation:fadeUp .25s ease; }
     .tab-panel.active { display:block; }
 
-    /* ── CREATE ACCOUNT ── */
+    /* -- CREATE ACCOUNT -- */
     .create-card { background:#fff; border-radius:18px; padding:2.2rem; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.1); max-width:600px; animation:fadeUp .4s ease; }
     .card-heading { font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:800; color:#16132b; margin-bottom:.3rem; }
     .card-sub     { font-size:.9rem; color:#9ca3af; margin-bottom:1.6rem; }
@@ -51,7 +51,7 @@
     .form-msg.error   { color:#ef4444; }
     .form-msg.success { color:#10b981; }
 
-    /* ── INVITE CODES ── */
+    /* -- INVITE CODES -- */
     .invite-section { margin-top:2.2rem; padding-top:2rem; border-top:2px solid #f0ecff; }
     .invite-heading { font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:800; color:#16132b; margin-bottom:.4rem; display:flex; align-items:center; gap:.5rem; }
     .invite-sub { font-size:.85rem; color:#9ca3af; margin-bottom:1.2rem; }
@@ -95,7 +95,7 @@
     .invite-type-sel { border:1.5px solid #e4dffa; border-radius:10px; padding:.55rem .9rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#374151; outline:none; background:#faf9ff; }
     .invite-exp-sel  { border:1.5px solid #e4dffa; border-radius:10px; padding:.55rem .9rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#374151; outline:none; background:#faf9ff; }
 
-    /* ── USERS TABLE ── */
+    /* -- USERS TABLE -- */
     .users-controls { display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; margin-bottom:1.3rem; }
     .search-input   { flex:1; min-width:200px; border:1.5px solid #e4dffa; border-radius:11px; padding:.68rem 1.1rem; font-family:'DM Sans',sans-serif; font-size:.95rem; outline:none; transition:border-color .2s; background:#fff; color:#16132b; }
     .search-input:focus { border-color:#a78bfa; }
@@ -133,9 +133,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=12"></script>
+<script src="api.js?v=18"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=16"></script>
+<script src="portal-sidebar.js?v=18"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <span class="admin-badge"> Admin Panel</span>
@@ -169,7 +169,7 @@
       <button class="page-tab"        onclick="switchTab('security',this)"> Admin Security</button>
     </div>
 
-    <!-- ═══ TAB: CREATE ═══ -->
+    <!-- --- TAB: CREATE --- -->
     <div class="tab-panel active" id="tab-create">
       <div class="create-card">
         <div class="card-heading">New Account</div>
@@ -205,10 +205,10 @@
       </div>
     </div>
 
-    <!-- ═══ TAB: ALL USERS ═══ -->
+    <!-- --- TAB: ALL USERS --- -->
     <div class="tab-panel" id="tab-users">
       <div class="users-controls">
-        <input class="search-input" id="search-input" placeholder="  Search by name or ID…" oninput="renderTable()"/>
+        <input class="search-input" id="search-input" placeholder="  Search by name or ID�" oninput="renderTable()"/>
         <div class="filter-btns">
           <button class="filter-btn active-all" data-filter="all"     onclick="setFilter('all',this)">All</button>
           <button class="filter-btn"            data-filter="student" onclick="setFilter('student',this)">Students</button>
@@ -227,7 +227,7 @@
       </div>
     </div>
 
-    <!-- ═══ TAB: ADMIN SECURITY ═══ -->
+    <!-- --- TAB: ADMIN SECURITY --- -->
     <div class="tab-panel" id="tab-security">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:900px;" class="security-grid">
 
@@ -245,7 +245,7 @@
           <div class="f full" style="margin-bottom:1rem;">
             <label style="display:block;font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.45rem;">New Passphrase</label>
             <div class="pw-wrap">
-              <input type="password" id="new-pp" class="f" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Set a strong passphrase…" oninput="ppStrengthCheck()"/>
+              <input type="password" id="new-pp" class="f" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Set a strong passphrase�" oninput="ppStrengthCheck()"/>
               <button class="pw-tog" onclick="togglePP()" type="button"></button>
             </div>
             <div id="pp-strength-wrap" style="display:none;margin-top:.4rem;">
@@ -257,7 +257,7 @@
           <div class="f full" style="margin-bottom:1.2rem;">
             <label style="display:block;font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.45rem;">Confirm Passphrase</label>
             <div class="pw-wrap">
-              <input type="password" id="confirm-pp" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Re-enter passphrase…"/>
+              <input type="password" id="confirm-pp" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Re-enter passphrase�"/>
               <button class="pw-tog" onclick="togglePPConfirm()" type="button"></button>
             </div>
           </div>

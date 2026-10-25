@@ -7,8 +7,8 @@ if (empty($_SESSION['user_id'])) {
     fail('Not authenticated', 401);
 }
 
-$path = (string) ($_GET['path'] ?? '');
-if (!preg_match('#^/uploads/[A-Za-z0-9][A-Za-z0-9._-]{0,180}$#', $path)) {
+$path = prism_normalize_upload_path((string) ($_GET['path'] ?? ''));
+if ($path === '') {
     fail('File not found', 404);
 }
 
@@ -22,8 +22,16 @@ try {
         $stmt = $db->prepare('SELECT mime, name, bytes FROM upload_blobs WHERE path = ?');
         $stmt->execute([$path]);
         $row = $stmt->fetch();
-        if ($row && isset($row['bytes']) && $row['bytes'] !== null && $row['bytes'] !== '') {
-            $bytes = $row['bytes'];
+        if (!$row) {
+            $base = basename($path);
+            $like = '%/' . addcslashes($base, '%_\\');
+            $stmt = $db->prepare("SELECT mime, name, bytes FROM upload_blobs WHERE path LIKE ? ESCAPE '\\\\' ORDER BY created_at DESC LIMIT 1");
+            $stmt->execute([$like]);
+            $row = $stmt->fetch();
+        }
+        $loaded = prism_blob_to_string($row['bytes'] ?? null);
+        if ($loaded !== null) {
+            $bytes = $loaded;
             if (!empty($row['mime'])) {
                 $mime = (string) $row['mime'];
             }

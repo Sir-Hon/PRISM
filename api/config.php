@@ -496,6 +496,46 @@ function prism_ensure_upload_blobs(PDO $db): bool {
     return $ready;
 }
 
+function prism_normalize_upload_path(string $path): string {
+    $path = rawurldecode(trim($path));
+    $path = str_replace('\\', '/', $path);
+    if (preg_match('#^https?://#i', $path)) {
+        $parts = parse_url($path);
+        $path = (string) ($parts['path'] ?? '');
+    }
+    $at = strpos($path, '/uploads/');
+    if ($at === false && strpos($path, 'uploads/') === 0) {
+        $path = '/' . $path;
+        $at = 0;
+    }
+    if ($at === false) {
+        return '';
+    }
+    $path = substr($path, $at);
+    $cut = strpos($path, '?');
+    if ($cut !== false) {
+        $path = substr($path, 0, $cut);
+    }
+    if (!preg_match('#^/uploads/[A-Za-z0-9][A-Za-z0-9._-]{0,180}$#', $path)) {
+        return '';
+    }
+    return $path;
+}
+
+function prism_blob_to_string($value): ?string {
+    if (is_resource($value)) {
+        $data = stream_get_contents($value);
+        if ($data === false || $data === '') {
+            return null;
+        }
+        return $data;
+    }
+    if (is_string($value) && $value !== '') {
+        return $value;
+    }
+    return null;
+}
+
 function prism_save_upload_blob(string $urlPath, string $name, string $mime, string $bin): void {
     try {
         $db = getDB();

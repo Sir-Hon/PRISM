@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PRISM — Notes</title>
+  <title>PRISM � Notes</title>
   <link rel="icon" type="image/png" href="icon-dog.png"/>
   <link rel="stylesheet" href="portal.css?v=13"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --n: #7c3aed; --n-dark: #6d28d9; --n-light: #ede9fe; }
 
-    /* ── TOPBAR ── */
+    /* -- TOPBAR -- */
     .notes-topbar {
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 1.8rem; flex-wrap: wrap; gap: 0.8rem;
@@ -27,7 +27,7 @@
     }
     .btn-new-nb:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(124,58,237,0.45); }
 
-    /* ── NOTEBOOK GRID ── */
+    /* -- NOTEBOOK GRID -- */
     .notebooks-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1.2rem; margin-bottom:2rem; }
 
     .notebook-card {
@@ -52,7 +52,7 @@
     .nb-ctx-item:hover { background:#f5f5f5; }
     .nb-ctx-item.danger { color:#e74c3c; }
 
-    /* ── EDITOR ── */
+    /* -- EDITOR -- */
     .notes-editor-wrap { background:#fff; border-radius:16px; box-shadow:0 4px 24px rgba(124,58,237,0.10); border:2px solid rgba(124,58,237,0.18); overflow:hidden; display:none; animation:fadeUp 0.3s ease; }
     .notes-editor-wrap.visible { display:flex; flex-direction:column; }
 
@@ -139,9 +139,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=9"></script>
+<script src="api.js?v=18"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=16"></script>
+<script src="portal-sidebar.js?v=18"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -170,33 +170,33 @@
   <main class="main-content">
     <div class="notes-topbar">
       <h2> My Notebooks</h2>
-      <button class="btn-new-nb" onclick="openNewNotebookModal()"><span>＋</span> New Notebook</button>
+      <button class="btn-new-nb" onclick="openNewNotebookModal()"><span>+</span> New Notebook</button>
     </div>
 
     <div class="notebooks-grid" id="notebooks-grid"></div>
 
     <div class="notes-editor-wrap" id="notes-editor-wrap">
       <div class="editor-topbar" id="editor-topbar">
-        <button type="button" id="editor-back-btn" onclick="editorBack()" style="background:#f0ecff;border:none;border-radius:9px;padding:0.42rem 0.9rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:#6b7280;">← Back</button>
+        <button type="button" id="editor-back-btn" onclick="editorBack()" style="background:#f0ecff;border:none;border-radius:9px;padding:0.42rem 0.9rem;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:0.88rem;color:#6b7280;">? Back</button>
         <span class="nb-badge" id="editor-nb-badge"></span>
         <span style="flex:1"></span>
         <span id="autosave-label" style="font-size:0.78rem;color:#c4b5fd;font-family:'DM Sans',sans-serif;"></span>
       </div>
       <div class="notes-list-sidebar">
         <div class="note-list-panel" id="note-list-panel">
-          <button class="add-note-btn" onclick="addNote()">＋ New Note</button>
+          <button class="add-note-btn" onclick="addNote()">+ New Note</button>
           <div id="note-list-items"></div>
         </div>
         <div class="note-editor-panel" id="note-editor-panel">
           <div class="empty-editor-msg" id="empty-msg"><span></span>Select a note or create a new one</div>
           <div id="active-note-editor" style="display:none;flex:1;flex-direction:column;">
-            <input class="note-title-input" id="note-title" placeholder="Note title…" oninput="autosave()"/>
+            <input class="note-title-input" id="note-title" placeholder="Note title�" oninput="autosave()"/>
             <div class="fmt-bar">
               <button class="fmt-btn" onclick="execFmt('bold')"><b>B</b></button>
               <button class="fmt-btn" onclick="execFmt('italic')"><i>I</i></button>
               <button class="fmt-btn" onclick="execFmt('underline')"><u>U</u></button>
-              <button class="fmt-btn" onclick="execFmt('strikeThrough')">S̶</button>
-              <button class="fmt-btn" onclick="execFmt('insertUnorderedList')">• List</button>
+              <button class="fmt-btn" onclick="execFmt('strikeThrough')">S?</button>
+              <button class="fmt-btn" onclick="execFmt('insertUnorderedList')">� List</button>
               <button class="fmt-btn" onclick="execFmt('insertOrderedList')">1. List</button>
               <button class="fmt-btn" onclick="execFmt('justifyLeft')">Left</button>
               <button class="fmt-btn" onclick="execFmt('justifyCenter')">Center</button>
@@ -224,7 +224,7 @@
 <div class="nb-overlay" id="nb-overlay">
   <div class="nb-modal">
     <h3 id="nb-modal-title">New Notebook</h3>
-    <input type="text" id="nb-name-input" placeholder="Notebook name…" maxlength="40"/>
+    <input type="text" id="nb-name-input" placeholder="Notebook name�" maxlength="40"/>
     <div class="section-label-small">Color</div>
     <div class="nb-color-picker" id="nb-color-picker"></div>
     <div class="nb-modal-actions">

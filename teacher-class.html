@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PRISM ‚Äî Subject workspace</title>
+  <title>PRISM ó Subject workspace</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
   <link rel="stylesheet" href="portal.css?v=13"/>
   <script src="portal-mobile.js?v=4" defer></script>
@@ -22,13 +22,13 @@
     .stat-card .sv { font-family:'DM Sans',sans-serif; font-size:1.9rem; font-weight:800; color:var(--t); }
     .stat-card .sl { font-size:.78rem; color:#9ca3af; font-weight:600; margin-top:2px; }
 
-    /* TOP TABS ‚Äî classes */
+    /* TOP TABS ó classes */
     .class-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.38rem; box-shadow:0 4px 24px rgba(16,185,129,.10); margin-bottom:1.5rem; flex-wrap:wrap; overflow-x:auto; }
     .class-tab { padding:.5rem 1.1rem; border-radius:10px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; transition:all .15s; white-space:nowrap; }
     .class-tab:hover:not(.active) { background:var(--t-light); color:var(--t-dark); }
     .class-tab.active { background:var(--t); color:white; }
 
-    /* SUB TABS ‚Äî within a class */
+    /* SUB TABS ó within a class */
     .sub-tabs { display:flex; gap:.25rem; margin-bottom:1.5rem; border-bottom:2px solid #f0fdf4; padding-bottom:.4rem; flex-wrap:wrap; }
     .sub-tab { padding:.45rem 1rem; border-radius:8px 8px 0 0; font-size:.88rem; font-weight:600; cursor:pointer; border:none; background:none; color:#9ca3af; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .sub-tab:hover:not(.active) { color:var(--t); }
@@ -230,9 +230,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=17"></script>
+<script src="api.js?v=18"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=17"></script>
+<script src="portal-sidebar.js?v=18"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -261,7 +261,7 @@
   <main class="main-content">
 
     <div class="teacher-hero" style="padding-bottom:2rem;">
-      <a href="teacher.html" style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;color:rgba(255,255,255,.9);text-decoration:none;margin-bottom:.75rem;opacity:.95;">‚Üê Back to classes</a>
+      <a href="teacher.html" style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;color:rgba(255,255,255,.9);text-decoration:none;margin-bottom:.75rem;opacity:.95;">? Back to classes</a>
       <div class="teacher-hero-label">Subject workspace</div>
       <h1 id="tc-subject-title">Subject</h1>
       <p id="tc-subject-desc">Post PDFs, images, videos, slides, and website links as materials or assignment sources. Use the section filter so items reach the right students.</p>
@@ -286,14 +286,14 @@
       <div class="sub-panel" id="sub-announcements">
         <div class="t-card" style="margin-bottom:1.2rem;">
           <div class="t-card-title">Announcements</div>
-          <textarea class="composer" id="stream-text" placeholder="Write an announcement for this class‚Ä¶"></textarea>
+          <textarea class="composer" id="stream-text" placeholder="Write an announcement for this classÖ"></textarea>
           <div class="composer-row" style="justify-content:flex-end;margin-top:.75rem;">
             <button class="t-btn" type="button" onclick="postSubjectAnnouncement()">Post announcement</button>
           </div>
         </div>
         <div id="stream-feed"></div>
       </div>
-      <!-- ‚ïê‚ïê MATERIALS ‚ïê‚ïê -->
+      <!-- -- MATERIALS -- -->
       <div class="sub-panel active" id="sub-materials">
         <div class="t-card">
           <div class="t-card-title"> Add Material</div>
@@ -301,7 +301,7 @@
           <div class="m-field" id="mat-file-row">
             <label>Attach files (optional)</label>
             <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
-              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose files, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel ‚Äî up to 8 files, 15 MB each</span></div>
+              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose files, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel ó up to 8 files, 15 MB each</span></div>
               <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;text-align:left;"></div>
             </div>
             <input type="file" id="mat-file-input" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
@@ -323,7 +323,7 @@
         <div id="materials-list"></div>
       </div>
 
-      <!-- ‚ïê‚ïê ASSIGNMENTS ‚ïê‚ïê -->
+      <!-- -- ASSIGNMENTS -- -->
       <div class="sub-panel" id="sub-assignments">
         <div class="t-card">
           <div class="t-card-title"> Create Assignment</div>
@@ -337,7 +337,7 @@
           </div>
           <div class="m-field" style="margin-bottom:.9rem;">
             <label>Instructions for students</label>
-            <p class="src-hint">What should students do? (e.g. ‚ÄúAnswer all parts in complete sentences.‚Äù) This appears at the top of the assignment for students.</p>
+            <p class="src-hint">What should students do? (e.g. ìAnswer all parts in complete sentences.î) This appears at the top of the assignment for students.</p>
             <textarea id="asgn-instructions" rows="6" placeholder="Example: Read chapter 3 and answer the questions below." style="width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:.6rem .85rem;font-size:.88rem;font-family:'DM Sans',sans-serif;color:#16132b;outline:none;background:#f0fdf4;resize:vertical;box-sizing:border-box;"></textarea>
           </div>
           <div class="m-field" style="margin-bottom:.9rem;">
@@ -351,12 +351,12 @@
               <span class="src-chip">Website link</span>
             </div>
             <div style="border:2px dashed #fbcfe8;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#fff5f9;transition:border-color .2s;" id="asgn-drop-zone" onclick="document.getElementById('asgn-file-input').click()">
-              <div id="asgn-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to attach a source file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT ‚Äî max 15 MB</span></div>
+              <div id="asgn-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to attach a source file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT ó max 15 MB</span></div>
               <div id="asgn-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#be185d;margin-top:.3rem;"></div>
             </div>
             <input type="file" id="asgn-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onAsgnFileChosen(this)"/>
             <label style="margin-top:.75rem;">Link to a website or video</label>
-            <input type="text" id="asgn-url" placeholder="e.g. https://youtube.com/watch?v=‚Ä¶ or https://‚Ä¶"/>
+            <input type="text" id="asgn-url" placeholder="e.g. https://youtube.com/watch?v=Ö or https://Ö"/>
           </div>
           <button class="t-btn" onclick="addAssignment()">Create Assignment</button>
         </div>

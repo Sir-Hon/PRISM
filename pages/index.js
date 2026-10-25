@@ -384,14 +384,30 @@ function findJoinedClass(want) {
   return null;
 }
 
+function classMetaFor(classId) {
+  if (typeof prismReadOpenClassMeta === 'function') {
+    var saved = prismReadOpenClassMeta(classId);
+    if (saved) return saved;
+  }
+  try {
+    var meta = JSON.parse(sessionStorage.getItem('prism_open_class_meta') || 'null');
+    if (meta && String(meta.classId) === String(classId)) return meta;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
 function tryOpenClassFromUrl() {
   var want = wantedClassId();
   if (!want || activeDetailId) return;
   var joined = findJoinedClass(want);
+  var meta = classMetaFor(want);
+  if (!joined && meta) {
+    joined = { classId: meta.classId, teacherId: meta.teacherId || '', subject: meta.subject || 'Class', color: meta.color || '' };
+  }
   if (!joined) return;
   try { sessionStorage.removeItem('prism_open_class'); } catch (e) {}
   var info = getTeacherClasses(joined.teacherId).find(function(c){ return c.id === joined.classId; });
-  openClassDetail(joined.classId, joined.teacherId, joined.subject, (info && info.color) || joined.color || '#7c3aed');
+  openClassDetail(joined.classId, joined.teacherId, joined.subject, (info && info.color) || joined.color || (meta && meta.color) || '#7c3aed');
 }
 
 function refreshOpenClassPanel() {

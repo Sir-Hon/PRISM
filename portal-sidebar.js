@@ -296,13 +296,7 @@ function initSidebar(activePage) {
                 '<span class="sidebar-class-name">' + prismSidebarEsc(e.subject) + '</span>';
               btn.onclick = function (ev) {
                 if (ev) { ev.preventDefault(); ev.stopPropagation(); }
-                try { sessionStorage.setItem('prism_open_class', String(e.classId)); } catch (err) {}
-                var here = ((window.location.pathname || '').split('/').pop() || '').split('?')[0];
-                if (typeof openClassDetail === 'function' && (here === '' || here === 'index.html')) {
-                  openClassDetail(e.classId, e.teacherId, e.subject, e.color || colors[i % colors.length]);
-                } else {
-                  window.location.href = 'index.html?class=' + encodeURIComponent(e.classId);
-                }
+                prismGoToStudentClass(e.classId, e.teacherId, e.subject, e.color || colors[i % colors.length]);
               };
               classCont.appendChild(btn);
             })(entry, idx);
@@ -382,8 +376,81 @@ function prismActivePageFromPath() {
   return map[file] || file || 'home';
 }
 
+function prismStudentPageFile() {
+  return ((window.location.pathname || '').split('/').pop() || '').split('?')[0].split('#')[0].toLowerCase();
+}
+
+function prismRememberOpenClass(classId, teacherId, subject, color) {
+  try {
+    sessionStorage.setItem('prism_open_class', String(classId));
+    sessionStorage.setItem('prism_open_class_meta', JSON.stringify({
+      classId: String(classId),
+      teacherId: teacherId || '',
+      subject: subject || 'Class',
+      color: color || '#7c3aed'
+    }));
+  } catch (e) { /* ignore */ }
+}
+
+function prismReadOpenClassMeta(classId) {
+  try {
+    var meta = JSON.parse(sessionStorage.getItem('prism_open_class_meta') || 'null');
+    if (meta && String(meta.classId) === String(classId)) return meta;
+  } catch (e) { /* ignore */ }
+  return null;
+}
+
+function prismGoToStudentClass(classId, teacherId, subject, color) {
+  if (!classId) return;
+  prismRememberOpenClass(classId, teacherId, subject, color);
+  var here = prismStudentPageFile();
+  if (typeof openClassDetail === 'function' && (here === '' || here === 'index.html')) {
+    openClassDetail(classId, teacherId, subject, color || '#7c3aed');
+    return;
+  }
+  window.location.assign('index.html?class=' + encodeURIComponent(classId));
+}
+
+function prismOpenClassFromLocation() {
+  var here = prismStudentPageFile();
+  if (here !== '' && here !== 'index.html') return;
+  if (typeof openClassDetail !== 'function') return;
+  if (document.getElementById('class-view-overlay')) return;
+  var classId = '';
+  try { classId = new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { classId = ''; }
+  if (!classId) {
+    try { classId = sessionStorage.getItem('prism_open_class') || ''; } catch (e2) { classId = ''; }
+  }
+  if (!classId) return;
+  var meta = prismReadOpenClassMeta(classId);
+  var teacherId = meta ? meta.teacherId : '';
+  var subject = meta ? meta.subject : '';
+  var color = meta ? meta.color : '';
+  if (!subject) {
+    try {
+      var uid = sessionStorage.getItem('prism_user_id') || '';
+      var joined = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}');
+      var row = joined[classId];
+      if (!row) {
+        Object.keys(joined).some(function (key) {
+          var item = joined[key];
+          if (item && String(item.classId || key) === String(classId)) { row = item; return true; }
+          return false;
+        });
+      }
+      if (row) {
+        teacherId = row.teacherId || teacherId;
+        subject = row.subject || subject;
+        color = row.color || color;
+      }
+    } catch (e3) { /* ignore */ }
+  }
+  openClassDetail(classId, teacherId, subject || 'Class', color || '#7c3aed');
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   prismEnsureThemeToggle();
   prismBindLogoutButtons();
   if (typeof initSidebar === 'function') initSidebar(prismActivePageFromPath());
+  prismOpenClassFromLocation();
 });
