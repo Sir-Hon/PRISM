@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Roster</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=13"/>
+  <link rel="stylesheet" href="portal.css?v=14"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --a:#f59e0b; --a-dark:#d97706; --a-light:#fef3c7; }
@@ -32,29 +32,32 @@
     .import-btn { margin-left:auto; border:1.5px solid #fde68a; background:#fffbeb; color:#92400e; border-radius:10px; padding:.55rem 1rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
 
     .main-content { min-width:0; }
-    .roster-panel { background:#fff; border:1px solid rgba(245,158,11,.14); border-radius:18px; padding:1.45rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 24px rgba(245,158,11,.08); min-width:0; max-width:100%; }
+    .roster-panel { background:#fff; border:1px solid rgba(245,158,11,.14); border-radius:18px; padding:1.45rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 24px rgba(245,158,11,.08); min-width:0; max-width:100%; overflow:hidden; }
     .table-scroll { overflow:auto; max-width:100%; }
     .roster-panel h2 { font-family:'DM Sans',sans-serif; font-size:1.15rem; margin:0; }
     .fields { display:grid; grid-template-columns:repeat(2, minmax(260px, 1fr)); gap:1.05rem 1.25rem; }
     .fields label, .filter-field label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; color:#9ca3af; }
-    .fields input, .fields select, .fields textarea, .filter-row input, .filter-row select {
+    .fields input, .fields select, .fields textarea, .search-bar input, .filter-row select {
       width:100%; border:1.5px solid #fde68a; border-radius:10px; padding:.72rem .9rem; font:inherit; font-size:.95rem; color:#16132b; background:#fef9e7;
     }
-    .fields input:focus, .fields select:focus, .fields textarea:focus, .filter-row input:focus, .filter-row select:focus { outline:none; border-color:#f59e0b; background:#fff; }
+    .fields input:focus, .fields select:focus, .fields textarea:focus, .search-bar input:focus, .filter-row select:focus { outline:none; border-color:#f59e0b; background:#fff; }
     .fields textarea { min-height:6rem; resize:vertical; }
     .fields .wide { grid-column:1 / -1; }
     .pw-wrap { display:flex; gap:.5rem; align-items:center; }
     .pw-wrap input { flex:1; }
-    .pw-mask { font-family:ui-monospace,monospace; letter-spacing:.18em; color:#92400e; }
+    .pw-mask { font-family:ui-monospace,monospace; letter-spacing:.18em; color:#6b7280; }
     .pw-note { display:block; font-size:.68rem; letter-spacing:0; color:#9ca3af; font-family:'DM Sans',sans-serif; margin-top:.15rem; }
-    .filter-row { display:grid; grid-template-columns:minmax(220px,1.4fr) repeat(4, minmax(140px,1fr)) auto; gap:.85rem; align-items:end; margin-bottom:1.1rem; }
-    .filter-row.teachers { grid-template-columns:minmax(240px,1fr) minmax(180px,.6fr) auto; }
+    .search-bar { display:flex; gap:.7rem; align-items:center; margin-bottom:1rem; min-width:0; max-width:100%; }
+    .search-bar input { flex:1 1 auto; min-width:0; width:auto; }
+    .search-bar .btn { flex:0 0 auto; }
+    .filter-row { display:flex; flex-wrap:wrap; gap:.75rem 1rem; margin-bottom:1.15rem; min-width:0; max-width:100%; }
+    .filter-field { flex:1 1 180px; min-width:0; max-width:240px; }
     table { width:100%; border-collapse:collapse; }
     thead { background:#fef9e7; }
     th { padding:.85rem 1rem; font-size:.72rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.06em; text-align:left; border-bottom:1px solid #fde68a; }
     td { padding:.9rem 1rem; font-size:.92rem; color:#374151; border-bottom:1px solid #faf6ee; vertical-align:middle; }
     tr:hover td { background:#fffbeb; }
-    .group-row td { background:#fff7e6; font-weight:700; color:#92400e; }
+    .empty-row td { color:#9ca3af; font-weight:600; background:transparent; }
     .err-row td { background:#fff7f7; }
     .ok-row td { background:#f6fff8; }
     .pager { display:flex; gap:.7rem; align-items:center; margin-top:1rem; }
@@ -62,7 +65,8 @@
     #preview-wrap, #add-panel, #teacher-panel { display:none; }
     .form-card { padding:1.7rem 1.8rem; }
     @media (max-width:900px) {
-      .fields, .filter-row, .filter-row.teachers { grid-template-columns:1fr; }
+      .fields { grid-template-columns:1fr; }
+      .filter-field { max-width:none; }
     }
     html[data-theme="dark"] .page-tabs,
     html[data-theme="dark"] .roster-panel,
@@ -75,12 +79,13 @@
     html[data-theme="dark"] .fields input,
     html[data-theme="dark"] .fields select,
     html[data-theme="dark"] .fields textarea,
-    html[data-theme="dark"] .filter-row input,
+    html[data-theme="dark"] .search-bar input,
     html[data-theme="dark"] .filter-row select {
       background:#24283d !important; color:#f3f4f6 !important; border-color:#3d4468 !important;
     }
-    html[data-theme="dark"] .group-row td { background:#242033; color:#fcd34d; }
+    html[data-theme="dark"] .empty-row td { color:#9ca3af; background:transparent; }
     html[data-theme="dark"] tr:hover td { background:#242033; }
+    html[data-theme="dark"] .empty-row:hover td { background:transparent; }
     .btn { padding:.62rem 1.15rem; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; border:1.5px solid transparent; }
     .btn-primary { background:#f59e0b; border-color:#f59e0b; color:#1c1300; }
     .btn-primary:hover { background:#d97706; border-color:#d97706; }
@@ -156,13 +161,15 @@
         </div>
 
         <div class="roster-panel">
+          <div class="search-bar">
+            <input id="q" placeholder="Search ID, name, or email" aria-label="Search"/>
+            <button class="btn btn-ghost" type="button" id="btn-search">Search</button>
+          </div>
           <div class="filter-row">
-            <div class="filter-field"><label for="q">Search</label><input id="q" placeholder="ID, name, or email"/></div>
             <div class="filter-field"><label for="f-college">College</label><select id="f-college"><option value="">All colleges</option></select></div>
             <div class="filter-field"><label for="f-program">Program</label><select id="f-program"><option value="">All programs</option></select></div>
             <div class="filter-field"><label for="f-year">Year</label><select id="f-year"><option value="">All years</option></select></div>
             <div class="filter-field"><label for="f-section">Section</label><select id="f-section"><option value="">All sections</option></select></div>
-            <button class="btn btn-ghost" type="button" id="btn-search">Search</button>
           </div>
           <div class="table-scroll">
             <table>
@@ -184,10 +191,12 @@
           <button class="gc-plus" type="button" id="btn-show-teacher" title="Add teacher" aria-label="Add teacher">+</button>
         </div>
         <div class="roster-panel">
-          <div class="filter-row teachers">
-            <div class="filter-field"><label for="tq">Search</label><input id="tq" placeholder="ID, name, department, or subject"/></div>
-            <div class="filter-field"><label for="tf-college">College</label><select id="tf-college"><option value="">All colleges</option></select></div>
+          <div class="search-bar">
+            <input id="tq" placeholder="Search ID, name, department, or subject" aria-label="Search teachers"/>
             <button class="btn btn-ghost" type="button" id="btn-teacher-search">Search</button>
+          </div>
+          <div class="filter-row">
+            <div class="filter-field"><label for="tf-college">College</label><select id="tf-college"><option value="">All colleges</option></select></div>
           </div>
           <div class="table-scroll">
             <table>
@@ -248,6 +257,6 @@
     </div>
   </main>
 </div>
-<script src="pages/roster.js?v=4"></script>
+<script src="pages/roster.js?v=5"></script>
 </body>
 </html>

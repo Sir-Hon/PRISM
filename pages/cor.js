@@ -1,15 +1,15 @@
 /** Certificate of Registration — students download, admins send. */
 var COR_FEES = [
   ['tuition', 'Tuition', '3000'],
-  ['athletics', 'Athletics', '200'],
-  ['computer', 'Computer', '400'],
-  ['cultural', 'Cultural', '150'],
-  ['development', 'Development', '2815'],
-  ['guidance', 'Guidance', '90'],
-  ['laboratory', 'Laboratory', '750'],
-  ['library', 'Library', '350'],
-  ['medical', 'Medical and Dental', '200'],
-  ['registration', 'Registration', '50']
+  ['athletics', 'Athletics Fee', '200'],
+  ['computer', 'Computer Fee', '400'],
+  ['cultural', 'Cultural Fee', '150'],
+  ['development', 'Development Fee', '2815'],
+  ['guidance', 'Guidance Fee', '90'],
+  ['laboratory', 'Laboratory Fee', '750'],
+  ['library', 'Library Fee', '350'],
+  ['medical', 'Medical and Dental Fee', '200'],
+  ['registration', 'Registration Fee', '50']
 ];
 var selectedCor = null;
 var adminStudents = [];
@@ -26,7 +26,29 @@ function corEsc(s) {
 function corMoney(n) {
   var x = parseFloat(n);
   if (!isFinite(x)) x = 0;
-  return x.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return x.toFixed(2);
+}
+
+function corUnits(n) {
+  var x = parseFloat(n);
+  if (!isFinite(x)) return corEsc(n || '');
+  return x.toFixed(2);
+}
+
+function corOfficialName(name) {
+  var raw = String(name || '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  if (raw.indexOf(',') !== -1) return raw.toUpperCase();
+  var parts = raw.split(' ');
+  if (parts.length < 2) return raw.toUpperCase();
+  var last = parts.pop();
+  return (last + ', ' + parts.join(' ')).toUpperCase();
+}
+
+function corStamp(value) {
+  var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ''));
+  if (!match) return corEsc(value || '');
+  return Number(match[2]) + '/' + Number(match[3]) + '/' + match[1];
 }
 
 function corDocument(p) {
@@ -36,33 +58,40 @@ function corDocument(p) {
     var u = parseFloat(s.units);
     if (!isNaN(u)) units += u;
     return '<tr><td>' + corEsc(s.section) + '</td><td>' + corEsc(s.code) + '</td><td>' + corEsc(s.description) +
-      '</td><td>' + corEsc(s.units) + '</td><td>' + corEsc(s.time) + '</td><td>' + corEsc(s.day) + '</td><td>' + corEsc(s.room) + '</td></tr>';
+      '</td><td class="num">' + corUnits(s.units) + '</td><td>' + corEsc(s.time) + '</td><td>' + corEsc(s.day) + '</td><td>' + corEsc(s.room) + '</td></tr>';
   }).join('');
   var fees = p.fees || {};
   var total = 0;
   var feeRows = COR_FEES.map(function (fee) {
     var amount = parseFloat(fees[fee[0]]) || 0;
     total += amount;
-    return '<tr><td>' + corEsc(fee[1]) + '</td><td style="text-align:right;">' + corMoney(amount) + '</td></tr>';
+    return '<tr><td>' + corEsc(fee[1]) + '</td><td class="num">' + corMoney(amount) + '</td></tr>';
   }).join('');
+  var registrar = String(p.registrar || '').trim();
   return '<article class="cor-doc">' +
-    '<div class="cor-school">CEBU TECHNOLOGICAL UNIVERSITY</div>' +
-    '<h1>Certificate of Registration</h1>' +
-    '<div class="cor-term">' + corEsc(p.semester || '') + ' &middot; SY ' + corEsc(p.schoolYear || '') + '</div>' +
-    '<div class="cor-meta">' +
-      '<div><strong>Student ID</strong> ' + corEsc(p.studentId) + '</div>' +
-      '<div><strong>Name</strong> ' + corEsc(p.studentName) + '</div>' +
-      '<div><strong>Program</strong> ' + corEsc(p.program) + '</div>' +
-      '<div><strong>Block</strong> ' + corEsc(p.block) + '</div>' +
+    '<div class="cor-top">' +
+      '<div class="cor-stamp">' + corStamp(p.issuedOn) + '</div>' +
+      '<h1>Certificate of Registration</h1>' +
+      '<div class="cor-term">' + corEsc(p.semester || '') + ' SY ' + corEsc(p.schoolYear || '') + '</div>' +
     '</div>' +
-    '<table><thead><tr><th>Section</th><th>Subject</th><th>Description</th><th>Units</th><th>Time</th><th>Day</th><th>Room</th></tr></thead><tbody>' +
-    (rows || '<tr><td colspan="7">No subjects</td></tr>') +
-    '</tbody></table>' +
-    '<p style="text-align:right;font-weight:800;margin:.2rem 0 .8rem;">Total Units ' + units.toFixed(2) + '</p>' +
-    '<table><thead><tr><th>Fee</th><th style="text-align:right;">Amount</th></tr></thead><tbody>' + feeRows +
-    '<tr><td><strong>Total Charges</strong></td><td style="text-align:right;"><strong>' + corMoney(total) + '</strong></td></tr></tbody></table>' +
-    '<div class="cor-sign"><div><div class="cor-line">Student signature</div></div>' +
-    '<div><div class="cor-line">' + corEsc(p.registrar || 'Registrar') + '</div><div>' + corEsc(p.issuedOn || '') + '</div></div></div>' +
+    '<div class="cor-idline">' +
+      '<span><strong>ID Number :</strong> ' + corEsc(p.studentId) + '</span>' +
+      '<span class="cor-name"><strong>Name :</strong> ' + corEsc(p.studentName) + '</span>' +
+      '<span>' + corEsc(p.program) + '</span>' +
+      '<span class="cor-block">' + corEsc(p.block) + '</span>' +
+    '</div>' +
+    '<div class="cor-split">' +
+      '<table><thead><tr><th>Section</th><th>Subject</th><th>Description</th><th class="num">Unit</th><th>Time</th><th>Day</th><th>Room</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="7">No subjects</td></tr>') +
+      '<tr><td></td><td></td><td><strong>Total Units</strong></td><td class="num"><strong>' + units.toFixed(2) + '</strong></td><td colspan="3"></td></tr>' +
+      '</tbody></table>' +
+      '<table><thead><tr><th>Fee</th><th class="num">Amount</th></tr></thead><tbody>' + feeRows +
+      '<tr><td><strong>Total Charges</strong></td><td class="num"><strong>' + corMoney(total) + '</strong></td></tr></tbody></table>' +
+    '</div>' +
+    '<div class="cor-sign">' +
+      '<div><div class="cor-sign-name">' + corEsc(registrar) + '</div><div class="cor-line">Registrar II</div></div>' +
+      '<div><div class="cor-sign-name"></div><div class="cor-line">Student Signature</div></div>' +
+    '</div>' +
     '</article>';
 }
 
@@ -131,6 +160,7 @@ function subjectRow(subject) {
   ['section', 'code', 'description', 'units', 'time', 'day', 'room'].forEach(function (key) {
     var td = document.createElement('td');
     var input = document.createElement('input');
+    input.type = 'text';
     input.setAttribute('data-sub', key);
     input.value = s[key] || '';
     if (key === 'description') input.placeholder = 'Subject title';
@@ -155,7 +185,7 @@ function initCorAdmin() {
   document.getElementById('cor-admin').style.display = 'block';
   var form = document.getElementById('cor-form');
   var feeFields = COR_FEES.map(function (fee) {
-    return '<div class="cor-field"><label>' + corEsc(fee[1]) + '</label><input id="fee-' + fee[0] + '" inputmode="decimal" placeholder="' + fee[2] + '" value=""></div>';
+    return '<div class="cor-field"><label>' + corEsc(fee[1]) + '</label><input id="fee-' + fee[0] + '" type="text" inputmode="decimal" value="' + fee[2] + '"></div>';
   }).join('');
   form.innerHTML =
     '<div class="cor-grid">' +
@@ -165,7 +195,7 @@ function initCorAdmin() {
       '<div class="cor-field"><label>Semester</label><select id="cor-sem"><option>1st Semester</option><option>2nd Semester</option><option>Summer</option></select></div>' +
       '<div class="cor-field"><label>Program</label><input id="cor-program" placeholder="BSIT 3"></div>' +
       '<div class="cor-field"><label>Block</label><input id="cor-block" placeholder="BLK_BSIT-3A_DAY"></div>' +
-      '<div class="cor-field"><label>Registrar</label><input id="cor-registrar" placeholder="Registrar name"></div>' +
+      '<div class="cor-field"><label>Registrar name</label><input id="cor-registrar" placeholder="Name printed above Registrar II"></div>' +
       '<div class="cor-field"><label>Date</label><input id="cor-date" type="date" value="' + todayISO() + '"></div>' +
     '</div>' +
     '<h2 style="font-size:.95rem;margin:1rem 0 .4rem;">Subjects</h2>' +
@@ -204,7 +234,7 @@ function applySelectedStudent() {
   if (!student) return;
   var name = document.getElementById('cor-name');
   if (!name.value || name.value === lastAutoName) {
-    name.value = student.name || '';
+    name.value = corOfficialName(student.name || '');
     lastAutoName = name.value;
   }
   var block = document.getElementById('cor-block');

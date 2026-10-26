@@ -668,16 +668,26 @@ html[data-theme="dark"] .post-body {
 html[data-theme="dark"] .join-input,
 html[data-theme="dark"] .composer,
 html[data-theme="dark"] .t-select,
-html[data-theme="dark"] input[type="text"],
-html[data-theme="dark"] input[type="email"],
-html[data-theme="dark"] input[type="password"],
-html[data-theme="dark"] input[type="date"],
-html[data-theme="dark"] input[type="time"],
+html[data-theme="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
 html[data-theme="dark"] textarea,
 html[data-theme="dark"] select {
-  background: #12141f !important;
-  color: var(--text) !important;
-  border-color: var(--border) !important;
+  background: #2a3148 !important;
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6;
+  border-color: #3d4468 !important;
+  color-scheme: dark;
+}
+
+html[data-theme="dark"] input::placeholder,
+html[data-theme="dark"] textarea::placeholder {
+  color: #9ca3af !important;
+  -webkit-text-fill-color: #9ca3af;
+  opacity: 1;
+}
+
+html[data-theme="dark"] option {
+  background: #1a1d2e;
+  color: #f3f4f6;
 }
 
 html[data-theme="dark"] .asgn-item,

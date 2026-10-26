@@ -91,9 +91,9 @@
     return btn;
   }
 
-  function groupRow(text, span) {
+  function emptyRow(text, span) {
     var tr = document.createElement('tr');
-    tr.className = 'group-row';
+    tr.className = 'empty-row';
     var td = document.createElement('td');
     td.colSpan = span;
     td.textContent = text;
@@ -119,16 +119,7 @@
     document.getElementById('page-label').textContent = 'Page ' + page + ' of ' + pages;
     var body = document.getElementById('roster-body');
     body.textContent = '';
-    var lastKey = '';
     (data.rows || []).forEach(function (row) {
-      var key = [row.college, row.program, row.year, row.section].join('|');
-      if (key !== lastKey) {
-        body.appendChild(groupRow(
-          collegeLabel(row.college) + ' · ' + (row.program || '—') + ' · Year ' + (row.year || '—') + ' · Section ' + (row.section || '—'),
-          9
-        ));
-        lastKey = key;
-      }
       var tr = document.createElement('tr');
       tr.appendChild(cell(row.id_number));
       tr.appendChild(cell((row.first_name || '') + ' ' + (row.last_name || '')));
@@ -144,7 +135,7 @@
       body.appendChild(tr);
     });
     if (!(data.rows || []).length) {
-      body.appendChild(groupRow('No students in this category.', 9));
+      body.appendChild(emptyRow('No students in this category.', 9));
     }
   }
 
@@ -160,13 +151,7 @@
     document.getElementById('teacher-page-label').textContent = 'Page ' + teacherPage + ' of ' + teacherPages;
     var body = document.getElementById('teacher-body');
     body.textContent = '';
-    var lastKey = '';
     (data.rows || []).forEach(function (row) {
-      var key = (row.college || '') + '|' + (row.department || '');
-      if (key !== lastKey) {
-        body.appendChild(groupRow(collegeLabel(row.college) + ' · ' + (row.department || 'No department'), 8));
-        lastKey = key;
-      }
       var tr = document.createElement('tr');
       tr.appendChild(cell(row.id));
       tr.appendChild(cell((row.first_name || '') + ' ' + (row.last_name || '')));
@@ -181,7 +166,7 @@
       body.appendChild(tr);
     });
     if (!(data.rows || []).length) {
-      body.appendChild(groupRow('No teachers in this category.', 8));
+      body.appendChild(emptyRow('No teachers in this category.', 8));
     }
   }
 
@@ -260,6 +245,18 @@
   });
   document.getElementById('f-college').addEventListener('change', function () {
     fillSelect(document.getElementById('f-program'), programsFor(this.value), 'All programs');
+    page = 1;
+    load().catch(function (e) { showError(e.message); });
+  });
+  ['f-program', 'f-year', 'f-section'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', function () {
+      page = 1;
+      load().catch(function (e) { showError(e.message); });
+    });
+  });
+  document.getElementById('tf-college').addEventListener('change', function () {
+    teacherPage = 1;
+    loadTeachers().catch(function (e) { showError(e.message); });
   });
 
   document.getElementById('a-id').addEventListener('input', function () {
@@ -339,6 +336,12 @@
     page = 1;
     load().catch(function (e) { showError(e.message); });
   });
+  document.getElementById('q').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      page = 1;
+      load().catch(function (err) { showError(err.message); });
+    }
+  });
   document.getElementById('btn-prev').addEventListener('click', function () {
     if (page > 1) { page--; load().catch(function (e) { showError(e.message); }); }
   });
@@ -348,6 +351,12 @@
   document.getElementById('btn-teacher-search').addEventListener('click', function () {
     teacherPage = 1;
     loadTeachers().catch(function (e) { showError(e.message); });
+  });
+  document.getElementById('tq').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      teacherPage = 1;
+      loadTeachers().catch(function (err) { showError(err.message); });
+    }
   });
   document.getElementById('btn-tprev').addEventListener('click', function () {
     if (teacherPage > 1) { teacherPage--; loadTeachers().catch(function (e) { showError(e.message); }); }
