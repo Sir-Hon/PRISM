@@ -371,18 +371,20 @@
   document.addEventListener('DOMContentLoaded', function () {
     var open = '';
     try { open = new URLSearchParams(location.search).get('add') || ''; } catch (e) { open = ''; }
-    PrismRoster.catalog().then(function (data) {
+    var catalogReady = PrismRoster.catalog().then(function (data) {
       catalog.colleges = data.colleges || {};
       catalog.years = data.years || catalog.years;
       catalog.sections = data.sections || catalog.sections;
       applyCatalog();
+    });
+    var listReady = load();
+    Promise.all([catalogReady, listReady]).then(function () {
       if (open === 'teacher') {
         showView('teachers');
         openForm('teacher');
       } else if (open === 'student') {
         openForm('student');
       }
-      return load();
     }).catch(function (e) { showError(e.message); });
   });
 })();

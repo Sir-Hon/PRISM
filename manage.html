@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Account Management</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=14"/>
+  <link rel="stylesheet" href="portal.css?v=17"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --teacher:#10b981; --admin-c:#f59e0b; --student:#6366f1; }
@@ -111,6 +111,24 @@
     .total-badge { font-size:.82rem; color:#6b7280; background:#f5f3ff; padding:5px 14px; border-radius:20px; border:1px solid #e4dffa; white-space:nowrap; }
 
     .users-table-wrap { background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.08); animation:fadeUp .4s ease; }
+    html[data-theme="dark"] .users-table-wrap,
+    html[data-theme="dark"] .card-heading,
+    html[data-theme="dark"] .invite-heading { color:#f3f4f6 !important; }
+    html[data-theme="dark"] .users-table-wrap { background:#1a1d2e !important; border-color:#2e3350 !important; }
+    html[data-theme="dark"] .users-table-wrap td,
+    html[data-theme="dark"] .users-table-wrap strong { color:#f3f4f6 !important; }
+    html[data-theme="dark"] .card-sub,
+    html[data-theme="dark"] .f label,
+    html[data-theme="dark"] .f-hint { color:#d1d5db !important; }
+    .card-note { color:#6b7280; }
+    html[data-theme="dark"] .card-note { color:#d1d5db !important; border-top-color:#2e3350; }
+    html[data-theme="dark"] .del-btn,
+    html[data-theme="dark"] .clear-btn { color:#fecaca !important; border-color:#fca5a5 !important; }
+    html[data-theme="dark"] .filter-btn,
+    html[data-theme="dark"] .total-badge { background:#24283d !important; color:#f3f4f6 !important; border-color:#3d4468 !important; }
+    html[data-theme="dark"] .role-tag.student { color:#c7d2fe !important; background:rgba(99,102,241,.28) !important; }
+    html[data-theme="dark"] .role-tag.teacher { color:#a7f3d0 !important; background:rgba(16,185,129,.22) !important; }
+    html[data-theme="dark"] .role-tag.admin { color:#fde68a !important; background:rgba(245,158,11,.22) !important; }
     table { width:100%; border-collapse:collapse; }
     thead { background:#faf9ff; }
     th    { padding:.85rem 1.2rem; font-size:.75rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.07em; text-align:left; border-bottom:1px solid #f0ecff; }
@@ -264,11 +282,11 @@
 
           <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
             <button onclick="savePassphrase()" style="padding:.72rem 1.6rem;border:none;border-radius:11px;background:#7c3aed;color:#fff;font-family:'DM Sans',sans-serif;font-size:.92rem;font-weight:700;cursor:pointer;transition:opacity .2s,transform .15s;flex:1;">Set Passphrase</button>
-            <button onclick="clearPassphrase()" style="padding:.72rem 1.2rem;border:1.5px solid #fecaca;background:none;color:#ef4444;border-radius:11px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .15s;">Clear</button>
+            <button class="clear-btn" onclick="clearPassphrase()" style="padding:.72rem 1.2rem;border:1.5px solid #fecaca;background:none;color:#ef4444;border-radius:11px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .15s;">Clear</button>
           </div>
           <div class="form-msg" id="pp-msg"></div>
 
-          <div style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;font-size:.82rem;color:#6b7280;line-height:1.55;">
+          <div class="card-note" style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;font-size:.82rem;line-height:1.55;">
             Teacher and administrator accounts are created on the Create Account tab. Their CTU email is set there, or later from All Users.
           </div>
         </div>
@@ -278,7 +296,7 @@
           <div class="card-heading"> Admin Registration Audit Log</div>
           <div class="card-sub">Every admin self-registration attempt is logged here. Review for unauthorized activity.</div>
           <div id="audit-log-container" style="max-height:420px;overflow-y:auto;"></div>
-          <button onclick="clearAuditLog()" style="margin-top:1rem;padding:.55rem 1.1rem;background:none;border:1.5px solid #fecaca;color:#ef4444;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;"> Clear Log</button>
+          <button class="clear-btn" onclick="clearAuditLog()" style="margin-top:1rem;padding:.55rem 1.1rem;background:none;border:1.5px solid #fecaca;color:#ef4444;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;">Clear Log</button>
         </div>
 
       </div>

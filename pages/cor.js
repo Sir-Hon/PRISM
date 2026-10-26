@@ -14,6 +14,11 @@ var COR_FEES = [
 var selectedCor = null;
 var adminStudents = [];
 var lastAutoName = '';
+var COR_COLLEGES = {
+  CoED: ['BEEd', 'BSEd-Mathematics', 'BTLEd-HE'],
+  CoTE: ['BSFI', 'BSIE', 'BSIT', 'BSHM', 'BIT-ELEC', 'BIT-COMPTECH', 'BIT-AUTO']
+};
+var COR_COLLEGE_NAMES = { CoED: 'College of Education', CoTE: 'College of Technology' };
 
 function corEsc(s) {
   return String(s == null ? '' : s)
@@ -189,7 +194,18 @@ function initCorAdmin() {
   }).join('');
   form.innerHTML =
     '<div class="cor-grid">' +
-      '<div class="cor-field"><label>Student</label><select id="cor-student-pick"></select></div>' +
+      '<div class="cor-field full">' +
+        '<label for="cor-student-search">Student</label>' +
+        '<input id="cor-student-search" type="text" placeholder="Search name or ID">' +
+        '<div class="cor-pick-filters">' +
+          '<select id="cor-f-college" aria-label="College"><option value="">All colleges</option></select>' +
+          '<select id="cor-f-program" aria-label="Program"><option value="">All programs</option></select>' +
+          '<select id="cor-f-year" aria-label="Year"><option value="">All years</option></select>' +
+          '<select id="cor-f-section" aria-label="Section"><option value="">All sections</option></select>' +
+        '</div>' +
+        '<select id="cor-student-pick" size="6" aria-label="Matching students"></select>' +
+        '<p class="cor-pick-count" id="cor-pick-count"></p>' +
+      '</div>' +
       '<div class="cor-field"><label>Name on certificate</label><input id="cor-name"></div>' +
       '<div class="cor-field"><label>School year</label><input id="cor-year" value="2026-2027" placeholder="2026-2027"></div>' +
       '<div class="cor-field"><label>Semester</label><select id="cor-sem"><option>1st Semester</option><option>2nd Semester</option><option>Summer</option></select></div>' +
@@ -207,25 +223,111 @@ function initCorAdmin() {
   document.getElementById('cor-add-subject').addEventListener('click', function () {
     document.getElementById('cor-subject-body').appendChild(subjectRow());
   });
+  fillCorFilters();
   document.getElementById('cor-student-pick').addEventListener('change', applySelectedStudent);
+  document.getElementById('cor-student-search').addEventListener('input', renderStudentPick);
+  document.getElementById('cor-f-college').addEventListener('change', function () {
+    fillCorPrograms(this.value);
+    renderStudentPick();
+  });
+  ['cor-f-program', 'cor-f-year', 'cor-f-section'].forEach(function (id) {
+    document.getElementById(id).addEventListener('change', renderStudentPick);
+  });
   PrismAdmin.getAllUsers().then(function (users) {
     adminStudents = (users || []).filter(function (u) { return u.role === 'student'; });
-    var sel = document.getElementById('cor-student-pick');
-    if (!adminStudents.length) {
-      sel.innerHTML = '<option value="">No students yet</option>';
-      return;
-    }
-    adminStudents.forEach(function (s) {
-      var opt = document.createElement('option');
-      opt.value = s.id;
-      opt.textContent = s.name + ' · ' + s.id;
-      sel.appendChild(opt);
-    });
-    applySelectedStudent();
+    adminStudents.forEach(function (s) { s._place = corPlacement(s); });
+    renderStudentPick();
   }).catch(function (e) {
     setCorMsg(e.message || 'Could not load students', true);
   });
   loadSentCors();
+}
+
+function corCollegeLabel(code) {
+  return COR_COLLEGE_NAMES[code] ? (code + ' — ' + COR_COLLEGE_NAMES[code]) : code;
+}
+
+function corPrograms(college) {
+  if (college && COR_COLLEGES[college]) return COR_COLLEGES[college].slice();
+  var all = [];
+  Object.keys(COR_COLLEGES).forEach(function (code) {
+    COR_COLLEGES[code].forEach(function (program) {
+      if (all.indexOf(program) === -1) all.push(program);
+    });
+  });
+  return all;
+}
+
+function fillCorSelect(select, values, placeholder, labeler) {
+  var current = select.value;
+  select.textContent = '';
+  var first = document.createElement('option');
+  first.value = '';
+  first.textContent = placeholder;
+  select.appendChild(first);
+  values.forEach(function (value) {
+    var opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = labeler ? labeler(value) : value;
+    select.appendChild(opt);
+  });
+  if (current && values.indexOf(current) !== -1) select.value = current;
+}
+
+function fillCorPrograms(college) {
+  fillCorSelect(document.getElementById('cor-f-program'), corPrograms(college), 'All programs');
+}
+
+function fillCorFilters() {
+  fillCorSelect(document.getElementById('cor-f-college'), Object.keys(COR_COLLEGES), 'All colleges', corCollegeLabel);
+  fillCorPrograms('');
+  fillCorSelect(document.getElementById('cor-f-year'), ['1', '2', '3', '4'], 'All years', function (year) { return 'Year ' + year; });
+  fillCorSelect(document.getElementById('cor-f-section'), ['A', 'B', 'C', 'D', 'E', 'F'], 'All sections');
+}
+
+function corPlacement(student) {
+  var match = String(student.section || '').match(/^(.*) ([1-4])-([A-F])$/);
+  if (!match) return { college: '', program: '', year: '', section: '' };
+  var program = match[1];
+  var college = '';
+  Object.keys(COR_COLLEGES).forEach(function (code) {
+    if (COR_COLLEGES[code].indexOf(program) !== -1) college = code;
+  });
+  return { college: college, program: program, year: match[2], section: match[3] };
+}
+
+function renderStudentPick() {
+  var sel = document.getElementById('cor-student-pick');
+  var current = sel.value;
+  var query = document.getElementById('cor-student-search').value.trim().toLowerCase();
+  var college = document.getElementById('cor-f-college').value;
+  var program = document.getElementById('cor-f-program').value;
+  var year = document.getElementById('cor-f-year').value;
+  var section = document.getElementById('cor-f-section').value;
+  sel.textContent = '';
+  var placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = adminStudents.length ? 'Choose a student' : 'No students yet';
+  sel.appendChild(placeholder);
+  var shown = 0;
+  adminStudents.forEach(function (student) {
+    var place = student._place || corPlacement(student);
+    if (college && place.college !== college) return;
+    if (program && place.program !== program) return;
+    if (year && place.year !== year) return;
+    if (section && place.section !== section) return;
+    var hay = ((student.name || '') + ' ' + student.id + ' ' + (student.email || '')).toLowerCase();
+    if (query && hay.indexOf(query) === -1) return;
+    var opt = document.createElement('option');
+    opt.value = student.id;
+    var placeText = [place.program, place.year && place.section ? place.year + '-' + place.section : ''].filter(Boolean).join(' ');
+    opt.textContent = (student.name || student.id) + ' · ' + student.id + (placeText ? ' · ' + placeText : '');
+    sel.appendChild(opt);
+    shown++;
+  });
+  if (current && [].some.call(sel.options, function (opt) { return opt.value === current; })) sel.value = current;
+  var count = document.getElementById('cor-pick-count');
+  if (count) count.textContent = shown + (shown === 1 ? ' student' : ' students');
 }
 
 function applySelectedStudent() {
@@ -345,6 +447,12 @@ function loadSentCors() {
 async function editSentCor(id) {
   var cor = await PrismRecords.getCor(id);
   var p = cor.payload || {};
+  document.getElementById('cor-student-search').value = '';
+  document.getElementById('cor-f-college').value = '';
+  fillCorPrograms('');
+  document.getElementById('cor-f-year').value = '';
+  document.getElementById('cor-f-section').value = '';
+  renderStudentPick();
   var sel = document.getElementById('cor-student-pick');
   if (sel) sel.value = cor.student_id;
   lastAutoName = p.studentName || '';

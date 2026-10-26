@@ -5,7 +5,7 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
  <title>PRISM My Profile</title>
  <link rel="icon" type="image/png" href="Prismcrys.png"/>
- <link rel="stylesheet" href="portal.css?v=14"/>
+ <link rel="stylesheet" href="portal.css?v=17"/>
  <script src="portal-mobile.js?v=4" defer></script>
  <style>
  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
@@ -329,6 +329,22 @@
  /* view all link */
  .view-all-link { font-size:.8rem; font-weight:700; color:#7c3aed; text-decoration:none; }
  .view-all-link:hover { text-decoration:underline; }
+ html[data-theme="dark"] .p-card,
+ html[data-theme="dark"] .stat-chip {
+   background:#1a1d2e !important;
+   border-color:#2e3350 !important;
+   color:#f3f4f6;
+ }
+ html[data-theme="dark"] .p-card-title,
+ html[data-theme="dark"] .info-value,
+ html[data-theme="dark"] .act-main,
+ html[data-theme="dark"] .act-main strong { color:#f3f4f6 !important; }
+ html[data-theme="dark"] .info-label,
+ html[data-theme="dark"] .sc-lbl,
+ html[data-theme="dark"] .act-time,
+ html[data-theme="dark"] .p-empty { color:#d1d5db !important; }
+ html[data-theme="dark"] .sc-val,
+ html[data-theme="dark"] .view-all-link { color:#ddd6fe !important; }
  </style>
 </head>
 <body>

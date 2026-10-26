@@ -138,9 +138,18 @@ function prism_csv_safe($value): string {
     return $s;
 }
 
+function prism_roster_schema_flag(): string {
+    return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-roster-schema-v3-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
+}
+
 function prism_ensure_student_roster(PDO $db): void {
     static $done = false;
     if ($done) {
+        return;
+    }
+    $flag = prism_roster_schema_flag();
+    if (is_file($flag)) {
+        $done = true;
         return;
     }
     $db->exec(
@@ -227,6 +236,7 @@ function prism_ensure_student_roster(PDO $db): void {
     );
     prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_user', 'FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE');
     prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_created_by', 'FOREIGN KEY (created_by_admin_id) REFERENCES users(id) ON DELETE SET NULL');
+    @file_put_contents($flag, '1');
     $done = true;
 }
 

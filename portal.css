@@ -726,6 +726,37 @@ html[data-theme="dark"] .empty-state {
 .ann-text { color: #374151; }
 
 /* Near-black text written into the page is unreadable on dark surfaces. */
+html[data-theme="dark"] .a-card,
+html[data-theme="dark"] .wrap-table {
+  background: #1a1d2e !important;
+  border-color: #2e3350 !important;
+  color: #f3f4f6;
+}
+
+html[data-theme="dark"] .a-card-title {
+  color: #f3f4f6 !important;
+}
+
+html[data-theme="dark"] .ann-date {
+  color: #d1d5db;
+}
+
+html[data-theme="dark"] .ann-item,
+html[data-theme="dark"] .table-toolbar {
+  border-color: #2e3350;
+}
+
+html[data-theme="dark"] .wrap-table thead,
+html[data-theme="dark"] .wrap-table tr:hover td {
+  background: #24283d;
+}
+
+html[data-theme="dark"] .wrap-table th,
+html[data-theme="dark"] .wrap-table td {
+  color: #f3f4f6;
+  border-color: #2e3350;
+}
+
 html[data-theme="dark"] .ann-author,
 html[data-theme="dark"] .ann-text,
 html[data-theme="dark"] .post-body,
@@ -794,4 +825,96 @@ html[data-theme="dark"] .paper .mark-inp.mk-h { color: #6d28d9 !important; -webk
 .admin-hero-gem,
 .org-hero-gem {
   display: none !important;
+}
+
+/* Light cards were keeping cream headers while text was forced light. */
+html[data-theme="dark"] .wrap-table,
+html[data-theme="dark"] .table-toolbar,
+html[data-theme="dark"] .roster-panel,
+html[data-theme="dark"] .records-wrap,
+html[data-theme="dark"] .page-tabs,
+html[data-theme="dark"] .invite-row,
+html[data-theme="dark"] .create-card,
+html[data-theme="dark"] .notes-editor-wrap,
+html[data-theme="dark"] .nb-modal,
+html[data-theme="dark"] .nb-context-menu,
+html[data-theme="dark"] .class-bar,
+html[data-theme="dark"] .lesson,
+html[data-theme="dark"] .q-card,
+html[data-theme="dark"] .cal-card,
+html[data-theme="dark"] .event-card {
+  background: #1a1d2e !important;
+  color: #f3f4f6 !important;
+  border-color: #2e3350 !important;
+}
+
+html[data-theme="dark"] thead,
+html[data-theme="dark"] th {
+  background: #24283d !important;
+  color: #e5e7eb !important;
+}
+
+html[data-theme="dark"] td {
+  color: #f3f4f6 !important;
+}
+
+html[data-theme="dark"] tr:hover td {
+  background: #2a3148 !important;
+  color: #f3f4f6 !important;
+}
+
+html[data-theme="dark"] .table-toolbar,
+html[data-theme="dark"] .table-toolbar span,
+html[data-theme="dark"] .ann-date,
+html[data-theme="dark"] .page-tab,
+html[data-theme="dark"] .sidebar-link {
+  color: #d1d5db !important;
+}
+
+html[data-theme="dark"] .page-tab.active {
+  background: #f59e0b !important;
+  color: #1c1300 !important;
+}
+
+html[data-theme="dark"] .sidebar-link.active {
+  color: #fff !important;
+}
+
+html[data-theme="dark"] .topbar-logo {
+  color: #ddd6fe !important;
+}
+
+html[data-theme="dark"] .topbar-role-badge {
+  background: #3b2a08 !important;
+  color: #fcd34d !important;
+  border-color: #f59e0b !important;
+}
+
+html[data-theme="dark"] .sidebar-section-label,
+html[data-theme="dark"] .sidebar-logout {
+  color: #d1d5db !important;
+}
+
+html[data-theme="dark"] .icon-btn {
+  color: #fcd34d !important;
+  border-color: #f59e0b !important;
+}
+
+html[data-theme="dark"] .icon-btn.red {
+  color: #fecaca !important;
+  border-color: #fca5a5 !important;
+}
+
+html[data-theme="dark"] .paper,
+html[data-theme="dark"] .paper thead,
+html[data-theme="dark"] .paper th,
+html[data-theme="dark"] .paper td,
+html[data-theme="dark"] .paper tr:hover td,
+html[data-theme="dark"] .cor-doc,
+html[data-theme="dark"] .cor-doc thead,
+html[data-theme="dark"] .cor-doc th,
+html[data-theme="dark"] .cor-doc td,
+html[data-theme="dark"] .cor-doc tr:hover td {
+  background: #fff !important;
+  color: #16132b !important;
 }

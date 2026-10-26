@@ -5,7 +5,7 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
  <title>PRISM Calendar</title>
  <link rel="icon" type="image/png" href="Prismcrys.png"/>
- <link rel="stylesheet" href="portal.css?v=14"/>
+ <link rel="stylesheet" href="portal.css?v=17"/>
  <script src="portal-mobile.js?v=4" defer></script>
  <style>
  :root { --cal-accent: #7c3aed; --cal-dark: #6d28d9; }
@@ -150,6 +150,23 @@
  #month-label { min-width: 0; font-size: 0.92rem; }
  .add-ev-btn { padding: 0.5rem 0.85rem; font-size: 0.85rem; }
  }
+ html[data-theme="dark"] .cal-wrap,
+ html[data-theme="dark"] .cal-cell,
+ html[data-theme="dark"] .ev-item {
+   background: #1a1d2e !important;
+   border-color: #2e3350 !important;
+   color: #f3f4f6;
+ }
+ html[data-theme="dark"] .cal-cell.today { background: #2a2450 !important; }
+ html[data-theme="dark"] .cal-header h2,
+ html[data-theme="dark"] #month-label,
+ html[data-theme="dark"] .events-panel h3,
+ html[data-theme="dark"] .cell-num,
+ html[data-theme="dark"] .cal-day-name,
+ html[data-theme="dark"] .ev-title { color: #f3f4f6 !important; }
+ html[data-theme="dark"] .ev-meta,
+ html[data-theme="dark"] .no-events { color: #d1d5db !important; }
+ html[data-theme="dark"] .cal-cell.today .cell-num { color: #fff !important; }
  </style>
 </head>
 <body>

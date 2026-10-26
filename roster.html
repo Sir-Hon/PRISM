@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Roster</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=14"/>
+  <link rel="stylesheet" href="portal.css?v=17"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --a:#f59e0b; --a-dark:#d97706; --a-light:#fef3c7; }
@@ -96,6 +96,7 @@
     html[data-theme="dark"] .page-tab { color:#d1d5db; }
     html[data-theme="dark"] .page-tab.active { background:#f59e0b; color:#1c1300; }
     html[data-theme="dark"] .gc-plus { color:#fcd34d; }
+    html[data-theme="dark"] .hint { color:#d1d5db !important; }
   </style>
 </head>
 <body>
@@ -125,13 +126,8 @@
   <main class="main-content">
     <div id="roster-home">
       <div class="admin-hero">
-        <div class="gc-head">
-          <a class="gc-back" href="admin.html" title="Back to dashboard" aria-label="Back to dashboard">&larr;</a>
-          <div>
-            <div class="admin-hero-label">Admin</div>
-            <h1>Roster</h1>
-          </div>
-        </div>
+        <div class="admin-hero-label">Admin</div>
+        <h1>Roster</h1>
         <p>Create student and teacher accounts here. They sign in with the password you set. Saved passwords stay encrypted.</p>
       </div>
 
@@ -257,6 +253,6 @@
     </div>
   </main>
 </div>
-<script src="pages/roster.js?v=5"></script>
+<script src="pages/roster.js?v=6"></script>
 </body>
 </html>

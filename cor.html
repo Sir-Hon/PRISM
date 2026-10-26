@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Certificate of Registration</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=14"/>
+  <link rel="stylesheet" href="portal.css?v=17"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     .cor-wrap { max-width: 980px; }
@@ -23,6 +23,10 @@
     .cor-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem .9rem; }
     .cor-field { display:flex; flex-direction:column; gap:.28rem; }
     .cor-field.full { grid-column:1 / -1; }
+    .cor-pick-filters { display:flex; flex-wrap:wrap; gap:.55rem; margin-top:.55rem; }
+    .cor-pick-filters select { flex:1 1 140px; min-width:0; }
+    #cor-student-pick { margin-top:.55rem; min-height:9.5rem; }
+    .cor-pick-count { margin:.35rem 0 0; font-size:.78rem; color:#9ca3af; }
     .cor-field label { font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#9ca3af; }
     .cor-field input, .cor-field select { border:1.5px solid #e4dffa; border-radius:10px; padding:.55rem .7rem; font-family:'DM Sans',sans-serif; font-size:.92rem; color:#16132b; background:#fff; }
     .sub-table, .fee-table { width:100%; border-collapse:collapse; }
@@ -57,6 +61,7 @@
     }
     html[data-theme="dark"] .cor-card,
     html[data-theme="dark"] .cor-choice { background:#1a1d2e; color:#f3f4f6; border-color:#2e3350; }
+    html[data-theme="dark"] .cor-lead { color:#d1d5db !important; }
     html[data-theme="dark"] .cor-card h2,
     html[data-theme="dark"] .cor-choice strong { color:#f3f4f6; }
     html[data-theme="dark"] .cor-field label,
@@ -133,6 +138,6 @@
     </div>
   </main>
 </div>
-<script src="pages/cor.js?v=3"></script>
+<script src="pages/cor.js?v=4"></script>
 </body>
 </html>
