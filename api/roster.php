@@ -58,6 +58,14 @@ if ($method === 'POST' && $action === 'teacher_add') {
     ok($result);
 }
 
+if ($method === 'POST' && $action === 'teacher_update') {
+    $result = prism_teacher_update($db, getBody());
+    if (empty($result['ok'])) {
+        fail($result['error'], (int) ($result['status'] ?? 400));
+    }
+    ok($result);
+}
+
 if ($method === 'POST' && $action === 'teacher_delete') {
     $result = prism_teacher_delete($db, (string) (getBody()['id'] ?? ''));
     if (empty($result['ok'])) {
@@ -68,6 +76,14 @@ if ($method === 'POST' && $action === 'teacher_delete') {
 
 if ($method === 'POST' && $action === 'add') {
     $result = prism_roster_add($db, $admin, getBody(), $ip);
+    if (empty($result['ok'])) {
+        fail($result['error'], (int) ($result['status'] ?? 400));
+    }
+    ok($result);
+}
+
+if ($method === 'POST' && $action === 'update') {
+    $result = prism_roster_update($db, $admin, getBody(), $ip);
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
     }

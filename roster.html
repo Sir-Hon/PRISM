@@ -61,6 +61,8 @@
     .err-row td { background:#fff7f7; }
     .ok-row td { background:#f6fff8; }
     .pager { display:flex; gap:.7rem; align-items:center; margin-top:1rem; }
+    .row-actions { display:flex; gap:.45rem; flex-wrap:wrap; white-space:nowrap; }
+    .fields input[readonly] { background:#f6f3ea; color:#6b7280; }
     .hint { color:#6b7280; font-size:.88rem; margin:.7rem 0 0; line-height:1.5; }
     #preview-wrap, #add-panel, #teacher-panel { display:none; }
     .form-card { padding:1.7rem 1.8rem; }
@@ -97,10 +99,11 @@
     html[data-theme="dark"] .page-tab.active { background:#f59e0b; color:#1c1300; }
     html[data-theme="dark"] .gc-plus { color:#fcd34d; }
     html[data-theme="dark"] .hint { color:#d1d5db !important; }
+    html[data-theme="dark"] .fields input[readonly] { background:#1a1d2e !important; color:#9ca3af !important; }
   </style>
 </head>
 <body>
-<script src="api.js?v=20"></script>
+<script src="api.js?v=21"></script>
 <script src="script.js?v=12"></script>
 <script src="portal-sidebar.js?v=19"></script>
 <div class="topbar">
@@ -214,7 +217,7 @@
     <div class="roster-panel form-card" id="add-panel">
       <div class="gc-head">
         <button class="gc-back on-card" type="button" id="btn-back-add" title="Back to roster" aria-label="Back to roster">&larr;</button>
-        <h2>Add student</h2>
+        <h2 id="add-title">Add student</h2>
       </div>
       <div class="fields">
         <div><label for="a-id">Student ID number</label><input id="a-id" maxlength="7" inputmode="numeric" placeholder="7 digits"/></div>
@@ -228,14 +231,14 @@
         <div><label for="a-pw">Password</label><div class="pw-wrap"><input id="a-pw" type="password" autocomplete="new-password"/><button class="btn btn-ghost" type="button" id="a-pw-toggle">Show</button></div></div>
         <div><label for="a-pw2">Confirm password</label><input id="a-pw2" type="password" autocomplete="new-password"/></div>
       </div>
-      <p class="hint">The password is saved encrypted. After you leave this form it is shown only as a mask, so share it with the student before you go back.</p>
+      <p class="hint" id="a-hint">The password is saved encrypted. After you leave this form it is shown only as a mask, so share it with the student before you go back.</p>
       <div style="margin-top:1.1rem;"><button class="btn btn-primary" type="button" id="btn-add">Create student account</button></div>
     </div>
 
     <div class="roster-panel form-card" id="teacher-panel">
       <div class="gc-head">
         <button class="gc-back on-card" type="button" id="btn-back-teacher" title="Back to roster" aria-label="Back to roster">&larr;</button>
-        <h2>Add teacher</h2>
+        <h2 id="teacher-title">Add teacher</h2>
       </div>
       <div class="fields">
         <div><label for="t-id">Teacher ID</label><input id="t-id" placeholder="e.g. 2024-00001"/></div>
@@ -248,11 +251,11 @@
         <div><label for="t-pw">Password</label><div class="pw-wrap"><input id="t-pw" type="password" autocomplete="new-password"/><button class="btn btn-ghost" type="button" id="t-pw-toggle">Show</button></div></div>
         <div><label for="t-pw2">Confirm password</label><input id="t-pw2" type="password" autocomplete="new-password"/></div>
       </div>
-      <p class="hint">The password is saved encrypted and is not shown again after you leave this form.</p>
+      <p class="hint" id="t-hint">The password is saved encrypted and is not shown again after you leave this form.</p>
       <div style="margin-top:1.1rem;"><button class="btn btn-primary" type="button" id="btn-add-teacher">Create teacher account</button></div>
     </div>
   </main>
 </div>
-<script src="pages/roster.js?v=6"></script>
+<script src="pages/roster.js?v=7"></script>
 </body>
 </html>

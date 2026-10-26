@@ -5,6 +5,10 @@
   var teacherPage = 1;
   var teacherPages = 1;
   var lastFile = null;
+  var editingStudent = '';
+  var editingTeacher = '';
+  var studentHint = 'The password is saved encrypted. After you leave this form it is shown only as a mask, so share it with the student before you go back.';
+  var teacherHint = 'The password is saved encrypted and is not shown again after you leave this form.';
   var catalog = { colleges: {}, years: ['1', '2', '3', '4'], sections: ['A', 'B', 'C', 'D', 'E', 'F'] };
   var collegeNames = { CoED: 'College of Education', CoTE: 'College of Technology' };
 
@@ -130,6 +134,8 @@
       tr.appendChild(cell(row.section || ''));
       tr.appendChild(passwordCell());
       var actions = document.createElement('td');
+      actions.className = 'row-actions';
+      actions.appendChild(actionButton('Edit', function () { beginEditStudent(row); }));
       actions.appendChild(actionButton('Delete', function () { removeStudent(row.id_number); }));
       tr.appendChild(actions);
       body.appendChild(tr);
@@ -161,6 +167,8 @@
       tr.appendChild(cell(row.subjects || ''));
       tr.appendChild(passwordCell());
       var actions = document.createElement('td');
+      actions.className = 'row-actions';
+      actions.appendChild(actionButton('Edit', function () { beginEditTeacher(row); }));
       actions.appendChild(actionButton('Delete', function () { removeTeacher(row.id); }));
       tr.appendChild(actions);
       body.appendChild(tr);
@@ -229,14 +237,93 @@
     showError('');
   }
 
+  function resetStudentForm() {
+    editingStudent = '';
+    document.getElementById('add-title').textContent = 'Add student';
+    document.getElementById('btn-add').textContent = 'Create student account';
+    document.getElementById('a-hint').textContent = studentHint;
+    document.getElementById('a-id').readOnly = false;
+    ['a-id', 'a-email', 'a-first', 'a-last', 'a-pw', 'a-pw2'].forEach(function (id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('a-college').value = '';
+    fillSelect(document.getElementById('a-program'), [], 'Choose a college first');
+    document.getElementById('a-year').value = '';
+    document.getElementById('a-section').value = '';
+  }
+
+  function resetTeacherForm() {
+    editingTeacher = '';
+    document.getElementById('teacher-title').textContent = 'Add teacher';
+    document.getElementById('btn-add-teacher').textContent = 'Create teacher account';
+    document.getElementById('t-hint').textContent = teacherHint;
+    document.getElementById('t-id').readOnly = false;
+    ['t-id', 't-email', 't-first', 't-last', 't-dept', 't-subjects', 't-pw', 't-pw2'].forEach(function (id) {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('t-college').value = '';
+  }
+
+  function placeStudent(row) {
+    var college = document.getElementById('a-college');
+    college.value = row.college || '';
+    var programs = programsFor(college.value);
+    if (row.program && programs.indexOf(row.program) === -1) programs.push(row.program);
+    fillSelect(document.getElementById('a-program'), programs, college.value ? 'Choose' : 'Choose a college first');
+    document.getElementById('a-program').value = row.program || '';
+    document.getElementById('a-year').value = row.year || '';
+    document.getElementById('a-section').value = row.section || '';
+  }
+
+  function beginEditStudent(row) {
+    resetStudentForm();
+    editingStudent = row.id_number;
+    document.getElementById('add-title').textContent = 'Edit student';
+    document.getElementById('btn-add').textContent = 'Save changes';
+    document.getElementById('a-hint').textContent = 'Leave the password blank to keep the current one. A new password is saved encrypted and is not shown again.';
+    document.getElementById('a-id').value = row.id_number || '';
+    document.getElementById('a-id').readOnly = true;
+    document.getElementById('a-email').value = row.email || '';
+    document.getElementById('a-first').value = row.first_name || '';
+    document.getElementById('a-last').value = row.last_name || '';
+    placeStudent(row);
+    openForm('student');
+  }
+
+  function beginEditTeacher(row) {
+    resetTeacherForm();
+    editingTeacher = row.id;
+    document.getElementById('teacher-title').textContent = 'Edit teacher';
+    document.getElementById('btn-add-teacher').textContent = 'Save changes';
+    document.getElementById('t-hint').textContent = 'Leave the password blank to keep the current one. A new password is saved encrypted and is not shown again.';
+    document.getElementById('t-id').value = row.id || '';
+    document.getElementById('t-id').readOnly = true;
+    document.getElementById('t-email').value = row.email || '';
+    document.getElementById('t-first').value = row.first_name || '';
+    document.getElementById('t-last').value = row.last_name || '';
+    document.getElementById('t-college').value = row.college || '';
+    document.getElementById('t-dept').value = row.department || '';
+    document.getElementById('t-subjects').value = row.subjects || '';
+    showView('teachers');
+    openForm('teacher');
+  }
+
   function closeForm() {
+    resetStudentForm();
+    resetTeacherForm();
     document.getElementById('add-panel').style.display = 'none';
     document.getElementById('teacher-panel').style.display = 'none';
     document.getElementById('roster-home').style.display = '';
   }
 
-  document.getElementById('btn-show-add').addEventListener('click', function () { openForm('student'); });
-  document.getElementById('btn-show-teacher').addEventListener('click', function () { openForm('teacher'); });
+  document.getElementById('btn-show-add').addEventListener('click', function () {
+    resetStudentForm();
+    openForm('student');
+  });
+  document.getElementById('btn-show-teacher').addEventListener('click', function () {
+    resetTeacherForm();
+    openForm('teacher');
+  });
   document.getElementById('btn-back-add').addEventListener('click', closeForm);
   document.getElementById('btn-back-teacher').addEventListener('click', closeForm);
 
@@ -263,49 +350,56 @@
     this.value = String(this.value || '').replace(/\D/g, '').slice(0, 7);
   });
 
+  function studentPayload() {
+    return {
+      id_number: editingStudent || document.getElementById('a-id').value.trim(),
+      email: document.getElementById('a-email').value.trim(),
+      first_name: document.getElementById('a-first').value.trim(),
+      last_name: document.getElementById('a-last').value.trim(),
+      college: document.getElementById('a-college').value,
+      program: document.getElementById('a-program').value,
+      year: document.getElementById('a-year').value,
+      section: document.getElementById('a-section').value,
+      password: document.getElementById('a-pw').value,
+      confirm_password: document.getElementById('a-pw2').value
+    };
+  }
+
   document.getElementById('btn-add').addEventListener('click', async function () {
     showError('');
+    var editing = editingStudent;
     try {
-      await PrismRoster.add({
-        id_number: document.getElementById('a-id').value.trim(),
-        email: document.getElementById('a-email').value.trim(),
-        first_name: document.getElementById('a-first').value.trim(),
-        last_name: document.getElementById('a-last').value.trim(),
-        college: document.getElementById('a-college').value,
-        program: document.getElementById('a-program').value,
-        year: document.getElementById('a-year').value,
-        section: document.getElementById('a-section').value,
-        password: document.getElementById('a-pw').value,
-        confirm_password: document.getElementById('a-pw2').value
-      });
-      ['a-id', 'a-email', 'a-first', 'a-last', 'a-pw', 'a-pw2'].forEach(function (id) {
-        document.getElementById(id).value = '';
-      });
+      if (editing) await PrismRoster.update(studentPayload());
+      else await PrismRoster.add(studentPayload());
       closeForm();
-      page = 1;
+      if (!editing) page = 1;
       await load();
     } catch (e) { showError(e.message); }
   });
 
+  function teacherPayload() {
+    return {
+      id: editingTeacher || document.getElementById('t-id').value.trim(),
+      email: document.getElementById('t-email').value.trim(),
+      first_name: document.getElementById('t-first').value.trim(),
+      last_name: document.getElementById('t-last').value.trim(),
+      college: document.getElementById('t-college').value,
+      department: document.getElementById('t-dept').value.trim(),
+      subjects: document.getElementById('t-subjects').value.trim(),
+      password: document.getElementById('t-pw').value,
+      confirm_password: document.getElementById('t-pw2').value
+    };
+  }
+
   document.getElementById('btn-add-teacher').addEventListener('click', async function () {
     showError('');
+    var editing = editingTeacher;
     try {
-      await PrismRoster.addTeacher({
-        id: document.getElementById('t-id').value.trim(),
-        email: document.getElementById('t-email').value.trim(),
-        first_name: document.getElementById('t-first').value.trim(),
-        last_name: document.getElementById('t-last').value.trim(),
-        college: document.getElementById('t-college').value,
-        department: document.getElementById('t-dept').value.trim(),
-        subjects: document.getElementById('t-subjects').value.trim(),
-        password: document.getElementById('t-pw').value,
-        confirm_password: document.getElementById('t-pw2').value
-      });
-      ['t-id', 't-email', 't-first', 't-last', 't-dept', 't-subjects', 't-pw', 't-pw2'].forEach(function (id) {
-        document.getElementById(id).value = '';
-      });
+      if (editing) await PrismRoster.updateTeacher(teacherPayload());
+      else await PrismRoster.addTeacher(teacherPayload());
       closeForm();
-      teacherPage = 1;
+      showView('teachers');
+      if (!editing) teacherPage = 1;
       await loadTeachers();
     } catch (e) { showError(e.message); }
   });

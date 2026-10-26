@@ -12,6 +12,9 @@ var COR_FEES = [
   ['registration', 'Registration Fee', '50']
 ];
 var selectedCor = null;
+var corCatalog = null;
+var corCatalogPromise = null;
+var corCatalogGen = 0;
 var adminStudents = [];
 var lastAutoName = '';
 var COR_COLLEGES = {
@@ -116,26 +119,122 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 function initCorStudent() {
   document.getElementById('cor-student').style.display = 'block';
-  PrismRecords.listCors().then(renderCorChoices).catch(function (e) {
-    document.getElementById('cor-choices').innerHTML = '<p class="cor-lead">' + corEsc(e.message || 'Could not load certificates') + '</p>';
+  document.getElementById('cor-view-year').addEventListener('change', loadStudentCors);
+  document.getElementById('cor-view-sem').addEventListener('change', loadStudentCors);
+  loadStudentCors();
+}
+
+function fillAcademicYears(select, years) {
+  var current = select.value;
+  select.textContent = '';
+  var first = document.createElement('option');
+  first.value = '';
+  first.textContent = 'All academic years';
+  select.appendChild(first);
+  (years || []).forEach(function (year) {
+    var opt = document.createElement('option');
+    opt.value = year;
+    opt.textContent = 'AY ' + year;
+    select.appendChild(opt);
+  });
+  if (current && [].some.call(select.options, function (opt) { return opt.value === current; })) select.value = current;
+}
+
+function invalidateCorCatalog() {
+  corCatalog = null;
+  corCatalogPromise = null;
+  corCatalogGen++;
+}
+
+function fetchCorCatalog() {
+  if (corCatalog) return Promise.resolve(corCatalog);
+  if (!corCatalogPromise) {
+    var requestGen = corCatalogGen;
+    corCatalogPromise = PrismRecords.listCors().then(function (data) {
+      if (requestGen !== corCatalogGen) return data;
+      corCatalog = {
+        cors: data.cors || [],
+        years: data.years || [],
+        capped: !!data.capped
+      };
+      return corCatalog;
+    }).catch(function (err) {
+      if (requestGen === corCatalogGen) corCatalogPromise = null;
+      throw err;
+    });
+  }
+  return corCatalogPromise;
+}
+
+function matchingCors(year, sem, query) {
+  var q = (query || '').toLowerCase();
+  return (corCatalog.cors || []).filter(function (item) {
+    if (year && item.school_year !== year) return false;
+    if (sem && item.semester !== sem) return false;
+    if (!q) return true;
+    var hay = ((item.student_name || '') + ' ' + (item.student_id || '') + ' ' + (item.label || '')).toLowerCase();
+    return hay.indexOf(q) !== -1;
   });
 }
 
-function renderCorChoices(list) {
+function loadStudentCors() {
+  var year = document.getElementById('cor-view-year').value;
+  var sem = document.getElementById('cor-view-sem').value;
+  var remote = corCatalog && corCatalog.capped && (year || sem);
+  var requestGen = corCatalogGen;
+  var pending = remote
+    ? PrismRecords.listCors({ school_year: year, semester: sem })
+    : fetchCorCatalog();
+  pending.then(function (data) {
+    if (requestGen !== corCatalogGen) return;
+    var years = (corCatalog && corCatalog.years) || data.years || [];
+    fillAcademicYears(document.getElementById('cor-view-year'), years);
+    var list = remote ? (data.cors || []) : matchingCors(year, sem, '');
+    renderCorChoices(list, !!(year && sem), years.length);
+  }).catch(function (e) {
+    document.getElementById('cor-choices').innerHTML = '<p class="cor-empty">' + corEsc(e.message || 'Could not load certificates') + '</p>';
+  });
+}
+
+function clearStudentCor() {
+  selectedCor = null;
+  document.getElementById('cor-print').innerHTML = '';
+  var bar = document.getElementById('cor-download-bar');
+  if (bar) bar.style.display = 'none';
+}
+
+function renderCorChoices(list, openOnlyMatch, yearCount) {
   var host = document.getElementById('cor-choices');
+  host.textContent = '';
   if (!list.length) {
-    host.innerHTML = '<p class="cor-lead">No certificate has been sent to you yet.</p>';
+    var empty = document.createElement('p');
+    empty.className = 'cor-empty';
+    empty.textContent = yearCount ? 'No certificate matches that academic year.' : 'No certificate has been sent to you yet.';
+    host.appendChild(empty);
+    clearStudentCor();
     return;
   }
-  host.innerHTML = '';
+  var lastYear = null;
+  var onlyBtn = null;
   list.forEach(function (item) {
+    if (item.school_year !== lastYear) {
+      lastYear = item.school_year;
+      var head = document.createElement('div');
+      head.className = 'cor-year-head';
+      head.textContent = 'AY ' + (item.school_year || '');
+      host.appendChild(head);
+    }
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'cor-choice';
-    btn.innerHTML = '<strong>' + corEsc(item.label) + '</strong><span>Sent ' + corEsc(item.sent_at || '') + '</span>';
+    btn.innerHTML = '<strong>' + corEsc(item.semester || item.label) + '</strong><span>Sent ' + corEsc(item.sent_at || '') + '</span>';
     btn.addEventListener('click', function () { openCor(item.id, btn); });
     host.appendChild(btn);
+    onlyBtn = btn;
   });
+  var ids = list.map(function (item) { return String(item.id); });
+  if (selectedCor && ids.indexOf(String(selectedCor.id)) === -1) clearStudentCor();
+  if (openOnlyMatch && list.length === 1) openCor(list[0].id, onlyBtn);
 }
 
 async function openCor(id, btn) {
@@ -207,7 +306,7 @@ function initCorAdmin() {
         '<p class="cor-pick-count" id="cor-pick-count"></p>' +
       '</div>' +
       '<div class="cor-field"><label>Name on certificate</label><input id="cor-name"></div>' +
-      '<div class="cor-field"><label>School year</label><input id="cor-year" value="2026-2027" placeholder="2026-2027"></div>' +
+      '<div class="cor-field"><label for="cor-year">Academic year</label><input id="cor-year" value="2026-2027" placeholder="2026-2027"></div>' +
       '<div class="cor-field"><label>Semester</label><select id="cor-sem"><option>1st Semester</option><option>2nd Semester</option><option>Summer</option></select></div>' +
       '<div class="cor-field"><label>Program</label><input id="cor-program" placeholder="BSIT 3"></div>' +
       '<div class="cor-field"><label>Block</label><input id="cor-block" placeholder="BLK_BSIT-3A_DAY"></div>' +
@@ -240,6 +339,9 @@ function initCorAdmin() {
   }).catch(function (e) {
     setCorMsg(e.message || 'Could not load students', true);
   });
+  document.getElementById('cor-sent-year').addEventListener('change', loadSentCors);
+  document.getElementById('cor-sent-sem').addEventListener('change', loadSentCors);
+  document.getElementById('cor-sent-q').addEventListener('input', loadSentCors);
   loadSentCors();
 }
 
@@ -412,6 +514,7 @@ async function sendCor() {
     var res = await PrismRecords.sendCor(body);
     setCorMsg('Sent ' + (res.label || 'certificate') + '.', false);
     previewAdminCor();
+    invalidateCorCatalog();
     loadSentCors();
   } catch (e) {
     setCorMsg(e.message || 'Could not send the certificate', true);
@@ -419,16 +522,41 @@ async function sendCor() {
 }
 
 function loadSentCors() {
-  PrismRecords.listCors().then(function (list) {
-    var card = document.getElementById('cor-sent-card');
+  var yearEl = document.getElementById('cor-sent-year');
+  var semEl = document.getElementById('cor-sent-sem');
+  var qEl = document.getElementById('cor-sent-q');
+  var year = yearEl.value;
+  var sem = semEl.value;
+  var query = qEl.value.trim();
+  var remote = corCatalog && corCatalog.capped && (year || sem || query);
+  var requestGen = corCatalogGen;
+  var pending = remote
+    ? PrismRecords.listCors({ school_year: year, semester: sem, q: query })
+    : fetchCorCatalog();
+  pending.then(function (data) {
+    if (requestGen !== corCatalogGen) return;
+    var years = (corCatalog && corCatalog.years) || data.years || [];
+    fillAcademicYears(yearEl, years);
     var host = document.getElementById('cor-sent');
+    var list = remote ? (data.cors || []) : matchingCors(year, sem, query);
+    data.years = years;
+    host.textContent = '';
     if (!list.length) {
-      card.style.display = 'none';
+      var empty = document.createElement('p');
+      empty.className = 'cor-empty';
+      empty.textContent = (data.years || []).length ? 'No certificate matches those filters.' : 'No certificates have been sent yet.';
+      host.appendChild(empty);
       return;
     }
-    card.style.display = 'block';
-    host.innerHTML = '';
+    var lastYear = null;
     list.forEach(function (item) {
+      if (item.school_year !== lastYear) {
+        lastYear = item.school_year;
+        var head = document.createElement('div');
+        head.className = 'cor-year-head';
+        head.textContent = 'AY ' + (item.school_year || '');
+        host.appendChild(head);
+      }
       var row = document.createElement('button');
       row.type = 'button';
       row.className = 'sent-row';
@@ -437,7 +565,10 @@ function loadSentCors() {
       row.style.border = 'none';
       row.style.cursor = 'pointer';
       row.style.fontFamily = 'inherit';
-      row.innerHTML = '<strong>' + corEsc(item.label) + '</strong><span>' + corEsc(item.student_name || item.student_id) + '</span>';
+      row.style.color = 'inherit';
+      row.style.textAlign = 'left';
+      var detail = [item.semester, item.student_id].filter(Boolean).join(' · ');
+      row.innerHTML = '<strong>' + corEsc(item.student_name || item.student_id) + '</strong><span>' + corEsc(detail) + '</span>';
       row.addEventListener('click', function () { editSentCor(item.id); });
       host.appendChild(row);
     });

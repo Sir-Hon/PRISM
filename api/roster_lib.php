@@ -329,7 +329,7 @@ function prism_ensure_fk(PDO $db, string $table, string $name, string $definitio
 }
 
 function prism_roster_audit(PDO $db, ?string $adminId, string $idNumber, string $event, string $ip): void {
-    $allowed = ['roster_created', 'code_regenerated', 'roster_revoked', 'registration_success', 'registration_failed'];
+    $allowed = ['roster_created', 'roster_updated', 'code_regenerated', 'roster_revoked', 'registration_success', 'registration_failed'];
     if (!in_array($event, $allowed, true)) {
         return;
     }
@@ -358,7 +358,7 @@ function prism_normalize_roster_input(array $b): array {
     ];
 }
 
-function prism_roster_field_errors(array $row, bool $forStudent = false): array {
+function prism_roster_field_errors(array $row, bool $forStudent = false, bool $requirePassword = true): array {
     $errors = [];
     if (!prism_is_ctu_student_id($row['id_number'] ?? '')) {
         $errors[] = 'ID number must be exactly 7 digits.';
@@ -377,9 +377,13 @@ function prism_roster_field_errors(array $row, bool $forStudent = false): array 
         if ($place !== null) {
             $errors[] = $place;
         }
-        $pw = prism_password_format_error((string) ($row['password'] ?? ''), (string) ($row['confirm'] ?? ''));
-        if ($pw !== null) {
-            $errors[] = $pw;
+        $password = (string) ($row['password'] ?? '');
+        $confirm = (string) ($row['confirm'] ?? '');
+        if ($requirePassword || $password !== '' || $confirm !== '') {
+            $pw = prism_password_format_error($password, $confirm);
+            if ($pw !== null) {
+                $errors[] = $pw;
+            }
         }
     }
     return $errors;
@@ -632,6 +636,60 @@ function prism_roster_add(PDO $db, array $admin, array $body, string $ip): array
         'id_number' => $in['id_number'],
         'email' => $in['email'],
     ];
+}
+
+function prism_roster_update(PDO $db, array $admin, array $body, string $ip): array {
+    prism_ensure_student_roster($db);
+    $in = prism_normalize_roster_input($body);
+    $errors = prism_roster_field_errors($in, false, false);
+    if ($errors) {
+        return ['ok' => false, 'status' => 400, 'error' => $errors[0]];
+    }
+    $existing = $db->prepare('SELECT id_number FROM student_roster WHERE id_number = ?');
+    $existing->execute([$in['id_number']]);
+    if (!$existing->fetch()) {
+        return ['ok' => false, 'status' => 404, 'error' => 'That student was not found on the roster.'];
+    }
+    $login = $db->prepare('SELECT id FROM users WHERE id = ? AND role = ?');
+    $login->execute([$in['id_number'], 'student']);
+    if (!$login->fetch()) {
+        return ['ok' => false, 'status' => 404, 'error' => 'That student login was not found.'];
+    }
+    $emailTaken = $db->prepare('SELECT id_number FROM student_roster WHERE email = ? AND id_number <> ?');
+    $emailTaken->execute([$in['email'], $in['id_number']]);
+    if ($emailTaken->fetch()) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That email is already on the roster.'];
+    }
+    $userEmail = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ? AND email IS NOT NULL');
+    $userEmail->execute([$in['email'], $in['id_number']]);
+    if ($userEmail->fetch()) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That CTU email is already used on another account.'];
+    }
+    $name = trim($in['first_name'] . ' ' . $in['last_name']);
+    $section = $in['program'] . ' ' . $in['year'] . '-' . $in['section'];
+    try {
+        $db->beginTransaction();
+        $db->prepare('UPDATE student_roster SET email = ?, first_name = ?, last_name = ?, course = ?, year_level = ?, college = ?, section_letter = ? WHERE id_number = ?')
+            ->execute([
+                $in['email'], $in['first_name'], $in['last_name'], $in['program'], $in['year_level'],
+                $in['college'], $in['section'], $in['id_number'],
+            ]);
+        $db->prepare('UPDATE users SET name = ?, section = ?, email = ? WHERE id = ? AND role = ?')
+            ->execute([$name, $section, $in['email'], $in['id_number'], 'student']);
+        if ($in['password'] !== '') {
+            $db->prepare('UPDATE users SET `password` = ? WHERE id = ? AND role = ?')
+                ->execute([prism_hash_secret($in['password']), $in['id_number'], 'student']);
+        }
+        prism_roster_audit($db, $admin['id'], $in['id_number'], 'roster_updated', $ip);
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('PRISM roster update: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That student could not be updated. Check the email, then try again.'];
+    }
+    return ['ok' => true, 'id_number' => $in['id_number'], 'email' => $in['email']];
 }
 
 function prism_roster_conflicts(PDO $db, array $rows): array {
@@ -938,7 +996,7 @@ function prism_normalize_teacher_input(array $b): array {
     ];
 }
 
-function prism_teacher_field_error(array $in): ?string {
+function prism_teacher_field_error(array $in, bool $requirePassword = true): ?string {
     if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{3,49}$/', $in['id'])) {
         return 'Teacher ID must be 4 to 50 letters, numbers, dots, or hyphens.';
     }
@@ -960,6 +1018,9 @@ function prism_teacher_field_error(array $in): ?string {
     }
     if (strlen($in['subjects']) > 500) {
         return 'Subjects must be 500 characters or fewer.';
+    }
+    if (!$requirePassword && $in['password'] === '' && $in['confirm'] === '') {
+        return null;
     }
     return prism_password_format_error($in['password'], $in['confirm']);
 }
@@ -996,6 +1057,55 @@ function prism_teacher_add(PDO $db, array $admin, array $body): array {
         }
         error_log('PRISM teacher roster add: ' . $e->getMessage());
         return ['ok' => false, 'status' => 400, 'error' => 'That teacher could not be saved. Check the ID and email, then try again.'];
+    }
+    return ['ok' => true, 'id' => $in['id'], 'email' => $in['email']];
+}
+
+function prism_teacher_update(PDO $db, array $body): array {
+    prism_ensure_student_roster($db);
+    $in = prism_normalize_teacher_input($body);
+    $err = prism_teacher_field_error($in, false);
+    if ($err !== null) {
+        return ['ok' => false, 'status' => 400, 'error' => $err];
+    }
+    $existing = $db->prepare('SELECT id FROM teacher_roster WHERE id = ?');
+    $existing->execute([$in['id']]);
+    if (!$existing->fetch()) {
+        return ['ok' => false, 'status' => 404, 'error' => 'That teacher was not found on the roster.'];
+    }
+    $login = $db->prepare('SELECT id FROM users WHERE id = ? AND role = ?');
+    $login->execute([$in['id'], 'teacher']);
+    if (!$login->fetch()) {
+        return ['ok' => false, 'status' => 404, 'error' => 'That teacher login was not found.'];
+    }
+    $emailTaken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ? AND email IS NOT NULL');
+    $emailTaken->execute([$in['email'], $in['id']]);
+    if ($emailTaken->fetch()) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That CTU email is already used on another account.'];
+    }
+    $rosterEmail = $db->prepare('SELECT id FROM teacher_roster WHERE email = ? AND id <> ?');
+    $rosterEmail->execute([$in['email'], $in['id']]);
+    if ($rosterEmail->fetch()) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That email is already on the teacher roster.'];
+    }
+    $name = trim($in['first_name'] . ' ' . $in['last_name']);
+    try {
+        $db->beginTransaction();
+        $db->prepare('UPDATE teacher_roster SET email = ?, first_name = ?, last_name = ?, college = ?, department = ?, subjects = ? WHERE id = ?')
+            ->execute([$in['email'], $in['first_name'], $in['last_name'], $in['college'], $in['department'], $in['subjects'], $in['id']]);
+        $db->prepare('UPDATE users SET name = ?, section = ?, email = ? WHERE id = ? AND role = ?')
+            ->execute([$name, $in['department'], $in['email'], $in['id'], 'teacher']);
+        if ($in['password'] !== '') {
+            $db->prepare('UPDATE users SET `password` = ? WHERE id = ? AND role = ?')
+                ->execute([prism_hash_secret($in['password']), $in['id'], 'teacher']);
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('PRISM teacher roster update: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That teacher could not be updated. Check the email, then try again.'];
     }
     return ['ok' => true, 'id' => $in['id'], 'email' => $in['email']];
 }

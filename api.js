@@ -648,11 +648,17 @@ const PrismRoster = {
   async add(row) {
     return await apiCall('roster', 'add', 'POST', row);
   },
+  async update(row) {
+    return await apiCall('roster', 'update', 'POST', row);
+  },
   async listTeachers(q, college, page) {
     return await apiGet('roster', 'teacher_list', { q: q || '', college: college || '', page: page || 1 });
   },
   async addTeacher(row) {
     return await apiCall('roster', 'teacher_add', 'POST', row);
+  },
+  async updateTeacher(row) {
+    return await apiCall('roster', 'teacher_update', 'POST', row);
   },
   async removeTeacher(id) {
     return await apiCall('roster', 'teacher_delete', 'POST', { id: id });
@@ -904,9 +910,14 @@ const PrismRecords = {
       payload: payload,
     });
   },
-  async listCors() {
-    const data = await apiGet('records', 'cors');
-    return data.cors || [];
+  async listCors(filters) {
+    filters = filters || {};
+    const data = await apiGet('records', 'cors', {
+      school_year: filters.school_year || '',
+      semester: filters.semester || '',
+      q: filters.q || ''
+    });
+    return { cors: data.cors || [], years: data.years || [], capped: !!data.capped };
   },
   async getCor(id) {
     const data = await apiGet('records', 'cor', { id: id });

@@ -8,7 +8,20 @@ $action = $_GET['action'] ?? '';
 $user   = requireAuth();
 $db     = getDB();
 
+function prism_records_schema_flag(): string {
+    return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-records-schema-v1-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
+}
+
 function prism_sheet_tables($db) {
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $flag = prism_records_schema_flag();
+    if (is_file($flag)) {
+        $done = true;
+        return;
+    }
     $db->exec(
         'CREATE TABLE IF NOT EXISTS learner_sheets (
             class_id VARCHAR(50) NOT NULL,
@@ -32,6 +45,8 @@ function prism_sheet_tables($db) {
             UNIQUE KEY uniq_student_term (student_id, school_year, semester)
         )'
     );
+    @file_put_contents(prism_records_schema_flag(), '1');
+    $done = true;
 }
 
 function prism_decode_sheet($raw) {
@@ -167,26 +182,60 @@ if ($method === 'GET' && $action === 'my_status') {
 }
 
 if ($method === 'GET' && $action === 'cors') {
+    if ($user['role'] !== 'student' && $user['role'] !== 'admin') fail('Forbidden', 403);
+    $schoolYear = trim((string) ($_GET['school_year'] ?? ''));
+    $semester = trim((string) ($_GET['semester'] ?? ''));
+    $q = trim((string) ($_GET['q'] ?? ''));
+    if ($schoolYear !== '' && !preg_match('/^\d{4}-\d{4}$/', $schoolYear)) fail('Enter a school year like 2026-2027');
+    if ($semester !== '' && !in_array($semester, $semesters, true)) fail('Choose a semester');
+    if (strlen($q) > 80) $q = substr($q, 0, 80);
+
+    $where = ' WHERE 1=1';
+    $params = [];
     if ($user['role'] === 'student') {
-        $stmt = $db->prepare(
-            'SELECT id, school_year, semester, label, sent_at
-             FROM student_cors WHERE student_id = ?
-             ORDER BY school_year DESC, semester ASC'
-        );
-        $stmt->execute([$user['id']]);
-        ok(['cors' => $stmt->fetchAll()]);
+        $where .= ' AND c.student_id = ?';
+        $params[] = $user['id'];
     }
-    if ($user['role'] === 'admin') {
-        $stmt = $db->query(
-            'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at, u.name AS student_name
-             FROM student_cors c
-             JOIN users u ON u.id = c.student_id
-             ORDER BY c.sent_at DESC
-             LIMIT 40'
-        );
-        ok(['cors' => $stmt->fetchAll()]);
+    if ($schoolYear !== '') {
+        $where .= ' AND c.school_year = ?';
+        $params[] = $schoolYear;
     }
-    fail('Forbidden', 403);
+    if ($semester !== '') {
+        $where .= ' AND c.semester = ?';
+        $params[] = $semester;
+    }
+    if ($user['role'] === 'admin' && $q !== '') {
+        $where .= " AND (u.name LIKE ? ESCAPE '\\\\' OR c.student_id LIKE ? ESCAPE '\\\\' OR IFNULL(u.email, '') LIKE ? ESCAPE '\\\\')";
+        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+        $params[] = $like;
+        $params[] = $like;
+        $params[] = $like;
+    }
+
+    $yearSql = 'SELECT DISTINCT school_year FROM student_cors';
+    $yearParams = [];
+    if ($user['role'] === 'student') {
+        $yearSql .= ' WHERE student_id = ?';
+        $yearParams[] = $user['id'];
+    }
+    $yearSql .= ' ORDER BY school_year DESC';
+    $yearStmt = $db->prepare($yearSql);
+    $yearStmt->execute($yearParams);
+    $years = [];
+    foreach ($yearStmt->fetchAll() as $yearRow) {
+        $years[] = $yearRow['school_year'];
+    }
+
+    $sql = 'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at, u.name AS student_name
+            FROM student_cors c
+            JOIN users u ON u.id = c.student_id'
+        . $where
+        . ' ORDER BY c.school_year DESC, c.semester ASC, u.name ASC
+            LIMIT 1000';
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $cors = $stmt->fetchAll();
+    ok(['cors' => $cors, 'years' => $years, 'capped' => count($cors) >= 1000]);
 }
 
 if ($method === 'GET' && $action === 'cor') {

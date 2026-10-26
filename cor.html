@@ -24,6 +24,10 @@
     .cor-field { display:flex; flex-direction:column; gap:.28rem; }
     .cor-field.full { grid-column:1 / -1; }
     .cor-pick-filters { display:flex; flex-wrap:wrap; gap:.55rem; margin-top:.55rem; }
+    .cor-filter-row { display:flex; flex-wrap:wrap; gap:.55rem; margin:0 0 .9rem; }
+    .cor-filter-row select, .cor-filter-row input { flex:1 1 180px; min-width:0; border:1.5px solid #e4dffa; border-radius:10px; padding:.55rem .7rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#16132b; background:#fff; }
+    .cor-year-head { margin:.9rem 0 .15rem; font-size:.75rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6d28d9; }
+    .cor-empty { color:#6b7280; font-size:.9rem; margin:.2rem 0 .4rem; }
     .cor-pick-filters select { flex:1 1 140px; min-width:0; }
     #cor-student-pick { margin-top:.55rem; min-height:9.5rem; }
     .cor-pick-count { margin:.35rem 0 0; font-size:.78rem; color:#9ca3af; }
@@ -62,6 +66,10 @@
     html[data-theme="dark"] .cor-card,
     html[data-theme="dark"] .cor-choice { background:#1a1d2e; color:#f3f4f6; border-color:#2e3350; }
     html[data-theme="dark"] .cor-lead { color:#d1d5db !important; }
+    html[data-theme="dark"] .cor-filter-row select,
+    html[data-theme="dark"] .cor-filter-row input { background:#24283d !important; color:#f3f4f6 !important; border-color:#3d4468 !important; -webkit-text-fill-color:#f3f4f6; }
+    html[data-theme="dark"] .cor-year-head { color:#e9d5ff !important; }
+    html[data-theme="dark"] .cor-empty { color:#d1d5db !important; }
     html[data-theme="dark"] .cor-card h2,
     html[data-theme="dark"] .cor-choice strong { color:#f3f4f6; }
     html[data-theme="dark"] .cor-field label,
@@ -85,7 +93,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=18"></script>
+<script src="api.js?v=22"></script>
 <script src="script.js?v=12"></script>
 <script src="portal-sidebar.js?v=19"></script>
 <div class="topbar">
@@ -115,22 +123,31 @@
     <div class="cor-wrap">
       <div class="page-header"><h1>Certificate of Registration</h1></div>
       <div id="cor-student" style="display:none;">
-        <p class="cor-lead">Choose the school year and semester, then download that certificate.</p>
+        <p class="cor-lead">Choose an academic year and semester to open that certificate.</p>
+        <div class="cor-filter-row">
+          <select id="cor-view-year" aria-label="Academic year"><option value="">All academic years</option></select>
+          <select id="cor-view-sem" aria-label="Semester"><option value="">All semesters</option><option>1st Semester</option><option>2nd Semester</option><option>Summer</option></select>
+        </div>
         <div class="cor-choices" id="cor-choices"></div>
         <div class="cor-actions" id="cor-download-bar" style="display:none;">
           <button class="cor-btn" type="button" onclick="downloadSelectedCor()">Download</button>
         </div>
       </div>
       <div id="cor-admin" style="display:none;">
-        <p class="cor-lead">Send a certificate to one student. Sending the same year and semester again replaces that copy.</p>
+        <p class="cor-lead">Send a certificate to one student. The academic year groups it with the other certificates for that year. Sending the same year and semester again replaces that copy.</p>
         <div class="cor-card" id="cor-form"></div>
         <p class="cor-msg" id="cor-msg"></p>
         <div class="cor-actions">
           <button class="cor-btn" type="button" onclick="sendCor()">Send to student</button>
           <button class="cor-btn ghost" type="button" onclick="previewAdminCor()">Preview</button>
         </div>
-        <div class="cor-card" id="cor-sent-card" style="display:none;">
-          <h2 style="margin:0 0 .4rem;font-size:1rem;">Sent certificates</h2>
+        <div class="cor-card" id="cor-sent-card">
+          <h2 style="margin:0 0 .7rem;font-size:1rem;">Sent certificates</h2>
+          <div class="cor-filter-row">
+            <select id="cor-sent-year" aria-label="Academic year"><option value="">All academic years</option></select>
+            <select id="cor-sent-sem" aria-label="Semester"><option value="">All semesters</option><option>1st Semester</option><option>2nd Semester</option><option>Summer</option></select>
+            <input id="cor-sent-q" type="text" placeholder="Search student name or ID" aria-label="Search sent certificates">
+          </div>
           <div id="cor-sent"></div>
         </div>
       </div>
@@ -138,6 +155,6 @@
     </div>
   </main>
 </div>
-<script src="pages/cor.js?v=4"></script>
+<script src="pages/cor.js?v=6"></script>
 </body>
 </html>
