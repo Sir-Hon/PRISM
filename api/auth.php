@@ -1,9 +1,10 @@
 <?php
 // api/auth.php — Login, logout, register, session check
 require_once 'config.php';
+require_once 'roster_lib.php';
 setHeaders();
 startSession();
-prism_guard_mutating_request(['login', 'register', 'register_teacher', 'logout']);
+prism_guard_mutating_request(['login', 'register', 'register_teacher', 'logout', 'resend_verification']);
 
 $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
@@ -45,6 +46,10 @@ if ($method === 'POST' && $action === 'login') {
     }
 
     if (!$valid) fail('Incorrect credentials', 401);
+
+    if ($role === 'student' && prism_student_needs_email_verify($db, (string) $user['id'])) {
+        fail('Check your CTU email for a verification link before signing in.');
+    }
 
     if ($role === 'student' || $role === 'teacher') {
         $storedEmail = prism_normalize_ctu_email($user['email'] ?? '');
@@ -107,29 +112,27 @@ if ($method === 'GET' && $action === 'session') {
     ok(['loggedIn' => true, 'user' => $user, 'csrf_token' => prism_csrf_token()]);
 }
 
-// ── REGISTER STUDENT ───────────────────────────────────
+// ── REGISTER STUDENT (roster match only) ───────────────
 if ($method === 'POST' && $action === 'register') {
-    prism_rate_limit('register', 6, 900);
-    $b       = getBody();
-    $id      = trim($b['id']       ?? '');
-    $pw      = trim($b['password'] ?? '');
-    $name    = trim($b['name']     ?? '');
-    $section = trim($b['section']  ?? '');
+    $result = prism_register_from_roster(getDB(), getBody(), prism_client_ip());
+    if (empty($result['ok'])) {
+        fail($result['error'], (int) ($result['status'] ?? 400));
+    }
+    ok(['id' => $result['id']]);
+}
 
-    if (!$id || !$pw || !$name) fail('Missing required fields');
-    if (!prism_is_ctu_student_id($id)) fail('Student ID must be exactly 7 digits');
-    if (!prism_is_ctu_student_section($section)) fail('Select your college, program, year, and section');
-    if (strlen($pw) < 6)        fail('Password must be at least 6 characters');
+if ($method === 'POST' && $action === 'resend_verification') {
+    $b = getBody();
+    prism_resend_verification(getDB(), (string) ($b['id'] ?? ''), (string) ($b['email'] ?? ''), prism_client_ip());
+    ok(['message' => 'If that account is waiting for verification, a new link was sent.']);
+}
 
-    $db    = getDB();
-    $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
-    $check->execute([$id]);
-    if ($check->fetch()) fail('That ID is already registered');
-
-    $hash = password_hash($pw, PASSWORD_DEFAULT);
-    // The CTU email is assigned later by an administrator.
-    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, ?, ?, ?, ?)')->execute([$id, $hash, 'student', $name, $section, '']);
-    ok(['id' => $id]);
+if ($method === 'GET' && $action === 'verify_email') {
+    $okVerify = prism_consume_verification(getDB(), (string) ($_GET['token'] ?? ''));
+    if (!$okVerify) {
+        fail('This verification link is invalid or has expired.', 400);
+    }
+    ok(['verified' => true]);
 }
 
 // ── REGISTER TEACHER (closed: admins create teacher accounts) ──

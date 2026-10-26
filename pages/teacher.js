@@ -137,8 +137,6 @@ function genJoinCode() {
 let activeClassId  = null;
 /** Announcements: __all__ = whole class; else section label */
 let activeStreamSection = '__all__';
-let activeSection  = 'all';
-let questions      = [];
 
 function fmtDashEvTime(t) {
   if (!t) return '';
@@ -269,7 +267,6 @@ async function onTeacherClassChange(id) {
   activeClassId = id;
   try { sessionStorage.setItem('prism_teacher_active_class_id', id); } catch (e) {}
   if (typeof markSidebarClassActive === 'function') markSidebarClassActive(id);
-  activeSection = 'all';
   loadStreamSectionForClass(id);
   await refreshClassData(id);
   renderAll();
@@ -651,93 +648,3 @@ function downloadMaterial(id) {
   a.click();
   document.body.removeChild(a);
 }
-
-/* ═══════════════════════════ RECORDS ═══════════════════════════ */
-function renderSectionPills(){ /* moved to records.html */ }
-function setSection(sec) { activeSection=sec; renderSectionPills(); renderRecords(); }
-
-function calcGWA(rec) {
-  const q=parseFloat(rec.quiz)||0,a=parseFloat(rec.activity)||0,m=parseFloat(rec.midterm)||0,f=parseFloat(rec.final)||0;
-  if(!q&&!a&&!m&&!f) return null;
-  return ((q*.2)+(a*.2)+(m*.3)+(f*.3)).toFixed(1);
-}
-function gradeInfo(gwa) {
-  if(gwa===null) return{l:'—',c:'gF'};
-  const s=parseFloat(gwa);
-  if(s>=90)return{l:'A',c:'gA'};if(s>=80)return{l:'B',c:'gB'};
-  if(s>=75)return{l:'C',c:'gC'};if(s>=60)return{l:'D',c:'gD'};
-  return{l:'F',c:'gF'};
-}
-
-function getRecords()    { return JSON.parse(localStorage.getItem('prism_student_records')||'{}'); }
-function saveRecords(r)  { localStorage.setItem('prism_student_records',JSON.stringify(r)); }
-
-function renderRecords(){ /* moved to records.html */ }
-function updateRec(key,field,val){const r=getRecords();if(!r[key])r[key]={};r[key][field]=val;saveRecords(r);renderRecords();}
-
-function exportCSV() {
-  const cls=CLASSES.find(c=>c.id===activeClassId), students=getStudents(activeClassId), r=getRecords();
-  let csv='Name,ID,Section,Attendance,Quiz,Activity,Midterm,Final,GWA,Grade,Remarks\n';
-  students.forEach(s=>{
-    const rec=r[cls.id+':'+s.id]||{};
-    const gwa=calcGWA(rec)||''; const{l}=gradeInfo(gwa?parseFloat(gwa):null);
-    csv+=`"${s.name}","${s.id}","${s.section||''}","${rec.attendance||''}","${rec.quiz||''}","${rec.activity||''}","${rec.midterm||''}","${rec.final||''}","${gwa}","${l}","${rec.remarks||''}"\n`;
-  });
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-  a.download=(cls?cls.subject:'class').replace(/\s+/g,'-')+'-records.csv';
-  a.click();
-}
-
-function openBulkModal(){document.getElementById('bulk-overlay').classList.add('active');}
-function closeBulk(){document.getElementById('bulk-overlay').classList.remove('active');}
-function saveBulk(){
-  const comp=document.getElementById('bulk-comp').value, grade=document.getElementById('bulk-grade').value;
-  if(!grade) return;
-  const r=getRecords(), students=getStudents(activeClassId);
-  students.forEach(s=>{const key=activeClassId+':'+s.id;if(!r[key])r[key]={};r[key][comp]=grade;});
-  saveRecords(r); closeBulk(); renderRecords();
-}
-var bulkOverlay = document.getElementById('bulk-overlay');
-if (bulkOverlay) bulkOverlay.addEventListener('click',function(e){if(e.target===this)closeBulk();});
-
-/* ═══════════════════════════ QUIZ MAKER ═══════════════════════════ */
-function addQuestion(pre) {
-  const q=pre||{id:Date.now().toString(),type:'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true'};
-  questions.push(q); renderQMQuestions();
-}
-function removeQuestion(id){questions=questions.filter(q=>q.id!==id);renderQMQuestions();}
-function renderQMQuestions(){ /* moved to quizmaker.html */ }
-function renderOpts(q){
-  if(q.type==='mc')return`<div class="mc-opts">${q.options.map((o,i)=>`
-    <div class="mc-opt-row">
-      <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
-      <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
-      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})" title="Remove option" aria-label="Remove option">&times;</button>`:''}
-    </div>`).join('')}
-    ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
-  </div>`;
-  if(q.type==='tf')return`<div class="tf-row">
-    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')"> True</button>
-    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')"> False</button>
-  </div>`;
-  if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
-  if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;
-  return '';
-}
-function changeQType(id,type){const q=questions.find(x=>x.id===id);if(!q)return;q.type=type;if(type==='mc'&&(!q.options||!q.options.length))q.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];if(type==='tf')q.tfAnswer=q.tfAnswer||'true';document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function updateQ(id,f,v){const q=questions.find(x=>x.id===id);if(q)q[f]=f==='points'?parseInt(v)||1:v;}
-function updateOpt(id,i,v){const q=questions.find(x=>x.id===id);if(q&&q.options[i])q.options[i].text=v;}
-function setCorrect(id,i){const q=questions.find(x=>x.id===id);if(!q)return;q.options.forEach((o,j)=>o.correct=j===i);}
-function addOpt(id){const q=questions.find(x=>x.id===id);if(!q||q.options.length>=6)return;q.options.push({text:'',correct:false});document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function removeOpt(id,i){const q=questions.find(x=>x.id===id);if(!q||q.options.length<=2)return;q.options.splice(i,1);if(!q.options.some(o=>o.correct))q.options[0].correct=true;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function setTF(id,v){const q=questions.find(x=>x.id===id);if(!q)return;q.tfAnswer=v;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-function getQMData(){ return null; /* moved to quizmaker.html */ }
-function publishQuiz(){ /* moved to quizmaker.html */ }
-function saveDraft(){ /* moved to quizmaker.html */ }
-function showQMsg(m,t){ console.log('QM:',m); }
-function resetQM(){ questions=[]; }
-function renderSavedQuizzes(){ /* moved to quizmaker.html */ }
-async function deleteQuiz(id){if(!confirm('Delete this quiz?'))return;try{await PrismQuizzes.delete(id);}catch(e){alert(e.message||'Could not delete quiz.');return;}saveQuizzes(getQuizzes().filter(q=>q.id!==id));renderSavedQuizzes();renderStats();}

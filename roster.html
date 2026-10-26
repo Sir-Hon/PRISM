@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PRISM — Student Roster</title>
+  <link rel="icon" type="image/png" href="Prismcrys.png"/>
+  <link rel="stylesheet" href="portal.css?v=13"/>
+  <script src="portal-mobile.js?v=4" defer></script>
+  <style>
+    :root { --a:#f59e0b; --a-dark:#d97706; }
+    .admin-hero { border-radius:12px; padding:1.5rem 1.75rem; background:#1c1300; color:#fff; margin-bottom:1.25rem; }
+    .admin-hero-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#fcd34d; margin-bottom:.35rem; }
+    .admin-hero h1 { font-family:'DM Sans',sans-serif; font-size:1.55rem; font-weight:700; margin:0 0 .3rem; }
+    .admin-hero p { font-size:.9rem; color:rgba(255,255,255,.75); margin:0; }
+    .roster-tools { display:flex; flex-wrap:wrap; gap:.6rem; margin-bottom:1rem; }
+    .roster-panel { background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:1rem 1.1rem; margin-bottom:1rem; }
+    .roster-panel h2 { font-size:1rem; margin:0 0 .75rem; }
+    .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.7rem; }
+    .fields label { display:block; font-size:.75rem; font-weight:700; margin-bottom:.25rem; color:#3c4043; }
+    .fields input { width:100%; border:1px solid #dadce0; border-radius:8px; padding:.55rem .65rem; font:inherit; }
+    .row-actions { display:flex; gap:.4rem; flex-wrap:wrap; }
+    .badge { display:inline-block; border-radius:999px; padding:.12rem .5rem; font-size:.72rem; font-weight:700; }
+    .badge-unclaimed { background:#fef3c7; color:#92400e; }
+    .badge-claimed { background:#dcfce7; color:#166534; }
+    .badge-expired { background:#fee2e2; color:#991b1b; }
+    .badge-revoked { background:#e5e7eb; color:#374151; }
+    .err-row { background:#fff7f7; }
+    .ok-row { background:#f6fff8; }
+    table { width:100%; border-collapse:collapse; font-size:.84rem; }
+    th, td { text-align:left; padding:.45rem .4rem; border-bottom:1px solid #eee; vertical-align:top; }
+    .pager { display:flex; gap:.5rem; align-items:center; margin-top:.75rem; }
+    .code-box { font-family:ui-monospace,monospace; font-size:1.4rem; letter-spacing:.12em; background:#111; color:#fff; padding:.8rem 1rem; border-radius:10px; }
+    .warn { color:#92400e; font-weight:700; margin:.6rem 0; }
+    #code-modal, #preview-wrap { display:none; }
+  </style>
+</head>
+<body>
+  <div class="main">
+    <div class="admin-hero">
+      <div class="admin-hero-label">Admin</div>
+      <h1>Student roster</h1>
+      <p>Add students before they can register. The registration code is shown once.</p>
+    </div>
+
+    <div class="roster-tools">
+      <button class="btn btn-primary" type="button" id="btn-show-add">Add student</button>
+      <label class="btn btn-ghost" style="cursor:pointer;">
+        Import CSV
+        <input type="file" id="csv-file" accept=".csv,text/csv" hidden/>
+      </label>
+    </div>
+
+    <div class="roster-panel" id="add-panel" style="display:none;">
+      <h2>Add one student</h2>
+      <div class="fields">
+        <div><label for="a-id">ID number</label><input id="a-id" maxlength="7" inputmode="numeric"/></div>
+        <div><label for="a-email">CTU email</label><input id="a-email" type="email"/></div>
+        <div><label for="a-first">First name</label><input id="a-first"/></div>
+        <div><label for="a-last">Last name</label><input id="a-last"/></div>
+        <div><label for="a-course">Course</label><input id="a-course" placeholder="BSIT"/></div>
+        <div><label for="a-year">Year / section</label><input id="a-year" placeholder="1-A"/></div>
+      </div>
+      <div style="margin-top:.8rem;"><button class="btn btn-primary" type="button" id="btn-add">Save and show code</button></div>
+    </div>
+
+    <div class="roster-panel" id="code-modal">
+      <h2>Registration code</h2>
+      <div class="code-box" id="code-value"></div>
+      <p class="warn">This code will not be shown again.</p>
+      <button class="btn btn-primary" type="button" id="btn-copy">Copy code</button>
+    </div>
+
+    <div class="roster-panel" id="preview-wrap">
+      <h2>CSV preview</h2>
+      <p id="preview-summary"></p>
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>Line</th><th>ID</th><th>Email</th><th>Name</th><th>Course</th><th>Status</th></tr></thead>
+          <tbody id="preview-body"></tbody>
+        </table>
+      </div>
+      <div style="margin-top:.8rem;display:flex;gap:.5rem;">
+        <button class="btn btn-primary" type="button" id="btn-commit">Import valid rows</button>
+        <button class="btn btn-ghost" type="button" id="btn-download" style="display:none;">Download codes</button>
+      </div>
+    </div>
+
+    <div class="roster-panel">
+      <h2>Roster</h2>
+      <div class="roster-tools">
+        <input id="q" placeholder="Search ID, name, or email" style="flex:1;min-width:180px;border:1px solid #dadce0;border-radius:8px;padding:.5rem .65rem;"/>
+        <select id="status">
+          <option value="">All statuses</option>
+          <option value="unclaimed">Unclaimed</option>
+          <option value="claimed">Claimed</option>
+          <option value="expired">Expired</option>
+          <option value="revoked">Revoked</option>
+        </select>
+        <button class="btn btn-ghost" type="button" id="btn-search">Search</button>
+      </div>
+      <div style="overflow:auto;">
+        <table>
+          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Course</th><th>Status</th><th></th></tr></thead>
+          <tbody id="roster-body"></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button class="btn btn-ghost" type="button" id="btn-prev">Previous</button>
+        <span id="page-label"></span>
+        <button class="btn btn-ghost" type="button" id="btn-next">Next</button>
+      </div>
+    </div>
+    <div class="msg error" id="page-error" style="display:none;"></div>
+  </div>
+  <script src="api.js?v=19"></script>
+  <script src="script.js?v=12"></script>
+  <script src="portal-sidebar.js?v=19"></script>
+  <script src="pages/roster.js?v=1"></script>
+</body>
+</html>

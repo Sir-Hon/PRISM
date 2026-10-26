@@ -8,7 +8,7 @@ try { sessionStorage.removeItem('prism_logged_in'); } catch (e) { /* ignore */ }
       label: 'Student', accent: '#6366f1',
       badgeBg: 'rgba(99,102,241,.15)', badgeColor: '#a5b4fc',
       placeholder: 'e.g. 1234567',
-      note: '<strong>Students only.</strong> Use your 7-digit CTU student ID and the CTU email your administrator assigned. If you don\'t have an account yet, register first.'
+      note: '<strong>Students only.</strong> Use your 7-digit CTU student ID and the CTU email on your roster. New student? Register with the code from your administrator.'
     },
     teacher: {
       label: 'Teacher', accent: '#10b981',

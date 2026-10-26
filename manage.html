@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PRISM — Account Management</title>
+  <title>PRISM ï¿½ Account Management</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
   <link rel="stylesheet" href="portal.css?v=13"/>
   <script src="portal-mobile.js?v=4" defer></script>
@@ -135,7 +135,7 @@
 <body>
 <script src="api.js?v=18"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=18"></script>
+<script src="portal-sidebar.js?v=19"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <span class="admin-badge"> Admin Panel</span>
@@ -208,7 +208,7 @@
     <!-- --- TAB: ALL USERS --- -->
     <div class="tab-panel" id="tab-users">
       <div class="users-controls">
-        <input class="search-input" id="search-input" placeholder="  Search by name or ID…" oninput="renderTable()"/>
+        <input class="search-input" id="search-input" placeholder="  Search by name or IDï¿½" oninput="renderTable()"/>
         <div class="filter-btns">
           <button class="filter-btn active-all" data-filter="all"     onclick="setFilter('all',this)">All</button>
           <button class="filter-btn"            data-filter="student" onclick="setFilter('student',this)">Students</button>
@@ -245,7 +245,7 @@
           <div class="f full" style="margin-bottom:1rem;">
             <label style="display:block;font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.45rem;">New Passphrase</label>
             <div class="pw-wrap">
-              <input type="password" id="new-pp" class="f" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Set a strong passphrase…" oninput="ppStrengthCheck()"/>
+              <input type="password" id="new-pp" class="f" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Set a strong passphraseï¿½" oninput="ppStrengthCheck()"/>
               <button class="pw-tog" onclick="togglePP()" type="button"></button>
             </div>
             <div id="pp-strength-wrap" style="display:none;margin-top:.4rem;">
@@ -257,7 +257,7 @@
           <div class="f full" style="margin-bottom:1.2rem;">
             <label style="display:block;font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.45rem;">Confirm Passphrase</label>
             <div class="pw-wrap">
-              <input type="password" id="confirm-pp" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Re-enter passphrase…"/>
+              <input type="password" id="confirm-pp" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Re-enter passphraseï¿½"/>
               <button class="pw-tog" onclick="togglePPConfirm()" type="button"></button>
             </div>
           </div>

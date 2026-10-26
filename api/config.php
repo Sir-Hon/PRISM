@@ -274,6 +274,40 @@ function prism_rate_limit(string $bucket, int $max, int $windowSec): void {
     @file_put_contents($file, json_encode($hits), LOCK_EX);
 }
 
+function prism_rate_bucket_file(string $bucket, string $subject): string {
+    $dir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism_rl';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0700, true);
+    }
+    $clean = preg_replace('/[^A-Za-z0-9:._-]/', '', $subject) ?: 'x';
+    return $dir . DIRECTORY_SEPARATOR . hash('sha256', $bucket . '|' . $clean);
+}
+
+function prism_rate_limit_hits(string $bucket, string $subject, int $windowSec): array {
+    $file = prism_rate_bucket_file($bucket, $subject);
+    $now = time();
+    $hits = [];
+    if (is_readable($file)) {
+        $decoded = json_decode((string) file_get_contents($file), true);
+        if (is_array($decoded)) {
+            $hits = $decoded;
+        }
+    }
+    return array_values(array_filter($hits, static function ($t) use ($now, $windowSec) {
+        return is_int($t) && $t > ($now - $windowSec);
+    }));
+}
+
+function prism_rate_limit_blocked(string $bucket, string $subject, int $max, int $windowSec): bool {
+    return count(prism_rate_limit_hits($bucket, $subject, $windowSec)) >= $max;
+}
+
+function prism_rate_limit_record(string $bucket, string $subject, int $windowSec): void {
+    $hits = prism_rate_limit_hits($bucket, $subject, $windowSec);
+    $hits[] = time();
+    @file_put_contents(prism_rate_bucket_file($bucket, $subject), json_encode($hits), LOCK_EX);
+}
+
 function prism_logout_session(): void {
     startSession();
     $_SESSION = [];

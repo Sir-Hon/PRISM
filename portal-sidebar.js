@@ -40,6 +40,7 @@ var ROLE_NAV = {
   admin: [
     { page: 'home', href: 'admin.html', icon: 'dashboard', label: 'Dashboard' },
     { page: 'manage', href: 'manage.html', icon: 'users', label: 'Manage Users' },
+    { page: 'roster', href: 'roster.html', icon: 'records', label: 'Roster' },
     { page: 'cor', href: 'cor.html', icon: 'cor', label: 'COR' },
     { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
   ],
@@ -371,6 +372,7 @@ function prismActivePageFromPath() {
     cor: 'cor',
     status: 'status',
     manage: 'manage',
+    roster: 'roster',
     profile: 'home',
   };
   return map[file] || file || 'home';

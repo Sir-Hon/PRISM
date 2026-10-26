@@ -85,65 +85,37 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=18"></script>
+<script src="api.js?v=19"></script>
 <div class="page">
   <div class="page-header">
     <a class="logo" href="login.html"><div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div><span class="logo-text">PRISM</span></a>
     <h1 class="page-title">Student Registration</h1>
-    <p class="page-sub">Create your student account. An administrator assigns your CTU email.</p>
+    <p class="page-sub">Register with the ID, CTU email, and code from your administrator.</p>
   </div>
 
   <div class="reg-card" id="reg-card">
     <div style="text-align:center"><span class="student-badge"> Student Account</span></div>
     <div class="notice">
-      <strong>Note:</strong> This page is for <strong>student accounts only</strong>.
-      Teacher and admin accounts are created exclusively by the portal administrator.
-      Your CTU email is also assigned by an administrator after you register. You can sign in once that address is on your account.
+      <strong>Note:</strong> Use the student ID, @ctu.edu.ph email, and registration code your administrator gave you.
+      Your name and course come from the school roster. Teacher and admin accounts are not created here.
     </div>
+    <div class="msg error" id="reg-banner" style="display:none;margin-bottom:1rem;"></div>
 
     <div class="fields-grid" id="reg-form">
-      <div class="field"><label>First Name</label><input type="text" id="f-firstname" placeholder="e.g. Juan" autocomplete="off"/></div>
-      <div class="field"><label>Last Name</label><input type="text" id="f-lastname" placeholder="e.g. Dela Cruz" autocomplete="off"/></div>
       <div class="field full">
-        <label>Student ID Number</label>
-        <input type="text" id="f-id" placeholder="e.g. 1234567" inputmode="numeric" maxlength="7" pattern="[0-9]{7}" autocomplete="off"/>
-        <div class="field-hint">Exactly 7 digits — your CTU student ID. This is also your login.</div>
+        <label for="f-id">Student ID Number</label>
+        <input type="text" id="f-id" placeholder="e.g. 1234567" inputmode="numeric" maxlength="7" autocomplete="off"/>
+        <div class="field-hint" id="hint-id">Exactly 7 digits.</div>
       </div>
       <div class="field full">
-        <label>College</label>
-        <select id="f-college">
-          <option value="" disabled hidden selected>Select college</option>
-          <option value="CoED">College of Education</option>
-          <option value="CoTE">College of Technology and Engineering</option>
-        </select>
+        <label for="f-email">CTU Email</label>
+        <input type="email" id="f-email" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/>
+        <div class="field-hint" id="hint-email"></div>
       </div>
       <div class="field full">
-        <label>Program</label>
-        <select id="f-program" disabled>
-          <option value="" disabled hidden selected>Select college first</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Year</label>
-        <select id="f-year" disabled>
-          <option value="" disabled hidden selected>Select year</option>
-          <option value="1">1</option>
-          <option value="2">2</option>
-          <option value="3">3</option>
-          <option value="4">4</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Section</label>
-        <select id="f-secletter" disabled>
-          <option value="" disabled hidden selected>Select section</option>
-          <option value="A">A</option>
-          <option value="B">B</option>
-          <option value="C">C</option>
-          <option value="D">D</option>
-          <option value="E">E</option>
-          <option value="F">F</option>
-        </select>
+        <label for="f-code">Registration Code</label>
+        <input type="text" id="f-code" placeholder="e.g. VWIM1194" maxlength="8" autocomplete="off"/>
+        <div class="field-hint" id="hint-code">8 characters from your administrator.</div>
       </div>
       <div class="field full">
         <label>Password</label>
@@ -171,16 +143,16 @@
     <div class="success-screen" id="success-screen">
       <div class="check-icon"></div>
       <h3>Account Created!</h3>
-      <p>Your student account has been registered.<br/>Your login ID is:</p>
+      <p>Your student account has been registered.<br/>Sign in with your student ID, CTU email, and password.</p>
       <div class="id-box" id="success-id"></div>
-      <p style="font-size:.76rem;">An administrator will assign your CTU email. Sign in with your student ID, that email, and your password.</p>
-      <button class="go-btn" onclick="window.location.href='login.html'">Go to Login ?</button>
+      <p style="font-size:.76rem;">Your name and course were copied from the roster.</p>
+      <button class="go-btn" onclick="window.location.href='login.html'">Go to Login</button>
     </div>
   </div>
 
   <p class="login-link">Already have an account? <a href="login.html">Sign in here</a></p>
 </div>
 
-<script src="pages/register.js?v=14"></script>
+<script src="pages/register.js?v=15"></script>
 </body>
 </html>

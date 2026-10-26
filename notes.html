@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PRISM — Notes</title>
+  <title>PRISM ï¿½ Notes</title>
   <link rel="icon" type="image/png" href="icon-dog.png"/>
   <link rel="stylesheet" href="portal.css?v=13"/>
   <script src="portal-mobile.js?v=4" defer></script>
@@ -141,7 +141,7 @@
 <body>
 <script src="api.js?v=18"></script>
 <script src="script.js?v=11"></script>
-<script src="portal-sidebar.js?v=18"></script>
+<script src="portal-sidebar.js?v=19"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -190,13 +190,13 @@
         <div class="note-editor-panel" id="note-editor-panel">
           <div class="empty-editor-msg" id="empty-msg"><span></span>Select a note or create a new one</div>
           <div id="active-note-editor" style="display:none;flex:1;flex-direction:column;">
-            <input class="note-title-input" id="note-title" placeholder="Note title…" oninput="autosave()"/>
+            <input class="note-title-input" id="note-title" placeholder="Note titleï¿½" oninput="autosave()"/>
             <div class="fmt-bar">
               <button class="fmt-btn" onclick="execFmt('bold')"><b>B</b></button>
               <button class="fmt-btn" onclick="execFmt('italic')"><i>I</i></button>
               <button class="fmt-btn" onclick="execFmt('underline')"><u>U</u></button>
               <button class="fmt-btn" onclick="execFmt('strikeThrough')">S?</button>
-              <button class="fmt-btn" onclick="execFmt('insertUnorderedList')">• List</button>
+              <button class="fmt-btn" onclick="execFmt('insertUnorderedList')">ï¿½ List</button>
               <button class="fmt-btn" onclick="execFmt('insertOrderedList')">1. List</button>
               <button class="fmt-btn" onclick="execFmt('justifyLeft')">Left</button>
               <button class="fmt-btn" onclick="execFmt('justifyCenter')">Center</button>
@@ -224,7 +224,7 @@
 <div class="nb-overlay" id="nb-overlay">
   <div class="nb-modal">
     <h3 id="nb-modal-title">New Notebook</h3>
-    <input type="text" id="nb-name-input" placeholder="Notebook name…" maxlength="40"/>
+    <input type="text" id="nb-name-input" placeholder="Notebook nameï¿½" maxlength="40"/>
     <div class="section-label-small">Color</div>
     <div class="nb-color-picker" id="nb-color-picker"></div>
     <div class="nb-modal-actions">

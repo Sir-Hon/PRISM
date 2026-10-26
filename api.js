@@ -624,18 +624,48 @@ const PrismAuth = {
     return data;
   },
 
-  async register(id, password, name, section, email) {
-    return await apiCall('auth', 'register', 'POST', { id, password, name, section, email: email || '' });
-  },
-
-  async registerTeacher(id, password, name, invite_code, email) {
-    return await apiCall('auth', 'register_teacher', 'POST', { id, password, name, invite_code, email: email || '' });
+  async register(id, password, confirm, email, code) {
+    return await apiCall('auth', 'register', 'POST', {
+      id_number: id,
+      password: password,
+      confirm_password: confirm,
+      email: email || '',
+      code: code || ''
+    });
   },
 };
 
 // ══════════════════════════════════════════════════════
 //  CLASSES
 // ══════════════════════════════════════════════════════
+const PrismRoster = {
+  async list(q, status, page) {
+    return await apiGet('roster', 'list', { q: q || '', status: status || '', page: page || 1 });
+  },
+  async add(row) {
+    return await apiCall('roster', 'add', 'POST', row);
+  },
+  async preview(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    return await apiForm('roster', 'preview', fd);
+  },
+  async import(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    return await apiForm('roster', 'import', fd);
+  },
+  async regenerate(idNumber) {
+    return await apiCall('roster', 'regenerate', 'POST', { id_number: idNumber });
+  },
+  async revoke(idNumber) {
+    return await apiCall('roster', 'revoke', 'POST', { id_number: idNumber });
+  },
+  async remove(idNumber) {
+    return await apiCall('roster', 'delete', 'POST', { id_number: idNumber });
+  },
+};
+
 const PrismClasses = {
   async getMyClasses() {
     const data = await apiGet('classes', 'mine');

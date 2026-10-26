@@ -143,8 +143,6 @@ let teacherAssignmentViewFilter = '__all__';
 /** __all__ = list every material; else one material id (teacher materials tab) */
 let teacherMaterialViewFilter = '__all__';
 let activeSub      = 'materials';
-let activeSection  = 'all';
-let questions      = [];
 
 /* ═══════════════════════════ INIT ═══════════════════════════ */
 window.addEventListener('DOMContentLoaded', async () => {
@@ -549,78 +547,9 @@ async function regenJoinCode(classId) {
   renderWorkspacePage();
 }
 
-/* ═══════════════════════════ RECORDS (stubs) ═══════════════════════════ */
-function renderSectionPills(){ /* moved to records.html */ }
-function setSection(sec) { activeSection=sec; renderSectionPills(); renderRecords(); }
-
-function calcGWA(rec) {
-  const q=parseFloat(rec.quiz)||0,a=parseFloat(rec.activity)||0,m=parseFloat(rec.midterm)||0,f=parseFloat(rec.final)||0;
-  if(!q&&!a&&!m&&!f) return null;
-  return ((q*.2)+(a*.2)+(m*.3)+(f*.3)).toFixed(1);
-}
-function gradeInfo(gwa) {
-  if(gwa===null) return{l:'—',c:'gF'};
-  const s=parseFloat(gwa);
-  if(s>=90)return{l:'A',c:'gA'};if(s>=80)return{l:'B',c:'gB'};
-  if(s>=75)return{l:'C',c:'gC'};if(s>=60)return{l:'D',c:'gD'};
-  return{l:'F',c:'gF'};
-}
-
-function getRecords()    { return JSON.parse(localStorage.getItem('prism_student_records')||'{}'); }
-function saveRecords(r)  { localStorage.setItem('prism_student_records',JSON.stringify(r)); }
-
-function renderRecords(){ /* moved to records.html */ }
-function updateRec(key,field,val){const r=getRecords();if(!r[key])r[key]={};r[key][field]=val;saveRecords(r);renderRecords();}
-
-/* ═══════════════════════════ QUIZ MAKER ═══════════════════════════ */
-function addQuestion(pre) {
-  const q=pre||{id:Date.now().toString(),type:'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true'};
-  questions.push(q); renderQMQuestions();
-}
-function removeQuestion(id){questions=questions.filter(q=>q.id!==id);renderQMQuestions();}
-function renderQMQuestions(){ /* moved to quizmaker.html */ }
-function renderOpts(q){
-  if(q.type==='mc')return`<div class="mc-opts">${q.options.map((o,i)=>`
-    <div class="mc-opt-row">
-      <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
-      <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
-      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})" title="Remove option" aria-label="Remove option">&times;</button>`:''}
-    </div>`).join('')}
-    ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
-  </div>`;
-  if(q.type==='tf')return`<div class="tf-row">
-    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')"> True</button>
-    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')"> False</button>
-  </div>`;
-  if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
-  if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;
-  return '';
-}
-function changeQType(id,type){const q=questions.find(x=>x.id===id);if(!q)return;q.type=type;if(type==='mc'&&(!q.options||!q.options.length))q.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];if(type==='tf')q.tfAnswer=q.tfAnswer||'true';document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function updateQ(id,f,v){const q=questions.find(x=>x.id===id);if(q)q[f]=f==='points'?parseInt(v)||1:v;}
-function updateOpt(id,i,v){const q=questions.find(x=>x.id===id);if(q&&q.options[i])q.options[i].text=v;}
-function setCorrect(id,i){const q=questions.find(x=>x.id===id);if(!q)return;q.options.forEach((o,j)=>o.correct=j===i);}
-function addOpt(id){const q=questions.find(x=>x.id===id);if(!q||q.options.length>=6)return;q.options.push({text:'',correct:false});document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function removeOpt(id,i){const q=questions.find(x=>x.id===id);if(!q||q.options.length<=2)return;q.options.splice(i,1);if(!q.options.some(o=>o.correct))q.options[0].correct=true;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function setTF(id,v){const q=questions.find(x=>x.id===id);if(!q)return;q.tfAnswer=v;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-
-function getQMData(){ return null; /* moved to quizmaker.html */ }
-function publishQuiz(){ /* moved to quizmaker.html */ }
-function saveDraft(){ /* moved to quizmaker.html */ }
-function showQMsg(m,t){ console.log('QM:',m); }
-function resetQM(){ questions=[]; }
-function renderSavedQuizzes(){ /* moved to quizmaker.html */ }
-async function deleteQuiz(id){if(!confirm('Delete this quiz?'))return;try{await PrismQuizzes.delete(id);}catch(e){alert(e.message||'Could not delete quiz.');return;}saveQuizzes(getQuizzes().filter(q=>q.id!==id));renderSavedQuizzes();}
-
 /* ═══════════════════════════ MATERIALS ═══════════════════════════ */
 var _matFiles = [];
 var _asgnFile = null;
-var PRISM_MAT_ACCEPT = {
-  file: '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip',
-  image: '.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp',
-  'video-file': '.mp4,.webm,.mov,.ogg,.ogv',
-};
 
 function prismTeacherMaxBytes() {
   return (typeof PRISM_MAX_FILE_BYTES === 'number') ? PRISM_MAX_FILE_BYTES : 15 * 1024 * 1024;
@@ -635,7 +564,6 @@ function prismTeacherCheckFile(file) {
   return '';
 }
 
-function onMatTypeChange() { /* type picker removed — file + link are always available */ }
 
 function matLinkRowHtml() {
   return '<div class="mat-link-row" style="display:flex;gap:.4rem;margin-top:.4rem;align-items:center;">'

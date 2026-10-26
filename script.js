@@ -18,7 +18,6 @@
     'login.html',
     'register.html',
     'teacher-register.html',
-    'teacher_register.html',
     'admin-register.html',
   ];
 
@@ -27,7 +26,6 @@
     'calendar.html': ['student', 'teacher', 'admin'],
     'notes.html': ['student'],
     'quizzes.html': ['student'],
-    'call.html': ['student', 'teacher', 'admin'], // leftover URL → send home below
     'teacher.html': ['teacher'],
     'teacher-class.html': ['teacher'],
     'quizmaker.html': ['teacher'],
@@ -36,6 +34,7 @@
     'lesson.html': ['teacher'],
     'admin.html': ['admin'],
     'manage.html': ['admin'],
+    'roster.html': ['admin'],
     'profile.html': ['student', 'teacher', 'admin'],
     'cor.html': ['student', 'admin'],
     'status.html': ['student'],
@@ -48,12 +47,6 @@
   // Hide the shell until the session check finishes. Otherwise index.html
   // (the student dashboard) paints, then the guard redirects to login.
   document.documentElement.style.visibility = 'hidden';
-
-  if (currentPage === 'call.html') {
-    var r = (sessionStorage.getItem('prism_role') || 'student').toLowerCase();
-    window.location.replace(r === 'teacher' ? 'teacher.html' : r === 'admin' ? 'admin.html' : 'index.html');
-    return;
-  }
 
   function revealIfAllowed(user) {
     if (user) document.documentElement.style.visibility = '';
