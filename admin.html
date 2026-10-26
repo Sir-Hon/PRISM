@@ -213,7 +213,7 @@
     <div id="admin-home">
       <div class="gc-head">
         <h2>Portal</h2>
-        <button type="button" class="gc-plus" onclick="openCreateModal('teacher')" title="Add teacher">+</button>
+        <button type="button" class="gc-plus" onclick="location.href='roster.html?add=teacher'" title="Add teacher">+</button>
       </div>
       <div class="gc-grid">
         <button type="button" class="gc-card" onclick="openAdminCard('teachers')">
@@ -246,7 +246,7 @@
       <div class="wrap-table">
         <div class="table-toolbar">
           <input class="t-search" id="teacher-search" placeholder=" Search teachers�" oninput="renderTeachers()"/>
-          <button class="a-btn" onclick="openCreateModal('teacher')">+ Add Teacher</button>
+          <button class="a-btn" onclick="location.href='roster.html?add=teacher'">+ Add Teacher</button>
           <span style="margin-left:auto;font-size:.82rem;color:#9ca3af;" id="teacher-count"></span>
         </div>
         <table>
@@ -261,7 +261,7 @@
       <div class="wrap-table">
         <div class="table-toolbar">
           <input class="t-search" id="student-search" placeholder=" Search students�" oninput="renderStudents()"/>
-          <span style="font-size:.82rem;color:#9ca3af;">Assign a CTU email before the student can sign in.</span>
+          <span style="font-size:.82rem;color:#9ca3af;">Student logins are created on the Roster.</span>
           <span style="margin-left:auto;font-size:.82rem;color:#9ca3af;" id="student-count"></span>
         </div>
         <table>

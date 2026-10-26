@@ -1,6 +1,7 @@
 <?php
 // api/profile.php — User profile, events, admin tools
 require_once 'config.php';
+require_once 'roster_lib.php';
 setHeaders();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -127,9 +128,19 @@ if ($method === 'POST' && $action === 'delete_user') {
     $b = getBody();
     $del_id = trim($b['id'] ?? '');
     if ($del_id === '' || $del_id === $user['id']) fail('Cannot delete yourself');
+    prism_ensure_student_roster($db);
     try {
+        $db->beginTransaction();
+        $db->prepare('UPDATE student_roster SET claimed_by_user_id = NULL WHERE claimed_by_user_id = ? OR id_number = ?')->execute([$del_id, $del_id]);
+        $db->prepare('UPDATE users SET id_number = NULL WHERE id = ?')->execute([$del_id]);
+        $db->prepare('DELETE FROM teacher_roster WHERE id = ?')->execute([$del_id]);
         $db->prepare('DELETE FROM users WHERE id = ?')->execute([$del_id]);
+        $db->prepare('DELETE FROM student_roster WHERE id_number = ?')->execute([$del_id]);
+        $db->commit();
     } catch (PDOException $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
         error_log('delete_user: ' . $e->getMessage());
         fail('Could not delete user (they may still own data).', 500);
     }
@@ -152,10 +163,29 @@ if ($method === 'POST' && $action === 'set_user_email') {
     $row = $lookup->fetch();
     if (!$row) fail('Account not found', 404);
     if (!in_array($row['role'], ['student', 'teacher'], true)) fail('CTU email is set on student and teacher accounts');
+    prism_ensure_student_roster($db);
     $taken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?');
     $taken->execute([$email, $targetId]);
     if ($taken->fetch()) fail('That CTU email is already used on another account');
-    $db->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $targetId]);
+    $rosterMail = $db->prepare('SELECT id_number FROM student_roster WHERE email = ? AND id_number <> ?');
+    $rosterMail->execute([$email, $targetId]);
+    if ($rosterMail->fetch()) fail('That CTU email is already used on another account');
+    $teacherMail = $db->prepare('SELECT id FROM teacher_roster WHERE email = ? AND id <> ?');
+    $teacherMail->execute([$email, $targetId]);
+    if ($teacherMail->fetch()) fail('That CTU email is already used on another account');
+    try {
+        $db->beginTransaction();
+        $db->prepare('UPDATE users SET email = ? WHERE id = ?')->execute([$email, $targetId]);
+        $db->prepare('UPDATE student_roster SET email = ? WHERE id_number = ?')->execute([$email, $targetId]);
+        $db->prepare('UPDATE teacher_roster SET email = ? WHERE id = ?')->execute([$email, $targetId]);
+        $db->commit();
+    } catch (PDOException $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('set_user_email: ' . $e->getMessage());
+        fail('That CTU email is already used on another account');
+    }
     ok(['id' => $targetId, 'email' => $email]);
 }
 

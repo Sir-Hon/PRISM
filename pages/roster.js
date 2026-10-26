@@ -221,14 +221,23 @@
     loadTeachers().catch(function (e) { showError(e.message); });
   });
 
-  document.getElementById('btn-show-add').addEventListener('click', function () {
-    var panel = document.getElementById('add-panel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  });
-  document.getElementById('btn-show-teacher').addEventListener('click', function () {
-    var panel = document.getElementById('teacher-panel');
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  });
+  function openForm(which) {
+    document.getElementById('roster-home').style.display = 'none';
+    document.getElementById('add-panel').style.display = which === 'student' ? 'block' : 'none';
+    document.getElementById('teacher-panel').style.display = which === 'teacher' ? 'block' : 'none';
+    showError('');
+  }
+
+  function closeForm() {
+    document.getElementById('add-panel').style.display = 'none';
+    document.getElementById('teacher-panel').style.display = 'none';
+    document.getElementById('roster-home').style.display = '';
+  }
+
+  document.getElementById('btn-show-add').addEventListener('click', function () { openForm('student'); });
+  document.getElementById('btn-show-teacher').addEventListener('click', function () { openForm('teacher'); });
+  document.getElementById('btn-back-add').addEventListener('click', closeForm);
+  document.getElementById('btn-back-teacher').addEventListener('click', closeForm);
 
   document.getElementById('a-college').addEventListener('change', function () {
     fillSelect(document.getElementById('a-program'), programsFor(this.value), this.value ? 'Choose' : 'Choose a college first');
@@ -259,7 +268,7 @@
       ['a-id', 'a-email', 'a-first', 'a-last', 'a-pw', 'a-pw2'].forEach(function (id) {
         document.getElementById(id).value = '';
       });
-      document.getElementById('add-panel').style.display = 'none';
+      closeForm();
       page = 1;
       await load();
     } catch (e) { showError(e.message); }
@@ -282,7 +291,7 @@
       ['t-id', 't-email', 't-first', 't-last', 't-dept', 't-subjects', 't-pw', 't-pw2'].forEach(function (id) {
         document.getElementById(id).value = '';
       });
-      document.getElementById('teacher-panel').style.display = 'none';
+      closeForm();
       teacherPage = 1;
       await loadTeachers();
     } catch (e) { showError(e.message); }
@@ -335,11 +344,19 @@
   wireToggle('t-pw', 't-pw-toggle');
 
   document.addEventListener('DOMContentLoaded', function () {
+    var open = '';
+    try { open = new URLSearchParams(location.search).get('add') || ''; } catch (e) { open = ''; }
     PrismRoster.catalog().then(function (data) {
       catalog.colleges = data.colleges || {};
       catalog.years = data.years || catalog.years;
       catalog.sections = data.sections || catalog.sections;
       applyCatalog();
+      if (open === 'teacher') {
+        showView('teachers');
+        openForm('teacher');
+      } else if (open === 'student') {
+        openForm('student');
+      }
       return load();
     }).catch(function (e) { showError(e.message); });
   });
