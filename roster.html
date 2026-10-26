@@ -8,163 +8,210 @@
   <link rel="stylesheet" href="portal.css?v=13"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
-    :root { --a:#f59e0b; --a-dark:#d97706; }
-    .admin-hero { border-radius:12px; padding:1.5rem 1.75rem; background:#1c1300; color:#fff; margin-bottom:1.25rem; }
-    .admin-hero-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#fcd34d; margin-bottom:.35rem; }
-    .admin-hero h1 { font-family:'DM Sans',sans-serif; font-size:1.55rem; font-weight:700; margin:0 0 .3rem; }
-    .admin-hero p { font-size:.9rem; color:rgba(255,255,255,.75); margin:0; }
-    .roster-tabs { display:flex; gap:.4rem; margin-bottom:1rem; }
-    .roster-tabs button { border:1px solid #e6e6e6; background:#fff; border-radius:999px; padding:.45rem .9rem; font-weight:700; cursor:pointer; }
-    .roster-tabs button.active { background:#1c1300; color:#fff; border-color:#1c1300; }
-    .roster-tools { display:flex; flex-wrap:wrap; gap:.6rem; margin-bottom:1rem; }
-    .roster-panel { background:#fff; border:1px solid #e6e6e6; border-radius:12px; padding:1rem 1.1rem; margin-bottom:1rem; }
-    .roster-panel h2 { font-size:1rem; margin:0 0 .75rem; }
-    .fields { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:.7rem; }
-    .fields label, .filter-field label { display:block; font-size:.75rem; font-weight:700; margin-bottom:.25rem; color:#3c4043; }
-    .fields input, .fields select, .fields textarea, .roster-tools input, .roster-tools select {
-      width:100%; border:1px solid #dadce0; border-radius:8px; padding:.55rem .65rem; font:inherit; background:#fff;
+    :root { --a:#f59e0b; --a-dark:#d97706; --a-light:#fef3c7; }
+
+    .admin-hero {
+      border-radius:12px; padding:1.6rem 1.85rem; margin-bottom:1.5rem;
+      background:#1c1300; color:#fff; position:relative;
     }
-    .fields textarea { min-height:4.5rem; resize:vertical; }
-    .pw-wrap { display:flex; gap:.35rem; }
+    .admin-hero-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#fcd34d; margin-bottom:.35rem; }
+    .admin-hero h1 { font-family:'DM Sans',sans-serif; font-size:1.7rem; font-weight:700; margin:0; }
+    .admin-hero p { font-size:.95rem; color:rgba(255,255,255,.78); margin:.55rem 0 0; }
+
+    .page-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.4rem; box-shadow:0 4px 24px rgba(245,158,11,.10); width:fit-content; margin-bottom:1.4rem; border:1px solid rgba(245,158,11,.12); }
+    .page-tab { padding:.6rem 1.35rem; border-radius:10px; font-size:.92rem; font-weight:700; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; }
+    .page-tab.active { background:var(--a); color:#fff; }
+
+    .gc-head { display:flex; align-items:center; gap:.7rem; margin:0 0 1rem; }
+    .gc-head h2 { font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:700; color:#202124; margin:0; }
+    .gc-plus { width:40px; height:40px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#d97706; font-size:1.55rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
+    .gc-plus:hover { background:#fffbeb; border-color:#f59e0b; }
+    .gc-back { width:40px; height:40px; border-radius:50%; border:1.5px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:#fff; font-size:1.15rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
+    .gc-back.on-card { border-color:#dadce0; background:#fff; color:#202124; }
+    .gc-back:hover, .gc-back.on-card:hover { background:#fffbeb; border-color:#f59e0b; color:#202124; }
+    .import-btn { margin-left:auto; border:1.5px solid #fde68a; background:#fffbeb; color:#92400e; border-radius:10px; padding:.55rem 1rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+
+    .main-content { min-width:0; }
+    .roster-panel { background:#fff; border:1px solid rgba(245,158,11,.14); border-radius:18px; padding:1.45rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 24px rgba(245,158,11,.08); min-width:0; max-width:100%; }
+    .table-scroll { overflow:auto; max-width:100%; }
+    .roster-panel h2 { font-family:'DM Sans',sans-serif; font-size:1.15rem; margin:0; }
+    .fields { display:grid; grid-template-columns:repeat(2, minmax(260px, 1fr)); gap:1.05rem 1.25rem; }
+    .fields label, .filter-field label { display:block; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; margin-bottom:.4rem; color:#9ca3af; }
+    .fields input, .fields select, .fields textarea, .filter-row input, .filter-row select {
+      width:100%; border:1.5px solid #fde68a; border-radius:10px; padding:.72rem .9rem; font:inherit; font-size:.95rem; color:#16132b; background:#fef9e7;
+    }
+    .fields input:focus, .fields select:focus, .fields textarea:focus, .filter-row input:focus, .filter-row select:focus { outline:none; border-color:#f59e0b; background:#fff; }
+    .fields textarea { min-height:6rem; resize:vertical; }
+    .fields .wide { grid-column:1 / -1; }
+    .pw-wrap { display:flex; gap:.5rem; align-items:center; }
     .pw-wrap input { flex:1; }
-    .row-actions { display:flex; gap:.4rem; flex-wrap:wrap; }
-    .badge { display:inline-block; border-radius:999px; padding:.12rem .5rem; font-size:.72rem; font-weight:700; }
-    .badge-unclaimed { background:#fef3c7; color:#92400e; }
-    .badge-claimed { background:#dcfce7; color:#166534; }
-    .badge-expired { background:#fee2e2; color:#991b1b; }
-    .badge-revoked { background:#e5e7eb; color:#374151; }
-    .group-row td { background:#fffbeb; font-weight:700; color:#92400e; }
-    .err-row { background:#fff7f7; }
-    .ok-row { background:#f6fff8; }
-    table { width:100%; border-collapse:collapse; font-size:.84rem; }
-    th, td { text-align:left; padding:.45rem .4rem; border-bottom:1px solid #eee; vertical-align:top; }
-    .pager { display:flex; gap:.5rem; align-items:center; margin-top:.75rem; }
-    .hint { color:#6b7280; font-size:.8rem; margin:.35rem 0 0; }
+    .pw-mask { font-family:ui-monospace,monospace; letter-spacing:.18em; color:#92400e; }
+    .pw-note { display:block; font-size:.68rem; letter-spacing:0; color:#9ca3af; font-family:'DM Sans',sans-serif; margin-top:.15rem; }
+    .filter-row { display:grid; grid-template-columns:minmax(220px,1.4fr) repeat(4, minmax(140px,1fr)) auto; gap:.85rem; align-items:end; margin-bottom:1.1rem; }
+    .filter-row.teachers { grid-template-columns:minmax(240px,1fr) minmax(180px,.6fr) auto; }
+    table { width:100%; border-collapse:collapse; }
+    thead { background:#fef9e7; }
+    th { padding:.85rem 1rem; font-size:.72rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.06em; text-align:left; border-bottom:1px solid #fde68a; }
+    td { padding:.9rem 1rem; font-size:.92rem; color:#374151; border-bottom:1px solid #faf6ee; vertical-align:middle; }
+    tr:hover td { background:#fffbeb; }
+    .group-row td { background:#fff7e6; font-weight:700; color:#92400e; }
+    .err-row td { background:#fff7f7; }
+    .ok-row td { background:#f6fff8; }
+    .pager { display:flex; gap:.7rem; align-items:center; margin-top:1rem; }
+    .hint { color:#6b7280; font-size:.88rem; margin:.7rem 0 0; line-height:1.5; }
     #preview-wrap, #add-panel, #teacher-panel { display:none; }
-    .gc-head { display:flex; align-items:center; gap:.75rem; margin-bottom:.35rem; }
-    .gc-back { width:36px; height:36px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#202124; font-size:1.15rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; flex:0 0 auto; }
-    .gc-back:hover { background:#fffbeb; border-color:#f59e0b; }
-    .form-card { max-width:760px; }
-    .fields.reg { grid-template-columns:1fr 1fr; }
+    .form-card { padding:1.7rem 1.8rem; }
+    @media (max-width:900px) {
+      .fields, .filter-row, .filter-row.teachers { grid-template-columns:1fr; }
+    }
+    html[data-theme="dark"] .page-tabs,
     html[data-theme="dark"] .roster-panel,
-    html[data-theme="dark"] .roster-tabs button { background:#241c10; color:#f8fafc; border-color:#4a3b22; }
-    html[data-theme="dark"] .roster-panel input,
-    html[data-theme="dark"] .roster-panel select,
-    html[data-theme="dark"] .roster-panel textarea,
-    html[data-theme="dark"] .roster-tools input,
-    html[data-theme="dark"] .roster-tools select,
+    html[data-theme="dark"] .gc-plus,
+    html[data-theme="dark"] .gc-back.on-card,
+    html[data-theme="dark"] .import-btn { background:#1a1d2e; color:#f3f4f6; border-color:#2e3350; }
+    html[data-theme="dark"] .gc-head h2,
+    html[data-theme="dark"] .roster-panel h2,
+    html[data-theme="dark"] td { color:#f3f4f6; }
     html[data-theme="dark"] .fields input,
     html[data-theme="dark"] .fields select,
-    html[data-theme="dark"] .fields textarea {
-      background:#3a3122 !important; color:#f8fafc !important; border-color:#6b5a3e !important;
+    html[data-theme="dark"] .fields textarea,
+    html[data-theme="dark"] .filter-row input,
+    html[data-theme="dark"] .filter-row select {
+      background:#24283d !important; color:#f3f4f6 !important; border-color:#3d4468 !important;
     }
-    html[data-theme="dark"] .fields label,
-    html[data-theme="dark"] .filter-field label,
-    html[data-theme="dark"] .roster-panel h2,
-    html[data-theme="dark"] .hint,
-    html[data-theme="dark"] th,
-    html[data-theme="dark"] td { color:#f8fafc; }
-    html[data-theme="dark"] .gc-back { background:#3a3122; color:#f8fafc; border-color:#6b5a3e; }
+    html[data-theme="dark"] .group-row td { background:#242033; color:#fcd34d; }
+    html[data-theme="dark"] tr:hover td { background:#242033; }
+    .btn { padding:.62rem 1.15rem; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; border:1.5px solid transparent; }
+    .btn-primary { background:#f59e0b; border-color:#f59e0b; color:#1c1300; }
+    .btn-primary:hover { background:#d97706; border-color:#d97706; }
+    .btn-ghost { background:#fffbeb; border-color:#fde68a; color:#92400e; }
+    .btn-ghost:hover { background:#fef3c7; }
+    html[data-theme="dark"] .btn-ghost { background:#242033; border-color:#3d4468; color:#fcd34d; }
+    html[data-theme="dark"] thead { background:#16182a; }
+    html[data-theme="dark"] .page-tab { color:#d1d5db; }
+    html[data-theme="dark"] .page-tab.active { background:#f59e0b; color:#1c1300; }
+    html[data-theme="dark"] .gc-plus { color:#fcd34d; }
   </style>
 </head>
 <body>
-  <div class="main">
+<script src="api.js?v=20"></script>
+<script src="script.js?v=12"></script>
+<script src="portal-sidebar.js?v=19"></script>
+<div class="topbar">
+  <a class="topbar-logo" href="admin.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
+  <div class="topbar-spacer"></div>
+  <div class="topbar-right">
+    <span class="topbar-role-badge" id="topbar-role">admin</span>
+    <span class="topbar-name" id="topbar-name"></span>
+    <a class="topbar-avatar" href="profile.html" id="topbar-avatar">A</a>
+  </div>
+</div>
+
+<div class="app-layout">
+  <aside class="sidebar">
+    <div id="sidebar-user-card" class="sidebar-user-card"></div>
+    <div id="sidebar-nav"></div>
+    <div style="margin-top:auto;padding-top:1rem;">
+      <div class="sidebar-divider"></div>
+      <button type="button" class="sidebar-logout">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main-content">
     <div id="roster-home">
-    <div class="admin-hero">
-      <div class="gc-head">
-        <a class="gc-back" href="admin.html" title="Back to dashboard" aria-label="Back to dashboard">&larr;</a>
-        <div>
-          <div class="admin-hero-label">Admin</div>
-          <h1>Roster</h1>
+      <div class="admin-hero">
+        <div class="gc-head">
+          <a class="gc-back" href="admin.html" title="Back to dashboard" aria-label="Back to dashboard">&larr;</a>
+          <div>
+            <div class="admin-hero-label">Admin</div>
+            <h1>Roster</h1>
+          </div>
         </div>
-      </div>
-      <p>Create student and teacher accounts here. They sign in with the password you set.</p>
-    </div>
-
-    <div class="roster-tabs">
-      <button type="button" id="tab-students" class="active">Students</button>
-      <button type="button" id="tab-teachers">Teachers</button>
-    </div>
-
-    <div id="student-view">
-      <div class="roster-tools">
-        <button class="btn btn-primary" type="button" id="btn-show-add">Add student</button>
-        <label class="btn btn-ghost" style="cursor:pointer;">
-          Import CSV
-          <input type="file" id="csv-file" accept=".csv,text/csv" hidden/>
-        </label>
+        <p>Create student and teacher accounts here. They sign in with the password you set. Saved passwords stay encrypted.</p>
       </div>
 
-      <div class="roster-panel" id="preview-wrap">
-        <h2>CSV preview</h2>
-        <p class="hint">Columns: id_number, email, first_name, last_name, college, program, year, section, password</p>
-        <p id="preview-summary"></p>
-        <div style="overflow:auto;">
-          <table>
-            <thead><tr><th>Line</th><th>ID</th><th>Email</th><th>Name</th><th>Placement</th><th>Status</th></tr></thead>
-            <tbody id="preview-body"></tbody>
-          </table>
-        </div>
-        <div style="margin-top:.8rem;"><button class="btn btn-primary" type="button" id="btn-commit">Import valid rows</button></div>
+      <div class="page-tabs">
+        <button type="button" class="page-tab active" id="tab-students">Students</button>
+        <button type="button" class="page-tab" id="tab-teachers">Teachers</button>
       </div>
 
-      <div class="roster-panel">
-        <h2>Students</h2>
-        <div class="roster-tools">
-          <div class="filter-field" style="flex:1;min-width:160px;"><input id="q" placeholder="Search ID, name, or email"/></div>
-          <div class="filter-field"><label for="f-college">College</label><select id="f-college"><option value="">All colleges</option></select></div>
-          <div class="filter-field"><label for="f-program">Program</label><select id="f-program"><option value="">All programs</option></select></div>
-          <div class="filter-field"><label for="f-year">Year</label><select id="f-year"><option value="">All years</option></select></div>
-          <div class="filter-field"><label for="f-section">Section</label><select id="f-section"><option value="">All sections</option></select></div>
-          <button class="btn btn-ghost" type="button" id="btn-search">Search</button>
+      <div id="student-view">
+        <div class="gc-head">
+          <h2>Students</h2>
+          <button class="gc-plus" type="button" id="btn-show-add" title="Add student" aria-label="Add student">+</button>
+          <label class="import-btn">Import CSV<input type="file" id="csv-file" accept=".csv,text/csv" hidden/></label>
         </div>
-        <div style="overflow:auto;">
-          <table>
-            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>College</th><th>Program</th><th>Year</th><th>Section</th><th></th></tr></thead>
-            <tbody id="roster-body"></tbody>
-          </table>
+
+        <div class="roster-panel" id="preview-wrap">
+          <h2>CSV preview</h2>
+          <p class="hint">Columns: id_number, email, first_name, last_name, college, program, year, section, password. Passwords in the file are saved encrypted and are not shown in this preview.</p>
+          <p id="preview-summary"></p>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Line</th><th>ID</th><th>Email</th><th>Name</th><th>Placement</th><th>Status</th></tr></thead>
+              <tbody id="preview-body"></tbody>
+            </table>
+          </div>
+          <div style="margin-top:1rem;"><button class="btn btn-primary" type="button" id="btn-commit">Import valid rows</button></div>
         </div>
-        <div class="pager">
-          <button class="btn btn-ghost" type="button" id="btn-prev">Previous</button>
-          <span id="page-label"></span>
-          <button class="btn btn-ghost" type="button" id="btn-next">Next</button>
+
+        <div class="roster-panel">
+          <div class="filter-row">
+            <div class="filter-field"><label for="q">Search</label><input id="q" placeholder="ID, name, or email"/></div>
+            <div class="filter-field"><label for="f-college">College</label><select id="f-college"><option value="">All colleges</option></select></div>
+            <div class="filter-field"><label for="f-program">Program</label><select id="f-program"><option value="">All programs</option></select></div>
+            <div class="filter-field"><label for="f-year">Year</label><select id="f-year"><option value="">All years</option></select></div>
+            <div class="filter-field"><label for="f-section">Section</label><select id="f-section"><option value="">All sections</option></select></div>
+            <button class="btn btn-ghost" type="button" id="btn-search">Search</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>College</th><th>Program</th><th>Year</th><th>Section</th><th>Password</th><th></th></tr></thead>
+              <tbody id="roster-body"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button class="btn btn-ghost" type="button" id="btn-prev">Previous</button>
+            <span id="page-label"></span>
+            <button class="btn btn-ghost" type="button" id="btn-next">Next</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="teacher-view" style="display:none;">
+        <div class="gc-head">
+          <h2>Teachers</h2>
+          <button class="gc-plus" type="button" id="btn-show-teacher" title="Add teacher" aria-label="Add teacher">+</button>
+        </div>
+        <div class="roster-panel">
+          <div class="filter-row teachers">
+            <div class="filter-field"><label for="tq">Search</label><input id="tq" placeholder="ID, name, department, or subject"/></div>
+            <div class="filter-field"><label for="tf-college">College</label><select id="tf-college"><option value="">All colleges</option></select></div>
+            <button class="btn btn-ghost" type="button" id="btn-teacher-search">Search</button>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>College</th><th>Department</th><th>Subjects</th><th>Password</th><th></th></tr></thead>
+              <tbody id="teacher-body"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button class="btn btn-ghost" type="button" id="btn-tprev">Previous</button>
+            <span id="teacher-page-label"></span>
+            <button class="btn btn-ghost" type="button" id="btn-tnext">Next</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <div id="teacher-view" style="display:none;">
-      <div class="roster-tools">
-        <button class="btn btn-primary" type="button" id="btn-show-teacher">Add teacher</button>
-      </div>
-      <div class="roster-panel">
-        <h2>Teachers</h2>
-        <div class="roster-tools">
-          <div style="flex:1;min-width:160px;"><input id="tq" placeholder="Search ID, name, department, or subject"/></div>
-          <div class="filter-field"><label for="tf-college">College</label><select id="tf-college"><option value="">All colleges</option></select></div>
-          <button class="btn btn-ghost" type="button" id="btn-teacher-search">Search</button>
-        </div>
-        <div style="overflow:auto;">
-          <table>
-            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>College</th><th>Department</th><th>Subjects</th><th></th></tr></thead>
-            <tbody id="teacher-body"></tbody>
-          </table>
-        </div>
-        <div class="pager">
-          <button class="btn btn-ghost" type="button" id="btn-tprev">Previous</button>
-          <span id="teacher-page-label"></span>
-          <button class="btn btn-ghost" type="button" id="btn-tnext">Next</button>
-        </div>
-      </div>
-    </div>
-    </div>
     <div class="msg error" id="page-error" style="display:none;"></div>
 
     <div class="roster-panel form-card" id="add-panel">
       <div class="gc-head">
-        <button class="gc-back" type="button" id="btn-back-add" title="Back to roster" aria-label="Back to roster">&larr;</button>
+        <button class="gc-back on-card" type="button" id="btn-back-add" title="Back to roster" aria-label="Back to roster">&larr;</button>
         <h2>Add student</h2>
       </div>
-      <div class="fields reg">
+      <div class="fields">
         <div><label for="a-id">Student ID number</label><input id="a-id" maxlength="7" inputmode="numeric" placeholder="7 digits"/></div>
         <div><label for="a-email">CTU email</label><input id="a-email" type="email" placeholder="name.surname@ctu.edu.ph"/></div>
         <div><label for="a-first">First name</label><input id="a-first"/></div>
@@ -176,32 +223,31 @@
         <div><label for="a-pw">Password</label><div class="pw-wrap"><input id="a-pw" type="password" autocomplete="new-password"/><button class="btn btn-ghost" type="button" id="a-pw-toggle">Show</button></div></div>
         <div><label for="a-pw2">Confirm password</label><input id="a-pw2" type="password" autocomplete="new-password"/></div>
       </div>
-      <p class="hint">This creates the login. There is no separate student registration.</p>
-      <div style="margin-top:.8rem;"><button class="btn btn-primary" type="button" id="btn-add">Create student account</button></div>
+      <p class="hint">The password is saved encrypted. After you leave this form it is shown only as a mask, so share it with the student before you go back.</p>
+      <div style="margin-top:1.1rem;"><button class="btn btn-primary" type="button" id="btn-add">Create student account</button></div>
     </div>
 
     <div class="roster-panel form-card" id="teacher-panel">
       <div class="gc-head">
-        <button class="gc-back" type="button" id="btn-back-teacher" title="Back to roster" aria-label="Back to roster">&larr;</button>
+        <button class="gc-back on-card" type="button" id="btn-back-teacher" title="Back to roster" aria-label="Back to roster">&larr;</button>
         <h2>Add teacher</h2>
       </div>
-      <div class="fields reg">
+      <div class="fields">
         <div><label for="t-id">Teacher ID</label><input id="t-id" placeholder="e.g. 2024-00001"/></div>
         <div><label for="t-email">CTU email</label><input id="t-email" type="email" placeholder="name.surname@ctu.edu.ph"/></div>
         <div><label for="t-first">First name</label><input id="t-first"/></div>
         <div><label for="t-last">Last name</label><input id="t-last"/></div>
         <div><label for="t-college">College</label><select id="t-college"><option value="">Choose</option></select></div>
         <div><label for="t-dept">Department</label><input id="t-dept" placeholder="e.g. Information Technology"/></div>
-        <div style="grid-column:1 / -1;"><label for="t-subjects">Subjects taught</label><textarea id="t-subjects" placeholder="Separate subjects with commas"></textarea></div>
+        <div class="wide"><label for="t-subjects">Subjects taught</label><textarea id="t-subjects" placeholder="Separate subjects with commas"></textarea></div>
         <div><label for="t-pw">Password</label><div class="pw-wrap"><input id="t-pw" type="password" autocomplete="new-password"/><button class="btn btn-ghost" type="button" id="t-pw-toggle">Show</button></div></div>
         <div><label for="t-pw2">Confirm password</label><input id="t-pw2" type="password" autocomplete="new-password"/></div>
       </div>
-      <div style="margin-top:.8rem;"><button class="btn btn-primary" type="button" id="btn-add-teacher">Create teacher account</button></div>
+      <p class="hint">The password is saved encrypted and is not shown again after you leave this form.</p>
+      <div style="margin-top:1.1rem;"><button class="btn btn-primary" type="button" id="btn-add-teacher">Create teacher account</button></div>
     </div>
-  </div>
-  <script src="api.js?v=20"></script>
-  <script src="script.js?v=12"></script>
-  <script src="portal-sidebar.js?v=19"></script>
-  <script src="pages/roster.js?v=3"></script>
+  </main>
+</div>
+<script src="pages/roster.js?v=4"></script>
 </body>
 </html>

@@ -68,6 +68,20 @@
     fillSelect(document.getElementById('f-program'), programsFor(''), 'All programs');
   }
 
+  function passwordCell() {
+    var td = document.createElement('td');
+    var mask = document.createElement('span');
+    mask.className = 'pw-mask';
+    mask.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+    mask.title = 'Stored encrypted. The original password is not shown again.';
+    var note = document.createElement('span');
+    note.className = 'pw-note';
+    note.textContent = 'encrypted';
+    td.appendChild(mask);
+    td.appendChild(note);
+    return td;
+  }
+
   function actionButton(label, fn) {
     var btn = document.createElement('button');
     btn.type = 'button';
@@ -111,7 +125,7 @@
       if (key !== lastKey) {
         body.appendChild(groupRow(
           collegeLabel(row.college) + ' · ' + (row.program || '—') + ' · Year ' + (row.year || '—') + ' · Section ' + (row.section || '—'),
-          8
+          9
         ));
         lastKey = key;
       }
@@ -123,13 +137,14 @@
       tr.appendChild(cell(row.program || ''));
       tr.appendChild(cell(row.year || ''));
       tr.appendChild(cell(row.section || ''));
+      tr.appendChild(passwordCell());
       var actions = document.createElement('td');
       actions.appendChild(actionButton('Delete', function () { removeStudent(row.id_number); }));
       tr.appendChild(actions);
       body.appendChild(tr);
     });
     if (!(data.rows || []).length) {
-      body.appendChild(groupRow('No students in this category.', 8));
+      body.appendChild(groupRow('No students in this category.', 9));
     }
   }
 
@@ -149,7 +164,7 @@
     (data.rows || []).forEach(function (row) {
       var key = (row.college || '') + '|' + (row.department || '');
       if (key !== lastKey) {
-        body.appendChild(groupRow(collegeLabel(row.college) + ' · ' + (row.department || 'No department'), 7));
+        body.appendChild(groupRow(collegeLabel(row.college) + ' · ' + (row.department || 'No department'), 8));
         lastKey = key;
       }
       var tr = document.createElement('tr');
@@ -159,13 +174,14 @@
       tr.appendChild(cell(row.college || ''));
       tr.appendChild(cell(row.department || ''));
       tr.appendChild(cell(row.subjects || ''));
+      tr.appendChild(passwordCell());
       var actions = document.createElement('td');
       actions.appendChild(actionButton('Delete', function () { removeTeacher(row.id); }));
       tr.appendChild(actions);
       body.appendChild(tr);
     });
     if (!(data.rows || []).length) {
-      body.appendChild(groupRow('No teachers in this category.', 7));
+      body.appendChild(groupRow('No teachers in this category.', 8));
     }
   }
 
