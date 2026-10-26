@@ -114,11 +114,7 @@ if ($method === 'GET' && $action === 'session') {
 
 // ── REGISTER STUDENT (roster match only) ───────────────
 if ($method === 'POST' && $action === 'register') {
-    $result = prism_register_from_roster(getDB(), getBody(), prism_client_ip());
-    if (empty($result['ok'])) {
-        fail($result['error'], (int) ($result['status'] ?? 400));
-    }
-    ok(['id' => $result['id']]);
+    fail('Student accounts are created by an administrator.', 403);
 }
 
 if ($method === 'POST' && $action === 'resend_verification') {

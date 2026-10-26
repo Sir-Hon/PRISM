@@ -62,6 +62,60 @@ function prism_password_format_error(string $pw, string $confirm): ?string {
     return null;
 }
 
+function prism_college_for_program(string $program): string {
+    foreach (prism_ctu_programs_by_college() as $college => $list) {
+        if (in_array($program, $list, true)) {
+            return $college;
+        }
+    }
+    return '';
+}
+
+function prism_normalize_placement(array $b): array {
+    $college = trim((string) ($b['college'] ?? ''));
+    $program = trim((string) ($b['program'] ?? $b['course'] ?? ''));
+    $year = trim((string) ($b['year'] ?? ''));
+    $section = strtoupper(trim((string) ($b['section'] ?? $b['section_letter'] ?? '')));
+    $yearLevel = strtoupper(trim((string) ($b['year_level'] ?? '')));
+    if (($year === '' || $section === '') && preg_match('/^([1-4])-([A-F])$/', $yearLevel, $m)) {
+        if ($year === '') {
+            $year = $m[1];
+        }
+        if ($section === '') {
+            $section = $m[2];
+        }
+    }
+    if ($college === '' && $program !== '') {
+        $college = prism_college_for_program($program);
+    }
+    $block = ($year !== '' && preg_match('/^[A-F]$/', $section)) ? ($year . '-' . $section) : '';
+    return [
+        'college' => $college,
+        'program' => $program,
+        'year' => $year,
+        'section' => $section,
+        'course' => $program,
+        'year_level' => $block,
+    ];
+}
+
+function prism_placement_error(array $place): ?string {
+    $map = prism_ctu_programs_by_college();
+    if (!isset($map[$place['college'] ?? ''])) {
+        return 'Choose a college.';
+    }
+    if (!in_array($place['program'] ?? '', $map[$place['college']], true)) {
+        return 'Choose a program in that college.';
+    }
+    if (!preg_match('/^[1-4]$/', (string) ($place['year'] ?? ''))) {
+        return 'Choose a year from 1 to 4.';
+    }
+    if (!preg_match('/^[A-F]$/', (string) ($place['section'] ?? ''))) {
+        return 'Choose a section from A to F.';
+    }
+    return null;
+}
+
 function prism_roster_status(array $row): string {
     if (!empty($row['revoked_at'])) {
         return 'revoked';
@@ -151,7 +205,70 @@ function prism_ensure_student_roster(PDO $db): void {
     prism_ensure_fk($db, 'users', 'fk_users_roster_id', 'FOREIGN KEY (id_number) REFERENCES student_roster(id_number)');
     prism_ensure_fk($db, 'student_roster', 'fk_roster_claimed_by', 'FOREIGN KEY (claimed_by_user_id) REFERENCES users(id) ON DELETE SET NULL');
     prism_ensure_fk($db, 'student_roster', 'fk_roster_created_by', 'FOREIGN KEY (created_by_admin_id) REFERENCES users(id) ON DELETE SET NULL');
+    prism_ensure_roster_column($db, 'student_roster', 'college', "VARCHAR(40) NOT NULL DEFAULT ''");
+    prism_ensure_roster_column($db, 'student_roster', 'section_letter', "VARCHAR(8) NOT NULL DEFAULT ''");
+    prism_ensure_index($db, 'student_roster', 'idx_roster_place', 'KEY idx_roster_place (college, course, year_level, section_letter)');
+    prism_backfill_roster_placement($db);
+    $db->exec(
+        'CREATE TABLE IF NOT EXISTS teacher_roster (
+            id VARCHAR(50) PRIMARY KEY,
+            email VARCHAR(255) NOT NULL,
+            first_name VARCHAR(80) NOT NULL,
+            last_name VARCHAR(80) NOT NULL,
+            college VARCHAR(40) NOT NULL,
+            department VARCHAR(80) NOT NULL,
+            subjects VARCHAR(500) NOT NULL,
+            created_by_admin_id VARCHAR(50) DEFAULT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_teacher_roster_email (email),
+            KEY idx_teacher_college (college, department)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+    );
+    prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_user', 'FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE');
+    prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_created_by', 'FOREIGN KEY (created_by_admin_id) REFERENCES users(id) ON DELETE SET NULL');
     $done = true;
+}
+
+function prism_ensure_roster_column(PDO $db, string $table, string $column, string $definition): void {
+    if (!preg_match('/^[a-z_]+$/', $table) || !preg_match('/^[a-z_]+$/', $column)) {
+        return;
+    }
+    try {
+        $stmt = $db->query('SHOW COLUMNS FROM `' . $table . '` LIKE ' . $db->quote($column));
+        if ($stmt && $stmt->fetch()) {
+            return;
+        }
+        $db->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
+    } catch (PDOException $e) {
+        error_log('PRISM roster column ' . $column . ': ' . $e->getMessage());
+    }
+}
+
+function prism_backfill_roster_placement(PDO $db): void {
+    try {
+        $rows = $db->query("SELECT id_number, course, year_level, college, section_letter FROM student_roster WHERE college = '' OR section_letter = ''")->fetchAll();
+    } catch (PDOException $e) {
+        error_log('PRISM roster placement backfill: ' . $e->getMessage());
+        return;
+    }
+    if (!$rows) {
+        return;
+    }
+    $upd = $db->prepare('UPDATE student_roster SET college = ?, section_letter = ? WHERE id_number = ?');
+    foreach ($rows as $row) {
+        $college = (string) ($row['college'] ?? '');
+        if ($college === '') {
+            $college = prism_college_for_program((string) ($row['course'] ?? ''));
+        }
+        $letter = strtoupper((string) ($row['section_letter'] ?? ''));
+        if ($letter === '' && preg_match('/^[1-4]-([A-F])$/', strtoupper((string) ($row['year_level'] ?? '')), $m)) {
+            $letter = $m[1];
+        }
+        if ($college !== (string) ($row['college'] ?? '') || $letter !== (string) ($row['section_letter'] ?? '')) {
+            $upd->execute([$college, $letter, $row['id_number']]);
+        }
+    }
 }
 
 function prism_ensure_user_column(PDO $db, string $column, string $definition): void {
@@ -211,16 +328,23 @@ function prism_roster_audit(PDO $db, ?string $adminId, string $idNumber, string 
 }
 
 function prism_normalize_roster_input(array $b): array {
+    $place = prism_normalize_placement($b);
+    $password = (string) ($b['password'] ?? '');
+    $hasConfirm = array_key_exists('confirm_password', $b) || array_key_exists('password2', $b);
+    $confirm = $hasConfirm ? (string) ($b['confirm_password'] ?? $b['password2'] ?? '') : $password;
     return [
         'id_number' => trim((string) ($b['id_number'] ?? $b['id'] ?? '')),
         'email' => prism_normalize_ctu_email($b['email'] ?? ''),
-        'code' => strtoupper(trim((string) ($b['code'] ?? $b['registration_code'] ?? ''))),
-        'password' => (string) ($b['password'] ?? ''),
-        'confirm' => (string) ($b['confirm_password'] ?? $b['password2'] ?? ''),
+        'password' => $password,
+        'confirm' => $confirm,
         'first_name' => trim((string) ($b['first_name'] ?? '')),
         'last_name' => trim((string) ($b['last_name'] ?? '')),
-        'course' => trim((string) ($b['course'] ?? '')),
-        'year_level' => trim((string) ($b['year_level'] ?? '')),
+        'college' => $place['college'],
+        'program' => $place['program'],
+        'year' => $place['year'],
+        'section' => $place['section'],
+        'course' => $place['course'],
+        'year_level' => $place['year_level'],
     ];
 }
 
@@ -239,11 +363,13 @@ function prism_roster_field_errors(array $row, bool $forStudent = false): array 
         if (($row['last_name'] ?? '') === '') {
             $errors[] = 'Last name is required.';
         }
-        if (($row['course'] ?? '') === '') {
-            $errors[] = 'Course is required.';
+        $place = prism_placement_error($row);
+        if ($place !== null) {
+            $errors[] = $place;
         }
-        if (($row['year_level'] ?? '') === '') {
-            $errors[] = 'Year level is required.';
+        $pw = prism_password_format_error((string) ($row['password'] ?? ''), (string) ($row['confirm'] ?? ''));
+        if ($pw !== null) {
+            $errors[] = $pw;
         }
     }
     return $errors;
@@ -272,70 +398,8 @@ function prism_registration_record_failure(string $idNumber, string $ip): void {
 }
 
 function prism_register_from_roster(PDO $db, array $body, string $ip): array {
-    prism_ensure_student_roster($db);
-    $in = prism_normalize_roster_input($body);
-    $format = prism_register_format_error($in);
-    if ($format !== null) {
-        return ['ok' => false, 'status' => 400, 'error' => $format];
-    }
-    if (prism_registration_limited($in['id_number'], $ip)) {
-        return ['ok' => false, 'status' => 429, 'error' => 'Too many attempts. Please wait a few minutes and try again.'];
-    }
-
-    $stmt = $db->prepare('SELECT id_number, email, reg_code_hash, expires_at, claimed_at, revoked_at FROM student_roster WHERE id_number = ? AND email = ? AND claimed_at IS NULL AND revoked_at IS NULL AND expires_at > NOW()');
-    $stmt->execute([$in['id_number'], $in['email']]);
-    $row = $stmt->fetch();
-    $hash = ($row && !empty($row['reg_code_hash'])) ? (string) $row['reg_code_hash'] : prism_dummy_code_hash();
-    $codeOk = password_verify($in['code'], $hash);
-    if (!$row || !$codeOk) {
-        prism_registration_record_failure($in['id_number'], $ip);
-        prism_roster_audit($db, null, $in['id_number'], 'registration_failed', $ip);
-        return ['ok' => false, 'status' => 400, 'error' => PRISM_ROSTER_GENERIC];
-    }
-
-    try {
-        $db->beginTransaction();
-        $lock = $db->prepare('SELECT * FROM student_roster WHERE id_number = ? AND email = ? AND claimed_at IS NULL AND revoked_at IS NULL AND expires_at > NOW() FOR UPDATE');
-        $lock->execute([$in['id_number'], $in['email']]);
-        $locked = $lock->fetch();
-        if (!$locked || !password_verify($in['code'], (string) $locked['reg_code_hash'])) {
-            $db->rollBack();
-            prism_registration_record_failure($in['id_number'], $ip);
-            prism_roster_audit($db, null, $in['id_number'], 'registration_failed', $ip);
-            return ['ok' => false, 'status' => 400, 'error' => PRISM_ROSTER_GENERIC];
-        }
-        $hold = (int) (getenv('PRISM_ROSTER_LOCK_HOLD') ?: 0);
-        if ($hold > 0 && $hold <= 3) {
-            sleep($hold);
-        }
-        $name = trim($locked['first_name'] . ' ' . $locked['last_name']);
-        $section = trim($locked['course'] . ' ' . $locked['year_level']);
-        $pwHash = prism_hash_secret($in['password']);
-        $verifiedAt = prism_email_verify_enabled() ? null : date('Y-m-d H:i:s');
-        $db->prepare('INSERT INTO users (id, `password`, role, name, section, email, id_number, email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
-            ->execute([$locked['id_number'], $pwHash, 'student', $name, $section, $locked['email'], $locked['id_number'], $verifiedAt]);
-        $db->prepare('UPDATE student_roster SET claimed_at = NOW(), claimed_by_user_id = ?, updated_at = NOW() WHERE id_number = ?')
-            ->execute([$locked['id_number'], $locked['id_number']]);
-        prism_roster_audit($db, null, $locked['id_number'], 'registration_success', $ip);
-        $db->commit();
-    } catch (Throwable $e) {
-        if ($db->inTransaction()) {
-            $db->rollBack();
-        }
-        error_log('PRISM roster register: ' . $e->getMessage());
-        prism_registration_record_failure($in['id_number'], $ip);
-        try {
-            prism_roster_audit($db, null, $in['id_number'], 'registration_failed', $ip);
-        } catch (Throwable $e2) {
-            error_log('PRISM roster audit: ' . $e2->getMessage());
-        }
-        return ['ok' => false, 'status' => 400, 'error' => PRISM_ROSTER_GENERIC];
-    }
-
-    if (prism_email_verify_enabled()) {
-        prism_issue_verification($db, $locked['id_number'], $locked['email']);
-    }
-    return ['ok' => true, 'status' => 200, 'id' => $locked['id_number']];
+    unset($db, $body, $ip);
+    return ['ok' => false, 'status' => 403, 'error' => 'Student accounts are created by an administrator.'];
 }
 
 /**
@@ -430,22 +494,34 @@ function prism_current_admin(): ?array {
 }
 
 function prism_roster_public_row(array $row): array {
+    $year = '';
+    $section = strtoupper((string) ($row['section_letter'] ?? ''));
+    if (preg_match('/^([1-4])-([A-F])$/', strtoupper((string) ($row['year_level'] ?? '')), $m)) {
+        $year = $m[1];
+        if ($section === '') {
+            $section = $m[2];
+        }
+    }
     return [
         'id_number' => $row['id_number'],
         'email' => $row['email'],
         'first_name' => $row['first_name'],
         'last_name' => $row['last_name'],
+        'college' => $row['college'] ?? '',
+        'program' => $row['course'],
+        'year' => $year,
+        'section' => $section,
         'course' => $row['course'],
         'year_level' => $row['year_level'],
         'status' => prism_roster_status($row),
-        'expires_at' => $row['expires_at'],
-        'claimed_at' => $row['claimed_at'],
+        'expires_at' => $row['expires_at'] ?? null,
+        'claimed_at' => $row['claimed_at'] ?? null,
         'revoked_at' => $row['revoked_at'] ?? null,
         'created_at' => $row['created_at'] ?? null,
     ];
 }
 
-function prism_roster_list(PDO $db, string $q, string $status, int $page, int $perPage): array {
+function prism_roster_list(PDO $db, string $q, string $status, int $page, int $perPage, string $college = '', string $program = '', string $year = '', string $section = ''): array {
     prism_ensure_student_roster($db);
     $page = max(1, $page);
     $perPage = min(50, max(1, $perPage));
@@ -455,6 +531,26 @@ function prism_roster_list(PDO $db, string $q, string $status, int $page, int $p
         $where .= " AND (id_number LIKE ? OR email LIKE ? OR first_name LIKE ? OR last_name LIKE ? ESCAPE '\\\\')";
         $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
         $params = [$like, $like, $like, $like];
+    }
+    $college = trim($college);
+    $program = trim($program);
+    $year = trim($year);
+    $section = strtoupper(trim($section));
+    if ($college !== '') {
+        $where .= ' AND college = ?';
+        $params[] = $college;
+    }
+    if ($program !== '') {
+        $where .= ' AND course = ?';
+        $params[] = $program;
+    }
+    if (preg_match('/^[1-4]$/', $year)) {
+        $where .= ' AND year_level LIKE ?';
+        $params[] = $year . '-%';
+    }
+    if (preg_match('/^[A-F]$/', $section)) {
+        $where .= ' AND section_letter = ?';
+        $params[] = $section;
     }
     if ($status === 'revoked') {
         $where .= ' AND revoked_at IS NOT NULL';
@@ -468,8 +564,8 @@ function prism_roster_list(PDO $db, string $q, string $status, int $page, int $p
     $count = $db->prepare('SELECT COUNT(*) FROM student_roster' . $where);
     $count->execute($params);
     $total = (int) $count->fetchColumn();
-    $sql = 'SELECT id_number, email, first_name, last_name, course, year_level, expires_at, claimed_at, revoked_at, created_at FROM student_roster'
-        . $where . ' ORDER BY created_at DESC LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);
+    $sql = 'SELECT id_number, email, first_name, last_name, college, course, year_level, section_letter, expires_at, claimed_at, revoked_at, created_at FROM student_roster'
+        . $where . ' ORDER BY college, course, year_level, section_letter, last_name, first_name LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $rows = [];
@@ -478,6 +574,24 @@ function prism_roster_list(PDO $db, string $q, string $status, int $page, int $p
     }
     $pages = max(1, (int) ceil($total / $perPage));
     return ['rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages, 'per_page' => $perPage];
+}
+
+function prism_insert_student_account(PDO $db, array $admin, array $in): void {
+    $name = trim($in['first_name'] . ' ' . $in['last_name']);
+    $section = $in['program'] . ' ' . $in['year'] . '-' . $in['section'];
+    $verifiedAt = prism_email_verify_enabled() ? null : date('Y-m-d H:i:s');
+    $db->prepare('INSERT INTO student_roster (id_number, email, first_name, last_name, course, year_level, college, section_letter, reg_code_hash, expires_at, claimed_at, created_by_admin_id) VALUES (?,?,?,?,?,?,?,?,?,?,NOW(),?)')
+        ->execute([
+            $in['id_number'], $in['email'], $in['first_name'], $in['last_name'], $in['program'], $in['year_level'],
+            $in['college'], $in['section'], prism_hash_secret(bin2hex(random_bytes(8))), date('Y-m-d H:i:s', time() + 86400), $admin['id'],
+        ]);
+    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email, id_number, email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
+        ->execute([$in['id_number'], prism_hash_secret($in['password']), 'student', $name, $section, $in['email'], $in['id_number'], $verifiedAt]);
+    $db->prepare('UPDATE student_roster SET claimed_by_user_id = ? WHERE id_number = ?')
+        ->execute([$in['id_number'], $in['id_number']]);
+    if (prism_email_verify_enabled()) {
+        prism_issue_verification($db, $in['id_number'], $in['email']);
+    }
 }
 
 function prism_roster_add(PDO $db, array $admin, array $body, string $ip): array {
@@ -491,20 +605,22 @@ function prism_roster_add(PDO $db, array $admin, array $body, string $ip): array
     if (!empty($taken[$in['id_number']]) || !empty($taken['email:' . $in['email']])) {
         return ['ok' => false, 'status' => 400, 'error' => 'That ID number or email is already on the roster or in use.'];
     }
-    $code = prism_generate_reg_code();
-    $db->prepare('INSERT INTO student_roster (id_number, email, first_name, last_name, course, year_level, reg_code_hash, expires_at, created_by_admin_id) VALUES (?,?,?,?,?,?,?,?,?)')
-        ->execute([
-            $in['id_number'], $in['email'], $in['first_name'], $in['last_name'], $in['course'], $in['year_level'],
-            prism_hash_secret($code), prism_roster_expires_at(), $admin['id'],
-        ]);
-    prism_roster_audit($db, $admin['id'], $in['id_number'], 'roster_created', $ip);
+    try {
+        $db->beginTransaction();
+        prism_insert_student_account($db, $admin, $in);
+        prism_roster_audit($db, $admin['id'], $in['id_number'], 'roster_created', $ip);
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('PRISM roster add: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That student could not be saved. Check the ID and email, then try again.'];
+    }
     return [
         'ok' => true,
         'id_number' => $in['id_number'],
         'email' => $in['email'],
-        'registration_code' => $code,
-        'expires_at' => prism_roster_expires_at(),
-        'warning' => 'This code will not be shown again.',
     ];
 }
 
@@ -563,13 +679,25 @@ function prism_parse_csv_text(string $text): array {
     foreach ($header as $i => $name) {
         $map[strtolower(trim((string) $name))] = $i;
     }
-    $need = ['id_number', 'email', 'first_name', 'last_name', 'course', 'year_level'];
-    foreach ($need as $col) {
+    foreach (['id_number', 'email', 'first_name', 'last_name', 'password'] as $col) {
         if (!array_key_exists($col, $map)) {
             fclose($fh);
             return ['error' => 'Missing column: ' . $col, 'rows' => []];
         }
     }
+    if (!array_key_exists('program', $map) && !array_key_exists('course', $map)) {
+        fclose($fh);
+        return ['error' => 'Missing column: program', 'rows' => []];
+    }
+    if (!array_key_exists('year', $map) && !array_key_exists('year_level', $map)) {
+        fclose($fh);
+        return ['error' => 'Missing column: year', 'rows' => []];
+    }
+    if (!array_key_exists('section', $map) && !array_key_exists('year_level', $map)) {
+        fclose($fh);
+        return ['error' => 'Missing column: section', 'rows' => []];
+    }
+    $cols = ['id_number', 'email', 'first_name', 'last_name', 'password', 'college', 'program', 'course', 'year', 'section', 'year_level'];
     $rows = [];
     $line = 1;
     while (($data = fgetcsv($fh)) !== false) {
@@ -578,7 +706,10 @@ function prism_parse_csv_text(string $text): array {
             continue;
         }
         $raw = [];
-        foreach ($need as $col) {
+        foreach ($cols as $col) {
+            if (!array_key_exists($col, $map)) {
+                continue;
+            }
             $raw[$col] = isset($data[$map[$col]]) ? (string) $data[$map[$col]] : '';
         }
         $norm = prism_normalize_roster_input($raw);
@@ -643,6 +774,10 @@ function prism_roster_preview_rows(PDO $db, array $parsed): array {
             'email' => $row['email'],
             'first_name' => $row['first_name'],
             'last_name' => $row['last_name'],
+            'college' => $row['college'],
+            'program' => $row['program'],
+            'year' => $row['year'],
+            'section' => $row['section'],
             'course' => $row['course'],
             'year_level' => $row['year_level'],
             'errors' => $errors,
@@ -661,24 +796,23 @@ function prism_roster_import(PDO $db, array $admin, array $parsed, string $ip): 
         return !empty($row['valid']);
     }));
     if (!$valid) {
-        return ['ok' => true, 'imported' => 0, 'rows' => $preview['rows'], 'codes' => [], 'warning' => ''];
+        return ['ok' => true, 'imported' => 0, 'rows' => $preview['rows']];
     }
-    $codes = [];
+    $byLine = [];
+    foreach ($parsed['rows'] as $row) {
+        $byLine[$row['line']] = $row;
+    }
+    $imported = 0;
     $db->beginTransaction();
     try {
-        $ins = $db->prepare('INSERT INTO student_roster (id_number, email, first_name, last_name, course, year_level, reg_code_hash, expires_at, created_by_admin_id) VALUES (?,?,?,?,?,?,?,?,?)');
-        foreach ($valid as $row) {
-            $code = prism_generate_reg_code();
-            $ins->execute([
-                $row['id_number'], $row['email'], $row['first_name'], $row['last_name'], $row['course'], $row['year_level'],
-                prism_hash_secret($code), prism_roster_expires_at(), $admin['id'],
-            ]);
+        foreach ($valid as $shown) {
+            $row = $byLine[$shown['line']] ?? null;
+            if (!$row) {
+                continue;
+            }
+            prism_insert_student_account($db, $admin, $row);
             prism_roster_audit($db, $admin['id'], $row['id_number'], 'roster_created', $ip);
-            $codes[] = [
-                'id_number' => $row['id_number'],
-                'email' => $row['email'],
-                'registration_code' => $code,
-            ];
+            $imported++;
         }
         $db->commit();
     } catch (Throwable $e) {
@@ -686,14 +820,12 @@ function prism_roster_import(PDO $db, array $admin, array $parsed, string $ip): 
             $db->rollBack();
         }
         error_log('PRISM roster import: ' . $e->getMessage());
-        return ['ok' => false, 'status' => 400, 'error' => 'The import could not be saved. Check for duplicates and try again.', 'rows' => $preview['rows'], 'codes' => []];
+        return ['ok' => false, 'status' => 400, 'error' => 'The import could not be saved. Check for duplicates and try again.', 'rows' => $preview['rows']];
     }
     return [
         'ok' => true,
-        'imported' => count($codes),
+        'imported' => $imported,
         'rows' => $preview['rows'],
-        'codes' => $codes,
-        'warning' => 'This code will not be shown again.',
     ];
 }
 
@@ -752,10 +884,158 @@ function prism_roster_delete(PDO $db, array $admin, string $idNumber, string $ip
     if (!$row) {
         return ['ok' => false, 'status' => 404, 'error' => 'That roster entry was not found.'];
     }
-    if (!empty($row['claimed_at'])) {
-        return ['ok' => false, 'status' => 400, 'error' => 'Claimed entries cannot be deleted here.'];
+    try {
+        $db->beginTransaction();
+        prism_roster_audit($db, $admin['id'], $idNumber, 'roster_revoked', $ip);
+        $db->prepare('UPDATE student_roster SET claimed_by_user_id = NULL WHERE id_number = ?')->execute([$idNumber]);
+        $db->prepare('UPDATE users SET id_number = NULL WHERE id = ?')->execute([$idNumber]);
+        $db->prepare('DELETE FROM users WHERE id = ? AND role = ?')->execute([$idNumber, 'student']);
+        $db->prepare('DELETE FROM student_roster WHERE id_number = ?')->execute([$idNumber]);
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('PRISM roster delete: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That student could not be removed because other records still depend on the account.'];
     }
-    prism_roster_audit($db, $admin['id'], $idNumber, 'roster_revoked', $ip);
-    $db->prepare('DELETE FROM student_roster WHERE id_number = ? AND claimed_at IS NULL')->execute([$idNumber]);
+    return ['ok' => true];
+}
+
+function prism_normalize_subjects(string $raw): string {
+    $parts = preg_split('/[\r\n,]+/', $raw) ?: [];
+    $clean = [];
+    foreach ($parts as $part) {
+        $part = trim($part);
+        if ($part !== '') {
+            $clean[] = $part;
+        }
+    }
+    return implode(', ', $clean);
+}
+
+function prism_normalize_teacher_input(array $b): array {
+    return [
+        'id' => trim((string) ($b['id'] ?? $b['id_number'] ?? '')),
+        'email' => prism_normalize_ctu_email($b['email'] ?? ''),
+        'first_name' => trim((string) ($b['first_name'] ?? '')),
+        'last_name' => trim((string) ($b['last_name'] ?? '')),
+        'college' => trim((string) ($b['college'] ?? '')),
+        'department' => trim((string) ($b['department'] ?? '')),
+        'subjects' => prism_normalize_subjects((string) ($b['subjects'] ?? '')),
+        'password' => (string) ($b['password'] ?? ''),
+        'confirm' => (string) ($b['confirm_password'] ?? $b['password2'] ?? $b['password'] ?? ''),
+    ];
+}
+
+function prism_teacher_field_error(array $in): ?string {
+    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{3,49}$/', $in['id'])) {
+        return 'Teacher ID must be 4 to 50 letters, numbers, dots, or hyphens.';
+    }
+    if (!prism_is_ctu_email($in['email'])) {
+        return 'Email must be a CTU address ending in @ctu.edu.ph.';
+    }
+    if ($in['first_name'] === '' || $in['last_name'] === '') {
+        return 'First and last name are required.';
+    }
+    $colleges = prism_ctu_programs_by_college();
+    if (!isset($colleges[$in['college']])) {
+        return 'Choose a college.';
+    }
+    if ($in['department'] === '' || strlen($in['department']) > 80) {
+        return 'Enter a department.';
+    }
+    if ($in['subjects'] === '') {
+        return 'Enter the subjects this teacher handles.';
+    }
+    if (strlen($in['subjects']) > 500) {
+        return 'Subjects must be 500 characters or fewer.';
+    }
+    return prism_password_format_error($in['password'], $in['confirm']);
+}
+
+function prism_teacher_add(PDO $db, array $admin, array $body): array {
+    prism_ensure_student_roster($db);
+    $in = prism_normalize_teacher_input($body);
+    $err = prism_teacher_field_error($in);
+    if ($err !== null) {
+        return ['ok' => false, 'status' => 400, 'error' => $err];
+    }
+    $idTaken = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
+    $idTaken->execute([$in['id']]);
+    if ($idTaken->fetch()) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That ID is already in use.'];
+    }
+    $emailTaken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email IS NOT NULL');
+    $emailTaken->execute([$in['email']]);
+    if ($emailTaken->fetch()) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That CTU email is already used on another account.'];
+    }
+    try {
+        $db->beginTransaction();
+        $name = trim($in['first_name'] . ' ' . $in['last_name']);
+        $verifiedAt = date('Y-m-d H:i:s');
+        $db->prepare('INSERT INTO users (id, `password`, role, name, section, email, email_verified_at) VALUES (?,?,?,?,?,?,?)')
+            ->execute([$in['id'], prism_hash_secret($in['password']), 'teacher', $name, $in['department'], $in['email'], $verifiedAt]);
+        $db->prepare('INSERT INTO teacher_roster (id, email, first_name, last_name, college, department, subjects, created_by_admin_id) VALUES (?,?,?,?,?,?,?,?)')
+            ->execute([$in['id'], $in['email'], $in['first_name'], $in['last_name'], $in['college'], $in['department'], $in['subjects'], $admin['id']]);
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('PRISM teacher roster add: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That teacher could not be saved. Check the ID and email, then try again.'];
+    }
+    return ['ok' => true, 'id' => $in['id'], 'email' => $in['email']];
+}
+
+function prism_teacher_list(PDO $db, string $q, string $college, int $page, int $perPage): array {
+    prism_ensure_student_roster($db);
+    $page = max(1, $page);
+    $perPage = min(50, max(1, $perPage));
+    $where = ' WHERE 1=1';
+    $params = [];
+    $college = trim($college);
+    if ($college !== '') {
+        $where .= ' AND college = ?';
+        $params[] = $college;
+    }
+    if ($q !== '') {
+        $where .= " AND (id LIKE ? OR email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR department LIKE ? OR subjects LIKE ? ESCAPE '\\\\')";
+        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+        $params = array_merge($params, [$like, $like, $like, $like, $like, $like]);
+    }
+    $count = $db->prepare('SELECT COUNT(*) FROM teacher_roster' . $where);
+    $count->execute($params);
+    $total = (int) $count->fetchColumn();
+    $sql = 'SELECT id, email, first_name, last_name, college, department, subjects, created_at FROM teacher_roster'
+        . $where . ' ORDER BY college, department, last_name, first_name LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $pages = max(1, (int) ceil($total / $perPage));
+    return ['rows' => $stmt->fetchAll(), 'total' => $total, 'page' => $page, 'pages' => $pages, 'per_page' => $perPage];
+}
+
+function prism_teacher_delete(PDO $db, string $id): array {
+    prism_ensure_student_roster($db);
+    $id = trim($id);
+    $stmt = $db->prepare('SELECT id FROM teacher_roster WHERE id = ?');
+    $stmt->execute([$id]);
+    if (!$stmt->fetch()) {
+        return ['ok' => false, 'status' => 404, 'error' => 'That teacher was not found on the roster.'];
+    }
+    try {
+        $db->beginTransaction();
+        $db->prepare('DELETE FROM teacher_roster WHERE id = ?')->execute([$id]);
+        $db->prepare('DELETE FROM users WHERE id = ? AND role = ?')->execute([$id, 'teacher']);
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('PRISM teacher roster delete: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That teacher could not be removed because other records still depend on the account.'];
+    }
     return ['ok' => true];
 }

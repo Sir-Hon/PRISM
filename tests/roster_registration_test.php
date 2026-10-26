@@ -1,6 +1,6 @@
 <?php
 /**
- * CLI checks for roster-verified registration.
+ * CLI checks for admin-created roster accounts.
  * Usage: C:\xampp\php\php.exe tests\roster_registration_test.php
  */
 require_once __DIR__ . '/../api/config.php';
@@ -20,15 +20,16 @@ function check(bool $cond, string $label): void {
 $db = getDB();
 prism_ensure_student_roster($db);
 
-$ids = [];
-for ($n = 9000001; $n <= 9000020; $n++) {
-    $ids[] = (string) $n;
-}
+$ids = ['9000001', '9000002', '9000007', '9000009'];
+$teacherIds = ['t9000001'];
 $marks = implode(',', array_fill(0, count($ids), '?'));
 $db->prepare("DELETE FROM registration_audit_log WHERE roster_id_number IN ($marks)")->execute($ids);
 $db->prepare("UPDATE student_roster SET claimed_by_user_id = NULL WHERE id_number IN ($marks)")->execute($ids);
-$db->prepare("DELETE FROM users WHERE id IN ($marks) OR id = 'rosteradmin'")->execute($ids);
+$db->prepare("UPDATE users SET id_number = NULL WHERE id IN ($marks)")->execute($ids);
+$db->prepare("DELETE FROM users WHERE id IN ($marks)")->execute($ids);
 $db->prepare("DELETE FROM student_roster WHERE id_number IN ($marks)")->execute($ids);
+$db->prepare('DELETE FROM teacher_roster WHERE id = ?')->execute($teacherIds);
+$db->prepare('DELETE FROM users WHERE id = ?')->execute($teacherIds);
 
 $pw = 'RosterTest9';
 $admin = ['id' => 'admin001', 'role' => 'admin', 'name' => 'Portal Admin'];
@@ -39,188 +40,109 @@ if (!$adminRow->fetch()) {
         ->execute(['admin001', prism_hash_secret($pw), 'admin', 'Portal Admin', 'Admin Office']);
 }
 
-function addStudent(PDO $db, array $admin, string $id, string $email): string {
-    $result = prism_roster_add($db, $admin, [
-        'id_number' => $id,
-        'email' => '  ' . strtoupper($email) . '  ',
-        'first_name' => 'Ada',
-        'last_name' => 'Lovelace',
-        'course' => 'BSIT',
-        'year_level' => '1-A',
-    ], '203.0.113.10');
-    if (empty($result['ok'])) {
-        throw new RuntimeException($result['error'] ?? 'add failed');
-    }
-    return $result['registration_code'];
-}
-
-$generic = PRISM_ROSTER_GENERIC;
-$code1 = addStudent($db, $admin, '9000001', 'ada.one@ctu.edu.ph');
-$ok = prism_register_from_roster($db, [
-    'id' => ' 9000001 ',
-    'email' => ' Ada.One@ctu.edu.ph ',
-    'code' => strtolower($code1),
+$added = prism_roster_add($db, $admin, [
+    'id_number' => '9000001',
+    'email' => '  Ada.One@ctu.edu.ph  ',
+    'first_name' => 'Ada',
+    'last_name' => 'Lovelace',
+    'college' => 'CoTE',
+    'program' => 'BSIT',
+    'year' => '1',
+    'section' => 'a',
     'password' => $pw,
     'confirm_password' => $pw,
-], '203.0.113.21');
-check(!empty($ok['ok']), 'successful registration');
-$user = $db->prepare('SELECT name, section, email, id_number, `password` FROM users WHERE id = ?');
+], '203.0.113.10');
+check(!empty($added['ok']) && empty($added['registration_code']), 'add creates the account without a registration code');
+$user = $db->prepare('SELECT name, section, email, role, `password` FROM users WHERE id = ?');
 $user->execute(['9000001']);
 $row = $user->fetch();
-check($row && $row['name'] === 'Ada Lovelace' && $row['section'] === 'BSIT 1-A', 'profile copied from roster');
+check($row && $row['name'] === 'Ada Lovelace' && $row['section'] === 'BSIT 1-A' && $row['role'] === 'student', 'student profile uses program, year, and section');
 check($row && $row['password'] !== $pw && password_verify($pw, $row['password']), 'password stored as a hash');
-$hash = $db->prepare('SELECT reg_code_hash, claimed_at FROM student_roster WHERE id_number = ?');
-$hash->execute(['9000001']);
-$roster = $hash->fetch();
-check($roster && $roster['reg_code_hash'] !== $code1 && password_verify($code1, $roster['reg_code_hash']) && !empty($roster['claimed_at']), 'code stored as a hash and claimed');
-$audit = $db->prepare('SELECT event_type, ip_address FROM registration_audit_log WHERE roster_id_number = ?');
-$audit->execute(['9000001']);
-$events = $audit->fetchAll();
-$blob = json_encode($events);
-check(strpos($blob, $code1) === false && strpos($blob, $pw) === false, 'audit log has no code or password');
+$roster = $db->prepare('SELECT college, course, year_level, section_letter, claimed_at, reg_code_hash FROM student_roster WHERE id_number = ?');
+$roster->execute(['9000001']);
+$rosterRow = $roster->fetch();
+check($rosterRow && $rosterRow['college'] === 'CoTE' && $rosterRow['course'] === 'BSIT' && $rosterRow['year_level'] === '1-A' && $rosterRow['section_letter'] === 'A' && !empty($rosterRow['claimed_at']), 'roster stores college, program, year, and section');
+check($rosterRow && $rosterRow['reg_code_hash'] !== $pw && !password_verify($pw, $rosterRow['reg_code_hash']), 'password is not stored on the roster row');
 
-$code2 = addStudent($db, $admin, '9000002', 'ada.two@ctu.edu.ph');
-$attempts = [
-    ['9000099', 'ada.two@ctu.edu.ph', $code2, 'wrong id'],
-    ['9000002', 'other.two@ctu.edu.ph', $code2, 'wrong email'],
-    ['9000002', 'ada.two@ctu.edu.ph', 'ZZZZZZZZ', 'wrong code'],
-];
-$seen = [];
-foreach ($attempts as $i => $case) {
-    $res = prism_register_from_roster($db, [
-        'id_number' => $case[0],
-        'email' => $case[1],
-        'code' => $case[2],
-        'password' => $pw,
-        'confirm_password' => $pw,
-    ], '203.0.113.22');
-    $seen[] = ($res['error'] ?? '') . '|' . ($res['status'] ?? 0);
-    check(empty($res['ok']) && ($res['error'] ?? '') === $generic && (int) $res['status'] === 400, $case[3] . ' generic error');
+$closed = prism_register_from_roster($db, ['id_number' => '9000001', 'password' => $pw], '203.0.113.21');
+check(empty($closed['ok']) && (int) $closed['status'] === 403, 'public registration is closed');
+
+$badPlace = prism_roster_add($db, $admin, [
+    'id_number' => '9000002',
+    'email' => 'ada.two@ctu.edu.ph',
+    'first_name' => 'Ada',
+    'last_name' => 'Two',
+    'college' => 'CoED',
+    'program' => 'BSIT',
+    'year' => '1',
+    'section' => 'A',
+    'password' => $pw,
+    'confirm_password' => $pw,
+], '203.0.113.10');
+check(empty($badPlace['ok']) && ($badPlace['error'] ?? '') === 'Choose a program in that college.', 'program must belong to the college');
+
+$listed = prism_roster_list($db, '', '', 1, 20, 'CoTE', 'BSIT', '1', 'A');
+$found = false;
+foreach ($listed['rows'] as $item) {
+    if ($item['id_number'] === '9000001' && $item['college'] === 'CoTE' && $item['program'] === 'BSIT' && $item['year'] === '1' && $item['section'] === 'A') {
+        $found = true;
+    }
 }
-check(count(array_unique($seen)) === 1, 'wrong id, email, and code share one error');
+check($found, 'list filters by college, program, year, and section');
 
-$code3 = addStudent($db, $admin, '9000003', 'ada.three@ctu.edu.ph');
-$db->prepare('UPDATE student_roster SET expires_at = DATE_SUB(NOW(), INTERVAL 1 DAY) WHERE id_number = ?')->execute(['9000003']);
-$expired = prism_register_from_roster($db, [
-    'id_number' => '9000003', 'email' => 'ada.three@ctu.edu.ph', 'code' => $code3,
-    'password' => $pw, 'confirm_password' => $pw,
-], '203.0.113.23');
-check(empty($expired['ok']) && ($expired['error'] ?? '') === $generic, 'expired code generic error');
-$claimedAgain = prism_register_from_roster($db, [
-    'id_number' => '9000001', 'email' => 'ada.one@ctu.edu.ph', 'code' => $code1,
-    'password' => $pw, 'confirm_password' => $pw,
-], '203.0.113.24');
-check(empty($claimedAgain['ok']) && ($claimedAgain['error'] ?? '') === $generic, 'already claimed generic error');
-
-$limitedIp = '203.0.113.77';
-$code4 = addStudent($db, $admin, '9000004', 'ada.four@ctu.edu.ph');
-$last = null;
-for ($i = 0; $i < 5; $i++) {
-    $last = prism_register_from_roster($db, [
-        'id_number' => '9000004', 'email' => 'ada.four@ctu.edu.ph', 'code' => 'BADCODE1',
-        'password' => $pw, 'confirm_password' => $pw,
-    ], $limitedIp);
-}
-check(empty($last['ok']) && (int) ($last['status'] ?? 0) === 400, 'fifth failure is still a generic mismatch');
-$blocked = prism_register_from_roster($db, [
-    'id_number' => '9000004', 'email' => 'ada.four@ctu.edu.ph', 'code' => $code4,
-    'password' => $pw, 'confirm_password' => $pw,
-], $limitedIp);
-check((int) ($blocked['status'] ?? 0) === 429, 'sixth attempt from the same IP is rate limited');
-
-$code5 = addStudent($db, $admin, '9000005', 'ada.five@ctu.edu.ph');
-$idLimited = null;
-for ($i = 0; $i < 5; $i++) {
-    $idLimited = prism_register_from_roster($db, [
-        'id_number' => '9000005', 'email' => 'ada.five@ctu.edu.ph', 'code' => 'BADCODE2',
-        'password' => $pw, 'confirm_password' => $pw,
-    ], '203.0.113.' . (30 + $i));
-}
-$blockedId = prism_register_from_roster($db, [
-    'id_number' => '9000005', 'email' => 'ada.five@ctu.edu.ph', 'code' => $code5,
-    'password' => $pw, 'confirm_password' => $pw,
-], '203.0.113.99');
-check((int) ($blockedId['status'] ?? 0) === 429, 'sixth attempt for the same ID is rate limited');
-
-$code6 = addStudent($db, $admin, '9000006', 'ada.six@ctu.edu.ph');
-$old = $code6;
-$regen = prism_roster_regenerate($db, $admin, '9000006', '203.0.113.10');
-check(!empty($regen['ok']) && $regen['registration_code'] !== $old, 'regenerate returns a new code');
-$oldTry = prism_register_from_roster($db, [
-    'id_number' => '9000006', 'email' => 'ada.six@ctu.edu.ph', 'code' => $old,
-    'password' => $pw, 'confirm_password' => $pw,
-], '203.0.113.40');
-check(empty($oldTry['ok']) && ($oldTry['error'] ?? '') === $generic, 'old code is invalid after regenerate');
-$newTry = prism_register_from_roster($db, [
-    'id_number' => '9000006', 'email' => 'ada.six@ctu.edu.ph', 'code' => $regen['registration_code'],
-    'password' => $pw, 'confirm_password' => $pw,
-], '203.0.113.41');
-check(!empty($newTry['ok']), 'new code registers');
-
-$csv = "id_number,email,first_name,last_name,course,year_level\n"
-    . "9000007,ada.seven@ctu.edu.ph,Grace,Hopper,BSIT,2-B\n"
-    . "9000007,ada.dup@ctu.edu.ph,Dup,Id,BSIT,2-B\n"
-    . "9000008,not-an-email,Bad,Domain,BSIT,2-B\n"
-    . "9000008,ada.seven@ctu.edu.ph,Dup,Email,BSIT,2-B\n"
-    . "9000009,ada.nine@ctu.edu.ph,Ken,Thompson,BSIT,3-C\n";
+$csv = "id_number,email,first_name,last_name,college,program,year,section,password\n"
+    . "9000007,ada.seven@ctu.edu.ph,Grace,Hopper,CoTE,BSIT,2,B,{$pw}\n"
+    . "9000007,ada.dup@ctu.edu.ph,Dup,Id,CoTE,BSIT,2,B,{$pw}\n"
+    . "9000008,not-an-email,Bad,Domain,CoTE,BSIT,2,B,{$pw}\n"
+    . "9000009,ada.nine@ctu.edu.ph,Ken,Thompson,CoED,BEEd,3,C,short\n";
 $parsed = prism_parse_csv_text($csv);
 $preview = prism_roster_preview_rows($db, $parsed);
 $byLine = [];
+$leaked = false;
 foreach ($preview['rows'] as $r) {
     $byLine[$r['line']] = $r;
+    if (isset($r['password']) || (isset($r['errors']) && strpos(json_encode($r['errors']), $pw) !== false)) {
+        $leaked = true;
+    }
 }
 check(!empty($byLine[2]['valid']), 'csv valid row preview');
 check(empty($byLine[3]['valid']), 'csv duplicate id in file');
 check(empty($byLine[4]['valid']), 'csv bad domain');
-check(empty($byLine[5]['valid']), 'csv duplicate email in file');
+check(empty($byLine[5]['valid']), 'csv weak password is rejected');
+check(!$leaked, 'csv preview does not include the password');
 $imported = prism_roster_import($db, $admin, $parsed, '203.0.113.10');
-check(!empty($imported['ok']) && (int) $imported['imported'] === 2, 'csv commits only valid rows');
-$plainHit = false;
-foreach ($imported['codes'] as $c) {
-    $stored = $db->prepare('SELECT reg_code_hash FROM student_roster WHERE id_number = ?');
-    $stored->execute([$c['id_number']]);
-    $h = (string) $stored->fetchColumn();
-    if ($h === '' || $h === $c['registration_code'] || !password_verify($c['registration_code'], $h)) {
-        $plainHit = true;
-    }
-}
-check(!$plainHit && count($imported['codes']) === 2, 'imported codes are hashed');
-check(prism_csv_safe('=cmd') === "'=cmd" && prism_csv_safe('Ada') === 'Ada', 'csv export formula guard');
+check(!empty($imported['ok']) && (int) $imported['imported'] === 1, 'csv commits only valid rows');
+$importedUser = $db->prepare('SELECT section FROM users WHERE id = ?');
+$importedUser->execute(['9000007']);
+check($importedUser->fetchColumn() === 'BSIT 2-B', 'imported student gets the categorized section');
 
-$php = 'C:\\xampp\\php\\php.exe';
-$code7 = addStudent($db, $admin, '9000010', 'ada.ten@ctu.edu.ph');
-$job = json_encode([
-    'id_number' => '9000010',
-    'email' => 'ada.ten@ctu.edu.ph',
-    'code' => $code7,
+$teacher = prism_teacher_add($db, $admin, [
+    'id' => 't9000001',
+    'email' => 'grace.hopper@ctu.edu.ph',
+    'first_name' => 'Grace',
+    'last_name' => 'Hopper',
+    'college' => 'CoTE',
+    'department' => 'Information Technology',
+    'subjects' => "Programming\nDatabases",
     'password' => $pw,
+    'confirm_password' => $pw,
 ]);
-$spec = [1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
-$a = proc_open([$php, __DIR__ . '/roster_lock_worker.php', json_encode(json_decode($job, true) + ['hold' => 2, 'ip' => '203.0.113.60'])], $spec, $pipesA);
-$b = proc_open([$php, __DIR__ . '/roster_lock_worker.php', json_encode(json_decode($job, true) + ['hold' => 0, 'ip' => '203.0.113.61'])], $spec, $pipesB);
-$outA = stream_get_contents($pipesA[1]);
-$outB = stream_get_contents($pipesB[1]);
-fclose($pipesA[1]); fclose($pipesA[2]); fclose($pipesB[1]); fclose($pipesB[2]);
-proc_close($a);
-proc_close($b);
-$resA = json_decode($outA, true) ?: [];
-$resB = json_decode($outB, true) ?: [];
-$wins = (int) !empty($resA['ok']) + (int) !empty($resB['ok']);
-check($wins === 1, 'concurrent claim has a single success');
-$claimed = $db->prepare('SELECT COUNT(*) FROM users WHERE id = ?');
-$claimed->execute(['9000010']);
-check((int) $claimed->fetchColumn() === 1, 'concurrent claim creates one user');
+check(!empty($teacher['ok']), 'teacher account is created');
+$teacherRow = $db->prepare('SELECT college, department, subjects FROM teacher_roster WHERE id = ?');
+$teacherRow->execute(['t9000001']);
+$t = $teacherRow->fetch();
+check($t && $t['college'] === 'CoTE' && $t['department'] === 'Information Technology' && $t['subjects'] === 'Programming, Databases', 'teacher roster stores college, department, and subjects');
+$teacherUser = $db->prepare('SELECT role, section, `password` FROM users WHERE id = ?');
+$teacherUser->execute(['t9000001']);
+$tu = $teacherUser->fetch();
+check($tu && $tu['role'] === 'teacher' && $tu['section'] === 'Information Technology' && password_verify($pw, $tu['password']), 'teacher login uses the department and a password hash');
 
 $base = 'http://localhost:8765/api/roster.php';
-function http_status(string $url, string $method = 'GET', ?string $cookie = null, ?string $body = null): int {
+function http_status(string $url, string $method = 'GET', ?string $body = null): int {
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     curl_setopt($ch, CURLOPT_TIMEOUT, 15);
-    if ($cookie) {
-        curl_setopt($ch, CURLOPT_COOKIEFILE, $cookie);
-        curl_setopt($ch, CURLOPT_COOKIEJAR, $cookie);
-    }
     if ($body !== null) {
         curl_setopt($ch, CURLOPT_POSTFIELDS, $body);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json', 'Origin: http://localhost:8765']);
@@ -231,19 +153,18 @@ function http_status(string $url, string $method = 'GET', ?string $cookie = null
     return $code;
 }
 check(http_status($base . '?action=list') === 403, 'roster list requires admin');
-check(http_status($base . '?action=add', 'POST', null, '{}') === 403, 'roster add requires admin');
-check(http_status($base . '?action=preview', 'POST') === 403, 'roster preview requires admin');
-check(http_status($base . '?action=import', 'POST') === 403, 'roster import requires admin');
-check(http_status($base . '?action=regenerate', 'POST', null, '{}') === 403, 'roster regenerate requires admin');
-check(http_status($base . '?action=revoke', 'POST', null, '{}') === 403, 'roster revoke requires admin');
-check(http_status($base . '?action=delete', 'POST', null, '{}') === 403, 'roster delete requires admin');
+check(http_status($base . '?action=teacher_list') === 403, 'teacher roster requires admin');
+check(http_status($base . '?action=add', 'POST', '{}') === 403, 'roster add requires admin');
+check(http_status($base . '?action=teacher_add', 'POST', '{}') === 403, 'teacher add requires admin');
+check(http_status('http://localhost:8765/api/auth.php?action=register', 'POST', '{}') === 403, 'student registration endpoint is closed');
 
-$ids[] = '9000099';
-$marks = implode(',', array_fill(0, count($ids), '?'));
 $db->prepare("DELETE FROM registration_audit_log WHERE roster_id_number IN ($marks)")->execute($ids);
 $db->prepare("UPDATE student_roster SET claimed_by_user_id = NULL WHERE id_number IN ($marks)")->execute($ids);
-$db->prepare('DELETE FROM users WHERE id IN (' . $marks . ')')->execute($ids);
-$db->prepare('DELETE FROM student_roster WHERE id_number IN (' . $marks . ')')->execute($ids);
+$db->prepare("UPDATE users SET id_number = NULL WHERE id IN ($marks)")->execute($ids);
+$db->prepare("DELETE FROM users WHERE id IN ($marks)")->execute($ids);
+$db->prepare("DELETE FROM student_roster WHERE id_number IN ($marks)")->execute($ids);
+$db->prepare('DELETE FROM teacher_roster WHERE id = ?')->execute($teacherIds);
+$db->prepare('DELETE FROM users WHERE id = ?')->execute($teacherIds);
 
 echo $fail === 0 ? "ALL PASSED\n" : "FAILED {$fail}\n";
 exit($fail === 0 ? 0 : 1);

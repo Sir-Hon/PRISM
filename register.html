@@ -1,158 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Prism Portal — Student Registration</title>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
+  <title>PRISM ? Student Accounts</title>
+  <link rel="icon" type="image/png" href="Prismcrys.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    :root { --prism: #7c3aed; --prism-dark: #6d28d9; --prism-mid: #a78bfa; --student: #6366f1; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      min-height: 100vh; background: #0a0a0f;
+      min-height: 100vh; background: #0a0a0f; color: #f0f0f5;
       display: flex; align-items: center; justify-content: center;
-      font-family: 'DM Sans', sans-serif; padding: 2rem 1rem;
+      font-family: 'DM Sans', sans-serif; padding: 1.5rem;
     }
-    body::before {
-      content: ''; position: fixed; inset: 0;
-      background:
-        radial-gradient(ellipse 55% 45% at 15% 25%, rgba(99,102,241,0.13) 0%, transparent 60%),
-        radial-gradient(ellipse 45% 40% at 85% 75%, rgba(124,58,237,0.09) 0%, transparent 60%);
-      z-index: 0; pointer-events: none;
+    .card {
+      width: min(460px, 100%); background: #13131a; border: 1.5px solid #22222e;
+      border-radius: 20px; padding: 2rem 1.5rem; text-align: center;
     }
-    .page { position: relative; z-index: 1; width: 100%; max-width: 500px; }
-    @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
-
-    .page-header { text-align:center; margin-bottom:1.8rem; animation:fadeUp .5s ease both; }
-    .logo { display:inline-flex; align-items:center; gap:.55rem; margin-bottom:.6rem; text-decoration:none; }
-    .logo-gem { width:32px; height:32px; background:linear-gradient(135deg,var(--prism),var(--prism-mid)); border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:1.1rem; }
-    .logo-text { font-family:'DM Sans',sans-serif; font-size:1.5rem; font-weight:800; color:#f0f0f5; letter-spacing:-.5px; }
-    .page-title { font-family:'DM Sans',sans-serif; font-size:1.65rem; font-weight:800; color:#f0f0f5; margin-bottom:.3rem; }
-    .page-sub { font-size:.84rem; color:#6b7280; }
-
-    .student-badge { display:inline-flex; align-items:center; gap:.4rem; background:rgba(99,102,241,.12); border:1px solid rgba(99,102,241,.3); color:#a5b4fc; border-radius:20px; padding:4px 14px; font-size:.78rem; font-weight:700; margin-bottom:1.4rem; }
-
-    .reg-card { background:#13131a; border:1.5px solid #22222e; border-radius:24px; padding:2rem 1.8rem; animation:fadeUp .5s ease .1s both; }
-
-    .notice { background:rgba(124,58,237,.07); border:1px solid rgba(124,58,237,.2); border-radius:12px; padding:.8rem 1rem; margin-bottom:1.4rem; font-size:.8rem; color:#9ca3af; line-height:1.6; }
-    .notice strong { color:#a78bfa; }
-
-    .fields-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-    .field.full { grid-column:1/-1; }
-    .field label { display:block; font-size:.73rem; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.42rem; }
-    .field input, .field select { width:100%; background:#0e0e16; border:1.5px solid #22222e; border-radius:10px; padding:.7rem .9rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:.9rem; outline:none; transition:border-color .2s; }
-    .field input:focus, .field select:focus { border-color:var(--student); }
-    .field input.invalid, .field select.invalid { border-color:#f87171; }
-    .field input.valid, .field select.valid { border-color:#34d399; }
-    .field select { appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%239ca3af' d='M1.4.6L6 5.2 10.6.6 12 2 6 8 0 2z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right .85rem center; padding-right:2.1rem; cursor:pointer; }
-    .field select:disabled { opacity:.45; cursor:not-allowed; }
-    .field select option { background:#13131a; color:#f0f0f5; }
-    .field-hint { font-size:.7rem; color:#6b7280; margin-top:.28rem; }
-
-    .pw-wrap { position:relative; }
-    .pw-toggle { position:absolute; right:.75rem; top:50%; transform:translateY(-50%); background:none; border:none; color:#6b7280; cursor:pointer; font-size:.95rem; padding:0; }
-    .pw-toggle:hover { color:#d1d5db; }
-
-    .strength-wrap { margin-top:.45rem; display:none; }
-    .strength-bar { height:4px; border-radius:4px; background:#22222e; overflow:hidden; }
-    .strength-fill { height:100%; border-radius:4px; transition:width .3s,background .3s; width:0%; }
-    .strength-label { font-size:.7rem; margin-top:.25rem; color:#6b7280; }
-
-    .submit-btn { width:100%; padding:.82rem; border:none; border-radius:12px; background:var(--student); color:#fff; font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:700; cursor:pointer; margin-top:1.5rem; transition:opacity .2s,transform .15s; }
-    .submit-btn:hover { opacity:.88; transform:translateY(-1px); }
-    .submit-btn.loading { opacity:.55; pointer-events:none; }
-
-    .msg { font-size:.8rem; margin-top:.7rem; text-align:center; min-height:1em; }
-    .msg.error   { color:#f87171; }
-    .msg.success { color:#34d399; }
-
-    .success-screen { display:none; flex-direction:column; align-items:center; text-align:center; gap:.7rem; padding:.5rem 0; animation:fadeUp .4s ease; }
-    .check-icon { width:64px; height:64px; background:rgba(52,211,153,.12); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.8rem; margin-bottom:.3rem; }
-    .success-screen h3 { font-family:'DM Sans',sans-serif; font-size:1.25rem; font-weight:800; color:#f0f0f5; }
-    .success-screen p  { font-size:.84rem; color:#9ca3af; line-height:1.65; margin:0; text-align:center; }
-    .id-box { background:#0e0e16; border:1px solid #22222e; border-radius:10px; padding:.55rem 1.4rem; font-family:'DM Sans',sans-serif; font-size:1.1rem; font-weight:700; color:var(--student); letter-spacing:.05em; margin:.2rem 0; }
-    .go-btn { width:100%; padding:.78rem; border:none; border-radius:12px; background:var(--student); color:#fff; font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:700; cursor:pointer; margin-top:.5rem; transition:opacity .2s; }
-    .go-btn:hover { opacity:.88; }
-    @media (max-width: 520px) {
-      body { padding: 1rem 0.75rem; align-items: flex-start; }
-      .reg-card { padding: 1.25rem 1rem; border-radius: 18px; }
-      .fields-grid { grid-template-columns: 1fr; }
-    }
-
-    .login-link { text-align:center; margin-top:1.2rem; font-size:.82rem; color:#6b7280; animation:fadeUp .5s ease .2s both; }
-    .login-link a { color:var(--prism-mid); font-weight:600; text-decoration:none; }
-    .login-link a:hover { text-decoration:underline; }
+    h1 { font-size: 1.45rem; margin: .4rem 0 .7rem; }
+    p { color: #9ca3af; font-size: .95rem; line-height: 1.6; }
+    a { color: #a5b4fc; font-weight: 700; text-decoration: none; }
   </style>
 </head>
 <body>
-<script src="api.js?v=19"></script>
-<div class="page">
-  <div class="page-header">
-    <a class="logo" href="login.html"><div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div><span class="logo-text">PRISM</span></a>
-    <h1 class="page-title">Student Registration</h1>
-    <p class="page-sub">Register with the ID, CTU email, and code from your administrator.</p>
+  <div class="card">
+    <h1>Student accounts are created by an administrator</h1>
+    <p>There is no public registration. Ask your portal administrator to add you on the roster, then <a href="login.html">sign in</a> with the ID, CTU email, and password they gave you.</p>
   </div>
-
-  <div class="reg-card" id="reg-card">
-    <div style="text-align:center"><span class="student-badge"> Student Account</span></div>
-    <div class="notice">
-      <strong>Note:</strong> Use the student ID, @ctu.edu.ph email, and registration code your administrator gave you.
-      Your name and course come from the school roster. Teacher and admin accounts are not created here.
-    </div>
-    <div class="msg error" id="reg-banner" style="display:none;margin-bottom:1rem;"></div>
-
-    <div class="fields-grid" id="reg-form">
-      <div class="field full">
-        <label for="f-id">Student ID Number</label>
-        <input type="text" id="f-id" placeholder="e.g. 1234567" inputmode="numeric" maxlength="7" autocomplete="off"/>
-        <div class="field-hint" id="hint-id">Exactly 7 digits.</div>
-      </div>
-      <div class="field full">
-        <label for="f-email">CTU Email</label>
-        <input type="email" id="f-email" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/>
-        <div class="field-hint" id="hint-email"></div>
-      </div>
-      <div class="field full">
-        <label for="f-code">Registration Code</label>
-        <input type="text" id="f-code" placeholder="e.g. VWIM1194" maxlength="8" autocomplete="off"/>
-        <div class="field-hint" id="hint-code">8 characters from your administrator.</div>
-      </div>
-      <div class="field full">
-        <label>Password</label>
-        <div class="pw-wrap">
-          <input type="password" id="f-pw" placeholder="Create a password" oninput="checkStrength()"/>
-          <button class="pw-toggle" type="button" onclick="togglePw('f-pw',this)">Show</button>
-        </div>
-        <div class="strength-wrap" id="strength-wrap">
-          <div class="strength-bar"><div class="strength-fill" id="strength-fill"></div></div>
-          <div class="strength-label" id="strength-label"></div>
-        </div>
-      </div>
-      <div class="field full">
-        <label>Confirm Password</label>
-        <div class="pw-wrap">
-          <input type="password" id="f-pw2" placeholder="Re-enter your password" oninput="checkConfirm()"/>
-          <button class="pw-toggle" type="button" onclick="togglePw('f-pw2',this)">Show</button>
-        </div>
-      </div>
-    </div>
-
-    <button class="submit-btn" id="reg-btn" onclick="handleRegister()">Create Student Account</button>
-    <div class="msg" id="reg-msg"></div>
-
-    <div class="success-screen" id="success-screen">
-      <div class="check-icon"></div>
-      <h3>Account Created!</h3>
-      <p>Your student account has been registered.<br/>Sign in with your student ID, CTU email, and password.</p>
-      <div class="id-box" id="success-id"></div>
-      <p style="font-size:.76rem;">Your name and course were copied from the roster.</p>
-      <button class="go-btn" onclick="window.location.href='login.html'">Go to Login</button>
-    </div>
-  </div>
-
-  <p class="login-link">Already have an account? <a href="login.html">Sign in here</a></p>
-</div>
-
-<script src="pages/register.js?v=15"></script>
 </body>
 </html>

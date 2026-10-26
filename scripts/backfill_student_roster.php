@@ -21,8 +21,8 @@ $skipped = 0;
 $placeholders = 0;
 
 $insert = $db->prepare(
-    'INSERT INTO student_roster (id_number, email, first_name, last_name, course, year_level, reg_code_hash, expires_at, claimed_at, claimed_by_user_id, created_by_admin_id)
-     VALUES (?,?,?,?,?,?,?,NOW(),NOW(),?,NULL)'
+    'INSERT INTO student_roster (id_number, email, first_name, last_name, course, year_level, college, section_letter, reg_code_hash, expires_at, claimed_at, claimed_by_user_id, created_by_admin_id)
+     VALUES (?,?,?,?,?,?,?,?,?,NOW(),NOW(),?,NULL)'
 );
 $link = $db->prepare('UPDATE users SET id_number = ?, email = ? WHERE id = ? AND (id_number IS NULL OR id_number = "")');
 
@@ -50,14 +50,17 @@ foreach ($students as $student) {
     $section = trim((string) ($student['section'] ?? ''));
     $course = 'BSIT';
     $year = '1-A';
-    if (preg_match('/^(.+) ([1-4]-[A-F])$/', $section, $m)) {
+    $letter = 'A';
+    if (preg_match('/^(.+) ([1-4])-([A-F])$/', $section, $m)) {
         $course = $m[1];
-        $year = $m[2];
+        $year = $m[2] . '-' . $m[3];
+        $letter = $m[3];
     } elseif ($section !== '') {
         $course = $section;
     }
-    $hash = prism_hash_secret(prism_generate_reg_code());
-    $insert->execute([$id, $email, $first, $last, $course, $year, $hash, $id]);
+    $college = prism_college_for_program($course);
+    $hash = prism_hash_secret(bin2hex(random_bytes(8)));
+    $insert->execute([$id, $email, $first, $last, $course, $year, $college, $letter, $hash, $id]);
     $link->execute([$id, $email, $id]);
     $added++;
     echo "claimed {$id} {$email}\n";

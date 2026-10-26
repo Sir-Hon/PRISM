@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS student_roster (
   last_name VARCHAR(80) NOT NULL,
   course VARCHAR(80) NOT NULL,
   year_level VARCHAR(20) NOT NULL,
+  college VARCHAR(40) NOT NULL DEFAULT '',
+  section_letter VARCHAR(8) NOT NULL DEFAULT '',
   reg_code_hash VARCHAR(255) NOT NULL,
   expires_at DATETIME NOT NULL,
   claimed_at DATETIME DEFAULT NULL,
@@ -21,6 +23,21 @@ CREATE TABLE IF NOT EXISTS student_roster (
   UNIQUE KEY uq_roster_email (email),
   KEY idx_roster_claimed (claimed_at),
   KEY idx_roster_expires (expires_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS teacher_roster (
+  id VARCHAR(50) PRIMARY KEY,
+  email VARCHAR(255) NOT NULL,
+  first_name VARCHAR(80) NOT NULL,
+  last_name VARCHAR(80) NOT NULL,
+  college VARCHAR(40) NOT NULL,
+  department VARCHAR(80) NOT NULL,
+  subjects VARCHAR(500) NOT NULL,
+  created_by_admin_id VARCHAR(50) DEFAULT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_teacher_roster_email (email),
+  KEY idx_teacher_college (college, department)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS registration_audit_log (

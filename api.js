@@ -624,26 +624,38 @@ const PrismAuth = {
     return data;
   },
 
-  async register(id, password, confirm, email, code) {
-    return await apiCall('auth', 'register', 'POST', {
-      id_number: id,
-      password: password,
-      confirm_password: confirm,
-      email: email || '',
-      code: code || ''
-    });
-  },
 };
 
 // ══════════════════════════════════════════════════════
 //  CLASSES
 // ══════════════════════════════════════════════════════
 const PrismRoster = {
-  async list(q, status, page) {
-    return await apiGet('roster', 'list', { q: q || '', status: status || '', page: page || 1 });
+  async catalog() {
+    return await apiGet('roster', 'catalog');
+  },
+  async list(q, status, page, filters) {
+    filters = filters || {};
+    return await apiGet('roster', 'list', {
+      q: q || '',
+      status: status || '',
+      page: page || 1,
+      college: filters.college || '',
+      program: filters.program || '',
+      year: filters.year || '',
+      section: filters.section || ''
+    });
   },
   async add(row) {
     return await apiCall('roster', 'add', 'POST', row);
+  },
+  async listTeachers(q, college, page) {
+    return await apiGet('roster', 'teacher_list', { q: q || '', college: college || '', page: page || 1 });
+  },
+  async addTeacher(row) {
+    return await apiCall('roster', 'teacher_add', 'POST', row);
+  },
+  async removeTeacher(id) {
+    return await apiCall('roster', 'teacher_delete', 'POST', { id: id });
   },
   async preview(file) {
     const fd = new FormData();

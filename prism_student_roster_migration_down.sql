@@ -1,6 +1,8 @@
 -- Reverses prism_student_roster_migration.sql
 -- Does not delete existing student accounts.
 
+DROP TABLE IF EXISTS teacher_roster;
+
 ALTER TABLE student_roster DROP FOREIGN KEY fk_roster_created_by;
 ALTER TABLE student_roster DROP FOREIGN KEY fk_roster_claimed_by;
 ALTER TABLE users DROP FOREIGN KEY fk_users_roster_id;
