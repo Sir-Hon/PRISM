@@ -57,6 +57,7 @@ var activeQmTargetSection = '__all__';
 var qmQuizViewFilter = '__all__';
 var CLASSES = [];
 var questions = [];
+var editingQuizId = null;
 
 function qmUniqueSections(classId) {
   try {
@@ -214,6 +215,7 @@ function getQMData(){
 
 async function publishQuiz(){
   const d=getQMData();
+  if(editingQuizId) d.id=editingQuizId;
   if(!d.title){showQMsg('Enter a title.','err');return;}
   if(!d.questions.length){showQMsg('Add at least one question.','err');return;}
   if(!activeClassId){showQMsg('Select a class first.','err');return;}
@@ -248,18 +250,83 @@ async function publishQuiz(){
     });
     d.published=true; d.publishedAt=new Date().toISOString(); d.id=quizId;
     d.target_section = qmGetTargetSectionForApi() || '';
-    const quizzes=getQuizzes(); quizzes.push(d); saveQuizzes(quizzes);
+    const quizzes=getQuizzes().filter(function(q){ return String(q.id)!==String(editingQuizId) || String(editingQuizId)===String(quizId); });
+    const existing=quizzes.findIndex(function(q){ return String(q.id)===String(quizId); });
+    if(existing>=0) quizzes[existing]=d;
+    else quizzes.push(d);
+    saveQuizzes(quizzes);
     await syncQuizzesFromApiForClass(activeClassId);
     showQMsg(' Published!','ok'); resetQM(); renderSavedQuizzes();
   }catch(e){ showQMsg(e.message||'Publish failed.','err'); }
 }
 function saveDraft(){
   const d=getQMData();if(!d.title){showQMsg('Enter a title.','err');return;}
-  d.published=false; const quizzes=getQuizzes(); quizzes.push(d); saveQuizzes(quizzes);
-  showQMsg(' Draft saved.','ok'); renderSavedQuizzes();
+  d.published=false;
+  d.target_section=qmGetTargetSectionForApi()||'';
+  const quizzes=getQuizzes();
+  if(editingQuizId){
+    const i=quizzes.findIndex(function(q){ return String(q.id)===String(editingQuizId); });
+    if(i>=0){
+      d.id=quizzes[i].id;
+      quizzes[i]=Object.assign({}, quizzes[i], d);
+      saveQuizzes(quizzes);
+      showQMsg('Draft updated.','ok');
+      syncDraftButton();
+      renderSavedQuizzes();
+      return;
+    }
+  }
+  quizzes.push(d);
+  editingQuizId=d.id;
+  saveQuizzes(quizzes);
+  showQMsg('Draft saved.','ok');
+  syncDraftButton();
+  renderSavedQuizzes();
+}
+function syncDraftButton(){
+  var btn=document.querySelector('.draft-btn');
+  if(btn) btn.textContent=editingQuizId?'Update draft':'Save Draft';
+}
+function openDraft(id){
+  var quiz=getQuizzes().find(function(q){ return String(q.id)===String(id); });
+  if(!quiz) return;
+  if(quiz.published){ viewQuizLog(quiz.id); return; }
+  editingQuizId=quiz.id;
+  document.getElementById('qm-title').value=quiz.title||'';
+  document.getElementById('qm-instructions').value=quiz.instructions||'';
+  document.getElementById('qm-time').value=quiz.time?String(quiz.time):'';
+  document.getElementById('qm-due').value=quiz.due||'';
+  document.getElementById('qm-due-time').value=quiz.due_time||'';
+  setQmSelect('qm-type', quiz.type||'quiz');
+  setQmSelect('qm-attempts', quiz.attempts!=null?String(quiz.attempts):'1');
+  setQmSelect('qm-shuffle', quiz.shuffle||'yes');
+  setQmSelect('qm-reveal', quiz.reveal||'submit');
+  questions=(quiz.questions||[]).map(function(q,i){
+    var copy=JSON.parse(JSON.stringify(q));
+    if(!copy.id) copy.id=String(Date.now())+'-'+i;
+    if(copy.type==='mc'&&(!copy.options||!copy.options.length)){
+      copy.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];
+    }
+    return copy;
+  });
+  activeQmTargetSection=(quiz.target_section&&String(quiz.target_section).trim())||'__all__';
+  try{ sessionStorage.setItem('prism_qm_target_section_'+activeClassId, activeQmTargetSection); }catch(e){}
+  renderQmSectionPills();
+  renderQMQuestions();
+  syncDraftButton();
+  showQMsg('Draft loaded. Save again to keep your changes.','ok');
+  var title=document.getElementById('qm-title');
+  if(title&&title.scrollIntoView) title.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function setQmSelect(id, value){
+  var el=document.getElementById(id);
+  if(!el) return;
+  var wanted=String(value);
+  var has=[].some.call(el.options, function(o){ return o.value===wanted; });
+  if(has) el.value=wanted;
 }
 function showQMsg(m,t){const el=document.getElementById('qm-msg');el.textContent=m;el.className='form-msg '+t;setTimeout(()=>el.textContent='',2500);}
-function resetQM(){document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';questions=[];renderQMQuestions();}
+function resetQM(){editingQuizId=null;document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';questions=[];syncDraftButton();renderQMQuestions();}
 
 function loadQmQuizViewFilter(){
   if(!activeClassId){ qmQuizViewFilter='__all__'; return; }
@@ -331,12 +398,14 @@ function renderSavedQuizzes(){
     const alerts=log.filter(e=>e.type==='tab-switch'||e.type==='abandon').length;
     const alertBadge=alerts?`<span style="background:#fee2e2;color:#dc2626;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:.4rem;"> ${alerts}</span>`:'';
     var secLab = (q.target_section && String(q.target_section).trim()) ? ' · <span style="color:#059669;font-weight:700;">'+String(q.target_section).trim()+'</span>' : '';
-    var qid = JSON.stringify(q.id);
+    var qid = "'" + String(q.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
     return `<div class="saved-q-item">
       <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
-      <div style="flex:1;min-width:0;"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${q.questions.length}Q · ${q.totalPoints}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
+      <div style="flex:1;min-width:0;"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${(q.questions||[]).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
       <div class="sq-actions">
-        <button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>
+        ${q.published
+          ? `<button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>`
+          : `<button type="button" class="sq-log-btn" onclick="openDraft(${qid})" title="Open this draft">Edit</button>`}
         <button type="button" class="sq-del-btn" onclick="deleteQuiz(${qid})" title="Remove this quiz">Delete</button>
       </div>
     </div>`;
@@ -357,7 +426,8 @@ async function deleteQuiz(id){
 }
 
 function viewQuizLog(quizId){
-  const quiz=getQuizzes().find(q=>q.id===quizId); if(!quiz)return;
+  const quiz=getQuizzes().find(q=>String(q.id)===String(quizId)); if(!quiz)return;
+  if(!quiz.published){ openDraft(quiz.id); return; }
   const key='prism_quiz_log_'+quiz.classId+'_'+quiz.id;
   const log=JSON.parse(localStorage.getItem(key)||'[]');
   const existing=document.getElementById('quiz-log-modal'); if(existing)existing.remove();
