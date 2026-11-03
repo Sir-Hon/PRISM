@@ -1,8 +1,8 @@
 <?php
 // Front controller for the PHP built-in server.
-// Role portals: /student/ /teacher/ /admin/ and student./teacher./admin. hostnames.
+// Role portals: /student/ /faculty/ /registry/ and those host labels.
 $uri = rawurldecode((string) (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/'));
-if (!preg_match('#^/(student|teacher|admin)(/.*)?$#', $uri, $m)) {
+if (!preg_match('#^/(student|faculty|registry)(/.*)?$#', $uri, $m)) {
     return false;
 }
 $rest = $m[2] ?? '/';

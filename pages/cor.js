@@ -509,6 +509,8 @@ function setCorMsg(text, isError) {
 
 async function sendCor() {
   var body = collectCor();
+  var sendBtn = document.querySelector('button[onclick="sendCor()"]');
+  if (typeof prismSetBusy === 'function') prismSetBusy(sendBtn, true, 'Sending…');
   setCorMsg('Sending…', false);
   try {
     var res = await PrismRecords.sendCor(body);
@@ -518,6 +520,8 @@ async function sendCor() {
     loadSentCors();
   } catch (e) {
     setCorMsg(e.message || 'Could not send the certificate', true);
+  } finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(sendBtn, false);
   }
 }
 

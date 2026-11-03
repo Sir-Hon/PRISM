@@ -165,21 +165,36 @@ function prism_host_from_url(string $url): string {
     return strtolower((string) $h);
 }
 
-/** student, teacher, or admin. A role subdomain wins. Otherwise the /role/ path, then the student portal. */
-function prism_portal_role(): string {
+/** Public portal name => account role. teacher/admin stay the account roles. */
+function prism_portal_map(): array {
+    return [
+        'student' => 'student',
+        'faculty' => 'teacher',
+        'registry' => 'admin',
+    ];
+}
+
+function prism_portal_slug(): string {
+    $map = prism_portal_map();
     $label = explode('.', prism_request_host())[0] ?? '';
-    if (in_array($label, ['student', 'teacher', 'admin'], true)) {
+    if (isset($map[$label])) {
         return $label;
     }
     $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
-    if (preg_match('#/(student|teacher|admin)(/|$)#', $uri, $m)) {
+    if (preg_match('#/(student|faculty|registry)(/|$)#', $uri, $m)) {
         return $m[1];
     }
     $ref = (string) (parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?? '');
-    if (preg_match('#/(student|teacher|admin)(/|$)#', $ref, $m)) {
+    if (preg_match('#/(student|faculty|registry)(/|$)#', $ref, $m)) {
         return $m[1];
     }
     return 'student';
+}
+
+function prism_portal_role(): string {
+    $map = prism_portal_map();
+    $slug = prism_portal_slug();
+    return $map[$slug] ?? 'student';
 }
 
 function prism_session_cookie_name(): string {

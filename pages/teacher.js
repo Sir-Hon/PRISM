@@ -32,6 +32,7 @@ function mapApiQuizRowToLocalTeacher(q, classId) {
     totalPoints: parseInt(q.total_points, 10) || 0,
     questions: qs || [],
     target_section: ts,
+    allowSkip: !!(+q.allow_skip || q.allowSkip),
   };
 }
 /** Merge API quizzes into localStorage; keep unpublished local-only drafts; drop published rows deleted on server. */
@@ -230,7 +231,11 @@ function paintTeacherClassesFromCache() {
 }
 
 async function loadClasses() {
-  paintTeacherClassesFromCache();
+  var painted = paintTeacherClassesFromCache();
+  var grid = document.getElementById('classes-grid');
+  if (!painted && grid && !grid.children.length && typeof prismShowWait === 'function') {
+    prismShowWait(grid, 'Loading classes');
+  }
   try {
     CLASSES = await PrismClasses.getMyClasses();
     const idx = {};
@@ -347,7 +352,7 @@ function renderClassGrid() {
       ev.preventDefault();
       ev.stopPropagation();
       activeClassId = cls.id;
-      deleteCurrentClass();
+      deleteCurrentClass(ev.currentTarget);
     });
     grid.appendChild(card);
   });
@@ -488,6 +493,8 @@ async function handleCreateClass() {
   const subject = document.getElementById('cc-subject').value.trim();
   const msgEl = document.getElementById('cc-msg');
   if (!subject) { msgEl.textContent='Subject name is required.'; msgEl.className='form-msg err'; return; }
+  var createBtn = document.querySelector('#create-subject-panel .m-btn.primary');
+  if (typeof prismSetBusy === 'function') prismSetBusy(createBtn, true, 'Creating…');
   try {
     const colorIdx = CLASSES.length % CLASS_COLORS.length;
     const data = await PrismClasses.create(subject, CLASS_COLORS[colorIdx]);
@@ -519,13 +526,16 @@ async function handleCreateClass() {
   } catch(e) {
     msgEl.textContent = e.message || 'Failed to create class.';
     msgEl.className = 'form-msg err';
+  } finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(createBtn, false);
   }
 }
 
-async function deleteCurrentClass() {
+async function deleteCurrentClass(btn) {
   const cls = CLASSES.find(c=>c.id===activeClassId);
   if (!cls) return;
   if (!confirm(`Delete "${cls.subject}"? All posts, quizzes, and records for this class will be removed.`)) return;
+  if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Deleting…');
   try {
     await PrismClasses.delete(activeClassId);
     // Clean up localStorage join code
@@ -536,12 +546,15 @@ async function deleteCurrentClass() {
     await loadClasses();
     renderStats();
   } catch(e) { alert(e.message || 'Failed to delete class.'); }
+  finally { if (typeof prismSetBusy === 'function') prismSetBusy(btn, false); }
 }
 
 /* ═══════════════════════════ STREAM ═══════════════════════════ */
 async function postStream() {
   const text = document.getElementById('stream-text').value.trim();
   if (!text) return;
+  var postBtn = document.querySelector('button[onclick="postStream()"]');
+  if (typeof prismSetBusy === 'function') prismSetBusy(postBtn, true, 'Posting…');
   try {
     await PrismPosts.add({
       class_id: activeClassId, teacherId: TEACHER_ID,
@@ -555,6 +568,7 @@ async function postStream() {
     await refreshClassData(activeClassId);
     renderStream();
   } catch(e) { alert(e.message||'Failed to post.'); }
+  finally { if (typeof prismSetBusy === 'function') prismSetBusy(postBtn, false); }
 }
 
 function resolveStreamMaterial(p) {

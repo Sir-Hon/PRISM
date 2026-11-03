@@ -32,6 +32,7 @@ function mapApiQuizRowToLocalTeacher(q, classId) {
     totalPoints: parseInt(q.total_points, 10) || 0,
     questions: qs || [],
     target_section: ts,
+    allowSkip: !!(+q.allow_skip || q.allowSkip),
   };
 }
 /** Merge API quizzes into localStorage; keep unpublished local-only drafts; drop published rows deleted on server. */
@@ -236,9 +237,12 @@ const TEACHER_CLASS_CONTENT_HTML = `
           <div class="m-field"><label>Title</label><input type="text" id="mat-title" placeholder="e.g. Week 1 reading or lab video"/></div>
           <div class="m-field" id="mat-file-row">
             <label>Attach files (optional)</label>
-            <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
-              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose files, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel — up to 8 files, 15 MB each</span></div>
-              <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;text-align:left;"></div>
+            <div class="prism-file-zone" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
+              <div>
+                <div class="pf-title" id="mat-drop-label">Choose files or drop them here</div>
+                <div class="pf-hint">PDF, images, videos, PowerPoint, Word, or Excel. Up to 8 files, 15 MB each.</div>
+                <div id="mat-file-chosen" class="pf-chips" style="display:none;"></div>
+              </div>
             </div>
             <input type="file" id="mat-file-input" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
           </div>
@@ -284,9 +288,12 @@ const TEACHER_CLASS_CONTENT_HTML = `
               <span class="src-chip">PPT</span>
               <span class="src-chip">Website link</span>
             </div>
-            <div style="border:2px dashed #fbcfe8;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#fff5f9;transition:border-color .2s;" id="asgn-drop-zone" onclick="document.getElementById('asgn-file-input').click()">
-              <div id="asgn-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to attach a source file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT — max 15 MB</span></div>
-              <div id="asgn-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#be185d;margin-top:.3rem;"></div>
+            <div class="prism-file-zone" id="asgn-drop-zone" onclick="document.getElementById('asgn-file-input').click()">
+              <div>
+                <div class="pf-title" id="asgn-drop-label">Attach a source file</div>
+                <div class="pf-hint">PDF, image, video, or PowerPoint. Up to 15 MB. You can also paste a link below.</div>
+                <div id="asgn-file-chosen" class="pf-chips" style="display:none;"></div>
+              </div>
             </div>
             <input type="file" id="asgn-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onAsgnFileChosen(this)"/>
             <label style="margin-top:.75rem;">Link to a website or video</label>
@@ -524,6 +531,8 @@ async function regenJoinCode(classId) {
   if (!confirm('Generate a new join code? The old code will stop working.')) return;
   const cls = CLASSES.find(c=>c.id===classId);
   if (!cls) return;
+  var regenBtn = (typeof event !== 'undefined' && event && event.currentTarget && event.currentTarget.tagName === 'BUTTON') ? event.currentTarget : null;
+  if (typeof prismSetBusy === 'function') prismSetBusy(regenBtn, true, 'Updating…');
   const oldCode = cls.code;
   const newCode = genJoinCode();
   try {
@@ -537,6 +546,7 @@ async function regenJoinCode(classId) {
     cls.code = String(j.code || newCode).toUpperCase();
   } catch(e) {
     alert(e.message || 'Could not update join code on the server.');
+    if (typeof prismSetBusy === 'function') prismSetBusy(regenBtn, false);
     return;
   }
   const idx = getCodeIndex();
@@ -596,20 +606,16 @@ function removeMatLinkRow(btn) {
 
 function renderMatChosenFiles() {
   const chosen = document.getElementById('mat-file-chosen');
-  const dropLabel = document.getElementById('mat-drop-label');
+  if (!chosen) return;
   if (!_matFiles.length) {
-    if (chosen) chosen.style.display = 'none';
-    if (dropLabel) dropLabel.style.display = 'block';
+    chosen.style.display = 'none';
+    chosen.innerHTML = '';
     return;
   }
-  if (dropLabel) dropLabel.style.display = 'none';
-  if (!chosen) return;
-  chosen.style.display = 'block';
+  chosen.style.display = 'flex';
   chosen.innerHTML = _matFiles.map(function (file, i) {
-    return '<div onclick="event.stopPropagation()" style="display:flex;justify-content:space-between;gap:.5rem;align-items:center;margin-top:.35rem;">'
-      + '<span>' + teacherEsc(file.name) + ' (' + (file.size / 1024).toFixed(1) + ' KB)</span>'
-      + '<button type="button" onclick="event.stopPropagation();removeMatFile(' + i + ')" style="background:#fff;color:#6b7280;border:1px solid #a7f3d0;border-radius:8px;padding:.2rem .5rem;font-size:.72rem;font-weight:700;cursor:pointer;">Remove</button>'
-      + '</div>';
+    return '<span class="pf-chip" onclick="event.stopPropagation()">' + teacherEsc(file.name)
+      + '<button type="button" onclick="event.stopPropagation();removeMatFile(' + i + ')" aria-label="Remove file">\u00d7</button></span>';
   }).join('');
 }
 
@@ -645,14 +651,14 @@ function resetMatComposer() {
   if (list) list.innerHTML = matLinkRowHtml();
 }
 
-function bindDropZone(zoneId, inputId, onChosen, hoverColor, restColor) {
+function bindDropZone(zoneId, inputId, onChosen) {
   const zone = document.getElementById(zoneId);
   if (!zone || zone.dataset.bound === '1') return;
   zone.dataset.bound = '1';
-  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.style.borderColor = hoverColor; });
-  zone.addEventListener('dragleave', function(){ zone.style.borderColor = restColor; });
+  zone.addEventListener('dragover', function(e){ e.preventDefault(); zone.classList.add('is-drag'); });
+  zone.addEventListener('dragleave', function(){ zone.classList.remove('is-drag'); });
   zone.addEventListener('drop', function(e){
-    e.preventDefault(); zone.style.borderColor = restColor;
+    e.preventDefault(); zone.classList.remove('is-drag');
     const file = e.dataTransfer.files[0];
     if (!file) return;
     const inp = document.getElementById(inputId);
@@ -680,12 +686,10 @@ function onAsgnFileChosen(input) {
   const err = prismTeacherCheckFile(file);
   if (err) { alert(err); input.value = ''; _asgnFile = null; return; }
   _asgnFile = file;
-  const dropLabel = document.getElementById('asgn-drop-label');
-  if (dropLabel) dropLabel.style.display = 'none';
   const chosen = document.getElementById('asgn-file-chosen');
   if (chosen) {
-    chosen.style.display = 'block';
-    chosen.textContent = ' ' + file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    chosen.style.display = 'flex';
+    chosen.innerHTML = '<span class="pf-chip">' + teacherEsc(file.name) + '</span>';
   }
 }
 
@@ -730,7 +734,8 @@ async function addMaterial(){
   }
   const type = _matFiles.length ? 'file' : (urls[0] && typeof prismVideoEmbedFromUrl === 'function' && prismVideoEmbedFromUrl(urls[0]) ? 'video' : 'link');
   const btn=document.getElementById('mat-upload-btn');
-  btn.disabled=true; btn.textContent='Saving…';
+  if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Saving…');
+  else { btn.disabled=true; btn.textContent='Saving…'; }
   try {
     const matRes = await PrismMaterials.add({
       class_id:activeClassId, title, type, urls: urls,
@@ -752,7 +757,10 @@ async function addMaterial(){
     renderMaterials(); renderWorkspacePage();
     showMatMsg(' Shared with the class.','ok');
   } catch(e) { showMatMsg(e.message||'Upload failed.','err'); }
-  finally { btn.disabled=false; btn.textContent='Share with class'; }
+  finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+    else { btn.disabled=false; btn.textContent='Share with class'; }
+  }
 }
 
 function teacherMaterialPieces(it) {
@@ -860,6 +868,8 @@ async function addAssignment(){
     attachUrl = typeof prismNormalizeHttpUrl === 'function' ? prismNormalizeHttpUrl(urlRaw) : urlRaw;
     if (!attachUrl) { alert('Please enter a valid website or video link, or leave the link field empty.'); return; }
   }
+  var asgnBtn = document.querySelector('button[onclick="addAssignment()"]');
+  if (typeof prismSetBusy === 'function') prismSetBusy(asgnBtn, true, 'Creating…');
   try {
     const asgnRes = await PrismAssignments.add({
       class_id:activeClassId, title,
@@ -886,12 +896,11 @@ async function addAssignment(){
     if (fileInp) fileInp.value = '';
     _asgnFile = null;
     const chosen = document.getElementById('asgn-file-chosen');
-    const dropLabel = document.getElementById('asgn-drop-label');
-    if (chosen) chosen.style.display = 'none';
-    if (dropLabel) dropLabel.style.display = 'block';
+    if (chosen) { chosen.style.display = 'none'; chosen.innerHTML = ''; }
     await refreshClassData(activeClassId);
     renderAssignments(); renderWorkspacePage();
   } catch(e){ alert(e.message||'Failed to create assignment.'); }
+  finally { if (typeof prismSetBusy === 'function') prismSetBusy(asgnBtn, false); }
 }
 
 function renderAssignments(){

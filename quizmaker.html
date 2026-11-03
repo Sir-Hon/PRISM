@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Quiz Maker</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=18"/>
+  <link rel="stylesheet" href="portal.css?v=20"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -72,11 +72,37 @@
     .sq-log-btn:hover { background:#f3e8ff; }
     .sq-del-btn { padding:.32rem .65rem; border:1.5px solid #fecaca; background:#fff; color:#dc2626; border-radius:8px; font-size:.72rem; font-weight:800; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
     .sq-del-btn:hover { background:#fee2e2; border-color:#f87171; }
+    .choice-box { display:flex; align-items:center; gap:.5rem; border:1.5px solid #e9d5ff; background:#fff; border-radius:12px; padding:.4rem .5rem .4rem .4rem; }
+    .choice-letter { width:28px; height:28px; border-radius:8px; background:#ede9fe; color:#6d28d9; font-weight:800; font-size:.72rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .choice-box input[type="text"] { flex:1; border:none; background:transparent; padding:.35rem .15rem; font-size:.88rem; outline:none; min-width:0; color:#16132b; }
+    .choice-key { display:flex; align-items:center; gap:.3rem; font-size:.72rem; font-weight:700; color:#6b7280; white-space:nowrap; }
+    .choice-key input { accent-color:#10b981; }
+    .pair-row { display:grid; grid-template-columns:1fr 1fr auto; gap:.45rem; align-items:center; }
+    .q-note { border:1.5px solid #d1fae5; border-radius:10px; padding:.65rem .8rem; font-size:.8rem; color:#065f46; background:#f0fdf4; line-height:1.45; }
+    .q-image-row { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-top:.75rem; }
+    .q-image-preview { width:92px; height:68px; object-fit:cover; border-radius:10px; border:1px solid #e9d5ff; background:#faf8ff; }
+    .q-image-btn, .q-image-clear { border:1.5px solid #ddd6fe; background:#faf8ff; color:#6d28d9; border-radius:10px; padding:.42rem .75rem; font-size:.78rem; font-weight:800; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .q-image-clear { color:#b91c1c; border-color:#fecaca; background:#fff; }
+    .mtf-sample { display:flex; align-items:center; gap:.55rem; margin-bottom:.65rem; color:#6b7280; font-size:.82rem; font-weight:700; }
+    .mtf-sample-blank { width:92px; height:28px; border-bottom:2px solid #7c3aed; border-radius:6px 6px 0 0; background:#f5f3ff; }
+    .mtf-sample-no { color:#7c3aed; }
+    .qm-skip { display:flex; gap:.7rem; align-items:flex-start; border:1.5px solid #d1fae5; border-radius:12px; padding:.75rem .8rem; background:#f0fdf4; cursor:pointer; }
+    .qm-skip input { margin-top:.15rem; accent-color:#10b981; }
+    .qm-skip strong { display:block; font-size:.84rem; color:#065f46; }
+    .qm-skip small { display:block; margin-top:.2rem; color:#6b7280; font-size:.74rem; line-height:1.4; font-weight:500; }
+    html[data-theme="dark"] .q-card { background:#1b1730; border-color:#3d3560; }
+    html[data-theme="dark"] .q-text, html[data-theme="dark"] .choice-box input[type="text"] { color:#f5f3ff; }
+    html[data-theme="dark"] .choice-box { background:#241c3d; border-color:#4c3d73; }
+    html[data-theme="dark"] .choice-letter { background:#3b2d63; color:#f5f3ff; }
+    html[data-theme="dark"] .q-note, html[data-theme="dark"] .qm-skip { background:#241c3d; border-color:#4c3d73; color:#ddd6fe; }
+    html[data-theme="dark"] .qm-skip strong { color:#d1fae5; }
+    html[data-theme="dark"] .qm-skip small, html[data-theme="dark"] .q-note { color:#ddd6fe; }
+    @media (max-width:640px) { .pair-row { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
-<script src="api.js?v=23"></script>
-<script src="script.js?v=15"></script>
+<script src="api.js?v=25"></script>
+<script src="script.js?v=16"></script>
 <script src="portal-sidebar.js?v=20"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
@@ -150,6 +176,13 @@
           <div class="qm-field"><label>Show Answers After</label>
             <select id="qm-reveal"><option value="submit">Submission</option><option value="due">Due date</option><option value="never">Never</option></select>
           </div>
+          <label class="qm-skip" style="margin-bottom:.85rem;">
+            <input type="checkbox" id="qm-skip"/>
+            <span>
+              <strong>Let students skip questions</strong>
+              <small>They can leave a question and come back. Submitting still stops if any answer is missing, and names that question.</small>
+            </span>
+          </label>
           <button class="publish-btn" onclick="publishQuiz()"> Publish Quiz</button>
           <button class="draft-btn" onclick="saveDraft()"> Save Draft</button>
           <div class="form-msg" id="qm-msg"></div>
@@ -170,6 +203,6 @@
 <!-- Quiz Log Modal -->
 <div id="quiz-log-modal-wrap"></div>
 
-<script src="pages/quizmaker.js?v=14"></script>
+<script src="pages/quizmaker.js?v=16"></script>
 </body>
 </html>

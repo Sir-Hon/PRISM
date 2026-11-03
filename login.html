@@ -128,7 +128,9 @@
 
     .modal-submit { width:100%; padding:.62rem; border:none; border-radius:10px; background:var(--modal-accent,var(--prism)); color:#fff; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; margin-top:.15rem; transition:opacity .2s; }
     .modal-submit:hover { opacity:.85; }
-    .modal-submit.loading { opacity:.6; pointer-events:none; }
+    .modal-submit.loading { opacity:.85; pointer-events:none; }
+    .modal-submit.loading::after { content:''; display:inline-block; width:14px; height:14px; margin-left:.55rem; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; vertical-align:-2px; animation:prism-spin .7s linear infinite; }
+    @keyframes prism-spin { to { transform:rotate(360deg); } }
 
     .error-msg { color:#f87171; font-size:.8rem; margin-top:.55rem; text-align:center; min-height:1.1em; }
 
@@ -140,7 +142,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=23"></script>
+<script src="api.js?v=25"></script>
 <div class="wrapper">
   <div class="logo">
     <div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>

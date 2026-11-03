@@ -368,13 +368,21 @@
   document.getElementById('btn-add').addEventListener('click', async function () {
     showError('');
     var editing = editingStudent;
+    var btn = document.getElementById('btn-add');
+    var ok = false;
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, editing ? 'Saving…' : 'Creating…');
     try {
       if (editing) await PrismRoster.update(studentPayload());
       else await PrismRoster.add(studentPayload());
       closeForm();
       if (!editing) page = 1;
       await load();
+      ok = true;
     } catch (e) { showError(e.message); }
+    finally {
+      if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+      if (ok) btn.textContent = 'Create student account';
+    }
   });
 
   function teacherPayload() {
@@ -394,6 +402,9 @@
   document.getElementById('btn-add-teacher').addEventListener('click', async function () {
     showError('');
     var editing = editingTeacher;
+    var btn = document.getElementById('btn-add-teacher');
+    var ok = false;
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, editing ? 'Saving…' : 'Creating…');
     try {
       if (editing) await PrismRoster.updateTeacher(teacherPayload());
       else await PrismRoster.addTeacher(teacherPayload());
@@ -401,7 +412,12 @@
       showView('teachers');
       if (!editing) teacherPage = 1;
       await loadTeachers();
+      ok = true;
     } catch (e) { showError(e.message); }
+    finally {
+      if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+      if (ok) btn.textContent = 'Create teacher account';
+    }
   });
 
   document.getElementById('csv-file').addEventListener('change', async function () {

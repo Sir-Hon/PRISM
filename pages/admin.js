@@ -302,6 +302,8 @@ async function createAccount() {
   if(createRole === 'teacher' && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) { showMsg('Enter a CTU email (@ctu.edu.ph).','err'); return; }
   if(createRole !== 'teacher' && email && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) { showMsg('Enter a CTU email (@ctu.edu.ph).','err'); return; }
   if(!pw||pw.length<6) { showMsg('Password must be at least 6 characters.','err'); return; }
+  var createBtn = document.querySelector('button[onclick="createAccount()"]');
+  if (typeof prismSetBusy === 'function') prismSetBusy(createBtn, true, 'Creating…');
   try {
     // Must use register_admin: the public "register" action always creates students only.
     await apiCall('auth', 'register_admin', 'POST', {
@@ -310,6 +312,7 @@ async function createAccount() {
     showMsg(' Account created!','ok');
     setTimeout(async ()=>{ closeCreateModal(); await refreshAdminUsers(); await renderTeachers(); await renderStudents(); await renderStats(); },900);
   } catch(e) { showMsg(e.message||'Failed to create account.','err'); }
+  finally { if (typeof prismSetBusy === 'function') prismSetBusy(createBtn, false); }
 }
 document.getElementById('create-overlay').addEventListener('click',function(e){if(e.target===this)closeCreateModal();});
 

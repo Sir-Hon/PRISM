@@ -26,6 +26,7 @@ function mapApiQuizRowToLocal(q, classId) {
     totalPoints: parseInt(q.total_points, 10) || 0,
     questions: qs || [],
     target_section: ts,
+    allowSkip: !!(+q.allow_skip || q.allowSkip),
   };
 }
 /** Drop server-deleted quizzes from cache and merge API rows; keep local-only drafts. */
@@ -144,55 +145,191 @@ async function onClassChange(id) {
   renderSavedQuizzes();
 }
 
+function qmLetter(i){ return String.fromCharCode(65 + i); }
+function qmFind(id){ return questions.find(function(x){ return String(x.id)===String(id); }); }
+function qmRefreshOpts(id){
+  var q = qmFind(id);
+  var box = document.getElementById('qo-' + id);
+  if (q && box) box.innerHTML = renderOpts(q);
+}
+function ensureQuestionShape(q){
+  if (q.type==='mc' && (!q.options || !q.options.length)) {
+    q.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];
+  }
+  if (q.type==='tf') q.tfAnswer=q.tfAnswer||'true';
+  if (q.type==='match' && (!q.pairs || q.pairs.length<2)) q.pairs=[{left:'',right:''},{left:'',right:''}];
+  if (q.type==='id' && (!q.answers || !q.answers.length)) q.answers=[''];
+  if (q.type==='mtf') {
+    q.mtfMode = q.mtfMode==='fix' ? 'fix' : 'true';
+    if (q.mtfMode==='true') q.mtfAnswer='True';
+    else if (q.mtfAnswer==null) q.mtfAnswer='';
+  }
+}
 function addQuestion(pre) {
-  const q=pre||{id:Date.now().toString(),type:'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true'};
+  const q=pre||{id:Date.now().toString(),type:'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true',image:''};
+  ensureQuestionShape(q);
   questions.push(q); renderQMQuestions();
 }
-function removeQuestion(id){questions=questions.filter(q=>q.id!==id);renderQMQuestions();}
+function removeQuestion(id){questions=questions.filter(q=>String(q.id)!==String(id));renderQMQuestions();}
 function renderQMQuestions(){
   const list=document.getElementById('questions-list');list.innerHTML='';
   questions.forEach((q,i)=>{
+    ensureQuestionShape(q);
     const card=document.createElement('div');card.className='q-card';
     card.innerHTML=`<div class="q-header"><div class="q-num">${i+1}</div>
       <select class="q-type-sel" onchange="changeQType('${q.id}',this.value)">
-        <option value="mc" ${q.type==='mc'?'selected':''}>Multiple Choice</option>
+        <option value="mc" ${q.type==='mc'?'selected':''}>Multiple choice</option>
         <option value="tf" ${q.type==='tf'?'selected':''}>True / False</option>
-        <option value="sa" ${q.type==='sa'?'selected':''}>Short Answer</option>
+        <option value="mtf" ${q.type==='mtf'?'selected':''}>Modified true or false</option>
+        <option value="id" ${q.type==='id'?'selected':''}>Identification</option>
+        <option value="match" ${q.type==='match'?'selected':''}>Matching</option>
+        <option value="sa" ${q.type==='sa'?'selected':''}>Short answer</option>
         <option value="essay" ${q.type==='essay'?'selected':''}>Essay</option>
       </select>
       <input class="q-pts" type="number" min="1" value="${q.points}" onchange="updateQ('${q.id}','points',this.value)" title="Points"/>
       <span style="font-size:.72rem;color:#9ca3af;">pts</span>
-      <button class="q-del" onclick="removeQuestion('${q.id}')" title="Remove question" aria-label="Remove question">&times;</button></div>
-      <input class="q-text" placeholder="Type your question…" value="${esc(q.question)}" oninput="updateQ('${q.id}','question',this.value)"/>
+      <button type="button" class="q-del" onclick="removeQuestion('${q.id}')" title="Remove question" aria-label="Remove question">&times;</button></div>
+      <input class="q-text" placeholder="${q.type==='mtf'?'Type the statement…':'Type your question…'}" value="${esc(q.question)}" oninput="updateQ('${q.id}','question',this.value)"/>
       <div id="qo-${q.id}">${renderOpts(q)}</div>`;
     list.appendChild(card);
   });
 }
+function qmImageBlock(q){
+  var src = q.image ? (typeof prismResolveUploadUrl==='function' ? prismResolveUploadUrl(q.image) : q.image) : '';
+  var preview = src ? `<img class="q-image-preview" src="${esc(src)}" alt="">` : '';
+  var status = q._uploading ? `<div class="q-note">Uploading image…</div>` : '';
+  return `<div class="q-image-row">
+    ${preview}
+    ${status}
+    <label class="q-image-btn">${q.image ? 'Change image' : 'Add image'}
+      <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.png,.jpg,.jpeg,.gif,.webp,.bmp" hidden onchange="onQuestionImage('${q.id}',this)"/>
+    </label>
+    ${q.image ? `<button type="button" class="q-image-clear" onclick="removeQuestionImage('${q.id}')">Remove image</button>` : ''}
+  </div>`;
+}
 function renderOpts(q){
-  if(q.type==='mc')return`<div class="mc-opts">${q.options.map((o,i)=>`
-    <div class="mc-opt-row">
-      <input type="radio" class="mc-radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/>
-      <input class="mc-opt-inp" type="text" value="${esc(o.text)}" placeholder="Option ${['A','B','C','D'][i]||i+1}…" oninput="updateOpt('${q.id}',${i},this.value)"/>
-      ${q.options.length>2?`<button class="mc-rm" onclick="removeOpt('${q.id}',${i})" title="Remove option" aria-label="Remove option">&times;</button>`:''}
-    </div>`).join('')}
-    ${q.options.length<6?`<button class="mc-add" onclick="addOpt('${q.id}')">＋ Add Option</button>`:''}
-  </div>`;
-  if(q.type==='tf')return`<div class="tf-row">
-    <button class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')"> True</button>
-    <button class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')"> False</button>
-  </div>`;
-  if(q.type==='sa')return`<div class="sa-ph">Students will type a short answer.</div>`;
-  if(q.type==='essay')return`<div class="sa-ph" style="min-height:50px;">Students will write a long response.</div>`;
+  var body = '';
+  if(q.type==='mc'){
+    body = `<div class="mc-opts">${(q.options||[]).map((o,i)=>`
+      <div class="choice-box">
+        <span class="choice-letter">${qmLetter(i)}</span>
+        <input type="text" value="${esc(o.text)}" placeholder="Choice ${qmLetter(i)}" oninput="updateOpt('${q.id}',${i},this.value)"/>
+        <label class="choice-key"><input type="radio" name="cr-${q.id}" ${o.correct?'checked':''} onchange="setCorrect('${q.id}',${i})"/> Correct</label>
+        ${q.options.length>2?`<button type="button" class="mc-rm" onclick="removeOpt('${q.id}',${i})" aria-label="Remove choice">&times;</button>`:''}
+      </div>`).join('')}
+      ${q.options.length<6?`<button type="button" class="mc-add" onclick="addOpt('${q.id}')">+ Add a choice</button>`:''}
+    </div>`;
+  } else if(q.type==='tf'){
+    body = `<div class="tf-row">
+      <button type="button" class="tf-btn ${q.tfAnswer==='true'?'sel-true':''}" onclick="setTF('${q.id}','true')">True</button>
+      <button type="button" class="tf-btn ${q.tfAnswer==='false'?'sel-false':''}" onclick="setTF('${q.id}','false')">False</button>
+    </div>`;
+  } else if(q.type==='mtf'){
+    body = `<div class="mtf-sample" aria-hidden="true"><span class="mtf-sample-blank"></span><span class="mtf-sample-no">1.</span><span class="mtf-sample-text">Statement</span></div>
+      <div class="q-note">Students write in the blank before the number. Use True when the statement is correct, or the word that fixes it.</div>
+      <div class="tf-row">
+        <button type="button" class="tf-btn ${q.mtfMode!=='fix'?'sel-true':''}" onclick="setMtfMode('${q.id}','true')">Statement is true</button>
+        <button type="button" class="tf-btn ${q.mtfMode==='fix'?'sel-false':''}" onclick="setMtfMode('${q.id}','fix')">Students write a correction</button>
+      </div>
+      ${q.mtfMode==='fix'
+        ? `<div class="choice-box"><span class="choice-letter">Ans</span><input type="text" value="${esc(q.mtfAnswer)}" placeholder="Word or phrase they should write" oninput="updateQ('${q.id}','mtfAnswer',this.value)"/></div>`
+        : `<div class="q-note">Accepted answer: True</div>`}`;
+  } else if(q.type==='id'){
+    body = `<div class="q-note">Students type one answer. Any box below is accepted.</div>
+      <div class="mc-opts">${(q.answers||[]).map((a,i)=>`
+        <div class="choice-box">
+          <span class="choice-letter">${i+1}</span>
+          <input type="text" value="${esc(a)}" placeholder="Accepted answer" oninput="updateAnswer('${q.id}',${i},this.value)"/>
+          ${(q.answers||[]).length>1?`<button type="button" class="mc-rm" onclick="removeAnswer('${q.id}',${i})" aria-label="Remove answer">&times;</button>`:''}
+        </div>`).join('')}
+        ${(q.answers||[]).length<6?`<button type="button" class="mc-add" onclick="addAnswer('${q.id}')">+ Add another accepted answer</button>`:''}
+      </div>`;
+  } else if(q.type==='match'){
+    body = `<div class="q-note">Each item on the left matches one answer on the right. Students pick the letter.</div>
+      <div class="mc-opts">${(q.pairs||[]).map((p,i)=>`
+        <div class="pair-row">
+          <div class="choice-box"><span class="choice-letter">${i+1}</span><input type="text" value="${esc(p.left)}" placeholder="Item" oninput="updatePair('${q.id}',${i},'left',this.value)"/></div>
+          <div class="choice-box"><span class="choice-letter">${qmLetter(i)}</span><input type="text" value="${esc(p.right)}" placeholder="Match" oninput="updatePair('${q.id}',${i},'right',this.value)"/></div>
+          ${(q.pairs||[]).length>2?`<button type="button" class="mc-rm" onclick="removePair('${q.id}',${i})" aria-label="Remove match">&times;</button>`:''}
+        </div>`).join('')}
+        ${(q.pairs||[]).length<8?`<button type="button" class="mc-add" onclick="addPair('${q.id}')">+ Add a match</button>`:''}
+      </div>`;
+  } else if(q.type==='sa'){
+    body = `<div class="q-note">Students type a short answer. You review it after they submit.</div>`;
+  } else if(q.type==='essay'){
+    body = `<div class="q-note">Students write a longer response. You review it after they submit.</div>`;
+  }
+  return body + qmImageBlock(q);
+}
+function changeQType(id,type){
+  var q=qmFind(id); if(!q) return;
+  q.type=type;
+  ensureQuestionShape(q);
+  qmRefreshOpts(id);
+}
+function updateQ(id,f,v){var q=qmFind(id); if(q) q[f]=f==='points'?parseInt(v,10)||1:v;}
+function updateOpt(id,i,v){var q=qmFind(id); if(q&&q.options[i]) q.options[i].text=v;}
+function setCorrect(id,i){var q=qmFind(id); if(!q) return; q.options.forEach(function(o,j){ o.correct=j===i; });}
+function addOpt(id){var q=qmFind(id); if(!q||q.options.length>=6) return; q.options.push({text:'',correct:false}); qmRefreshOpts(id);}
+function removeOpt(id,i){var q=qmFind(id); if(!q||q.options.length<=2) return; q.options.splice(i,1); if(!q.options.some(function(o){return o.correct;})) q.options[0].correct=true; qmRefreshOpts(id);}
+function setTF(id,v){var q=qmFind(id); if(!q) return; q.tfAnswer=v; qmRefreshOpts(id);}
+function setMtfMode(id, mode){
+  var q=qmFind(id); if(!q) return;
+  q.mtfMode = mode==='fix' ? 'fix' : 'true';
+  if (q.mtfMode==='true') q.mtfAnswer='True';
+  else if (!q.mtfAnswer || /^true$/i.test(String(q.mtfAnswer))) q.mtfAnswer='';
+  qmRefreshOpts(id);
+}
+function updateAnswer(id,i,v){var q=qmFind(id); if(q&&q.answers) q.answers[i]=v;}
+function addAnswer(id){var q=qmFind(id); if(!q||q.answers.length>=6) return; q.answers.push(''); qmRefreshOpts(id);}
+function removeAnswer(id,i){var q=qmFind(id); if(!q||q.answers.length<=1) return; q.answers.splice(i,1); qmRefreshOpts(id);}
+function updatePair(id,i,side,v){var q=qmFind(id); if(q&&q.pairs[i]) q.pairs[i][side]=v;}
+function addPair(id){var q=qmFind(id); if(!q||q.pairs.length>=8) return; q.pairs.push({left:'',right:''}); qmRefreshOpts(id);}
+function removePair(id,i){var q=qmFind(id); if(!q||q.pairs.length<=2) return; q.pairs.splice(i,1); qmRefreshOpts(id);}
+function removeQuestionImage(id){var q=qmFind(id); if(!q) return; q.image=''; qmRefreshOpts(id);}
+async function onQuestionImage(id, input){
+  var file = input.files && input.files[0];
+  input.value = '';
+  var q = qmFind(id);
+  if (!file || !q) return;
+  if (!/\.(png|jpe?g|gif|webp|bmp)$/i.test(file.name)) {
+    showQMsg('Use a PNG, JPG, GIF, or WebP image.', 'err');
+    return;
+  }
+  q._uploading = true;
+  qmRefreshOpts(id);
+  try {
+    var saved = await PrismQuizzes.uploadImage(file);
+    q.image = saved.path || '';
+    showQMsg('Image added.', 'ok');
+  } catch (e) {
+    showQMsg(e.message || 'Could not upload the image.', 'err');
+  }
+  q._uploading = false;
+  qmRefreshOpts(id);
+}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function qmCleanQuestion(q){
+  var copy = JSON.parse(JSON.stringify(q));
+  delete copy._uploading;
+  if (copy.type==='mc') copy.options = (copy.options||[]).filter(function(o){ return String(o.text||'').trim(); });
+  if (copy.type==='match') copy.pairs = (copy.pairs||[]).filter(function(p){ return String(p.left||'').trim() && String(p.right||'').trim(); });
+  if (copy.type==='id') copy.answers = (copy.answers||[]).map(function(a){ return String(a||'').trim(); }).filter(Boolean);
+  if (copy.type==='mtf' && copy.mtfMode!=='fix') { copy.mtfMode='true'; copy.mtfAnswer='True'; }
+  return copy;
+}
+function qmQuestionProblem(q, n){
+  var label = 'Question ' + n;
+  if (!String(q.question||'').trim()) return label + ' needs text.';
+  if (q.type==='mc') {
+    if ((q.options||[]).length < 2) return label + ' needs at least two choices.';
+    if (!(q.options||[]).some(function(o){ return o.correct && String(o.text||'').trim(); })) return label + ' needs a correct choice.';
+  }
+  if (q.type==='match' && (q.pairs||[]).length < 2) return label + ' needs at least two matches.';
+  if (q.type==='id' && !(q.answers||[]).length) return label + ' needs an accepted answer.';
+  if (q.type==='mtf' && q.mtfMode==='fix' && !String(q.mtfAnswer||'').trim()) return label + ' needs the correction students should write.';
   return '';
 }
-function changeQType(id,type){const q=questions.find(x=>x.id===id);if(!q)return;q.type=type;if(type==='mc'&&(!q.options||!q.options.length))q.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];if(type==='tf')q.tfAnswer=q.tfAnswer||'true';document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function updateQ(id,f,v){const q=questions.find(x=>x.id===id);if(q)q[f]=f==='points'?parseInt(v)||1:v;}
-function updateOpt(id,i,v){const q=questions.find(x=>x.id===id);if(q&&q.options[i])q.options[i].text=v;}
-function setCorrect(id,i){const q=questions.find(x=>x.id===id);if(!q)return;q.options.forEach((o,j)=>o.correct=j===i);}
-function addOpt(id){const q=questions.find(x=>x.id===id);if(!q||q.options.length>=6)return;q.options.push({text:'',correct:false});document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function removeOpt(id,i){const q=questions.find(x=>x.id===id);if(!q||q.options.length<=2)return;q.options.splice(i,1);if(!q.options.some(o=>o.correct))q.options[0].correct=true;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function setTF(id,v){const q=questions.find(x=>x.id===id);if(!q)return;q.tfAnswer=v;document.getElementById('qo-'+id).innerHTML=renderOpts(q);}
-function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function getQMData(){
   const cls=CLASSES.find(c=>c.id===activeClassId)||{};
@@ -208,7 +345,8 @@ function getQMData(){
     attempts:document.getElementById('qm-attempts').value,
     shuffle:document.getElementById('qm-shuffle').value,
     reveal:document.getElementById('qm-reveal').value,
-    questions:JSON.parse(JSON.stringify(questions)),
+    allowSkip:!!(document.getElementById('qm-skip')&&document.getElementById('qm-skip').checked),
+    questions:questions.map(qmCleanQuestion),
     totalPoints:questions.reduce((s,q)=>s+(parseInt(q.points)||0),0),
   };
 }
@@ -219,6 +357,12 @@ async function publishQuiz(){
   if(!d.title){showQMsg('Enter a title.','err');return;}
   if(!d.questions.length){showQMsg('Add at least one question.','err');return;}
   if(!activeClassId){showQMsg('Select a class first.','err');return;}
+  if(questions.some(function(q){ return q._uploading; })){showQMsg('Wait for the image to finish uploading.','err');return;}
+  var problem='';
+  d.questions.some(function(q,i){ problem=qmQuestionProblem(q,i+1); return !!problem; });
+  if(problem){showQMsg(problem,'err');return;}
+  var publishBtn=document.querySelector('.publish-btn');
+  if(typeof prismSetBusy==='function') prismSetBusy(publishBtn,true,'Publishing…');
   try{
     const payload={
       id:d.id,
@@ -233,6 +377,7 @@ async function publishQuiz(){
       attempts:parseInt(d.attempts,10)||1,
       shuffle:d.shuffle==='yes'?'yes':'no',
       reveal:d.reveal||'submit',
+      allow_skip:d.allowSkip?1:0,
       questions:d.questions,
       totalPoints:d.totalPoints||0,
       published:true,
@@ -258,6 +403,7 @@ async function publishQuiz(){
     await syncQuizzesFromApiForClass(activeClassId);
     showQMsg(' Published!','ok'); resetQM(); renderSavedQuizzes();
   }catch(e){ showQMsg(e.message||'Publish failed.','err'); }
+  finally { if(typeof prismSetBusy==='function') prismSetBusy(publishBtn,false); }
 }
 function saveDraft(){
   const d=getQMData();if(!d.title){showQMsg('Enter a title.','err');return;}
@@ -307,12 +453,12 @@ function openDraft(id){
   setQmSelect('qm-attempts', quiz.attempts!=null?String(quiz.attempts):'1');
   setQmSelect('qm-shuffle', quiz.shuffle||'yes');
   setQmSelect('qm-reveal', quiz.reveal||'submit');
+  var skipBox=document.getElementById('qm-skip');
+  if(skipBox) skipBox.checked=!!(quiz.allowSkip||quiz.allow_skip);
   questions=(quiz.questions||[]).map(function(q,i){
     var copy=JSON.parse(JSON.stringify(q));
     if(!copy.id) copy.id=String(Date.now())+'-'+i;
-    if(copy.type==='mc'&&(!copy.options||!copy.options.length)){
-      copy.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];
-    }
+    ensureQuestionShape(copy);
     return copy;
   });
   activeQmTargetSection=(quiz.target_section&&String(quiz.target_section).trim())||'__all__';
@@ -332,7 +478,7 @@ function setQmSelect(id, value){
   if(has) el.value=wanted;
 }
 function showQMsg(m,t){const el=document.getElementById('qm-msg');el.textContent=m;el.className='form-msg '+t;setTimeout(()=>el.textContent='',2500);}
-function resetQM(){editingQuizId=null;document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';questions=[];syncDraftButton();renderQMQuestions();}
+function resetQM(){editingQuizId=null;document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';var skipBox=document.getElementById('qm-skip');if(skipBox)skipBox.checked=false;questions=[];syncDraftButton();renderQMQuestions();}
 
 function loadQmQuizViewFilter(){
   if(!activeClassId){ qmQuizViewFilter='__all__'; return; }

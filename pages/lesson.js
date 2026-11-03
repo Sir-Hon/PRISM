@@ -1,5 +1,6 @@
 /** Lesson plans for the signed-in teacher. */
 var lessonClassId = '';
+var lessonPicked = [];
 
 function lessonEsc(s) {
   return String(s == null ? '' : s)
@@ -74,14 +75,44 @@ async function deleteLesson(id) {
   }
 }
 
+function lessonRenderPicked() {
+  var host = document.getElementById('lp-file-names');
+  if (!host) return;
+  if (!lessonPicked.length) {
+    host.innerHTML = '';
+    return;
+  }
+  host.innerHTML = lessonPicked.map(function (file, i) {
+    return '<span class="pf-chip">' + lessonEsc(file.name)
+      + '<button type="button" data-i="' + i + '" aria-label="Remove file">&times;</button></span>';
+  }).join('');
+  host.querySelectorAll('button').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      lessonPicked.splice(parseInt(btn.getAttribute('data-i'), 10), 1);
+      lessonRenderPicked();
+    });
+  });
+}
+
+function lessonAddFiles(list) {
+  Array.prototype.forEach.call(list || [], function (file) {
+    var same = lessonPicked.some(function (have) {
+      return have.name === file.name && have.size === file.size && have.lastModified === file.lastModified;
+    });
+    if (!same) lessonPicked.push(file);
+  });
+  lessonRenderPicked();
+}
+
 async function saveLesson() {
   var title = document.getElementById('lp-title').value.trim();
   var btn = document.getElementById('lp-save');
   if (!lessonClassId) { lessonMsg('Choose a class first.', 'err'); return; }
   if (!title) { lessonMsg('Give the lesson a title.', 'err'); return; }
-  var input = document.getElementById('lp-files');
-  var files = input && input.files ? Array.prototype.slice.call(input.files) : [];
-  btn.disabled = true;
+  var files = lessonPicked.slice();
+  if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Saving…');
+  else btn.disabled = true;
   lessonMsg('Saving…');
   try {
     await PrismLessons.save({
@@ -94,14 +125,16 @@ async function saveLesson() {
     document.getElementById('lp-title').value = '';
     document.getElementById('lp-date').value = '';
     document.getElementById('lp-plan').value = '';
-    input.value = '';
-    document.getElementById('lp-file-names').textContent = '';
+    lessonPicked = [];
+    lessonRenderPicked();
     lessonMsg('Lesson saved.', 'ok');
     await loadLessons();
   } catch (e) {
     lessonMsg(e.message || 'Could not save the lesson.', 'err');
+  } finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+    else btn.disabled = false;
   }
-  btn.disabled = false;
 }
 
 function fillClassSelect(classes) {
@@ -138,9 +171,22 @@ document.addEventListener('DOMContentLoaded', async function () {
   var user = await prismAuthGuard(['teacher']);
   if (!user) return;
   if (typeof initSidebar === 'function') initSidebar('lesson');
-  document.getElementById('lp-files').addEventListener('change', function () {
-    var names = Array.prototype.map.call(this.files || [], function (f) { return f.name; });
-    document.getElementById('lp-file-names').textContent = names.join(', ');
+  var fileInput = document.getElementById('lp-files');
+  var drop = document.getElementById('lp-drop');
+  fileInput.addEventListener('change', function () {
+    lessonAddFiles(this.files);
+    this.value = '';
+  });
+  drop.addEventListener('click', function () { fileInput.click(); });
+  drop.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+  });
+  drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('is-drag'); });
+  drop.addEventListener('dragleave', function () { drop.classList.remove('is-drag'); });
+  drop.addEventListener('drop', function (e) {
+    e.preventDefault();
+    drop.classList.remove('is-drag');
+    lessonAddFiles(e.dataTransfer && e.dataTransfer.files);
   });
   document.getElementById('lp-save').addEventListener('click', saveLesson);
   document.getElementById('class-select').addEventListener('change', function () {

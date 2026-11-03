@@ -115,6 +115,35 @@ function logout() {
   }).finally(go);
 }
 
+function prismSetBusy(el, on, label) {
+  if (!el) return;
+  if (on) {
+    if (el.getAttribute('data-prism-busy') === '1') return;
+    el.setAttribute('data-prism-busy', '1');
+    el.setAttribute('data-prism-label', el.textContent);
+    el.classList.add('is-busy');
+    el.disabled = true;
+    el.setAttribute('aria-busy', 'true');
+    if (label) el.textContent = label;
+    return;
+  }
+  el.classList.remove('is-busy');
+  el.disabled = false;
+  el.removeAttribute('aria-busy');
+  if (el.hasAttribute('data-prism-label')) el.textContent = el.getAttribute('data-prism-label');
+  el.removeAttribute('data-prism-busy');
+  el.removeAttribute('data-prism-label');
+}
+
+function prismShowWait(el, message) {
+  if (!el) return;
+  var note = document.createElement('div');
+  note.className = 'prism-wait';
+  note.textContent = message || 'Loading';
+  el.textContent = '';
+  el.appendChild(note);
+}
+
 function previewImage(event, imgId, placeholderId) {
   var file = event.target.files[0];
   if (!file) return;

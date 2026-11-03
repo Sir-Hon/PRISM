@@ -8,6 +8,22 @@ $action = $_GET['action'] ?? '';
 $user   = requireAuth();
 $db     = getDB();
 
+function prism_quiz_allow_skip_ready(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) {
+        return $ready;
+    }
+    if (!prism_table_has_column($db, 'quizzes', 'allow_skip')) {
+        try {
+            $db->exec('ALTER TABLE quizzes ADD COLUMN allow_skip TINYINT(1) NOT NULL DEFAULT 0');
+        } catch (Throwable $e) {
+            error_log('PRISM allow_skip: ' . $e->getMessage());
+        }
+    }
+    $ready = prism_table_has_column($db, 'quizzes', 'allow_skip');
+    return $ready;
+}
+
 // ── GET QUIZZES FOR A CLASS ────────────────────────────
 if ($action === 'get') {
     $class_id = $_GET['class_id'] ?? '';
@@ -69,6 +85,7 @@ if ($method === 'POST' && $action === 'save') {
 
     $hasTs = prism_table_has_column($db, 'quizzes', 'target_section');
     $hasDueTime = prism_table_has_column($db, 'quizzes', 'due_time');
+    $hasSkip = prism_quiz_allow_skip_ready($db);
 
     $cols = ['id', 'class_id', 'teacher_id'];
     $vals = [$id, $b['class_id'], $user['id']];
@@ -85,10 +102,17 @@ if ($method === 'POST' && $action === 'save') {
         $cols[] = 'due_time';
         $vals[] = $dueTime;
     }
-    $cols = array_merge($cols, ['attempts', 'shuffle', 'reveal', 'questions', 'total_points', 'published', 'published_at']);
+    $cols = array_merge($cols, ['attempts', 'shuffle', 'reveal']);
     $vals = array_merge($vals, [
         intval($b['attempts'] ?? 1), $b['shuffle'] === 'yes' ? 1 : 0,
         $b['reveal'] ?? 'submit',
+    ]);
+    if ($hasSkip) {
+        $cols[] = 'allow_skip';
+        $vals[] = !empty($b['allow_skip']) ? 1 : 0;
+    }
+    $cols = array_merge($cols, ['questions', 'total_points', 'published', 'published_at']);
+    $vals = array_merge($vals, [
         json_encode($b['questions'] ?? []),
         intval($b['totalPoints'] ?? 0),
         $b['published'] ? 1 : 0,
@@ -98,6 +122,9 @@ if ($method === 'POST' && $action === 'save') {
     $upd = 'title=VALUES(title), type=VALUES(type), instructions=VALUES(instructions), time_limit=VALUES(time_limit), due_date=VALUES(due_date), attempts=VALUES(attempts), shuffle=VALUES(shuffle), reveal=VALUES(reveal), questions=VALUES(questions), total_points=VALUES(total_points), published=VALUES(published), published_at=VALUES(published_at)';
     if ($hasDueTime) {
         $upd = 'title=VALUES(title), type=VALUES(type), instructions=VALUES(instructions), time_limit=VALUES(time_limit), due_date=VALUES(due_date), due_time=VALUES(due_time), attempts=VALUES(attempts), shuffle=VALUES(shuffle), reveal=VALUES(reveal), questions=VALUES(questions), total_points=VALUES(total_points), published=VALUES(published), published_at=VALUES(published_at)';
+    }
+    if ($hasSkip) {
+        $upd = 'allow_skip=VALUES(allow_skip), ' . $upd;
     }
     if ($hasTs) {
         $upd = 'target_section=VALUES(target_section), ' . $upd;
@@ -210,6 +237,27 @@ if ($action === 'get_log') {
     );
     $stmt->execute([$quiz_id]);
     ok(['log' => $stmt->fetchAll()]);
+}
+
+if ($method === 'POST' && $action === 'upload_image') {
+    if ($user['role'] !== 'teacher') fail('Forbidden', 403);
+    $f = $_FILES['image'] ?? null;
+    if (!$f || !is_array($f)) fail('Choose an image.', 400);
+    if (($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) fail('Image upload failed.', 400);
+    if (($f['size'] ?? 0) > MAX_FILE_SIZE) fail('Image is too large. Max 15 MB.', 400);
+    if (empty($f['tmp_name']) || !is_uploaded_file($f['tmp_name'])) fail('Could not read the image.', 400);
+    $ext = strtolower((string) pathinfo((string) ($f['name'] ?? ''), PATHINFO_EXTENSION));
+    $okExt = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp'];
+    if (!in_array($ext, $okExt, true)) fail('Use a PNG, JPG, GIF, or WebP image.', 400);
+    $bin = file_get_contents($f['tmp_name']);
+    if ($bin === false || $bin === '') fail('Could not read the image.', 400);
+    if (!is_dir(UPLOAD_DIR)) @mkdir(UPLOAD_DIR, 0775, true);
+    $safe = 'qimg_' . bin2hex(random_bytes(8)) . '.' . $ext;
+    if (file_put_contents(UPLOAD_DIR . $safe, $bin) === false) fail('Could not save the image.', 500);
+    $mimeMap = ['png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'gif' => 'image/gif', 'webp' => 'image/webp', 'bmp' => 'image/bmp'];
+    $path = UPLOAD_URL . $safe;
+    prism_save_upload_blob($path, (string) $f['name'], $mimeMap[$ext], $bin);
+    ok(['path' => $path]);
 }
 
 fail('Unknown action');

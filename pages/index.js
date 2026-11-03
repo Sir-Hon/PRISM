@@ -97,7 +97,11 @@ window.addEventListener('DOMContentLoaded', async function() {
   var g = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   var greetEl = document.getElementById('student-greeting');
   if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
-  renderClasses();
+  if (!Object.keys(getJoinedClasses()).length && typeof prismShowWait === 'function') {
+    prismShowWait(document.getElementById('classes-area'), 'Loading classes');
+  } else {
+    renderClasses();
+  }
   renderStats();
   renderActivity();
   renderDashboardIncomingEvents();
@@ -218,6 +222,7 @@ async function syncStudentClassContent(classId, opts) {
           attempts: parseInt(q.attempts, 10) || 1,
           totalPoints: parseInt(q.total_points, 10) || 0,
           questions: qs || [],
+          allowSkip: !!(+q.allow_skip || q.allowSkip),
         });
       });
       localStorage.setItem('prism_teacher_quizzes', JSON.stringify(allQz));
@@ -251,6 +256,12 @@ async function syncStudentClassContent(classId, opts) {
 async function joinClass() {
   var code = document.getElementById('join-code-input').value.trim().toUpperCase();
   if (!code || code.length < 4) { showJoinMsg('Enter a valid join code.', 'err'); return; }
+  var joinBtn = document.querySelector('#join-class-panel .m-btn.primary');
+  if (typeof prismSetBusy === 'function') prismSetBusy(joinBtn, true, 'Joining…');
+  var area = document.getElementById('classes-area');
+  if (area && !area.querySelector('.gc-card, .class-card, article, a') && typeof prismShowWait === 'function') {
+    prismShowWait(area, 'Joining class');
+  }
   try {
     var data = await PrismClasses.join(code);
     var cls  = data.class;
@@ -268,21 +279,28 @@ async function joinClass() {
     if (typeof initSidebar === 'function') initSidebar('home');
   } catch(e) {
     showJoinMsg(e.message || 'Invalid code — check with your teacher.', 'err');
+    if (!Object.keys(getJoinedClasses()).length) renderClasses();
+  } finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(joinBtn, false);
   }
 }
 
 /** API leave + remove from local joined map; close class overlay if it was showing this class. */
-async function leaveClass(classId) {
+async function leaveClass(classId, btn) {
   if (!confirm('Leave this class? You can rejoin with the code later.')) return;
+  if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Leaving…');
   try {
     await PrismClasses.leave(classId);
-  } catch(e) { console.warn('API leave failed:', e); }
-  var joined = getJoinedClasses();
-  delete joined[classId];
-  saveJoinedClasses(joined);
-  if (activeDetailId === classId) closeClassView();
-  renderClasses(); renderStats();
-  if (typeof initSidebar === 'function') initSidebar('home');
+    var joined = getJoinedClasses();
+    delete joined[classId];
+    saveJoinedClasses(joined);
+    if (activeDetailId === classId) closeClassView();
+    renderClasses(); renderStats();
+    if (typeof initSidebar === 'function') initSidebar('home');
+  } catch(e) {
+    console.warn('API leave failed:', e);
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+  }
 }
 
 function showJoinMsg(msg, type) {
@@ -355,7 +373,7 @@ function renderClasses() {
     card.querySelector('.gc-del').addEventListener('click', function(e) {
       e.preventDefault();
       e.stopPropagation();
-      leaveClass(entry.classId);
+      leaveClass(entry.classId, e.currentTarget);
     });
     card.addEventListener('click', function() {
       openClassDetail(entry.classId, entry.teacherId, entry.subject, color);
@@ -784,11 +802,13 @@ function onStudentAsgnFilesChosen(classId, asgnId, input) {
   var label = document.getElementById('asgn-file-chosen-' + asgnDomId(asgnId));
   if (label) {
     if (list.length) {
-      label.style.display = 'block';
-      label.textContent = list.map(function(x) { return x.name; }).join(', ');
+      label.style.display = 'flex';
+      label.innerHTML = list.map(function (x) {
+        return '<span class="pf-chip">' + prismEscHtml(x.name) + '</span>';
+      }).join('');
     } else {
       label.style.display = 'none';
-      label.textContent = '';
+      label.innerHTML = '';
     }
   }
 }
@@ -812,6 +832,8 @@ async function submitStudentAssignment(classId, asgnId) {
   }
   var payload = { assignment_id: asgnId, class_id: classId, note: note, link_url: linkUrl };
   if (files.length) payload.files = files;
+  var submitBtn = document.getElementById('asgn-submit-' + sid);
+  if (typeof prismSetBusy === 'function') prismSetBusy(submitBtn, true, 'Submitting…');
   try {
     await PrismSubmissions.submit(payload);
     window.__studentAsgnPickedFiles[studentAsgnFileKey(classId, asgnId)] = [];
@@ -827,6 +849,8 @@ async function submitStudentAssignment(classId, asgnId) {
     }
   } catch (err) {
     alert(err.message || 'Could not submit.');
+  } finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(submitBtn, false);
   }
 }
 
@@ -903,12 +927,13 @@ function studentAssignmentStreamHtml(classId, a) {
     html += '<div style="margin-top:.85rem;padding-top:.75rem;border-top:1px solid #fce7f3;">'
       + '<div style="font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9d174d;margin-bottom:.4rem;">Turn in</div>'
       + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…" style="width:100%;min-height:90px;border:1.5px solid #fce7f3;border-radius:10px;padding:.65rem .85rem;font-size:.88rem;font-family:inherit;resize:vertical;box-sizing:border-box;">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
-      + '<div style="margin-top:.65rem;border:2px dashed #fbcfe8;border-radius:10px;padding:.9rem;text-align:center;cursor:pointer;background:#fff5f9;" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
-      + '<div style="font-size:.84rem;color:#6b7280;">Attach a file</div>'
-      + '<div id="asgn-file-chosen-' + sid + '" style="display:none;font-size:.82rem;font-weight:700;color:#be185d;margin-top:.35rem;"></div></div>'
+      + '<div class="prism-file-zone" style="margin-top:.65rem;" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
+      + '<div><div class="pf-title">Attach a file</div>'
+      + '<div class="pf-hint">PDF, image, video, or PowerPoint.</div>'
+      + '<div id="asgn-file-chosen-' + sid + '" class="pf-chips" style="display:none;"></div></div></div>'
       + '<input type="file" id="asgn-file-' + sid + '" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange=\'' + pickOnchange + '\'/>'
       + '<input type="url" id="asgn-link-' + sid + '" placeholder="Or paste a link" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '" style="width:100%;margin-top:.5rem;border:1.5px solid #fce7f3;border-radius:10px;padding:.5rem .85rem;font-size:.85rem;box-sizing:border-box;"/>'
-      + '<button type="button" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\' style="margin-top:.85rem;padding:.58rem 1.2rem;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.88rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Submit work</button>'
+      + '<button type="button" id="asgn-submit-' + sid + '" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\' style="margin-top:.85rem;padding:.58rem 1.2rem;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.88rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Submit work</button>'
       + '</div>';
   }
   return html;
@@ -1111,13 +1136,14 @@ async function openStudentAssignmentModal(classId, asgnId) {
       + '<div style="margin-top:.5rem;padding-top:.75rem;border-top:1px solid #fce7f3;">'
       + '<div style="font-size:.72rem;font-weight:700;color:#9d174d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem;">Turn in</div>'
       + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…" style="width:100%;min-height:90px;border:1.5px solid #fce7f3;border-radius:10px;padding:.65rem .85rem;font-size:.88rem;font-family:inherit;resize:vertical;box-sizing:border-box;">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
-      + '<div style="margin-top:.65rem;border:2px dashed #fbcfe8;border-radius:10px;padding:.9rem;text-align:center;cursor:pointer;background:#fff5f9;" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
-      + '<div style="font-size:.84rem;color:#6b7280;"> Attach PDF, image, video, or PPT<br/><span style="font-size:.74rem;">Max 15 MB each · up to 10 files</span></div>'
-      + '<div id="asgn-file-chosen-' + sid + '" style="display:none;font-size:.82rem;font-weight:700;color:#be185d;margin-top:.35rem;"></div>'
+      + '<div class="prism-file-zone" style="margin-top:.65rem;" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
+      + '<div><div class="pf-title">Attach files</div>'
+      + '<div class="pf-hint">PDF, image, video, or PowerPoint. Up to 15 MB each.</div>'
+      + '<div id="asgn-file-chosen-' + sid + '" class="pf-chips" style="display:none;"></div></div>'
       + '</div>'
       + '<input type="file" id="asgn-file-' + sid + '" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange=\'' + pickOnchange + '\'/>'
       + '<input type="url" id="asgn-link-' + sid + '" placeholder="Or paste a link (article, Google Doc, YouTube…)" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '" style="width:100%;margin-top:.5rem;border:1.5px solid #fce7f3;border-radius:10px;padding:.5rem .85rem;font-size:.85rem;box-sizing:border-box;"/>'
-      + '<button type="button" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\' style="margin-top:.85rem;padding:.58rem 1.5rem;background:linear-gradient(135deg,#ec4899,#be185d);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.9rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Submit work</button>'
+      + '<button type="button" id="asgn-submit-' + sid + '" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\' style="margin-top:.85rem;padding:.58rem 1.5rem;background:linear-gradient(135deg,#ec4899,#be185d);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.9rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Submit work</button>'
       + '</div>';
   }
   var inner = '<div class="student-asgn-modal" role="dialog" aria-modal="true" aria-labelledby="student-asgn-modal-title">'

@@ -58,14 +58,18 @@
 
 const API_BASE = window.__PRISM_API_BASE__;
 
-function prismPortalRole() {
+var PRISM_PORTAL_ROLES = { student: 'student', faculty: 'teacher', registry: 'admin' };
+function prismPortalSlug() {
   var host = (window.location.hostname || '').toLowerCase();
   var label = host.split('.')[0];
-  if (label === 'student' || label === 'teacher' || label === 'admin') return label;
+  if (PRISM_PORTAL_ROLES[label]) return label;
   var path = window.location.pathname || '';
-  var match = path.match(/\/(student|teacher|admin)(\/|$)/);
+  var match = path.match(/\/(student|faculty|registry)(\/|$)/);
   if (match) return match[1];
   return 'student';
+}
+function prismPortalRole() {
+  return PRISM_PORTAL_ROLES[prismPortalSlug()] || 'student';
 }
 function prismStoreAdminAccess(data) {
   var role = data && data.role ? data.role : '';
@@ -894,6 +898,11 @@ const PrismQuizzes = {
   },
   async save(quiz) {
     return await apiCall('quizzes', 'save', 'POST', quiz);
+  },
+  async uploadImage(file) {
+    const fd = new FormData();
+    fd.append('image', file, file.name);
+    return await apiForm('quizzes', 'upload_image', fd);
   },
   async delete(id) {
     return await apiCall('quizzes', 'delete', 'DELETE', { id });

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Quizzes</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=18"/>
+  <link rel="stylesheet" href="portal.css?v=20"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -124,11 +124,33 @@
     .qz-close-btn  { position:absolute; top:1.2rem; right:1.5rem; background:#f0ecff; border:none; width:34px; height:34px; border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#555; z-index:3; }
     .qz-close-btn:hover { background:#e4dffa; }
     .qz-modal { position:relative; }
+    .qz-q-img { display:block; max-width:100%; max-height:240px; object-fit:contain; border-radius:12px; margin:0 0 .9rem; background:#faf8ff; }
+    .qz-write { width:100%; box-sizing:border-box; border:1.5px solid #e4dffa; border-radius:12px; padding:.85rem 1rem; font-size:.98rem; font-family:DM Sans,sans-serif; color:#16132b; outline:none; background:#fff; }
+    textarea.qz-write { min-height:120px; resize:vertical; }
+    .mtf-line { display:flex; align-items:flex-start; gap:.75rem; }
+    .mtf-blank { width:148px; flex-shrink:0; border:none; border-bottom:2px solid #7c3aed; background:#faf8ff; border-radius:10px 10px 0 0; padding:.7rem .75rem; font-size:1rem; font-weight:700; color:#16132b; }
+    .mtf-stem { font-size:1.02rem; font-weight:700; color:#16132b; line-height:1.5; padding-top:.55rem; }
+    .mtf-no { color:#7c3aed; margin-right:.35rem; }
+    .match-board { display:flex; flex-direction:column; gap:.7rem; }
+    .match-bank { display:flex; flex-wrap:wrap; gap:.4rem; }
+    .match-chip { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:999px; padding:.28rem .65rem; font-size:.8rem; font-weight:700; color:#5b21b6; }
+    .match-row { display:grid; grid-template-columns:1fr minmax(140px, 42%); gap:.6rem; align-items:center; border:1.5px solid #e9d5ff; border-radius:12px; padding:.65rem .75rem; }
+    .match-left { font-size:.95rem; color:#16132b; line-height:1.4; }
+    .match-row select { width:100%; border:1.5px solid #ddd6fe; border-radius:8px; padding:.45rem .5rem; font-weight:700; font-family:DM Sans,sans-serif; }
+    .qz-missing { background:#fff7ed; border:1.5px solid #fdba74; color:#9a3412; border-radius:12px; padding:.85rem 1rem; margin-bottom:1rem; }
+    .qz-missing strong { display:block; font-size:.95rem; }
+    .qz-missing p { margin:.25rem 0 .45rem; font-size:.82rem; }
+    .qz-missing button { display:block; width:100%; text-align:left; margin-top:.35rem; background:#fff; border:1px solid #fdba74; border-radius:8px; padding:.45rem .65rem; color:#9a3412; font-weight:700; cursor:pointer; font-family:DM Sans,sans-serif; }
+    .qz-pills { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.9rem; }
+    .qz-pill { width:32px; height:32px; border-radius:8px; border:1.5px solid #e4dffa; background:#fff; font-weight:800; cursor:pointer; color:#6b7280; font-family:DM Sans,sans-serif; }
+    .qz-pill.on { background:#ede9fe; border-color:#c4b5fd; color:#6d28d9; }
+    .qz-pill.now { background:#7c3aed; color:#fff; border-color:#7c3aed; }
+    .qz-pill.need { border-color:#f97316; color:#c2410c; }
   </style>
 </head>
 <body>
-<script src="api.js?v=23"></script>
-<script src="script.js?v=15"></script>
+<script src="api.js?v=25"></script>
+<script src="script.js?v=16"></script>
 <script src="portal-sidebar.js?v=20"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
@@ -186,6 +208,6 @@
 
 
 
-<script src="pages/quizzes.js?v=12"></script>
+<script src="pages/quizzes.js?v=13"></script>
 </body>
 </html>
