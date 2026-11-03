@@ -164,7 +164,7 @@ function initSidebar(activePage) {
   var tbAvatar = document.getElementById('topbar-avatar');
   if (tbName) tbName.textContent = userName;
   if (tbRole) {
-    tbRole.textContent = role;
+    tbRole.textContent = (role === 'admin' && sessionStorage.getItem('prism_superadmin') === '1') ? 'Superadmin' : role;
     var roleColors = { student: '#7c3aed', teacher: '#10b981', admin: '#f59e0b' };
     var roleBgs = { student: '#ede9fe', teacher: '#d1fae5', admin: '#fef3c7' };
     tbRole.style.color = roleColors[role] || '#7c3aed';

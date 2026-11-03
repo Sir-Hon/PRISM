@@ -217,6 +217,31 @@ function prism_is_superadmin_id(string $id): bool {
     return strcasecmp($id, 'admin001') === 0;
 }
 
+function prism_superadmin_email(): string {
+    return 'superadmin.access@ctu.edu.ph';
+}
+
+function prism_admin_types(): array {
+    return [
+        'Security' => ['security'],
+        'User management' => ['users'],
+        'Roster' => ['roster'],
+        'COR' => ['cor'],
+        'Calendar' => ['calendar'],
+        'Announcements' => ['announcements'],
+    ];
+}
+
+function prism_ensure_superadmin_email(PDO $db): void {
+    $email = prism_superadmin_email();
+    $taken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND LOWER(id) <> ?');
+    $taken->execute([$email, 'admin001']);
+    if ($taken->fetch()) {
+        return;
+    }
+    $db->prepare('UPDATE users SET email = ? WHERE LOWER(id) = ? AND role = ?')->execute([$email, 'admin001', 'admin']);
+}
+
 function prism_ensure_admin_perms(PDO $db): void {
     static $done = false;
     if ($done) {

@@ -12,10 +12,78 @@ let myId = '';
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  var ADMIN_TYPES = [
+    { id: 'security', label: 'Security', perms: ['security'] },
+    { id: 'users', label: 'User management', perms: ['users'] },
+    { id: 'roster', label: 'Roster', perms: ['roster'] },
+    { id: 'cor', label: 'COR', perms: ['cor'] },
+    { id: 'calendar', label: 'Calendar', perms: ['calendar'] },
+    { id: 'announcements', label: 'Announcements', perms: ['announcements'] }
+  ];
+  var ADMIN_FEATURES = [
+    ['users', 'User management'],
+    ['roster', 'Roster'],
+    ['cor', 'COR'],
+    ['calendar', 'Calendar'],
+    ['security', 'Security'],
+    ['announcements', 'Announcements']
+  ];
+  var selectedAdminType = 'security';
+
+  function isSuperadmin() {
+    return sessionStorage.getItem('prism_superadmin') === '1' || String(myId).toLowerCase() === 'admin001';
+  }
+
+  function renderAdminTypePicker() {
+    var pills = document.getElementById('admin-type-pills');
+    var grid = document.getElementById('admin-perm-grid');
+    if (!pills || !grid) return;
+    pills.innerHTML = ADMIN_TYPES.map(function (type) {
+      return '<button type="button" class="type-pill' + (type.id === selectedAdminType ? ' selected' : '') + '" data-type="' + type.id + '">' + escHtml(type.label) + '</button>';
+    }).join('');
+    pills.querySelectorAll('.type-pill').forEach(function (btn) {
+      btn.onclick = function () { selectAdminType(btn.getAttribute('data-type')); };
+    });
+    grid.innerHTML = ADMIN_FEATURES.map(function (item) {
+      return '<label><input type="checkbox" data-perm="' + item[0] + '"> ' + escHtml(item[1]) + '</label>';
+    }).join('');
+    selectAdminType(selectedAdminType);
+  }
+
+  function selectAdminType(id) {
+    selectedAdminType = id || 'security';
+    var type = ADMIN_TYPES.filter(function (item) { return item.id === selectedAdminType; })[0] || ADMIN_TYPES[0];
+    document.querySelectorAll('.type-pill').forEach(function (btn) {
+      btn.classList.toggle('selected', btn.getAttribute('data-type') === type.id);
+    });
+    document.querySelectorAll('#admin-perm-grid input[data-perm]').forEach(function (box) {
+      box.checked = type.perms.indexOf(box.getAttribute('data-perm')) !== -1;
+    });
+  }
+
+  function chosenAdminPerms() {
+    var permissions = { dashboard: true };
+    document.querySelectorAll('#admin-perm-grid input[data-perm]').forEach(function (box) {
+      permissions[box.getAttribute('data-perm')] = !!box.checked;
+    });
+    return permissions;
+  }
+
   window.addEventListener('DOMContentLoaded', async () => {
     if (window.__prismManageSession) await window.__prismManageSession;
+    try {
+      if (typeof prismAuthGuard === 'function') await prismAuthGuard(['admin']);
+    } catch (e) { /* the guard redirects when the session is missing */ }
     myId = sessionStorage.getItem('prism_user_id') || '';
     if (typeof initSidebar === 'function') initSidebar('manage');
+    var addBtn = document.getElementById('tab-btn-admins');
+    if (!isSuperadmin()) {
+      if (addBtn) addBtn.style.display = 'none';
+      var usersBtn = document.querySelector('.page-tab[onclick*="users"]');
+      if (usersBtn) switchTab('users', usersBtn);
+    } else {
+      renderAdminTypePicker();
+    }
     await loadUsers();
     renderPassphraseStatus();
   });
@@ -44,53 +112,53 @@ let myId = '';
     if (name === 'security') { renderPassphraseStatus(); renderAuditLog(); }
   }
 
-  // ── ROLE SELECTOR ──
-  let createRole = 'teacher';
-  function selectRole(role) {
-    createRole = role;
-    document.querySelectorAll('.role-pill').forEach(p => p.classList.remove('sel-teacher','sel-admin'));
-    document.querySelector('.role-pill[data-role="'+role+'"]').classList.add('sel-'+role);
-  }
-
-  // ── CREATE ACCOUNT (via API) ──
   async function handleCreate() {
+    if (!isSuperadmin()) { showFormMsg('Only the superadmin can add administrators.', 'error'); return; }
     const fn   = document.getElementById('c-fname').value.trim();
     const ln   = document.getElementById('c-lname').value.trim();
     const id   = document.getElementById('c-id').value.trim();
-    const dept = document.getElementById('c-dept').value.trim();
     const email = document.getElementById('c-email').value.trim().toLowerCase();
     const pw   = document.getElementById('c-pw').value;
-    const msg  = document.getElementById('create-msg');
+    const pw2  = document.getElementById('c-pw2').value;
+    const type = ADMIN_TYPES.filter(function (item) { return item.id === selectedAdminType; })[0] || ADMIN_TYPES[0];
 
     if (!fn || !ln) { showFormMsg('Please enter first and last name.', 'error'); return; }
-    if (!id)        { showFormMsg('Please enter an ID.', 'error'); return; }
-    if (createRole === 'teacher' && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) {
-      showFormMsg('Enter a CTU email (@ctu.edu.ph) for the teacher.', 'error'); return;
-    }
-    if (createRole !== 'teacher' && email && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) {
+    if (!id || id.length < 4) { showFormMsg('Enter an ID of at least 4 characters.', 'error'); return; }
+    if (id.toLowerCase() === 'admin001') { showFormMsg('admin001 is reserved for the superadmin.', 'error'); return; }
+    if (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email)) {
       showFormMsg('Enter a CTU email (@ctu.edu.ph).', 'error'); return;
     }
-    if (!pw || pw.length < 6) { showFormMsg('Password must be at least 6 characters.', 'error'); return; }
+    if (!pw || pw.length < 8 || !/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) {
+      showFormMsg('Password must be at least 8 characters and include a letter and a number.', 'error'); return;
+    }
+    if (pw !== pw2) { showFormMsg('Passwords do not match.', 'error'); return; }
 
     const btn = document.getElementById('create-btn');
-    btn.disabled = true; btn.textContent = 'Creating…';
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Adding…');
+    else { btn.disabled = true; btn.textContent = 'Adding…'; }
 
     try {
       await apiCall('auth', 'register_admin', 'POST', {
-        id, password: pw, name: fn + ' ' + ln, role: createRole, section: dept, email
+        id: id,
+        password: pw,
+        confirm_password: pw2,
+        name: fn + ' ' + ln,
+        role: 'admin',
+        section: type.label,
+        email: email,
+        permissions: chosenAdminPerms()
       });
-      showFormMsg('Account created successfully!', 'success');
-      document.getElementById('c-fname').value = '';
-      document.getElementById('c-lname').value = '';
-      document.getElementById('c-id').value = '';
-      document.getElementById('c-dept').value = '';
-      document.getElementById('c-email').value = '';
-      document.getElementById('c-pw').value = '';
+      showFormMsg(fn + ' was added as the ' + type.label + ' admin.', 'success');
+      ['c-fname', 'c-lname', 'c-id', 'c-email', 'c-pw', 'c-pw2'].forEach(function (field) {
+        document.getElementById(field).value = '';
+      });
+      selectAdminType('security');
       await loadUsers();
     } catch(e) {
-      showFormMsg(e.message || 'Failed to create account.', 'error');
+      showFormMsg(e.message || 'Failed to add that admin.', 'error');
     } finally {
-      btn.disabled = false; btn.textContent = 'Create Account';
+      if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+      else { btn.disabled = false; btn.textContent = 'Add admin'; }
     }
   }
 
@@ -121,18 +189,23 @@ let myId = '';
     }
     const me = myId.toLowerCase();
     tbody.innerHTML = users.map(u => {
-      const canDel = u.id.toLowerCase() !== me;
       const role = String(u.role || '').toLowerCase();
+      const superadmin = role === 'admin' && (u.superadmin || String(u.id).toLowerCase() === 'admin001');
+      const canDel = u.id.toLowerCase() !== me && !superadmin;
       const email = String(u.email || '').trim();
       const emailHtml = email ? escHtml(email) : '<span style="color:#d97706;font-weight:700;">Not assigned</span>';
-      const emailBtn = (role === 'student' || role === 'teacher')
+      const emailBtn = !superadmin && (role === 'student' || role === 'teacher' || role === 'admin')
         ? '<button class="del-btn" style="border-color:#e4dffa;color:#6d28d9;margin-right:.35rem;" onclick="openEmailModal(\'' + escJs(u.id) + '\',\'' + escJs(u.name || '') + '\',\'' + escJs(email) + '\')">Email</button>'
         : '';
+      const roleHtml = superadmin
+        ? '<span class="role-tag superadmin">Superadmin</span>'
+        : '<span class="role-tag ' + role + '">' + escHtml(u.role || '—') + '</span>';
+      const typeHtml = superadmin ? 'All features' : escHtml(u.section || '—');
       return `<tr>
         <td><strong style="color:#16132b;">${escHtml(u.name || '—')}</strong></td>
         <td style="font-family:monospace;font-size:.88rem;color:#6b7280;">${escHtml(u.id)}</td>
-        <td><span class="role-tag ${role}">${escHtml(u.role || '—')}</span></td>
-        <td style="color:#9ca3af;">${escHtml(u.section || '—')}</td>
+        <td>${roleHtml}</td>
+        <td style="color:#9ca3af;">${typeHtml}</td>
         <td style="font-size:.82rem;">${emailHtml}</td>
         <td>${emailBtn}<button class="del-btn" ${!canDel ? 'disabled' : ''} onclick="deleteAccount('${escJs(u.id)}')"> Delete</button></td>
       </tr>`;

@@ -181,7 +181,7 @@
 <body>
 <script src="api.js?v=25"></script>
 <script src="script.js?v=17"></script>
-<script src="portal-sidebar.js?v=21"></script>
+<script src="portal-sidebar.js?v=22"></script>
 <div class="topbar">
   <a class="topbar-logo" href="admin.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -299,7 +299,7 @@
 
         <div class="a-card">
           <div class="a-card-title"> Admin Passphrase</div>
-          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;line-height:1.65;">New administrator accounts are created from this panel with Add Admin. Invite codes are no longer used.</p>
+          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;line-height:1.65;">The superadmin adds other administrators from Manage Users. Invite codes are no longer used.</p>
           <div id="pp-status" style="margin-bottom:1rem;"></div>
           <div class="pp-row">
             <input type="password" class="pp-input" id="new-pp" placeholder="New passphrase�"/>
@@ -324,27 +324,6 @@
   </main>
 </div>
 
-<!-- Create Account Modal -->
-<div class="m-overlay" id="create-overlay">
-  <div class="m-box">
-    <button class="m-close" onclick="closeCreateModal()"></button>
-    <h3 id="create-modal-title">Add Teacher</h3>
-    <div class="m-field"><label>First Name</label><input type="text" id="m-fname" placeholder="Juan"/></div>
-    <div class="m-field"><label>Last Name</label><input type="text" id="m-lname" placeholder="Dela Cruz"/></div>
-    <div class="m-field"><label>ID / Username</label><input type="text" id="m-id" placeholder="e.g. 2024-00005"/></div>
-    <div class="m-field"><label>Department / Subject</label><input type="text" id="m-dept" placeholder="e.g. Mathematics Dept."/></div>
-    <div class="m-field"><label>CTU Email</label><input type="email" id="m-email" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/>
-      <p id="m-email-hint" style="font-size:.75rem;color:#9ca3af;margin-top:.35rem;">Required for teachers. They sign in with this address.</p>
-    </div>
-    <div class="m-field"><label>Password</label><input type="password" id="m-pw" placeholder="Minimum 6 characters"/></div>
-    <div class="m-actions">
-      <button class="m-btn ghost" onclick="closeCreateModal()">Cancel</button>
-      <button class="m-btn primary" onclick="createAccount()">Create Account</button>
-    </div>
-    <div class="form-msg" id="create-msg"></div>
-  </div>
-</div>
-
 <style>
   .security-grid-layout { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
   @media(max-width:700px){ .security-grid-layout{ grid-template-columns:1fr; } }
@@ -364,6 +343,6 @@
   </div>
 </div>
 
-<script src="pages/admin.js?v=17"></script>
+<script src="pages/admin.js?v=18"></script>
 </body>
 </html>

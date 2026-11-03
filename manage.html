@@ -32,6 +32,12 @@
     .role-pill:hover       { border-color:#c4b5fd; color:#7c3aed; }
     .role-pill.sel-teacher { border-color:var(--teacher); color:var(--teacher); background:rgba(16,185,129,.06); }
     .role-pill.sel-admin   { border-color:var(--admin-c); color:var(--admin-c); background:rgba(245,158,11,.06); }
+    .type-pills { display:flex; flex-wrap:wrap; gap:.45rem; }
+    .type-pill { padding:.45rem .75rem; border-radius:999px; border:1.5px solid #e4dffa; background:#faf9ff; color:#6b7280; font-size:.82rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .type-pill.selected { border-color:var(--admin-c); color:#b45309; background:rgba(245,158,11,.12); }
+    .perm-grid { display:grid; grid-template-columns:1fr 1fr; gap:.4rem .9rem; margin-top:.35rem; }
+    .perm-grid label { display:flex; align-items:center; gap:.45rem; font-size:.88rem; font-weight:600; color:#374151; text-transform:none; letter-spacing:0; }
+    .role-tag.superadmin { background:rgba(245,158,11,.16); color:#b45309; border:1px solid rgba(245,158,11,.35); }
 
     .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.1rem; }
     .f.full    { grid-column:1/-1; }
@@ -128,7 +134,11 @@
     html[data-theme="dark"] .total-badge { background:#24283d !important; color:#f3f4f6 !important; border-color:#3d4468 !important; }
     html[data-theme="dark"] .role-tag.student { color:#c7d2fe !important; background:rgba(99,102,241,.28) !important; }
     html[data-theme="dark"] .role-tag.teacher { color:#a7f3d0 !important; background:rgba(16,185,129,.22) !important; }
-    html[data-theme="dark"] .role-tag.admin { color:#fde68a !important; background:rgba(245,158,11,.22) !important; }
+    html[data-theme="dark"] .role-tag.admin,
+    html[data-theme="dark"] .role-tag.superadmin { color:#fde68a !important; background:rgba(245,158,11,.22) !important; }
+    html[data-theme="dark"] .perm-grid label,
+    html[data-theme="dark"] .type-pill { color:#f3f4f6 !important; }
+    html[data-theme="dark"] .type-pill.selected { color:#fde68a !important; }
     table { width:100%; border-collapse:collapse; }
     thead { background:#faf9ff; }
     th    { padding:.85rem 1.2rem; font-size:.75rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.07em; text-align:left; border-bottom:1px solid #f0ecff; }
@@ -153,7 +163,7 @@
 <body>
 <script src="api.js?v=25"></script>
 <script src="script.js?v=17"></script>
-<script src="portal-sidebar.js?v=21"></script>
+<script src="portal-sidebar.js?v=22"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <span class="admin-badge"> Admin Panel</span>
@@ -178,47 +188,58 @@
   <main class="main-content">
     <div class="page-header">
       <h1> Account Management</h1>
-      <p>Create teacher and admin accounts, assign CTU emails, and manage portal users.</p>
+      <p>Add administrators, give each one a CTU email, and choose which parts of the portal they can open. Teachers and students are created on the Roster.</p>
     </div>
 
     <div class="page-tabs">
-      <button class="page-tab active" onclick="switchTab('create',this)"> Create Account</button>
+      <button class="page-tab active" id="tab-btn-admins" onclick="switchTab('admins',this)"> Add Admin</button>
       <button class="page-tab"        onclick="switchTab('users',this)"> All Users</button>
       <button class="page-tab"        onclick="switchTab('security',this)"> Admin Security</button>
     </div>
 
-    <!-- --- TAB: CREATE --- -->
-    <div class="tab-panel active" id="tab-create">
+    <!-- --- TAB: ADD ADMIN --- -->
+    <div class="tab-panel active" id="tab-admins">
       <div class="create-card">
-        <div class="card-heading">New Account</div>
-        <div class="card-sub">Create a teacher or admin account. Teachers need the CTU email they will use to sign in.</div>
-        <div class="role-pills">
-          <button class="role-pill sel-teacher" data-role="teacher" onclick="selectRole('teacher')"> Teacher</button>
-          <button class="role-pill"             data-role="admin"   onclick="selectRole('admin')"> Admin</button>
-        </div>
+        <div class="card-heading">New administrator</div>
+        <div class="card-sub">Only the superadmin can add another admin. Pick a type, then turn each feature on or off for that person. They sign in with their ID and CTU email.</div>
         <div class="form-grid">
-          <div class="f"><label>First Name</label><input type="text" id="c-fname" placeholder="Juan"/></div>
-          <div class="f"><label>Last Name</label><input type="text" id="c-lname" placeholder="dela Cruz"/></div>
+          <div class="f"><label>First Name</label><input type="text" id="c-fname" placeholder="Elizabeth"/></div>
+          <div class="f"><label>Last Name</label><input type="text" id="c-lname" placeholder="Santos"/></div>
           <div class="f full">
             <label>ID / Username</label>
-            <input type="text" id="c-id" placeholder="e.g. 2024-00005"/>
-            <div class="f-hint">Must be unique across all accounts.</div>
+            <input type="text" id="c-id" placeholder="e.g. admin002"/>
+            <div class="f-hint">Must be unique. admin001 is the superadmin and cannot be recreated.</div>
           </div>
-          <div class="f full"><label>Department / Subject</label><input type="text" id="c-dept" placeholder="e.g. Mathematics Dept."/></div>
           <div class="f full">
             <label>CTU Email</label>
             <input type="email" id="c-email" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/>
-            <div class="f-hint">Required for teachers. Students get their email from the user list after they register.</div>
+            <div class="f-hint">Required. This is the address they use to sign in.</div>
           </div>
           <div class="f full">
+            <label>Admin type</label>
+            <div class="type-pills" id="admin-type-pills"></div>
+          </div>
+          <div class="f full">
+            <label>Features this admin can open</label>
+            <div class="perm-grid" id="admin-perm-grid"></div>
+            <div class="f-hint">The dashboard stays available so they can sign in. Everything else follows these switches.</div>
+          </div>
+          <div class="f">
             <label>Password</label>
             <div class="pw-wrap">
-              <input type="password" id="c-pw" placeholder="Minimum 6 characters"/>
+              <input type="password" id="c-pw" placeholder="At least 8 characters"/>
               <button class="pw-tog" onclick="togglePw('c-pw',this)" type="button">Show</button>
             </div>
           </div>
+          <div class="f">
+            <label>Confirm password</label>
+            <div class="pw-wrap">
+              <input type="password" id="c-pw2" placeholder="Repeat the password"/>
+              <button class="pw-tog" onclick="togglePw('c-pw2',this)" type="button">Show</button>
+            </div>
+          </div>
         </div>
-        <button class="create-btn" id="create-btn" onclick="handleCreate()">Create Account</button>
+        <button class="create-btn" id="create-btn" onclick="handleCreate()">Add admin</button>
         <div class="form-msg" id="create-msg"></div>
       </div>
     </div>
@@ -238,7 +259,7 @@
       <div class="users-table-wrap">
         <div class="prism-table-scroll">
         <table>
-          <thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Section</th><th>CTU Email</th><th>Action</th></tr></thead>
+          <thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Type</th><th>CTU Email</th><th>Action</th></tr></thead>
           <tbody id="users-tbody"></tbody>
         </table>
         </div>
@@ -252,10 +273,10 @@
         <!-- Passphrase card -->
         <div class="create-card" style="max-width:100%">
           <div class="card-heading"> Admin Registration Passphrase</div>
-          <div class="card-sub">New administrator accounts are created from the Create Account tab. Invite codes are no longer used.</div>
+          <div class="card-sub">The superadmin adds other administrators from Add Admin. Invite codes are no longer used.</div>
 
           <div style="background:#fef9e7;border:1.5px solid #fde68a;border-radius:12px;padding:.9rem 1rem;margin-bottom:1.3rem;font-size:.8rem;color:#92400e;line-height:1.6;">
-             Administrator accounts are created from the Create Account tab. Public signup with an invite code is closed.
+             Public signup with an invite code is closed. Teacher and student accounts are created on the Roster.
           </div>
 
           <div id="current-pp-status" style="margin-bottom:1.2rem;"></div>
@@ -287,7 +308,7 @@
           <div class="form-msg" id="pp-msg"></div>
 
           <div class="card-note" style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;font-size:.82rem;line-height:1.55;">
-            Teacher and administrator accounts are created on the Create Account tab. Their CTU email is set there, or later from All Users.
+            New admins get their CTU email on Add Admin. You can update a student, teacher, or admin address from All Users. admin001 stays superadmin.access@ctu.edu.ph.
           </div>
         </div>
 
@@ -316,6 +337,6 @@
     <div id="email-msg" style="font-size:.82rem;margin-top:.6rem;min-height:1em;"></div>
   </div>
 </div>
-<script src="pages/manage.js?v=13"></script>
+<script src="pages/manage.js?v=14"></script>
 </body>
 </html>

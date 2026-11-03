@@ -18,7 +18,7 @@ var ROLE_CONFIG = {
     label: 'Admin', accent: '#f59e0b',
     badgeBg: 'rgba(245,158,11,.15)', badgeColor: '#fcd34d',
     placeholder: 'e.g. admin001',
-    note: 'Use the admin ID and password you were given.'
+    note: 'Use the admin ID, CTU email, and password you were given.'
   },
 };
 
@@ -68,7 +68,7 @@ function prepareLoginForm() {
     idField.removeAttribute('pattern');
   }
   var emailWrap = document.getElementById('email-field');
-  if (emailWrap) emailWrap.style.display = currentRole === 'admin' ? 'none' : '';
+  if (emailWrap) emailWrap.style.display = '';
   var btn = document.getElementById('submit-btn');
   btn.textContent = 'Sign In';
   btn.classList.remove('loading');
@@ -101,7 +101,7 @@ async function handleLogin() {
     showError('Enter your 7-digit CTU student ID.');
     return;
   }
-  if (currentRole === 'student' || currentRole === 'teacher') {
+  if (currentRole === 'student' || currentRole === 'teacher' || currentRole === 'admin') {
     if (!email) { showError('Please enter your CTU email.'); return; }
     if (typeof prismIsCtuEmail === 'function' ? !prismIsCtuEmail(email) : !/^[a-z0-9](?:[a-z0-9._+-]*[a-z0-9])?@ctu\.edu\.ph$/.test(email)) {
       showError('Use your CTU email (@ctu.edu.ph).');

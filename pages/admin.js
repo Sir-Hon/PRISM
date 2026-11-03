@@ -138,7 +138,7 @@ function renderAdminAccess() {
   ];
   panel.style.display = 'block';
   if (!admins.length) {
-    panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;">No other administrators yet. New admins start with the dashboard only. You can turn features on here after they are created.</p>';
+    panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;">No other administrators yet. Add one from Manage Users and choose their features there. You can change those switches here later.</p>';
     return;
   }
   panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;margin-bottom:.8rem;">Choose what each administrator can open. The superadmin always has every feature.</p>' +
@@ -148,7 +148,7 @@ function renderAdminAccess() {
         var on = !!perms[item[0]];
         return '<label style="display:flex;align-items:center;gap:.45rem;font-size:.86rem;margin:.25rem 0;"><input type="checkbox" data-admin="' + escHtml(a.id) + '" data-perm="' + item[0] + '"' + (on ? ' checked' : '') + '> ' + escHtml(item[1]) + '</label>';
       }).join('');
-      return '<div style="padding:.75rem 0;border-top:1px solid rgba(124,58,237,.15);"><strong>' + escHtml(a.name || a.id) + '</strong> <span style="color:#9ca3af;font-family:monospace;">' + escHtml(a.id) + '</span><div style="display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin-top:.35rem;">' + toggles + '</div><button type="button" class="a-btn" style="margin-top:.55rem;" data-save-admin="' + escHtml(a.id) + '">Save access</button></div>';
+      return '<div style="padding:.75rem 0;border-top:1px solid rgba(124,58,237,.15);"><strong>' + escHtml(a.name || a.id) + '</strong> <span style="color:#9ca3af;font-family:monospace;">' + escHtml(a.id) + '</span> <span style="color:#d97706;font-weight:700;">' + escHtml(a.section || 'Admin') + '</span><div style="display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin-top:.35rem;">' + toggles + '</div><button type="button" class="a-btn" style="margin-top:.55rem;" data-save-admin="' + escHtml(a.id) + '">Save access</button></div>';
     }).join('');
   panel.querySelectorAll('[data-save-admin]').forEach(function (btn) {
     btn.onclick = function () { saveAdminAccess(btn.getAttribute('data-save-admin')); };
@@ -265,56 +265,11 @@ async function deleteAccount(id) {
   } catch(e) { alert(e.message || 'Failed to delete account.'); }
 }
 
-/* ── CREATE ACCOUNT MODAL ── */
-let createRole = 'teacher';
 function emailCell(email) {
   const value = String(email || '').trim();
   if (!value) return '<span style="color:#d97706;font-weight:700;">Not assigned</span>';
   return escHtml(value);
 }
-
-function openCreateModal(role) {
-  createRole = role;
-  document.getElementById('create-modal-title').textContent = role==='teacher'?' Add Teacher':' Add Admin';
-  document.getElementById('m-id').placeholder = role==='teacher'?'e.g. 2024-00005':'e.g. admin002';
-  var hint = document.getElementById('m-email-hint');
-  if (hint) hint.textContent = role==='teacher'
-    ? 'Required. The teacher signs in with this CTU email.'
-    : 'Optional for an admin account.';
-  ['m-fname','m-lname','m-id','m-dept','m-pw','m-email'].forEach(id=>document.getElementById(id).value='');
-  document.getElementById('create-msg').textContent = '';
-  document.getElementById('create-overlay').classList.add('active');
-}
-function closeCreateModal() { document.getElementById('create-overlay').classList.remove('active'); }
-
-async function createAccount() {
-  const fn   = document.getElementById('m-fname').value.trim();
-  const ln   = document.getElementById('m-lname').value.trim();
-  const id   = document.getElementById('m-id').value.trim();
-  const dept = document.getElementById('m-dept').value.trim();
-  const pw   = document.getElementById('m-pw').value;
-  const email = document.getElementById('m-email').value.trim().toLowerCase();
-  const showMsg = (t,c) => { const el=document.getElementById('create-msg'); el.textContent=t; el.className='form-msg '+c; };
-  if(!fn) { showMsg('First name required.','err'); return; }
-  if(!ln) { showMsg('Last name required.','err'); return; }
-  if(!id||id.length<4) { showMsg('ID must be at least 4 characters.','err'); return; }
-  if(!dept) { showMsg('Department required.','err'); return; }
-  if(createRole === 'teacher' && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) { showMsg('Enter a CTU email (@ctu.edu.ph).','err'); return; }
-  if(createRole !== 'teacher' && email && (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email))) { showMsg('Enter a CTU email (@ctu.edu.ph).','err'); return; }
-  if(!pw||pw.length<6) { showMsg('Password must be at least 6 characters.','err'); return; }
-  var createBtn = document.querySelector('button[onclick="createAccount()"]');
-  if (typeof prismSetBusy === 'function') prismSetBusy(createBtn, true, 'Creating…');
-  try {
-    // Must use register_admin: the public "register" action always creates students only.
-    await apiCall('auth', 'register_admin', 'POST', {
-      id, password:pw, name:fn+' '+ln, section:dept, email, role: createRole === 'admin' ? 'admin' : 'teacher'
-    });
-    showMsg(' Account created!','ok');
-    setTimeout(async ()=>{ closeCreateModal(); await refreshAdminUsers(); await renderTeachers(); await renderStudents(); await renderStats(); },900);
-  } catch(e) { showMsg(e.message||'Failed to create account.','err'); }
-  finally { if (typeof prismSetBusy === 'function') prismSetBusy(createBtn, false); }
-}
-document.getElementById('create-overlay').addEventListener('click',function(e){if(e.target===this)closeCreateModal();});
 
 /* ── ASSIGN CTU EMAIL ── */
 let emailTargetId = '';

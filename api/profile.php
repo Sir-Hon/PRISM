@@ -120,6 +120,7 @@ if ($action === 'get_all_users') {
     prism_require_admin_perm($db, $user, 'users');
     try {
         prism_ensure_admin_perms($db);
+        prism_ensure_superadmin_email($db);
         $stmt = $db->query('SELECT id, name, role, section, email, admin_perms FROM users ORDER BY role, name');
         $users = $stmt->fetchAll();
         foreach ($users as &$row) {
@@ -179,7 +180,8 @@ if ($method === 'POST' && $action === 'set_user_email') {
     $lookup->execute([$targetId]);
     $row = $lookup->fetch();
     if (!$row) fail('Account not found', 404);
-    if (!in_array($row['role'], ['student', 'teacher'], true)) fail('CTU email is set on student and teacher accounts');
+    if (!in_array($row['role'], ['student', 'teacher', 'admin'], true)) fail('CTU email cannot be set on this account');
+    if (prism_is_superadmin_id($targetId)) fail('The superadmin email stays ' . prism_superadmin_email());
     prism_ensure_student_roster($db);
     $taken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?');
     $taken->execute([$email, $targetId]);

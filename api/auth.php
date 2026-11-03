@@ -24,7 +24,7 @@ if ($method === 'POST' && $action === 'login') {
     if ($role === 'student' && !prism_is_ctu_student_id($id)) {
         fail('Enter your 7-digit CTU student ID');
     }
-    if (($role === 'student' || $role === 'teacher') && !prism_is_ctu_email($email)) {
+    if (in_array($role, ['student', 'teacher', 'admin'], true) && !prism_is_ctu_email($email)) {
         fail('Enter your CTU email (@ctu.edu.ph)');
     }
 
@@ -52,7 +52,16 @@ if ($method === 'POST' && $action === 'login') {
         fail('Check your CTU email for a verification link before signing in.');
     }
 
-    if ($role === 'student' || $role === 'teacher') {
+    if ($role === 'admin') {
+        prism_ensure_superadmin_email($db);
+        if (prism_is_superadmin_id((string) $user['id'])) {
+            $freshEmail = $db->prepare('SELECT email FROM users WHERE id = ?');
+            $freshEmail->execute([$user['id']]);
+            $user['email'] = (string) $freshEmail->fetchColumn();
+        }
+    }
+
+    if ($role === 'student' || $role === 'teacher' || $role === 'admin') {
         $storedEmail = prism_normalize_ctu_email($user['email'] ?? '');
         if ($storedEmail === '') {
             fail('An administrator has not assigned a CTU email to this account yet.');
@@ -145,36 +154,41 @@ if ($method === 'POST' && $action === 'register_admin') {
     $id   = trim($b['id']       ?? '');
     $pw   = trim($b['password'] ?? '');
     $name = trim($b['name']     ?? '');
-    $role = in_array($b['role']??'', ['teacher','admin']) ? $b['role'] : 'teacher';
+    $role = ($b['role'] ?? '') === 'admin' ? 'admin' : '';
     $section = trim($b['section'] ?? '');
     $email = prism_normalize_ctu_email($b['email'] ?? '');
     $actor = ['id' => (string) $_SESSION['user_id'], 'role' => 'admin'];
-    if ($role === 'admin' && !prism_is_superadmin_id($actor['id'])) fail('Only the superadmin can create administrators', 403);
+    if ($role !== 'admin') fail('Teacher and student accounts are created on the Roster', 403);
+    if (!prism_is_superadmin_id($actor['id'])) fail('Only the superadmin can create administrators', 403);
     prism_require_admin_perm(getDB(), $actor, 'users');
 
     if (!$id || !$pw || !$name) fail('Missing required fields');
-    if ($role === 'teacher' && !prism_is_ctu_email($email)) fail('Enter a CTU email (@ctu.edu.ph)');
-    if ($role !== 'teacher' && $email !== '' && !prism_is_ctu_email($email)) fail('Enter a CTU email (@ctu.edu.ph)');
+    if (prism_is_superadmin_id($id)) fail('That ID is reserved for the superadmin');
+    if (!isset(prism_admin_types()[$section])) fail('Choose an admin type');
+    if (!prism_is_ctu_email($email)) fail('Enter a CTU email (@ctu.edu.ph)');
+    $pwError = prism_password_format_error($pw, (string) ($b['confirm_password'] ?? $pw));
+    if ($pwError) fail($pwError);
 
     $db = getDB();
     $check = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
     $check->execute([$id]);
     if ($check->fetch()) fail('That ID is already in use');
-    if ($email !== '') {
-        $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> \'\'');
-        $emCheck->execute([$email]);
-        if ($emCheck->fetch()) fail('That CTU email is already used on another account');
+    $emCheck = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND email <> \'\'');
+    $emCheck->execute([$email]);
+    if ($emCheck->fetch()) fail('That CTU email is already used on another account');
+
+    $incoming = is_array($b['permissions'] ?? null) ? $b['permissions'] : [];
+    $perms = [];
+    foreach (array_keys(prism_admin_catalog()) as $key) {
+        $perms[$key] = !empty($incoming[$key]);
     }
+    $perms['dashboard'] = true;
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
     prism_ensure_admin_perms($db);
-    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, ?, ?, ?, ?)')->execute([$id, $hash, $role, $name, $section, $email]);
-    if ($role === 'admin') {
-        $fresh = array_fill_keys(array_keys(prism_admin_catalog()), false);
-        $fresh['dashboard'] = true;
-        $db->prepare('UPDATE users SET admin_perms = ? WHERE id = ?')->execute([json_encode($fresh), $id]);
-    }
-    ok(['id' => $id]);
+    $db->prepare('INSERT INTO users (id, `password`, role, name, section, email, admin_perms) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        ->execute([$id, $hash, 'admin', $name, $section, $email, json_encode($perms)]);
+    ok(['id' => $id, 'permissions' => $perms]);
 }
 
 fail('Unknown action');
