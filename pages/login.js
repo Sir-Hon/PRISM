@@ -6,19 +6,19 @@ var ROLE_CONFIG = {
     label: 'Student', accent: '#6366f1',
     badgeBg: 'rgba(99,102,241,.15)', badgeColor: '#a5b4fc',
     placeholder: 'e.g. 1234567',
-    note: '<strong>Students only.</strong> Use the 7-digit ID, CTU email, and password an administrator created for you.'
+    note: 'Use the 7-digit ID, CTU email, and password an administrator created for you.'
   },
   teacher: {
     label: 'Teacher', accent: '#10b981',
     badgeBg: 'rgba(16,185,129,.15)', badgeColor: '#6ee7b7',
     placeholder: 'e.g. 2024-00001',
-    note: '<strong>Teachers only.</strong> Use the teacher ID and CTU email an administrator created for you.'
+    note: 'Use the teacher ID and CTU email an administrator created for you.'
   },
   admin: {
     label: 'Admin', accent: '#f59e0b',
     badgeBg: 'rgba(245,158,11,.15)', badgeColor: '#fcd34d',
     placeholder: 'e.g. admin001',
-    note: '<strong>Administrators only.</strong> Use the admin ID and password you were given.'
+    note: 'Use the admin ID and password you were given.'
   },
 };
 
@@ -51,7 +51,7 @@ function prepareLoginForm() {
   badge.style.background = cfg.badgeBg;
   badge.style.color = cfg.badgeColor;
   document.getElementById('modal-title').textContent = cfg.label + ' sign in';
-  document.getElementById('modal-sub').textContent = 'Enter your ' + currentRole + ' credentials to continue';
+  document.getElementById('modal-sub').textContent = cfg.note;
   document.getElementById('portal-subtitle').textContent = cfg.label + ' portal';
   document.title = 'PRISM ' + cfg.label + ' sign in';
   document.getElementById('access-note').innerHTML = cfg.note;
@@ -74,6 +74,21 @@ function prepareLoginForm() {
   btn.classList.remove('loading');
   btn.disabled = false;
   btn.style.opacity = '';
+  ['input-id', 'input-email', 'input-pw'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.value = '';
+    el.setAttribute('readonly', 'readonly');
+    el.addEventListener('focus', function () { el.removeAttribute('readonly'); });
+  });
+}
+
+function clearBrowserFill() {
+  if (document.activeElement && document.activeElement.form && document.activeElement.form.id === 'login-form') return;
+  ['input-id', 'input-email', 'input-pw'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
 }
 
 async function handleLogin() {
@@ -122,6 +137,9 @@ async function handleLogin() {
 }
 
 prepareLoginForm();
+clearBrowserFill();
+setTimeout(clearBrowserFill, 60);
+setTimeout(clearBrowserFill, 400);
 var loginIdInput = document.getElementById('input-id');
 if (loginIdInput) {
   loginIdInput.addEventListener('input', function () {

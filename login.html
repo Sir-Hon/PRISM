@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Prism Portal � Login</title>
+  <title>Prism Portal - Login</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -12,13 +12,13 @@
     body { min-height:100vh; background:#0a0a0f; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; overflow-x:hidden; }
     body::before { content:''; position:fixed; inset:0; background: radial-gradient(ellipse 60% 50% at 20% 30%,rgba(124,58,237,.14) 0%,transparent 60%), radial-gradient(ellipse 50% 40% at 80% 70%,rgba(16,185,129,.08) 0%,transparent 60%), radial-gradient(ellipse 40% 35% at 60% 10%,rgba(99,102,241,.10) 0%,transparent 55%); z-index:0; pointer-events:none; }
 
-    .wrapper { position:relative; z-index:1; text-align:center; padding:2rem 1rem; width:100%; max-width:860px; }
+    .wrapper { position:relative; z-index:1; text-align:center; padding:1.25rem 1rem; width:100%; max-width:420px; }
 
     @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
 
-    .logo { display:inline-flex; align-items:center; gap:.65rem; margin-bottom:.5rem; }
+    .logo { display:inline-flex; align-items:center; gap:.5rem; margin-bottom:.85rem; }
     .logo-gem {
-      width:40px; height:40px; border-radius:11px; overflow:hidden;
+      width:32px; height:32px; border-radius:9px; overflow:hidden;
       display:flex; align-items:center; justify-content:center; font-size:1.2rem;
       box-shadow:
         0 0 0 1px rgba(167,139,250,.35),
@@ -32,7 +32,7 @@
       50% { background-position: 100% 50%; }
     }
     .title-row {
-      font-family:'DM Sans',sans-serif; font-size:2rem; font-weight:800; letter-spacing:-0.02em;
+      font-family:'DM Sans',sans-serif; font-size:1.45rem; font-weight:800; letter-spacing:-0.02em;
       display:inline-flex; align-items:baseline; flex-wrap:wrap; justify-content:center; gap:0;
     }
     .logo-crystal {
@@ -63,7 +63,7 @@
       color: rgba(229, 231, 235, 0.42);
       text-transform: uppercase;
     }
-    .subtitle { font-size:.9rem; color:#6b7280; margin-bottom:2.5rem; }
+    .subtitle { display:none; }
 
     /* -- ROLE CARDS -- */
     .cards { display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap; margin-bottom:1.8rem; }
@@ -92,7 +92,7 @@
     .card.teacher .card-btn { background:var(--teacher); }
     .card.admin   .card-btn { background:var(--admin); }
 
-    .register-row { font-size:.83rem; color:#6b7280; margin-bottom:.3rem; }
+    .register-row { font-size:.75rem; color:#6b7280; margin-bottom:.15rem; }
     .register-row a { color:var(--prism-mid); text-decoration:none; font-weight:600; }
     .register-row a:hover { text-decoration:underline; }
     .register-row.teacher-row a { color:#6ee7b7; }
@@ -105,36 +105,36 @@
       .overlay { backdrop-filter:none; background:rgba(0,0,0,.82); }
     }
 
-    .modal { background:#13131a; border:1px solid #2a2a3a; border-radius:24px; padding:2.2rem 2rem 1.8rem; width:360px; max-width:93vw; position:relative; animation:popIn .3s cubic-bezier(.34,1.56,.64,1); isolation:isolate; transform:translateZ(0); }
-    .login-panel { margin:0 auto 1.2rem; text-align:left; }
+    .modal { background:#13131a; border:1px solid #2a2a3a; border-radius:18px; padding:1.25rem 1.15rem 1.05rem; width:100%; max-width:340px; position:relative; animation:popIn .3s cubic-bezier(.34,1.56,.64,1); isolation:isolate; transform:translateZ(0); }
+    .login-panel { margin:0 auto .85rem; text-align:center; }
+    .login-head { text-align:center; margin-bottom:.85rem; }
     @keyframes popIn { from { transform:scale(.85); opacity:0; } to { transform:scale(1); opacity:1; } }
 
     .modal-close { position:absolute; top:1rem; right:1rem; background:#1e1e2a; border:none; color:#9ca3af; width:30px; height:30px; border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
     .modal-close:hover { background:#2a2a38; color:#e5e7eb; }
 
-    .modal-role-badge { display:inline-flex; align-items:center; gap:.4rem; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:3px 10px; border-radius:20px; margin-bottom:.7rem; }
-    .modal-title { font-family:'DM Sans',sans-serif; font-size:1.35rem; font-weight:800; color:#f0f0f5; margin-bottom:.25rem; }
-    .modal-sub   { font-size:.8rem; color:#6b7280; margin-bottom:1.6rem; }
+    .modal-role-badge { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:2px 9px; border-radius:20px; margin:0 auto .45rem; }
+    .modal-title { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:800; color:#f0f0f5; margin:0; text-align:center; }
+    .modal-sub   { font-size:.75rem; color:#6b7280; margin:.28rem 0 0; text-align:center; }
 
-    .field { margin-bottom:1.1rem; }
-    .field label { display:block; font-size:.75rem; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.45rem; }
-    .field input { width:100%; background:#0e0e16; border:1.5px solid #22222e; border-radius:10px; padding:.72rem 1rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:.92rem; outline:none; transition:border-color .2s; }
+    .field { margin-bottom:.7rem; text-align:left; }
+    .field label { display:block; font-size:.68rem; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.28rem; }
+    .field input { width:100%; background:#0e0e16; border:1.5px solid #22222e; border-radius:9px; padding:.55rem .75rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:.88rem; outline:none; transition:border-color .2s; }
     .field input:focus { border-color:var(--modal-accent,var(--prism)); }
 
     .pw-wrap { position:relative; }
     .pw-toggle { position:absolute; right:.75rem; top:50%; transform:translateY(-50%); background:none; border:none; color:#9ca3af; cursor:pointer; font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:0; }
     .pw-toggle:hover { color:#d1d5db; }
 
-    .modal-submit { width:100%; padding:.78rem; border:none; border-radius:12px; background:var(--modal-accent,var(--prism)); color:#fff; font-family:'DM Sans',sans-serif; font-size:.97rem; font-weight:700; cursor:pointer; margin-top:.4rem; transition:opacity .2s; }
+    .modal-submit { width:100%; padding:.62rem; border:none; border-radius:10px; background:var(--modal-accent,var(--prism)); color:#fff; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; margin-top:.15rem; transition:opacity .2s; }
     .modal-submit:hover { opacity:.85; }
     .modal-submit.loading { opacity:.6; pointer-events:none; }
 
     .error-msg { color:#f87171; font-size:.8rem; margin-top:.55rem; text-align:center; min-height:1.1em; }
 
-    .access-note { background:rgba(255,255,255,.04); border-radius:10px; padding:.6rem .85rem; margin-bottom:1rem; font-size:.75rem; color:#6b7280; line-height:1.55; border:1px solid #1e1e2a; }
-    .access-note strong { color:#9ca3af; }
+    .access-note { display:none; }
 
-    .footer { margin-top:2rem; font-size:.75rem; color:#374151; }
+    .footer { margin-top:.85rem; font-size:.72rem; color:#374151; }
 
     
   </style>
@@ -149,25 +149,27 @@
   <p class="subtitle" id="portal-subtitle">Sign in</p>
 
   <div class="modal login-panel" id="modal-box">
-    <div class="modal-role-badge" id="modal-badge"></div>
-    <h2 class="modal-title" id="modal-title">Sign in</h2>
-    <p class="modal-sub" id="modal-sub"></p>
+    <div class="login-head">
+      <div class="modal-role-badge" id="modal-badge"></div>
+      <h2 class="modal-title" id="modal-title">Sign in</h2>
+      <p class="modal-sub" id="modal-sub"></p>
+    </div>
     <div class="access-note" id="access-note"></div>
-    <form id="login-form" action="#" autocomplete="on" onsubmit="event.preventDefault(); handleLogin(); return false;">
+    <form id="login-form" action="#" autocomplete="off" onsubmit="event.preventDefault(); handleLogin(); return false;">
     <div class="field">
       <label for="input-id">ID Number</label>
       <input type="text" id="input-id" name="prism_id" placeholder="" inputmode="text" enterkeyhint="next"
-        autocomplete="username" autocorrect="off" autocapitalize="none" spellcheck="false"/>
+        autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" readonly/>
     </div>
     <div class="field" id="email-field">
       <label for="input-email">CTU Email</label>
-      <input type="email" id="input-email" name="prism_email" placeholder="e.g. name.surname@ctu.edu.ph"
-        autocomplete="email" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="next"/>
+      <input type="text" id="input-email" name="prism_email" placeholder="name@ctu.edu.ph"
+        autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="next" inputmode="email" readonly/>
     </div>
     <div class="field">
       <label for="input-pw">Password</label>
       <div class="pw-wrap">
-        <input type="password" id="input-pw" name="password" placeholder="Enter your password" autocomplete="current-password" enterkeyhint="go"/>
+        <input type="password" id="input-pw" name="prism_pw" placeholder="Password" autocomplete="off" enterkeyhint="go" readonly/>
         <button class="pw-toggle" type="button" onclick="togglePw()" aria-label="Show or hide password">Show</button>
       </div>
     </div>
@@ -177,9 +179,9 @@
   </div>
 
   <p class="register-row">Accounts are created by an administrator.</p>
-  <p class="footer">� 2026 Prism Portal � CTU Daanbantayan</p>
+  <p class="footer">&copy; 2026 Prism Portal &middot; CTU Daanbantayan</p>
 </div>
 
-<script src="pages/login.js?v=18"></script>
+<script src="pages/login.js?v=19"></script>
 </body>
 </html>
