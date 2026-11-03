@@ -72,7 +72,7 @@ function renderDashboardIncomingEvents() {
   var el = document.getElementById('dash-events-list');
   if (!el) return;
   var raw = [];
-  try { raw = JSON.parse(localStorage.getItem('prism_events') || '[]'); } catch (e) { raw = []; }
+  try { raw = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : []; } catch (e) { raw = []; }
   var todayStr = new Date().toISOString().split('T')[0];
   var upcoming = raw.filter(function(e) { return e.date >= todayStr; })
     .sort(function(a, b) {
@@ -134,7 +134,7 @@ window.addEventListener('DOMContentLoaded', async function() {
           var mapped = apiEv.map(function(e) {
             return { id: e.id, title: e.title, date: e.event_date, time: e.event_time || '', notes: e.notes || '', color: e.color || '#6d28d9', alarm: e.alarm };
           });
-          localStorage.setItem('prism_events', JSON.stringify(mapped));
+          if (typeof prismSaveScopedList === 'function') prismSaveScopedList('prism_events', mapped);
           renderDashboardIncomingEvents();
         }
       } catch (evErr) { console.warn('Events sync:', evErr); }

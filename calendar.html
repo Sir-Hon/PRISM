@@ -5,7 +5,7 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
  <title>PRISM Calendar</title>
  <link rel="icon" type="image/png" href="Prismcrys.png"/>
- <link rel="stylesheet" href="portal.css?v=20"/>
+ <link rel="stylesheet" href="portal.css?v=21"/>
  <script src="portal-mobile.js?v=4" defer></script>
  <style>
  :root { --cal-accent: #7c3aed; --cal-dark: #6d28d9; }
@@ -16,8 +16,10 @@
  padding: 2rem;
  box-shadow: 0 4px 24px rgba(124,58,237,0.10);
  border: 1px solid rgba(124,58,237,0.09);
- animation: fadeUp 0.4s ease;
  }
+
+ .cal-grid { min-height: 32rem; }
+ #events-list { min-height: 3.2rem; }
 
  .cal-header {
  display: flex; align-items: center; justify-content: space-between;
@@ -141,6 +143,7 @@
 
  @media(max-width:640px) {
  .cal-wrap { padding: 1rem; border-radius: 14px; }
+ .cal-grid { min-height: 18rem; }
  .cal-header h2 { font-size: 1.2rem; }
  .cal-grid { gap: 3px; }
  .cal-day-name { font-size: 0.62rem; letter-spacing: 0; padding: 0.25rem 0; }
@@ -171,8 +174,8 @@
 </head>
 <body>
 <script src="api.js?v=25"></script>
-<script src="script.js?v=16"></script>
-<script src="portal-sidebar.js?v=20"></script>
+<script src="script.js?v=17"></script>
+<script src="portal-sidebar.js?v=21"></script>
 <!-- TOPBAR -->
 <div class="topbar">
  <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
@@ -262,6 +265,6 @@
 
 
 
-<script src="pages/calendar.js?v=10"></script>
+<script src="pages/calendar.js?v=11"></script>
 </body>
 </html>

@@ -251,7 +251,7 @@ function initSidebar(activePage) {
         if (!teacherClasses.length) {
           var emp = document.createElement('div');
           emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
-          emp.textContent = 'No subjects yet';
+          emp.textContent = window.__prismClassesFetched ? 'No subjects yet' : 'Loading classes';
           classCont.appendChild(emp);
         } else {
           teacherClasses.forEach(function (cls) {
@@ -284,7 +284,7 @@ function initSidebar(activePage) {
         if (!joinedList.length) {
           var emp2 = document.createElement('div');
           emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
-          emp2.textContent = 'No classes joined yet';
+          emp2.textContent = window.__prismClassesFetched ? 'No classes joined yet' : 'Loading classes';
           classCont.appendChild(emp2);
         } else {
           var colors = ['#7c3aed', '#0d9488', '#d97706', '#2563eb', '#be123c', '#15803d'];
@@ -349,6 +349,7 @@ function prismRefreshSidebarClasses(role, activePage) {
       });
       localStorage.setItem('prism_joined_' + uid, JSON.stringify(joined));
     }
+    window.__prismClassesFetched = true;
     window.__prismSidebarSkipRefresh = true;
     initSidebar(activePage || prismActivePageFromPath());
     window.__prismSidebarSkipRefresh = false;

@@ -28,6 +28,8 @@
 }
 
 /* ── BASE ── */
+html { scrollbar-gutter: stable; }
+
 body {
   font-family: 'DM Sans', sans-serif;
   font-size: 15px;
@@ -171,16 +173,33 @@ nav { display: none !important; }
   top: var(--topbar-h);
   left: 0;
   bottom: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   z-index: 200;
   display: flex;
   flex-direction: column;
-  padding-bottom: 1.5rem;
+  padding-bottom: 0;
 }
 
-.sidebar::-webkit-scrollbar { width: 3px; }
-.sidebar::-webkit-scrollbar-thumb { background: rgba(124,58,237,0.25); border-radius: 4px; }
+.sidebar > .sidebar-section:has(#sidebar-classes) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+#sidebar-classes {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 139, 250, 0.55) transparent;
+}
+
+#sidebar-classes::-webkit-scrollbar { width: 8px; }
+#sidebar-classes::-webkit-scrollbar-track { background: transparent; }
+#sidebar-classes::-webkit-scrollbar-thumb { background: rgba(167, 139, 250, 0.45); border-radius: 8px; }
 
 /* Sidebar user card — hidden (profile is in the top bar) */
 .sidebar-user-card {
@@ -355,6 +374,7 @@ nav { display: none !important; }
 }
 
 .sidebar-logout:hover { color: #f87171; background: rgba(239,68,68,0.06); }
+.sidebar-logout { margin-bottom: 0.75rem; }
 
 /* ── MAIN CONTENT ── */
 .main-content {

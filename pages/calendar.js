@@ -8,25 +8,39 @@ if (typeof initSidebar === 'function') initSidebar('calendar');
  let today = new Date();
  let viewYear = today.getFullYear();
  let viewMonth = today.getMonth();
- let events = JSON.parse(localStorage.getItem('prism_events') || '[]');
+ let events = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : [];
+ let eventsLoaded = false;
  let editingId = null;
  let selColor = COLORS[2];
 
+ function eventsFingerprint(list) {
+   return (list || []).map(function (e) {
+     return [e.id, e.title, e.date, e.time || '', e.notes || '', e.alarm, e.color || ''].join('|');
+   }).join('\n');
+ }
+
  // Load events from API on startup
  (async function() {
+   var before = eventsFingerprint(events);
    try {
      const apiEvents = await PrismEvents.get();
-     events = apiEvents.map(e => ({
+     var next = apiEvents.map(e => ({
        id: e.id, title: e.title, date: e.event_date,
        time: e.event_time||'', notes: e.notes||'',
        alarm: e.alarm!==null ? e.alarm : '',
        color: e.color||COLORS[2]
      }));
-     localStorage.setItem('prism_events', JSON.stringify(events));
-     renderCalendar();
+     eventsLoaded = true;
+     var changed = eventsFingerprint(next) !== before;
+     events = next;
+     if (typeof prismSaveScopedList === 'function') prismSaveScopedList('prism_events', events);
+     if (changed) renderCalendar();
+     else renderEventsList();
      events.forEach(scheduleAlarm);
    } catch(ex) {
+     eventsLoaded = true;
      console.warn('Could not load events from API:', ex.message);
+     renderEventsList();
      events.forEach(scheduleAlarm);
    }
  })();
@@ -47,7 +61,7 @@ if (typeof initSidebar === 'function') initSidebar('calendar');
  }
 
  function saveEvents() {
-   localStorage.setItem('prism_events', JSON.stringify(events));
+   if (typeof prismSaveScopedList === 'function') prismSaveScopedList('prism_events', events);
  }
 
 
@@ -99,6 +113,10 @@ if (typeof initSidebar === 'function') initSidebar('calendar');
 
  function renderEventsList() {
  const list = document.getElementById('events-list');
+ if (!eventsLoaded && !events.length) {
+   list.innerHTML = '<div class="no-events">Loading events</div>';
+   return;
+ }
  const sorted = [...events].sort((a,b)=>a.date.localeCompare(b.date));
  const upcoming = sorted.filter(e => e.date >= today.toISOString().split('T')[0]);
 

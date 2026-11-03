@@ -181,7 +181,7 @@ function renderDashboardIncomingEvents() {
   const el = document.getElementById('dash-events-list');
   if (!el) return;
   let raw = [];
-  try { raw = JSON.parse(localStorage.getItem('prism_events') || '[]'); } catch (e) { raw = []; }
+  try { raw = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : []; } catch (e) { raw = []; }
   const todayStr = new Date().toISOString().split('T')[0];
   const upcoming = raw.filter(e => e.date >= todayStr)
     .sort((a, b) => {

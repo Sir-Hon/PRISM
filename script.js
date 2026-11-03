@@ -144,6 +144,72 @@ function prismShowWait(el, message) {
   el.appendChild(note);
 }
 
+function prismLocalUserId() {
+  try { return sessionStorage.getItem('prism_user_id') || ''; } catch (e) { return ''; }
+}
+
+function prismScopedKey(base) {
+  var id = prismLocalUserId();
+  return base + '_' + (id || 'guest');
+}
+
+function prismInferLocalOwner() {
+  var score = {};
+  var order = [];
+  var skip = { student: 1, teacher: 1, guest: 1, undefined: 1 };
+  function add(id, n) {
+    if (!id || skip[id]) return;
+    if (score[id] == null) order.push(id);
+    score[id] = (score[id] || 0) + n;
+  }
+  try {
+    for (var i = 0; i < localStorage.length; i++) {
+      var k = localStorage.key(i) || '';
+      var m = /^(prism_profile|prism_joined|prism_classes|prism_quiz_scores|prism_quiz_attempts|prism_quiz_inprogress)_(.+)$/.exec(k);
+      if (m) add(m[2], m[1] === 'prism_profile' ? 1 : 3);
+      var mine = /^prism_asgn_mine_([^_]+)_/.exec(k);
+      if (mine) add(mine[1], 2);
+    }
+  } catch (e) { /* ignore */ }
+  var bestN = 0;
+  order.forEach(function (id) { if (score[id] > bestN) bestN = score[id]; });
+  if (!bestN) return prismLocalUserId();
+  for (var j = 0; j < order.length; j++) {
+    if (score[order[j]] === bestN) return order[j];
+  }
+  return prismLocalUserId();
+}
+
+/* Move a shared local list onto the account that already used this browser. */
+function prismLoadScopedList(base) {
+  var uid = prismLocalUserId();
+  var ownerKey = base + '_owner';
+  var legacy = null;
+  var owner = '';
+  try { legacy = localStorage.getItem(base); } catch (e) { legacy = null; }
+  try { owner = localStorage.getItem(ownerKey) || ''; } catch (e2) { owner = ''; }
+  if (legacy != null && !owner) {
+    owner = prismInferLocalOwner();
+    if (owner) {
+      try {
+        if (localStorage.getItem(base + '_' + owner) == null) localStorage.setItem(base + '_' + owner, legacy);
+        localStorage.setItem(ownerKey, owner);
+        localStorage.removeItem(base);
+      } catch (e3) { /* ignore */ }
+    }
+  }
+  var key = base + '_' + (uid || 'guest');
+  try {
+    var mine = localStorage.getItem(key);
+    if (mine != null) return JSON.parse(mine);
+  } catch (e4) { /* ignore */ }
+  return [];
+}
+
+function prismSaveScopedList(base, value) {
+  try { localStorage.setItem(prismScopedKey(base), JSON.stringify(value)); } catch (e) { /* ignore */ }
+}
+
 function previewImage(event, imgId, placeholderId) {
   var file = event.target.files[0];
   if (!file) return;

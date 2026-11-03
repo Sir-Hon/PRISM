@@ -45,7 +45,7 @@ function renderDashboardIncomingEvents() {
   const el = document.getElementById('dash-events-list');
   if (!el) return;
   let raw = [];
-  try { raw = JSON.parse(localStorage.getItem('prism_events') || '[]'); } catch (e) { raw = []; }
+  try { raw = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : []; } catch (e) { raw = []; }
   const todayStr = new Date().toISOString().split('T')[0];
   const upcoming = raw.filter(e => e.date >= todayStr)
     .sort((a, b) => {
@@ -80,7 +80,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       const mapped = apiEv.map(e => ({
         id: e.id, title: e.title, date: e.event_date, time: e.event_time || '', notes: e.notes || '', color: e.color || '#6d28d9', alarm: e.alarm
       }));
-      localStorage.setItem('prism_events', JSON.stringify(mapped));
+      if (typeof prismSaveScopedList === 'function') prismSaveScopedList('prism_events', mapped);
     }
   } catch (evErr) { console.warn('Events sync:', evErr); }
   renderDashboardIncomingEvents();

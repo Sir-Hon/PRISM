@@ -1,7 +1,7 @@
 /** Page script for notes.html — keep HTML in the .html file. */
 const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','#9b59b6','#e91e63','#607d8b','#795548'];
 
-  let notebooks     = JSON.parse(localStorage.getItem('prism_notebooks')||'[]');
+  let notebooks     = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_notebooks') : [];
   let activeNbId    = null, activeNoteId = null, editingNbId = null;
   let selNbColor    = NB_COLORS[2];
   let autosaveTimer = null;
@@ -17,7 +17,10 @@ const NB_COLORS = ['#e74c3c','#6d28d9','#f1c40f','#2ecc71','#1abc9c','#3498db','
   function selNbClr(c) { selNbColor=c; document.querySelectorAll('.nb-color-chip').forEach(ch=>ch.classList.toggle('selected',ch.dataset.color===c)); }
   selNbClr(NB_COLORS[2]);
 
-  function saveData() { localStorage.setItem('prism_notebooks',JSON.stringify(notebooks)); }
+  function saveData() {
+    if (typeof prismSaveScopedList === 'function') prismSaveScopedList('prism_notebooks', notebooks);
+    else localStorage.setItem('prism_notebooks_' + (sessionStorage.getItem('prism_user_id') || 'guest'), JSON.stringify(notebooks));
+  }
 
   function darken(hex) {
     try { let r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); r=Math.max(0,r-40);g=Math.max(0,g-40);b=Math.max(0,b-40); return `#${r.toString(16).padStart(2,'0')}${g.toString(16).padStart(2,'0')}${b.toString(16).padStart(2,'0')}`; } catch(e){return hex;}

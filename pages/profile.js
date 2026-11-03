@@ -396,8 +396,8 @@ function renderActivity(profile) {
   var classIds = Object.keys(joined);
   var posts    = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]')
                    .filter(function(p){ return classIds.indexOf(p.classId) !== -1; });
-  var notes    = JSON.parse(localStorage.getItem('prism_notebooks') || '[]');
-  var events   = JSON.parse(localStorage.getItem('prism_events') || '[]');
+  var notes    = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_notebooks') : [];
+  var events   = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : [];
   var scores   = JSON.parse(localStorage.getItem('prism_quiz_scores_'+uid) || '{}');
 
   var activities = [];
@@ -474,7 +474,7 @@ function renderQuickStats() {
                     .filter(function(q){ return q.published && classIds.indexOf(q.classId)!==-1; });
   var done    = Object.keys(scores).length;
   var pending = allQuizzes2.filter(function(q){ return scores[q.id]===undefined; }).length;
-  var notes   = JSON.parse(localStorage.getItem('prism_notebooks') || '[]').length;
+  var notes   = ((typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_notebooks') : []).length;
   var stats = [
     { icon:'', label:'Quizzes Done',    val: done },
     { icon:'', label:'Pending Quizzes', val: pending },
