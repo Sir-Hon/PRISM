@@ -40,16 +40,34 @@
     'status.html': ['student'],
   };
 
+  var portal = typeof prismPortalRole === 'function' ? prismPortalRole() : 'student';
+  var pageRoles = PAGE_ROLES[currentPage];
+  if (pageRoles && pageRoles.indexOf(portal) === -1) {
+    window.location.replace(portal === 'teacher' ? 'teacher.html' : portal === 'admin' ? 'admin.html' : 'index.html');
+    return;
+  }
+
   if (PUBLIC_PAGES.indexOf(currentPage) !== -1) {
     return;
   }
 
-  // Hide the shell until the session check finishes. Otherwise index.html
-  // (the student dashboard) paints, then the guard redirects to login.
-  document.documentElement.style.visibility = 'hidden';
+  // Cover only the page body. The top bar and sidebar stay put.
+  document.documentElement.classList.add('prism-loading');
 
   function revealIfAllowed(user) {
-    if (user) document.documentElement.style.visibility = '';
+    if (!user) return;
+    var adminPerm = {
+      'admin.html': 'dashboard',
+      'manage.html': 'users',
+      'roster.html': 'roster',
+      'cor.html': 'cor',
+      'calendar.html': 'calendar',
+    };
+    if (user.role === 'admin' && adminPerm[currentPage] && typeof prismAdminCan === 'function' && !prismAdminCan(adminPerm[currentPage])) {
+      window.location.replace('admin.html');
+      return;
+    }
+    document.documentElement.classList.remove('prism-loading');
   }
 
   var allowed = PAGE_ROLES[currentPage];
@@ -64,8 +82,14 @@
     window.location.replace('login.html');
     return;
   }
-  document.documentElement.style.visibility = '';
+  document.documentElement.classList.remove('prism-loading');
 })();
+
+document.addEventListener('click', function (e) {
+  var link = e.target && e.target.closest ? e.target.closest('a.sidebar-link, a.topbar-logo, a.topbar-avatar') : null;
+  if (!link) return;
+  document.documentElement.classList.add('prism-loading');
+}, true);
 
 function getRoleHome(role) {
   if (role === 'teacher') return 'teacher.html';

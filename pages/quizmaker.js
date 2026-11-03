@@ -272,7 +272,10 @@ function saveDraft(){
       saveQuizzes(quizzes);
       showQMsg('Draft updated.','ok');
       syncDraftButton();
+      saveQmQuizViewFilter('__all__');
       renderSavedQuizzes();
+      var savedList=document.getElementById('saved-quizzes');
+      if(savedList&&savedList.scrollIntoView) savedList.scrollIntoView({behavior:'smooth',block:'nearest'});
       return;
     }
   }
@@ -281,7 +284,10 @@ function saveDraft(){
   saveQuizzes(quizzes);
   showQMsg('Draft saved.','ok');
   syncDraftButton();
+  saveQmQuizViewFilter('__all__');
   renderSavedQuizzes();
+  var savedList=document.getElementById('saved-quizzes');
+  if(savedList&&savedList.scrollIntoView) savedList.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function syncDraftButton(){
   var btn=document.querySelector('.draft-btn');
@@ -380,9 +386,17 @@ function renderSavedQuizzes(){
     return;
   }
   const quizzes=getQuizzes().filter(function(q){
-    return q.classId===activeClassId&&q.teacherId===TEACHER_ID&&qmItemMatchesSection(q);
+    var classOk = String(q.classId || q.class_id || '') === String(activeClassId);
+    var owner = String(q.teacherId || q.teacher_id || '');
+    var ownerOk = owner === String(TEACHER_ID) || owner === '' || owner === 'teacher';
+    return classOk && ownerOk && qmItemMatchesSection(q);
   });
   populateQmQuizFilterSelect(quizzes);
+  if(qmQuizViewFilter!=='__all__' && !quizzes.some(function(q){ return String(q.id)===String(qmQuizViewFilter); })){
+    qmQuizViewFilter='__all__';
+    saveQmQuizViewFilter('__all__');
+    populateQmQuizFilterSelect(quizzes);
+  }
   if(!quizzes.length){
     list.innerHTML='<p style="font-size:.82rem;color:#9ca3af;text-align:center;padding:.5rem 0;">No quizzes for this class.</p>';
     return;

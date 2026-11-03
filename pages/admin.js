@@ -85,6 +85,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   } catch (evErr) { console.warn('Events sync:', evErr); }
   renderDashboardIncomingEvents();
   await refreshAdminUsers();
+  applyAdminCards();
   await renderStats();
   await renderTeachers();
   await renderStudents();
@@ -104,7 +105,75 @@ async function renderStats() {
   } catch(e) { console.error('renderStats:', e); }
 }
 
+var ADMIN_CARD_PERM = { teachers: 'users', students: 'users', announce: 'announcements', security: 'security' };
+
+function applyAdminCards() {
+  document.querySelectorAll('.gc-card').forEach(function (card) {
+    var onclick = card.getAttribute('onclick') || '';
+    var match = onclick.match(/openAdminCard\('([^']+)'\)/);
+    var name = match ? match[1] : '';
+    var perm = ADMIN_CARD_PERM[name];
+    if (perm && typeof prismAdminCan === 'function' && !prismAdminCan(perm)) card.style.display = 'none';
+  });
+  renderAdminAccess();
+}
+
+function renderAdminAccess() {
+  var panel = document.getElementById('admin-access-panel');
+  if (!panel) return;
+  var superadmin = sessionStorage.getItem('prism_superadmin') === '1';
+  if (!superadmin) {
+    panel.style.display = 'none';
+    panel.innerHTML = '';
+    return;
+  }
+  var admins = (adminUsersCache || []).filter(function (u) { return userRole(u) === 'admin' && !u.superadmin; });
+  var catalog = [
+    ['users', 'Manage users'],
+    ['roster', 'Roster'],
+    ['cor', 'COR'],
+    ['calendar', 'Calendar'],
+    ['security', 'Security'],
+    ['announcements', 'Announcements']
+  ];
+  panel.style.display = 'block';
+  if (!admins.length) {
+    panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;">No other administrators yet. New admins start with the dashboard only. You can turn features on here after they are created.</p>';
+    return;
+  }
+  panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;margin-bottom:.8rem;">Choose what each administrator can open. The superadmin always has every feature.</p>' +
+    admins.map(function (a) {
+      var perms = a.permissions || {};
+      var toggles = catalog.map(function (item) {
+        var on = !!perms[item[0]];
+        return '<label style="display:flex;align-items:center;gap:.45rem;font-size:.86rem;margin:.25rem 0;"><input type="checkbox" data-admin="' + escHtml(a.id) + '" data-perm="' + item[0] + '"' + (on ? ' checked' : '') + '> ' + escHtml(item[1]) + '</label>';
+      }).join('');
+      return '<div style="padding:.75rem 0;border-top:1px solid rgba(124,58,237,.15);"><strong>' + escHtml(a.name || a.id) + '</strong> <span style="color:#9ca3af;font-family:monospace;">' + escHtml(a.id) + '</span><div style="display:flex;flex-wrap:wrap;gap:.4rem 1rem;margin-top:.35rem;">' + toggles + '</div><button type="button" class="a-btn" style="margin-top:.55rem;" data-save-admin="' + escHtml(a.id) + '">Save access</button></div>';
+    }).join('');
+  panel.querySelectorAll('[data-save-admin]').forEach(function (btn) {
+    btn.onclick = function () { saveAdminAccess(btn.getAttribute('data-save-admin')); };
+  });
+}
+
+async function saveAdminAccess(id) {
+  var panel = document.getElementById('admin-access-panel');
+  var permissions = { dashboard: true };
+  panel.querySelectorAll('input[data-admin="' + id + '"]').forEach(function (box) {
+    permissions[box.getAttribute('data-perm')] = box.checked;
+  });
+  try {
+    await PrismAdmin.setAdminPerms(id, permissions);
+    var row = (adminUsersCache || []).find(function (u) { return String(u.id) === String(id); });
+    if (row) row.permissions = permissions;
+    alert('Access updated.');
+  } catch (e) {
+    alert(e.message || 'Could not update access.');
+  }
+}
+
 function openAdminCard(name) {
+  var perm = ADMIN_CARD_PERM[name];
+  if (perm && typeof prismAdminCan === 'function' && !prismAdminCan(perm)) return;
   const titles = { teachers: 'Teachers', students: 'Students', announce: 'Announcements', security: 'Security' };
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   const panel = document.getElementById('tab-' + name);

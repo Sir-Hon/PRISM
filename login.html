@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Prism Portal — Login</title>
+  <title>Prism Portal ï¿½ Login</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -106,6 +106,7 @@
     }
 
     .modal { background:#13131a; border:1px solid #2a2a3a; border-radius:24px; padding:2.2rem 2rem 1.8rem; width:360px; max-width:93vw; position:relative; animation:popIn .3s cubic-bezier(.34,1.56,.64,1); isolation:isolate; transform:translateZ(0); }
+    .login-panel { margin:0 auto 1.2rem; text-align:left; }
     @keyframes popIn { from { transform:scale(.85); opacity:0; } to { transform:scale(1); opacity:1; } }
 
     .modal-close { position:absolute; top:1rem; right:1rem; background:#1e1e2a; border:none; color:#9ca3af; width:30px; height:30px; border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; }
@@ -139,63 +140,18 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=18"></script>
+<script src="api.js?v=23"></script>
 <div class="wrapper">
   <div class="logo">
     <div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>
     <span class="title-row"><span class="logo-crystal">PRISM</span><span class="title-portal"> Portal</span></span>
   </div>
-  <p class="subtitle">Select your role to sign in</p>
+  <p class="subtitle" id="portal-subtitle">Sign in</p>
 
-  <div class="cards">
-    <div class="card student" onclick="openModal('student')" role="button" tabindex="0">
-      <div class="card-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 20h4L19.5 8.5a2.1 2.1 0 0 0 0-3L16.5 2.5a2.1 2.1 0 0 0-3 0L4 16v4z"/>
-          <path d="M13.5 4.5l4 4"/>
-          <path d="M16 20h4"/>
-        </svg>
-      </div>
-      <span class="card-label">Student</span>
-      <p class="card-desc">Access classes, grades, and assignments.</p>
-      <button class="card-btn" onclick="event.stopPropagation();openModal('student')">Login as Student</button>
-    </div>
-    <div class="card teacher" onclick="openModal('teacher')" role="button" tabindex="0">
-      <div class="card-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 5.2A2.4 2.4 0 0 1 6.4 3H12v16.5H6.4A2.4 2.4 0 0 0 4 21.9V5.2z"/>
-          <path d="M20 5.2A2.4 2.4 0 0 0 17.6 3H12v16.5h5.6A2.4 2.4 0 0 1 20 21.9V5.2z"/>
-          <path d="M12 3v16.5"/>
-        </svg>
-      </div>
-      <span class="card-label">Teacher</span>
-      <p class="card-desc">Manage classes, student records, and quizzes.</p>
-      <button class="card-btn" onclick="event.stopPropagation();openModal('teacher')">Login as Teacher</button>
-    </div>
-    <div class="card admin" onclick="openModal('admin')" role="button" tabindex="0">
-      <div class="card-icon" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 3l7.5 3.2v5.6c0 4.6-3.1 8.1-7.5 9.7-4.4-1.6-7.5-5.1-7.5-9.7V6.2L12 3z"/>
-          <path d="M9 12.2l2.1 2.1L15.4 10"/>
-        </svg>
-      </div>
-      <span class="card-label">Admin</span>
-      <p class="card-desc">Manage portal users and settings.</p>
-      <button class="card-btn" onclick="event.stopPropagation();openModal('admin')">Login as Admin</button>
-    </div>
-  </div>
-
-  <p class="register-row">Student and teacher accounts are created by an administrator.</p>
-  <p class="footer">© 2026 Prism Portal · CTU Daanbantayan</p>
-</div>
-
-<!-- Login Modal -->
-<div class="overlay" id="modal-overlay">
-  <div class="modal" id="modal-box">
-    <button class="modal-close" onclick="closeModal()" aria-label="Close">&times;</button>
+  <div class="modal login-panel" id="modal-box">
     <div class="modal-role-badge" id="modal-badge"></div>
-    <h2 class="modal-title" id="modal-title"></h2>
-    <p class="modal-sub"  id="modal-sub"></p>
+    <h2 class="modal-title" id="modal-title">Sign in</h2>
+    <p class="modal-sub" id="modal-sub"></p>
     <div class="access-note" id="access-note"></div>
     <form id="login-form" action="#" autocomplete="on" onsubmit="event.preventDefault(); handleLogin(); return false;">
     <div class="field">
@@ -219,8 +175,11 @@
     </form>
     <div class="error-msg" id="login-error"></div>
   </div>
+
+  <p class="register-row">Accounts are created by an administrator.</p>
+  <p class="footer">ï¿½ 2026 Prism Portal ï¿½ CTU Daanbantayan</p>
 </div>
 
-<script src="pages/login.js?v=17"></script>
+<script src="pages/login.js?v=18"></script>
 </body>
 </html>

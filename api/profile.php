@@ -79,6 +79,10 @@ if ($method === 'POST' && $action === 'change_password') {
 //  CALENDAR EVENTS
 // ══════════════════════════════════════════════════════
 
+if (in_array($action, ['get_events', 'save_event', 'delete_event'], true) && ($user['role'] ?? '') === 'admin') {
+    prism_require_admin_perm($db, $user, 'calendar');
+}
+
 if ($action === 'get_events') {
     $stmt = $db->prepare('SELECT * FROM events WHERE user_id = ? ORDER BY event_date ASC, event_time ASC');
     $stmt->execute([$user['id']]);
@@ -113,10 +117,20 @@ if ($method === 'DELETE' && $action === 'delete_event') {
 
 if ($action === 'get_all_users') {
     requireAuth(['admin']);
+    prism_require_admin_perm($db, $user, 'users');
     try {
-        // Avoid created_at if older DB schemas omit it (prevents PDO exception → HTML error page).
-        $stmt = $db->query('SELECT id, name, role, section, email FROM users ORDER BY role, name');
-        ok(['users' => $stmt->fetchAll()]);
+        prism_ensure_admin_perms($db);
+        $stmt = $db->query('SELECT id, name, role, section, email, admin_perms FROM users ORDER BY role, name');
+        $users = $stmt->fetchAll();
+        foreach ($users as &$row) {
+            if (($row['role'] ?? '') === 'admin') {
+                $row['superadmin'] = prism_is_superadmin_id((string) $row['id']);
+                $row['permissions'] = prism_admin_permissions($db, (string) $row['id']);
+            }
+            unset($row['admin_perms']);
+        }
+        unset($row);
+        ok(['users' => $users]);
     } catch (PDOException $e) {
         error_log('get_all_users: ' . $e->getMessage());
         fail('Could not load users', 500);
@@ -125,9 +139,11 @@ if ($action === 'get_all_users') {
 
 if ($method === 'POST' && $action === 'delete_user') {
     requireAuth(['admin']);
+    prism_require_admin_perm($db, $user, 'users');
     $b = getBody();
     $del_id = trim($b['id'] ?? '');
     if ($del_id === '' || $del_id === $user['id']) fail('Cannot delete yourself');
+    if (prism_is_superadmin_id($del_id)) fail('The superadmin account cannot be deleted');
     prism_ensure_student_roster($db);
     try {
         $db->beginTransaction();
@@ -153,6 +169,7 @@ if (in_array($action, ['get_invite_codes', 'create_invite', 'delete_invite'], tr
 
 if ($method === 'POST' && $action === 'set_user_email') {
     requireAuth(['admin']);
+    prism_require_admin_perm($db, $user, 'users');
     $b = getBody();
     $targetId = trim($b['id'] ?? '');
     $email = prism_normalize_ctu_email($b['email'] ?? '');
@@ -194,8 +211,30 @@ if ($action === 'get_announcements') {
     ok(['announcements' => $stmt->fetchAll()]);
 }
 
+if ($method === 'POST' && $action === 'set_admin_perms') {
+    requireAuth(['admin']);
+    if (!prism_is_superadmin_id((string) $user['id'])) fail('Only the superadmin can change admin access', 403);
+    $b = getBody();
+    $target = trim((string) ($b['id'] ?? ''));
+    if ($target === '' || prism_is_superadmin_id($target)) fail('That admin access cannot be changed');
+    $lookup = $db->prepare('SELECT id, role FROM users WHERE id = ?');
+    $lookup->execute([$target]);
+    $row = $lookup->fetch();
+    if (!$row || ($row['role'] ?? '') !== 'admin') fail('Account not found', 404);
+    $incoming = is_array($b['permissions'] ?? null) ? $b['permissions'] : [];
+    $perms = [];
+    foreach (array_keys(prism_admin_catalog()) as $key) {
+        $perms[$key] = !empty($incoming[$key]);
+    }
+    $perms['dashboard'] = true;
+    prism_ensure_admin_perms($db);
+    $db->prepare('UPDATE users SET admin_perms = ? WHERE id = ?')->execute([json_encode($perms), $target]);
+    ok(['id' => $target, 'permissions' => $perms]);
+}
+
 if ($method === 'POST' && $action === 'add_announcement') {
     requireAuth(['admin']);
+    prism_require_admin_perm($db, $user, 'announcements');
     $b = getBody();
     $db->prepare('INSERT INTO announcements (author, text, type) VALUES (?,?,?)')->execute([$b['author']??$user['name'], $b['text'], $b['type']??'portal']);
     ok();

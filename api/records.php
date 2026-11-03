@@ -7,6 +7,9 @@ $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 $user   = requireAuth();
 $db     = getDB();
+if (($user['role'] ?? '') === 'admin') {
+    prism_require_admin_perm($db, $user, 'cor');
+}
 
 function prism_records_schema_flag(): string {
     return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-records-schema-v1-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';

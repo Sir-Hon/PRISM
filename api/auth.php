@@ -20,6 +20,7 @@ if ($method === 'POST' && $action === 'login') {
 
     if (!$id || $pw === '' || !$role) fail('Missing credentials');
     if (!in_array($role, ['student', 'teacher', 'admin'], true)) fail('Incorrect credentials', 401);
+    if ($role !== prism_portal_role()) fail('This portal does not accept that sign-in.', 403);
     if ($role === 'student' && !prism_is_ctu_student_id($id)) {
         fail('Enter your 7-digit CTU student ID');
     }
@@ -69,13 +70,9 @@ if ($method === 'POST' && $action === 'login') {
     unset($_SESSION['csrf_token']);
     $csrf = prism_csrf_token();
 
-    ok([
-        'id'         => $user['id'],
-        'role'       => $user['role'],
-        'name'       => $user['name'],
-        'section'    => $user['section'],
-        'csrf_token' => $csrf,
-    ]);
+    $payload = prism_user_client_payload($db, $user);
+    $payload['csrf_token'] = $csrf;
+    ok($payload);
 }
 
 // ── LOGOUT ─────────────────────────────────────────────
@@ -101,13 +98,16 @@ if ($method === 'GET' && $action === 'session') {
         $stmt->execute([$_SESSION['user_id']]);
         $row = $stmt->fetch();
         if ($row) {
-            $user = $row;
+            $user = prism_user_client_payload($db, $row);
             $_SESSION['role']    = $row['role'];
             $_SESSION['name']    = $row['name'];
             $_SESSION['section'] = $row['section'] ?? '';
         }
     } catch (Throwable $e) {
         error_log('PRISM session lookup: ' . $e->getMessage());
+    }
+    if (($user['role'] ?? '') !== prism_portal_role()) {
+        ok(['loggedIn' => false]);
     }
     ok(['loggedIn' => true, 'user' => $user, 'csrf_token' => prism_csrf_token()]);
 }
@@ -140,6 +140,7 @@ if ($method === 'POST' && $action === 'register_teacher') {
 if ($method === 'POST' && $action === 'register_admin') {
     startSession();
     if (empty($_SESSION['role']) || $_SESSION['role'] !== 'admin') fail('Forbidden', 403);
+    if ($_SESSION['role'] !== prism_portal_role()) fail('Forbidden', 403);
     $b    = getBody();
     $id   = trim($b['id']       ?? '');
     $pw   = trim($b['password'] ?? '');
@@ -147,6 +148,9 @@ if ($method === 'POST' && $action === 'register_admin') {
     $role = in_array($b['role']??'', ['teacher','admin']) ? $b['role'] : 'teacher';
     $section = trim($b['section'] ?? '');
     $email = prism_normalize_ctu_email($b['email'] ?? '');
+    $actor = ['id' => (string) $_SESSION['user_id'], 'role' => 'admin'];
+    if ($role === 'admin' && !prism_is_superadmin_id($actor['id'])) fail('Only the superadmin can create administrators', 403);
+    prism_require_admin_perm(getDB(), $actor, 'users');
 
     if (!$id || !$pw || !$name) fail('Missing required fields');
     if ($role === 'teacher' && !prism_is_ctu_email($email)) fail('Enter a CTU email (@ctu.edu.ph)');
@@ -163,7 +167,13 @@ if ($method === 'POST' && $action === 'register_admin') {
     }
 
     $hash = password_hash($pw, PASSWORD_DEFAULT);
+    prism_ensure_admin_perms($db);
     $db->prepare('INSERT INTO users (id, `password`, role, name, section, email) VALUES (?, ?, ?, ?, ?, ?)')->execute([$id, $hash, $role, $name, $section, $email]);
+    if ($role === 'admin') {
+        $fresh = array_fill_keys(array_keys(prism_admin_catalog()), false);
+        $fresh['dashboard'] = true;
+        $db->prepare('UPDATE users SET admin_perms = ? WHERE id = ?')->execute([json_encode($fresh), $id]);
+    }
     ok(['id' => $id]);
 }
 

@@ -58,6 +58,42 @@
 
 const API_BASE = window.__PRISM_API_BASE__;
 
+function prismPortalRole() {
+  var host = (window.location.hostname || '').toLowerCase();
+  var label = host.split('.')[0];
+  if (label === 'student' || label === 'teacher' || label === 'admin') return label;
+  var path = window.location.pathname || '';
+  var match = path.match(/\/(student|teacher|admin)(\/|$)/);
+  if (match) return match[1];
+  return 'student';
+}
+function prismStoreAdminAccess(data) {
+  var role = data && data.role ? data.role : '';
+  if (role !== 'admin') {
+    try {
+      sessionStorage.removeItem('prism_admin_perms');
+      sessionStorage.removeItem('prism_superadmin');
+    } catch (e) { /* ignore */ }
+    return;
+  }
+  try {
+    sessionStorage.setItem('prism_admin_perms', JSON.stringify(data.permissions || {}));
+    sessionStorage.setItem('prism_superadmin', data.superadmin ? '1' : '0');
+  } catch (e2) { /* ignore */ }
+}
+function prismAdminCan(perm) {
+  var role = sessionStorage.getItem('prism_role') || '';
+  if (role !== 'admin') return true;
+  if (sessionStorage.getItem('prism_superadmin') === '1') return true;
+  try {
+    var perms = JSON.parse(sessionStorage.getItem('prism_admin_perms') || '{}');
+    if (!perms || !Object.keys(perms).length) return true;
+    return !!perms[perm];
+  } catch (e) {
+    return true;
+  }
+}
+
 /** CTU Daanbantayan student ID: exactly 7 digits. */
 function prismIsCtuStudentId(id) {
   return /^[0-9]{7}$/.test(String(id || '').trim());
@@ -599,6 +635,7 @@ const PrismAuth = {
     sessionStorage.setItem('prism_user_name', data.name);
     sessionStorage.setItem('prism_role',      data.role);
     sessionStorage.setItem('prism_section',   data.section || '');
+    prismStoreAdminAccess(data);
     prismCacheUserProfile({ id: data.id, name: data.name, avatar: data.avatar });
     return data;
   },
@@ -619,6 +656,7 @@ const PrismAuth = {
       sessionStorage.setItem('prism_user_name', data.user.name);
       sessionStorage.setItem('prism_role',      data.user.role);
       sessionStorage.setItem('prism_section',   data.user.section || '');
+      prismStoreAdminAccess(data.user);
       prismCacheUserProfile(data.user);
     }
     return data;
@@ -1008,6 +1046,9 @@ const PrismAdmin = {
   async getAnnouncements() {
     const data = await apiGet('profile', 'get_announcements');
     return data.announcements || [];
+  },
+  async setAdminPerms(id, permissions) {
+    return await apiCall('profile', 'set_admin_perms', 'POST', { id, permissions });
   },
   async addAnnouncement(ann) {
     return await apiCall('profile', 'add_announcement', 'POST', ann);

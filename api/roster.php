@@ -11,8 +11,8 @@ $admin = prism_current_admin();
 if (!$admin) {
     fail('Forbidden', 403);
 }
-
 $db = getDB();
+prism_require_admin_perm($db, $admin, 'roster');
 $ip = prism_client_ip();
 
 if ($method === 'GET' && $action === 'catalog') {

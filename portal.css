@@ -918,3 +918,121 @@ html[data-theme="dark"] .cor-doc tr:hover td {
   background: #fff !important;
   color: #16132b !important;
 }
+
+html[data-theme="dark"] .cal-header h2,
+html[data-theme="dark"] #month-label,
+html[data-theme="dark"] .events-panel h3,
+html[data-theme="dark"] .notes-editor-wrap .note-list-title,
+html[data-theme="dark"] .notes-editor-wrap .note-body-input,
+html[data-theme="dark"] .notes-editor-wrap .note-title-input,
+html[data-theme="dark"] .nb-modal,
+html[data-theme="dark"] .nb-modal h3,
+html[data-theme="dark"] .nb-ctx-item,
+html[data-theme="dark"] .q-text,
+html[data-theme="dark"] .sq-title,
+html[data-theme="dark"] .qm-title,
+html[data-theme="dark"] .lesson,
+html[data-theme="dark"] .lesson :is(h1, h2, h3, p, label, li),
+html[data-theme="dark"] .create-card,
+html[data-theme="dark"] .create-card .card-heading,
+html[data-theme="dark"] .create-card label,
+html[data-theme="dark"] .role-pill,
+html[data-theme="dark"] .a-card,
+html[data-theme="dark"] .a-card-title,
+html[data-theme="dark"] .page-header h1,
+html[data-theme="dark"] .page-header p,
+html[data-theme="dark"] .section-heading,
+html[data-theme="dark"] .class-name,
+html[data-theme="dark"] .class-view-title {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6;
+}
+
+html[data-theme="dark"] .notes-editor-wrap .note-list-date,
+html[data-theme="dark"] .create-card .card-sub,
+html[data-theme="dark"] .events-panel .ev-meta,
+html[data-theme="dark"] .cor-lead,
+html[data-theme="dark"] .cor-empty,
+html[data-theme="dark"] .page-header p {
+  color: #d1d5db !important;
+  -webkit-text-fill-color: #d1d5db;
+}
+
+html[data-theme="dark"] .notes-topbar {
+  background: #1a1d2e !important;
+  border-color: #2e3350 !important;
+}
+html[data-theme="dark"] .notes-topbar h2 {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6;
+}
+html[data-theme="dark"] .fmt-btn,
+html[data-theme="dark"] .nb-mod-btn.cancel,
+html[data-theme="dark"] .ev-btn.cancel {
+  background: #2a3148 !important;
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6;
+  border-color: #3d4468 !important;
+}
+html[data-theme="dark"] .note-list-item:hover,
+html[data-theme="dark"] .note-list-item.active {
+  background: #2a3148 !important;
+}
+html[data-theme="dark"] .quiz-card,
+html[data-theme="dark"] .quiz-card .quiz-title,
+html[data-theme="dark"] .qz-modal,
+html[data-theme="dark"] .qz-modal h2,
+html[data-theme="dark"] .qz-question,
+html[data-theme="dark"] .ev-item,
+html[data-theme="dark"] .ev-item .ev-title,
+html[data-theme="dark"] .cal-cell,
+html[data-theme="dark"] .cal-cell .cell-num,
+html[data-theme="dark"] .cor-card,
+html[data-theme="dark"] .cor-card h2,
+html[data-theme="dark"] .cor-card strong,
+html[data-theme="dark"] .cor-choice strong {
+  color: #16132b !important;
+  -webkit-text-fill-color: #16132b;
+}
+html[data-theme="dark"] .quiz-card,
+html[data-theme="dark"] .qz-modal,
+html[data-theme="dark"] .qz-modal-header,
+html[data-theme="dark"] .ev-item,
+html[data-theme="dark"] .cal-cell,
+html[data-theme="dark"] .cor-card {
+  background-color: #fff;
+}
+html[data-theme="dark"] .cal-cell.today .cell-num {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
+html[data-theme="dark"] .notes-topbar {
+  background: #1a1d2e !important;
+}
+html[data-theme="dark"] .notes-topbar h2 {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6;
+}
+
+html.prism-loading .main-content {
+  position: relative;
+  min-height: 46vh;
+}
+html.prism-loading .main-content > * {
+  visibility: hidden;
+}
+html.prism-loading .main-content::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 4.5rem;
+  width: 34px;
+  height: 34px;
+  margin-left: -17px;
+  border: 3px solid rgba(124, 58, 237, 0.25);
+  border-top-color: #7c3aed;
+  border-radius: 50%;
+  animation: prism-spin .7s linear infinite;
+  visibility: visible;
+}
+@keyframes prism-spin { to { transform: rotate(360deg); } }

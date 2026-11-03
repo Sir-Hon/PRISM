@@ -38,11 +38,11 @@ var ROLE_NAV = {
     { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
   ],
   admin: [
-    { page: 'home', href: 'admin.html', icon: 'dashboard', label: 'Dashboard' },
-    { page: 'manage', href: 'manage.html', icon: 'users', label: 'Manage Users' },
-    { page: 'roster', href: 'roster.html', icon: 'records', label: 'Roster' },
-    { page: 'cor', href: 'cor.html', icon: 'cor', label: 'COR' },
-    { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar' },
+    { page: 'home', href: 'admin.html', icon: 'dashboard', label: 'Dashboard', perm: 'dashboard' },
+    { page: 'manage', href: 'manage.html', icon: 'users', label: 'Manage Users', perm: 'users' },
+    { page: 'roster', href: 'roster.html', icon: 'records', label: 'Roster', perm: 'roster' },
+    { page: 'cor', href: 'cor.html', icon: 'cor', label: 'COR', perm: 'cor' },
+    { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar', perm: 'calendar' },
   ],
 };
 
@@ -201,6 +201,7 @@ function initSidebar(activePage) {
       sec.appendChild(secLbl);
       for (var i = 0; i < links.length; i++) {
         var l = links[i];
+        if (role === 'admin' && l.perm && typeof prismAdminCan === 'function' && !prismAdminCan(l.perm)) continue;
         var a = document.createElement('a');
         a.className = 'sidebar-link' + (l.page === activePage ? ' active' : '');
         a.setAttribute('data-page', l.page);

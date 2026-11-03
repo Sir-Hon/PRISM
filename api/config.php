@@ -165,6 +165,113 @@ function prism_host_from_url(string $url): string {
     return strtolower((string) $h);
 }
 
+/** student, teacher, or admin. A role subdomain wins. Otherwise the /role/ path, then the student portal. */
+function prism_portal_role(): string {
+    $label = explode('.', prism_request_host())[0] ?? '';
+    if (in_array($label, ['student', 'teacher', 'admin'], true)) {
+        return $label;
+    }
+    $uri = (string) ($_SERVER['REQUEST_URI'] ?? '');
+    if (preg_match('#/(student|teacher|admin)(/|$)#', $uri, $m)) {
+        return $m[1];
+    }
+    $ref = (string) (parse_url((string) ($_SERVER['HTTP_REFERER'] ?? ''), PHP_URL_PATH) ?? '');
+    if (preg_match('#/(student|teacher|admin)(/|$)#', $ref, $m)) {
+        return $m[1];
+    }
+    return 'student';
+}
+
+function prism_session_cookie_name(): string {
+    return 'prism_' . prism_portal_role();
+}
+
+function prism_admin_catalog(): array {
+    return [
+        'dashboard' => 'Dashboard',
+        'users' => 'Manage users',
+        'roster' => 'Roster',
+        'cor' => 'Certificates of registration',
+        'calendar' => 'Calendar',
+        'security' => 'Security',
+        'announcements' => 'Announcements',
+    ];
+}
+
+function prism_is_superadmin_id(string $id): bool {
+    return strcasecmp($id, 'admin001') === 0;
+}
+
+function prism_ensure_admin_perms(PDO $db): void {
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $flag = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-admin-perms-v1-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
+    if (is_file($flag)) {
+        $done = true;
+        return;
+    }
+    $has = $db->query("SHOW COLUMNS FROM users LIKE 'admin_perms'")->fetch();
+    if (!$has) {
+        $db->exec('ALTER TABLE users ADD COLUMN admin_perms TEXT NULL');
+    }
+    @file_put_contents($flag, '1');
+    $done = true;
+}
+
+function prism_admin_permissions(PDO $db, string $id): array {
+    $keys = array_keys(prism_admin_catalog());
+    $all = array_fill_keys($keys, true);
+    if (prism_is_superadmin_id($id)) {
+        return $all;
+    }
+    prism_ensure_admin_perms($db);
+    $st = $db->prepare('SELECT admin_perms FROM users WHERE id = ?');
+    $st->execute([$id]);
+    $raw = $st->fetchColumn();
+    if ($raw === null || $raw === false || $raw === '') {
+        return $all;
+    }
+    $decoded = json_decode((string) $raw, true);
+    if (!is_array($decoded)) {
+        return $all;
+    }
+    $out = [];
+    foreach ($keys as $key) {
+        $out[$key] = !empty($decoded[$key]);
+    }
+    $out['dashboard'] = true;
+    return $out;
+}
+
+function prism_require_admin_perm(PDO $db, array $user, string $perm): void {
+    if (($user['role'] ?? '') !== 'admin') {
+        fail('Forbidden', 403);
+    }
+    if (prism_is_superadmin_id((string) ($user['id'] ?? ''))) {
+        return;
+    }
+    $perms = prism_admin_permissions($db, (string) $user['id']);
+    if (empty($perms[$perm])) {
+        fail('You do not have access to that feature', 403);
+    }
+}
+
+function prism_user_client_payload(PDO $db, array $row): array {
+    $out = [
+        'id' => (string) ($row['id'] ?? ''),
+        'role' => (string) ($row['role'] ?? ''),
+        'name' => (string) ($row['name'] ?? ''),
+        'section' => (string) ($row['section'] ?? ''),
+    ];
+    if ($out['role'] === 'admin') {
+        $out['superadmin'] = prism_is_superadmin_id($out['id']);
+        $out['permissions'] = prism_admin_permissions($db, $out['id']);
+    }
+    return $out;
+}
+
 /** Block cross-site POSTs from other origins. */
 function prism_assert_same_origin(): void {
     $host = prism_request_host();
@@ -354,7 +461,7 @@ function startSession() {
     if (session_status() === PHP_SESSION_ACTIVE) {
         return;
     }
-    session_name(SESSION_NAME);
+    session_name(prism_session_cookie_name());
     session_set_cookie_params([
         'lifetime' => SESSION_LIFETIME,
         'path'     => '/',
@@ -373,6 +480,9 @@ function requireAuth($allowedRoles = []) {
         fail('Not authenticated', 401);
     }
     if (!empty($allowedRoles) && !in_array($_SESSION['role'], $allowedRoles, true)) {
+        fail('Forbidden', 403);
+    }
+    if ((string) ($_SESSION['role'] ?? '') !== prism_portal_role()) {
         fail('Forbidden', 403);
     }
     return [
