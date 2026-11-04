@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Teacher</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=22"/>
+  <link rel="stylesheet" href="portal.css?v=23"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -35,7 +35,7 @@
     .class-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.38rem; box-shadow:0 4px 24px rgba(16,185,129,.10); margin-bottom:1.5rem; flex-wrap:wrap; overflow-x:auto; }
     .class-tab { padding:.5rem 1.1rem; border-radius:10px; font-size:.88rem; font-weight:600; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; transition:all .15s; white-space:nowrap; }
     .class-tab:hover:not(.active) { background:var(--t-light); color:var(--t-dark); }
-    .class-tab.active { background:var(--t); color:white; }
+    .class-tab.active { background:color-mix(in srgb, var(--t) 68%, #000); color:#fff; -webkit-text-fill-color:#fff; }
 
     /* SUB TABS � within a class */
     .sub-tabs { display:flex; gap:.25rem; margin-bottom:1.5rem; border-bottom:2px solid #f0fdf4; padding-bottom:.4rem; flex-wrap:wrap; }
@@ -55,7 +55,7 @@
     .composer:focus { border-color:var(--t); background:#fff; }
     .composer-row { display:flex; gap:.6rem; margin-top:.8rem; align-items:center; flex-wrap:wrap; }
     .t-select { border:1.5px solid #d1fae5; border-radius:9px; padding:.45rem .75rem; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#374151; outline:none; background:#fff; }
-    .t-btn { padding:.58rem 1.3rem; background:var(--t); color:white; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:700; cursor:pointer; transition:opacity .2s; }
+    .t-btn { padding:.58rem 1.3rem; background:color-mix(in srgb, var(--t) 68%, #000); color:#fff; -webkit-text-fill-color:#fff; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:700; cursor:pointer; transition:opacity .2s; }
     .t-btn:hover { opacity:.85; }
     .t-btn.outline { background:none; border:1.5px solid var(--t); color:var(--t-dark); }
     .t-btn.outline:hover { background:var(--t-light); }

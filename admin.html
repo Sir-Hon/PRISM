@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Admin Dashboard</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=22"/>
+  <link rel="stylesheet" href="portal.css?v=23"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --a:#f59e0b; --a-dark:#d97706; --a-light:#fef3c7; --a-mid:#fcd34d; }
@@ -295,27 +295,9 @@
     <!-- --- SECURITY --- -->
     <div class="tab-panel" id="tab-security">
       <div id="admin-access-panel" class="a-card" style="display:none;margin-bottom:1.2rem;"></div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.4rem;" class="security-grid-layout">
-
-        <div class="a-card">
-          <div class="a-card-title"> Admin Passphrase</div>
-          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;line-height:1.65;">The superadmin adds other administrators from Manage Users. Invite codes are no longer used.</p>
-          <div id="pp-status" style="margin-bottom:1rem;"></div>
-          <div class="pp-row">
-            <input type="password" class="pp-input" id="new-pp" placeholder="New passphrase�"/>
-            <button class="a-btn" onclick="setPassphrase()">Set</button>
-            <button class="a-btn outline" onclick="clearPassphrase()">Clear</button>
-          </div>
-          <div class="form-msg" id="pp-msg"></div>
-        </div>
-
-        <div class="a-card">
-          <div class="a-card-title"> Audit Log</div>
-          <p style="font-size:.85rem;color:#9ca3af;margin-bottom:1rem;">Admin self-registration events.</p>
-          <div id="audit-log" style="max-height:320px;overflow-y:auto;"></div>
-          <button onclick="clearAudit()" style="margin-top:.8rem;padding:.45rem 1rem;background:none;border:1.5px solid #fca5a5;color:#fecaca;border-radius:9px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;">Clear Log</button>
-        </div>
-
+      <div class="a-card">
+        <div class="a-card-title">Security</div>
+        <p style="font-size:.9rem;color:#9ca3af;line-height:1.6;margin:0;">Add administrators and set their features from Manage Users. Registration invite codes are closed.</p>
       </div>
     </div>
 
@@ -323,11 +305,6 @@
 
   </main>
 </div>
-
-<style>
-  .security-grid-layout { display:grid; grid-template-columns:1fr 1fr; gap:1.4rem; }
-  @media(max-width:700px){ .security-grid-layout{ grid-template-columns:1fr; } }
-</style>
 
 <div class="m-overlay" id="email-overlay">
   <div class="m-box">

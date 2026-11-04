@@ -954,19 +954,24 @@ html[data-theme="dark"] .events-panel h3,
 html[data-theme="dark"] .notes-editor-wrap .note-list-title,
 html[data-theme="dark"] .notes-editor-wrap .note-body-input,
 html[data-theme="dark"] .notes-editor-wrap .note-title-input,
-html[data-theme="dark"] .nb-modal,
 html[data-theme="dark"] .nb-modal h3,
-html[data-theme="dark"] .nb-ctx-item,
+html[data-theme="dark"] .nb-ctx-item {
+  color: #f3f4f6 !important;
+  -webkit-text-fill-color: #f3f4f6;
+}
+html[data-theme="dark"] .lesson,
+html[data-theme="dark"] .create-card,
+html[data-theme="dark"] .a-card,
+html[data-theme="dark"] .nb-modal {
+  color: #f3f4f6;
+}
 html[data-theme="dark"] .q-text,
 html[data-theme="dark"] .sq-title,
 html[data-theme="dark"] .qm-title,
-html[data-theme="dark"] .lesson,
 html[data-theme="dark"] .lesson :is(h1, h2, h3, p, label, li),
-html[data-theme="dark"] .create-card,
 html[data-theme="dark"] .create-card .card-heading,
 html[data-theme="dark"] .create-card label,
 html[data-theme="dark"] .role-pill,
-html[data-theme="dark"] .a-card,
 html[data-theme="dark"] .a-card-title,
 html[data-theme="dark"] .page-header h1,
 html[data-theme="dark"] .page-header p,
@@ -1008,16 +1013,27 @@ html[data-theme="dark"] .note-list-item.active {
   background: #2a3148 !important;
 }
 html[data-theme="dark"] .quiz-card,
-html[data-theme="dark"] .quiz-card .quiz-title,
 html[data-theme="dark"] .qz-modal,
+html[data-theme="dark"] .cor-card {
+  color: #16132b;
+}
+html[data-theme="dark"] .quiz-card .quiz-title,
 html[data-theme="dark"] .qz-modal h2,
 html[data-theme="dark"] .qz-question,
-html[data-theme="dark"] .cor-card,
 html[data-theme="dark"] .cor-card h2,
 html[data-theme="dark"] .cor-card strong,
 html[data-theme="dark"] .cor-choice strong {
   color: #16132b !important;
   -webkit-text-fill-color: #16132b;
+}
+html[data-theme="dark"] .qz-nav-btn.next,
+html[data-theme="dark"] .qz-retry-btn,
+html[data-theme="dark"] .qz-pill.now,
+html[data-theme="dark"] .qz-choice.selected .qz-choice-letter,
+html[data-theme="dark"] .qz-choice.correct .qz-choice-letter,
+html[data-theme="dark"] .qz-choice.wrong .qz-choice-letter {
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
 }
 html[data-theme="dark"] .quiz-card,
 html[data-theme="dark"] .qz-modal,

@@ -229,146 +229,24 @@ async function initTeacherClassPage() {
   }
 }
 
-/** Re-injected if #class-content is cleared. */
-const TEACHER_CLASS_CONTENT_HTML = `
-      <div class="sub-tabs">
-        <button type="button" class="sub-tab" data-sub="announcements" onclick="switchSub('announcements',this)">Announcements</button>
-        <button type="button" class="sub-tab active" data-sub="materials" onclick="switchSub('materials',this)">Materials</button>
-        <button type="button" class="sub-tab" data-sub="assignments" onclick="switchSub('assignments',this)">Assignments</button>
-        <button type="button" class="sub-tab" data-sub="quizzes" onclick="switchSub('quizzes',this)">Quizzes</button>
-        <button type="button" class="sub-tab" data-sub="grades" onclick="switchSub('grades',this)">Grades</button>
-        <button type="button" class="sub-tab" data-sub="records" onclick="switchSub('records',this)">Records</button>
-      </div>
-      <div class="sub-panel" id="sub-announcements">
-        <div class="t-card" style="margin-bottom:1.2rem;">
-          <div class="t-card-title">Announcements</div>
-          <textarea class="composer" id="stream-text" placeholder="Write an announcement for this class…"></textarea>
-          <div class="composer-row" style="justify-content:flex-end;margin-top:.75rem;">
-            <button class="t-btn" type="button" onclick="postSubjectAnnouncement()">Post announcement</button>
-          </div>
-        </div>
-        <div id="stream-feed"></div>
-      </div>
-      <div class="sub-panel active" id="sub-materials">
-        <div class="t-card">
-          <div class="t-card-title"> Add Material</div>
-          <div class="m-field"><label>Title</label><input type="text" id="mat-title" placeholder="e.g. Week 1 reading or lab video"/></div>
-          <div class="m-field" id="mat-file-row">
-            <label>Attach files (optional)</label>
-            <div class="prism-file-zone" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
-              <div>
-                <div class="pf-title" id="mat-drop-label">Choose files or drop them here</div>
-                <div class="pf-hint">PDF, images, videos, PowerPoint, Word, or Excel. Up to 8 files, 15 MB each.</div>
-                <div id="mat-file-chosen" class="pf-chips" style="display:none;"></div>
-              </div>
-            </div>
-            <input type="file" id="mat-file-input" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
-          </div>
-          <div class="m-field" id="mat-url-row">
-            <label id="mat-url-label">Links (optional)</label>
-            <div id="mat-link-list"></div>
-            <button type="button" onclick="addMatLinkRow()" style="margin-top:.45rem;background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0;border-radius:8px;padding:.35rem .7rem;font-size:.78rem;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Add another link</button>
-            <p class="src-hint" id="mat-url-hint" style="margin-top:.4rem;">Add as many files and links as you need, up to 8 of each. Students see files and videos in separate cards.</p>
-          </div>
-          <div class="m-field"><label>Notes (optional)</label><textarea id="mat-desc" rows="3" placeholder="Short note. URLs typed here also become links for students." style="width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:.6rem .85rem;font-size:.88rem;font-family:'DM Sans',sans-serif;color:#16132b;outline:none;background:#f0fdf4;resize:vertical;box-sizing:border-box;"></textarea></div>
-          <button class="t-btn" onclick="addMaterial()" id="mat-upload-btn">Share with class</button>
-          <div class="form-msg" id="mat-msg"></div>
-        </div>
-        <div id="teacher-mat-filter-wrap" style="display:none;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:.65rem 1rem;background:#fff;border-radius:12px;border:1.5px solid #e4dffa;box-shadow:0 2px 10px rgba(124,58,237,.06);">
-          <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">View material</span>
-          <select id="teacher-mat-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
-        </div>
-        <div id="materials-list"></div>
-      </div>
-      <div class="sub-panel" id="sub-assignments">
-        <div class="t-card">
-          <div class="t-card-title"> Create Assignment</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
-            <div class="m-field" style="margin:0;"><label>Title</label><input type="text" id="asgn-title" placeholder="e.g. Problem Set 1"/></div>
-            <div class="m-field" style="margin:0;"><label>Due Date</label><input type="date" id="asgn-due"/></div>
-          </div>
-          <div class="m-field" style="margin-bottom:.9rem;"><label>Points</label><input type="number" id="asgn-pts" placeholder="e.g. 50" min="1"/></div>
-          <div class="m-field" style="margin-bottom:.9rem;"><label>Type</label>
-            <select id="asgn-type"><option value="written"> Written</option><option value="project"> Project</option><option value="lab"> Lab</option><option value="oral"> Oral</option></select>
-          </div>
-          <div class="m-field" style="margin-bottom:.9rem;">
-            <label>Instructions for students</label>
-            <p class="src-hint">What should students do? (e.g. “Answer all parts in complete sentences.”) This appears at the top of the assignment for students.</p>
-            <textarea id="asgn-instructions" rows="6" placeholder="Example: Read chapter 3 and answer the questions below." style="width:100%;border:1.5px solid #d1fae5;border-radius:10px;padding:.6rem .85rem;font-size:.88rem;font-family:'DM Sans',sans-serif;color:#16132b;outline:none;background:#f0fdf4;resize:vertical;box-sizing:border-box;"></textarea>
-          </div>
-          <div class="m-field" style="margin-bottom:.9rem;">
-            <label>Source for students (optional)</label>
-            <p class="src-hint">Attach a PDF, image, video, or PowerPoint, and/or paste a link to a website or YouTube video. Students see this with the assignment.</p>
-            <div class="src-chips">
-              <span class="src-chip">PDF</span>
-              <span class="src-chip">Image</span>
-              <span class="src-chip">Video</span>
-              <span class="src-chip">PPT</span>
-              <span class="src-chip">Website link</span>
-            </div>
-            <div class="prism-file-zone" id="asgn-drop-zone" onclick="document.getElementById('asgn-file-input').click()">
-              <div>
-                <div class="pf-title" id="asgn-drop-label">Attach a source file</div>
-                <div class="pf-hint">PDF, image, video, or PowerPoint. Up to 15 MB. You can also paste a link below.</div>
-                <div id="asgn-file-chosen" class="pf-chips" style="display:none;"></div>
-              </div>
-            </div>
-            <input type="file" id="asgn-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onAsgnFileChosen(this)"/>
-            <label style="margin-top:.75rem;">Link to a website or video</label>
-            <input type="text" id="asgn-url" placeholder="e.g. https://youtube.com/watch?v=… or https://…"/>
-          </div>
-          <button class="t-btn" onclick="addAssignment()">Create Assignment</button>
-        </div>
-        <div id="teacher-asgn-filter-wrap" style="display:none;align-items:center;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem;padding:.65rem 1rem;background:#fff;border-radius:12px;border:1.5px solid #fce7f3;box-shadow:0 2px 10px rgba(236,72,153,.06);">
-          <span style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">View assignment</span>
-          <select id="teacher-asgn-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
-        </div>
-        <div id="assignments-list"></div>
-      </div>
-      <div class="sub-panel" id="sub-quizzes">
-        <iframe id="class-quiz-frame" title="Quizzes for this class" style="width:100%;min-height:70vh;border:0;background:transparent;display:block;"></iframe>
-      </div>
-      <div class="sub-panel" id="sub-grades">
-        <div class="t-card">
-          <div class="t-card-title">Quiz grades</div>
-          <p class="qg-empty" style="margin-top:0;">Choose a quiz, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.</p>
-          <div class="qg-filters">
-            <label>Quiz
-              <select id="grade-quiz-select" onchange="QG_loadScores()"></select>
-            </label>
-            <label>Student
-              <input id="grade-student-filter" type="search" placeholder="Filter by name" oninput="QG_renderList()">
-            </label>
-          </div>
-          <div id="grade-list"></div>
-          <div id="grade-detail"></div>
-        </div>
-      </div>
-      <div class="sub-panel" id="sub-records">
-        <div class="sheet-bar" id="sheet-bar">
-          <label for="sheet-student">Student</label>
-          <select id="sheet-student" onchange="onSheetStudentChange()"></select>
-          <span class="sheet-status" id="sheet-status"></span>
-        </div>
-        <div class="sub-tabs" id="sheet-kind-tabs">
-          <button type="button" class="sub-tab active" onclick="showSheetKind('attendance', this)">Attendance</button>
-          <button type="button" class="sub-tab" onclick="showSheetKind('assessment', this)">Assessment</button>
-        </div>
-        <div id="view-attendance"><div id="attendance-sheet"></div></div>
-        <div id="view-assessment" style="display:none;"><div id="assessment-sheet"></div></div>
-      </div>`;
+/** Saved from the markup in teacher-class.html so a cleared panel can be rebuilt from one source. */
+var classContentSnapshot = '';
 
 function ensureWorkspacePanel() {
-  if (document.getElementById('materials-list')) return;
-  const wrap = document.getElementById('class-content');
+  var wrap = document.getElementById('class-content');
   if (!wrap) return;
-  wrap.innerHTML = TEACHER_CLASS_CONTENT_HTML;
+  if (document.getElementById('materials-list')) {
+    if (!classContentSnapshot) classContentSnapshot = wrap.innerHTML;
+    return;
+  }
+  if (!classContentSnapshot) return;
+  wrap.innerHTML = classContentSnapshot;
   activeSub = 'materials';
-  wrap.querySelectorAll('.sub-panel').forEach(p => p.classList.remove('active'));
-  wrap.querySelectorAll('.sub-tab').forEach(t => t.classList.remove('active'));
-  const subMat = document.getElementById('sub-materials');
+  wrap.querySelectorAll('.sub-panel').forEach(function (p) { p.classList.remove('active'); });
+  wrap.querySelectorAll(':scope > .sub-tabs > .sub-tab').forEach(function (t) { t.classList.remove('active'); });
+  var subMat = document.getElementById('sub-materials');
   if (subMat) subMat.classList.add('active');
-  const matTab = wrap.querySelector('.sub-tab[data-sub="materials"]');
+  var matTab = wrap.querySelector('.sub-tab[data-sub="materials"]');
   if (matTab) matTab.classList.add('active');
   bindMatDropZone();
   resetMatComposer();
@@ -452,13 +330,6 @@ function renderWorkspacePage() {
   if (!cls) return;
   renderMaterials();
   renderAssignments();
-  const stEl = document.getElementById('tc-class-stats');
-  if (stEl) {
-    const nStud = getStudents(activeClassId).length;
-    const mats = getMaterials()[activeClassId] || [];
-    const asgn = getAssignments()[activeClassId] || [];
-    stEl.textContent = nStud + ' student' + (nStud === 1 ? '' : 's') + ' · ' + mats.length + ' material' + (mats.length === 1 ? '' : 's') + ' · ' + asgn.length + ' assignment' + (asgn.length === 1 ? '' : 's');
-  }
   loadWorkspaceSectionForClass(activeClassId);
   renderWorkspaceSectionPills();
   const codeEl = document.getElementById('tc-code-text');
