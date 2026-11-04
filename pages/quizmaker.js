@@ -150,14 +150,17 @@ function qmFind(id){ return questions.find(function(x){ return String(x.id)===St
 function qmRefreshOpts(id){
   var q = qmFind(id);
   var box = document.getElementById('qo-' + id);
-  if (q && box) box.innerHTML = renderOpts(q);
+  if (q && box) {
+    box.innerHTML = renderOpts(q);
+    qmBindTeacherMatches(box);
+  }
 }
 function ensureQuestionShape(q){
   if (q.type==='mc' && (!q.options || !q.options.length)) {
     q.options=[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}];
   }
   if (q.type==='tf') q.tfAnswer=q.tfAnswer||'true';
-  if (q.type==='match' && (!q.pairs || q.pairs.length<2)) q.pairs=[{left:'',right:''},{left:'',right:''}];
+  if (q.type==='match') qmEnsureBank(q);
   if (q.type==='id' && (!q.answers || !q.answers.length)) q.answers=[''];
   if (q.type==='mtf') {
     q.mtfMode = q.mtfMode==='fix' ? 'fix' : 'true';
@@ -193,6 +196,7 @@ function renderQMQuestions(){
       <div id="qo-${q.id}">${renderOpts(q)}</div>`;
     list.appendChild(card);
   });
+  qmBindTeacherMatches(list);
 }
 function qmImageBlock(q){
   var src = q.image ? (typeof prismResolveUploadUrl==='function' ? prismResolveUploadUrl(q.image) : q.image) : '';
@@ -245,15 +249,29 @@ function renderOpts(q){
         ${(q.answers||[]).length<6?`<button type="button" class="mc-add" onclick="addAnswer('${q.id}')">+ Add another accepted answer</button>`:''}
       </div>`;
   } else if(q.type==='match'){
-    body = `<div class="q-note">Each item on the left matches one answer on the right. Students drag a line from column A to column B.</div>
-      <div class="mc-opts">${(q.pairs||[]).map((p,i)=>`
-        <div class="pair-row">
-          <div class="choice-box"><span class="choice-letter">${i+1}</span><input type="text" value="${esc(p.left)}" placeholder="Item" oninput="updatePair('${q.id}',${i},'left',this.value)"/></div>
-          <div class="choice-box"><span class="choice-letter">${qmLetter(i)}</span><input type="text" value="${esc(p.right)}" placeholder="Match" oninput="updatePair('${q.id}',${i},'right',this.value)"/></div>
-          ${(q.pairs||[]).length>2?`<button type="button" class="mc-rm" onclick="removePair('${q.id}',${i})" aria-label="Remove match">&times;</button>`:''}
-        </div>`).join('')}
-        ${(q.pairs||[]).length<8?`<button type="button" class="mc-add" onclick="addPair('${q.id}')">+ Add a match</button>`:''}
+    qmEnsureBank(q);
+    var leftCol = (q.pairs||[]).map(function(p,i){
+      return `<div class="match-item a">
+        <input type="text" value="${esc(p.left)}" placeholder="Item ${i+1}" oninput="updatePair('${q.id}',${i},'left',this.value)"/>
+        <span class="match-dot" data-from="${i}"></span>
+        ${(q.pairs||[]).length>2?`<button type="button" class="mc-rm" onclick="removePair('${q.id}',${i})" aria-label="Remove match">&times;</button>`:''}
       </div>`;
+    }).join('');
+    var rightCol = (q.bankOrder||[]).map(function(key,slot){
+      var p = q.pairs[key] || {right:''};
+      return `<div class="match-item b qm-match-b${key===slot?' is-across':''}" data-slot="${slot}">
+        <button type="button" class="qm-match-handle" data-slot="${slot}" aria-label="Drag this answer to another row"><i></i><i></i><i></i></button>
+        <span class="match-dot" data-key="${key}"></span>
+        <input type="text" value="${esc(p.right)}" placeholder="Correct answer" oninput="updatePair('${q.id}',${key},'right',this.value)"/>
+      </div>`;
+    }).join('');
+    body = `<div class="q-note">Type each item and its answer. Drag an answer by the grip to another row. Students see this order, so the correct answer cannot sit straight across from its item.</div>
+      <div class="qm-match" id="qm-match-${q.id}" data-qid="${q.id}">
+        <div class="match-col"><h4>Column A</h4>${leftCol}</div>
+        <div class="match-col"><h4>Column B</h4>${rightCol}</div>
+        <svg class="match-lines"></svg>
+      </div>
+      ${(q.pairs||[]).length<8?`<button type="button" class="mc-add" onclick="addPair('${q.id}')">+ Add a match</button>`:''}`;
   } else if(q.type==='sa'){
     body = `<div class="q-note">Students type a short answer. You review it after they submit.</div>`;
   } else if(q.type==='essay'){
@@ -284,8 +302,150 @@ function updateAnswer(id,i,v){var q=qmFind(id); if(q&&q.answers) q.answers[i]=v;
 function addAnswer(id){var q=qmFind(id); if(!q||q.answers.length>=6) return; q.answers.push(''); qmRefreshOpts(id);}
 function removeAnswer(id,i){var q=qmFind(id); if(!q||q.answers.length<=1) return; q.answers.splice(i,1); qmRefreshOpts(id);}
 function updatePair(id,i,side,v){var q=qmFind(id); if(q&&q.pairs[i]) q.pairs[i][side]=v;}
-function addPair(id){var q=qmFind(id); if(!q||q.pairs.length>=8) return; q.pairs.push({left:'',right:''}); qmRefreshOpts(id);}
-function removePair(id,i){var q=qmFind(id); if(!q||q.pairs.length<=2) return; q.pairs.splice(i,1); qmRefreshOpts(id);}
+function qmUnalign(order){
+  var a = order.slice();
+  var n = a.length;
+  if (n < 2) return a;
+  var guard = 0;
+  for (var i = 0; i < n; i++) {
+    if (a[i] !== i) continue;
+    var j = (i + 1) % n;
+    var tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+    if (++guard > n * 3) break;
+    i = -1;
+  }
+  return a;
+}
+function qmEnsureBank(q){
+  if (!q.pairs || q.pairs.length < 2) q.pairs = [{left:'',right:''},{left:'',right:''}];
+  var n = q.pairs.length;
+  var order = Array.isArray(q.bankOrder) ? q.bankOrder.map(function(k){ return parseInt(k, 10); }) : [];
+  var seen = {};
+  var ok = order.length === n;
+  order.forEach(function(k){ if (!(k >= 0) || k >= n || seen[k]) ok = false; seen[k] = true; });
+  if (!ok) {
+    order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+    order = qmUnalign(order);
+  }
+  q.bankOrder = order;
+}
+function qmPackMatch(q){
+  var next = [];
+  var map = {};
+  (q.pairs || []).forEach(function(p, i){
+    if (!String(p.left || '').trim() || !String(p.right || '').trim()) return;
+    map[i] = next.length;
+    next.push({ left: String(p.left).trim(), right: String(p.right).trim() });
+  });
+  var order = [];
+  (q.bankOrder || []).forEach(function(k){ if (map[k] !== undefined) order.push(map[k]); });
+  next.forEach(function(_, i){ if (order.indexOf(i) < 0) order.push(i); });
+  return { pairs: next, bankOrder: order };
+}
+function addPair(id){
+  var q=qmFind(id); if(!q||q.pairs.length>=8) return;
+  q.pairs.push({left:'',right:''});
+  q.bankOrder = (q.bankOrder || []).concat([q.pairs.length - 1]);
+  q.bankOrder = qmUnalign(q.bankOrder);
+  qmRefreshOpts(id);
+}
+function removePair(id,i){
+  var q=qmFind(id); if(!q||q.pairs.length<=2) return;
+  q.pairs.splice(i,1);
+  q.bankOrder = (q.bankOrder || []).filter(function(k){ return k !== i; }).map(function(k){ return k > i ? k - 1 : k; });
+  q.bankOrder = qmUnalign(q.bankOrder);
+  qmRefreshOpts(id);
+}
+function qmMoveAnswer(id, from, to){
+  var q = qmFind(id);
+  if (!q || !q.bankOrder || from === to || to == null || isNaN(to)) return;
+  var order = q.bankOrder.slice();
+  var item = order.splice(from, 1)[0];
+  order.splice(to, 0, item);
+  q.bankOrder = order;
+  qmRefreshOpts(id);
+}
+var QM_MATCH_COLORS = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d','#0284c7','#9333ea'];
+function qmDrawTeacherMatch(board){
+  if (!board) return;
+  var svg = board.querySelector('.match-lines');
+  var q = qmFind(board.getAttribute('data-qid'));
+  if (!svg || !q || !q.bankOrder) return;
+  var rect = board.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
+  function center(el){
+    var r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
+  }
+  var lines = '';
+  q.bankOrder.forEach(function(key, slot){
+    var a = board.querySelector('.match-dot[data-from="' + key + '"]');
+    var b = board.querySelector('.qm-match-b[data-slot="' + slot + '"] .match-dot');
+    if (!a || !b) return;
+    var color = QM_MATCH_COLORS[key % QM_MATCH_COLORS.length];
+    var p1 = center(a);
+    var p2 = center(b);
+    a.style.setProperty('--dot', color);
+    b.style.setProperty('--dot', color);
+    a.classList.add('used');
+    b.classList.add('used');
+    lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"/>';
+  });
+  svg.innerHTML = lines;
+}
+function qmBindTeacherMatches(root){
+  if (!window.__qmMatchResize) {
+    window.__qmMatchResize = true;
+    window.addEventListener('resize', function(){
+      document.querySelectorAll('.qm-match').forEach(qmDrawTeacherMatch);
+    });
+  }
+  (root || document).querySelectorAll('.qm-match').forEach(function(board){
+    requestAnimationFrame(function(){ qmDrawTeacherMatch(board); });
+    if (board.dataset.bound === '1') return;
+    board.dataset.bound = '1';
+    var drag = null;
+    function onMove(e){
+      if (!drag || e.pointerId !== drag.id) return;
+      if (Math.abs(e.clientY - drag.y) > 4) drag.moved = true;
+      var hit = document.elementFromPoint(e.clientX, e.clientY);
+      var row = hit && hit.closest ? hit.closest('.qm-match-b') : null;
+      board.querySelectorAll('.qm-match-b').forEach(function(el){ el.classList.remove('is-drop'); });
+      if (row && board.contains(row)) {
+        drag.over = parseInt(row.getAttribute('data-slot'), 10);
+        row.classList.add('is-drop');
+      }
+    }
+    function finish(e){
+      if (!drag || e.pointerId !== drag.id) return;
+      var from = drag.slot;
+      var to = drag.over;
+      var moved = drag.moved;
+      drag = null;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      board.querySelectorAll('.qm-match-handle,.qm-match-b').forEach(function(el){ el.classList.remove('is-dragging'); el.classList.remove('is-drop'); });
+      if (moved && to != null && to !== from) qmMoveAnswer(board.getAttribute('data-qid'), from, to);
+      else qmDrawTeacherMatch(board);
+    }
+    board.addEventListener('pointerdown', function(e){
+      var handle = e.target.closest('.qm-match-handle');
+      if (!handle) return;
+      e.preventDefault();
+      drag = { id: e.pointerId, slot: parseInt(handle.getAttribute('data-slot'), 10), over: null, y: e.clientY, moved: false };
+      handle.classList.add('is-dragging');
+      try { board.setPointerCapture(e.pointerId); } catch (err) {}
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', finish);
+      window.addEventListener('pointercancel', finish);
+    });
+  });
+}
 function removeQuestionImage(id){var q=qmFind(id); if(!q) return; q.image=''; qmRefreshOpts(id);}
 async function onQuestionImage(id, input){
   var file = input.files && input.files[0];
@@ -313,7 +473,11 @@ function qmCleanQuestion(q){
   var copy = JSON.parse(JSON.stringify(q));
   delete copy._uploading;
   if (copy.type==='mc') copy.options = (copy.options||[]).filter(function(o){ return String(o.text||'').trim(); });
-  if (copy.type==='match') copy.pairs = (copy.pairs||[]).filter(function(p){ return String(p.left||'').trim() && String(p.right||'').trim(); });
+  if (copy.type==='match') {
+    var packed = qmPackMatch(copy);
+    copy.pairs = packed.pairs;
+    copy.bankOrder = packed.bankOrder;
+  }
   if (copy.type==='id') copy.answers = (copy.answers||[]).map(function(a){ return String(a||'').trim(); }).filter(Boolean);
   if (copy.type==='mtf' && copy.mtfMode!=='fix') { copy.mtfMode='true'; copy.mtfAnswer='True'; }
   return copy;
@@ -326,6 +490,7 @@ function qmQuestionProblem(q, n){
     if (!(q.options||[]).some(function(o){ return o.correct && String(o.text||'').trim(); })) return label + ' needs a correct choice.';
   }
   if (q.type==='match' && (q.pairs||[]).length < 2) return label + ' needs at least two matches.';
+  if (q.type==='match' && (q.bankOrder||[]).some(function(k,i){ return k===i; })) return label + ' has an answer straight across from its item. Drag that answer to another row.';
   if (q.type==='id' && !(q.answers||[]).length) return label + ' needs an accepted answer.';
   if (q.type==='mtf' && q.mtfMode==='fix' && !String(q.mtfAnswer||'').trim()) return label + ' needs the correction students should write.';
   return '';
@@ -560,16 +725,19 @@ function renderSavedQuizzes(){
     var secLab = (q.target_section && String(q.target_section).trim()) ? ' · <span style="color:#059669;font-weight:700;">'+String(q.target_section).trim()+'</span>' : '';
     var qid = "'" + String(q.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
     return `<div class="saved-q-item">
-      <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
-      <div style="flex:1;min-width:0;"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${(q.questions||[]).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
+      <div class="sq-top">
+        <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
+        <div class="sq-copy"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${(q.questions||[]).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
+      </div>
       <div class="sq-actions">
         ${q.published
-          ? `<button type="button" class="sq-log-btn" onclick="viewQuizGrades(${qid})" title="Student scores">Grades</button><button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>`
+          ? `<button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>`
           : `<button type="button" class="sq-log-btn" onclick="openDraft(${qid})" title="Open this draft">Edit</button>`}
         <button type="button" class="sq-del-btn" onclick="deleteQuiz(${qid})" title="Remove this quiz">Delete</button>
       </div>
     </div>`;
   }).join('');
+  if (typeof qmFitEmbed === 'function') setTimeout(qmFitEmbed, 40);
 }
 
 async function deleteQuiz(id){
@@ -647,7 +815,20 @@ function viewQuizLog(quizId){
   modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
 }
 
+function qmFitEmbed() {
+  if (!document.body.classList.contains('qm-embed') || window.parent === window) return;
+  var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+  window.parent.postMessage({ type: 'prism-quiz-height', height: h + 28 }, location.origin);
+}
+
 window.addEventListener('DOMContentLoaded', async function(){
+  var early = new URLSearchParams(window.location.search);
+  if (early.get('embed') === '1') document.body.classList.add('qm-embed');
+  else {
+    var jump = early.get('class') || sessionStorage.getItem('prism_teacher_active_class_id') || '';
+    window.location.replace(jump ? ('teacher-class.html?class=' + encodeURIComponent(jump) + '&tab=quizzes') : 'teacher.html');
+    return;
+  }
   try {
     var user = typeof prismAuthGuard === 'function' ? await prismAuthGuard(['teacher']) : null;
     if (!user) return;
@@ -704,4 +885,6 @@ window.addEventListener('DOMContentLoaded', async function(){
   renderQmSectionPills();
   renderSavedQuizzes();
   renderQMQuestions();
+  setTimeout(qmFitEmbed, 60);
+  window.addEventListener('resize', qmFitEmbed);
 });

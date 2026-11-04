@@ -8,6 +8,20 @@ $action = $_GET['action'] ?? '';
 $user   = requireAuth();
 $db     = getDB();
 
+function prism_quiz_item_scores_ready(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    if (!prism_table_has_column($db, 'quiz_scores', 'item_scores')) {
+        try {
+            $db->exec('ALTER TABLE quiz_scores ADD COLUMN item_scores TEXT NULL');
+        } catch (Throwable $e) {
+            error_log('PRISM item_scores: ' . $e->getMessage());
+        }
+    }
+    $ready = prism_table_has_column($db, 'quiz_scores', 'item_scores');
+    return $ready;
+}
+
 function prism_quiz_allow_skip_ready(PDO $db): bool {
     static $ready = null;
     if ($ready !== null) {
@@ -199,12 +213,48 @@ if ($method === 'POST' && $action === 'submit_score') {
     if ($qrow && !empty($qrow['due_date']) && prism_is_past_deadline($qrow['due_date'], $dueTimeCol)) {
         fail('The deadline for this quiz has passed. Please contact your teacher if you need an extension.', 403);
     }
-    $db->prepare(
-        'INSERT INTO quiz_scores (quiz_id, student_id, score, answers)
+    $scoreSql = 'INSERT INTO quiz_scores (quiz_id, student_id, score, answers)
          VALUES (?,?,?,?)
-         ON DUPLICATE KEY UPDATE score=VALUES(score), answers=VALUES(answers), taken_at=NOW()'
-    )->execute([$b['quiz_id'], $user['id'], intval($b['score']), json_encode($b['answers']??[])]);
+         ON DUPLICATE KEY UPDATE score=VALUES(score), answers=VALUES(answers), taken_at=NOW()';
+    if (prism_quiz_item_scores_ready($db)) {
+        $scoreSql = 'INSERT INTO quiz_scores (quiz_id, student_id, score, answers)
+         VALUES (?,?,?,?)
+         ON DUPLICATE KEY UPDATE score=VALUES(score), answers=VALUES(answers), item_scores=NULL, taken_at=NOW()';
+    }
+    $db->prepare($scoreSql)->execute([$b['quiz_id'], $user['id'], intval($b['score']), json_encode($b['answers']??[])]);
     ok();
+}
+
+// ── TEACHER ITEM REVIEW ────────────────────────────────
+if ($method === 'POST' && $action === 'review_score') {
+    if ($user['role'] !== 'teacher') fail('Forbidden', 403);
+    if (!prism_quiz_item_scores_ready($db)) fail('Could not store item scores', 500);
+    $b = getBody();
+    $qid = (string) ($b['quiz_id'] ?? '');
+    $studentId = (string) ($b['student_id'] ?? '');
+    $chk = $db->prepare('SELECT questions FROM quizzes WHERE id = ? AND teacher_id = ?');
+    $chk->execute([$qid, $user['id']]);
+    $quizRow = $chk->fetch();
+    if (!$quizRow) fail('Quiz not found', 404);
+    $questions = json_decode($quizRow['questions'] ?? '[]', true);
+    if (!is_array($questions)) $questions = [];
+    $items = $b['item_scores'] ?? [];
+    if (!is_array($items)) fail('Item scores are required', 400);
+    $clean = [];
+    $total = 0;
+    foreach ($items as $i => $n) {
+        $pts = max(0, (int) $n);
+        $max = isset($questions[$i]['points']) ? max(0, (int) $questions[$i]['points']) : 0;
+        if ($max > 0 && $pts > $max) $pts = $max;
+        $clean[] = $pts;
+        $total += $pts;
+    }
+    $exists = $db->prepare('SELECT 1 FROM quiz_scores WHERE quiz_id = ? AND student_id = ?');
+    $exists->execute([$qid, $studentId]);
+    if (!$exists->fetch()) fail('That student has not submitted this quiz', 404);
+    $db->prepare('UPDATE quiz_scores SET score = ?, item_scores = ? WHERE quiz_id = ? AND student_id = ?')
+       ->execute([$total, json_encode($clean), $qid, $studentId]);
+    ok(['score' => $total, 'item_scores' => $clean]);
 }
 
 // ── LOG QUIZ ACTIVITY ──────────────────────────────────

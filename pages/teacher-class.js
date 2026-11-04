@@ -235,6 +235,8 @@ const TEACHER_CLASS_CONTENT_HTML = `
         <button type="button" class="sub-tab" data-sub="announcements" onclick="switchSub('announcements',this)">Announcements</button>
         <button type="button" class="sub-tab active" data-sub="materials" onclick="switchSub('materials',this)">Materials</button>
         <button type="button" class="sub-tab" data-sub="assignments" onclick="switchSub('assignments',this)">Assignments</button>
+        <button type="button" class="sub-tab" data-sub="quizzes" onclick="switchSub('quizzes',this)">Quizzes</button>
+        <button type="button" class="sub-tab" data-sub="grades" onclick="switchSub('grades',this)">Grades</button>
         <button type="button" class="sub-tab" data-sub="records" onclick="switchSub('records',this)">Records</button>
       </div>
       <div class="sub-panel" id="sub-announcements">
@@ -322,6 +324,25 @@ const TEACHER_CLASS_CONTENT_HTML = `
           <select id="teacher-asgn-filter-select" class="t-select" style="min-width:240px;max-width:100%;font-weight:600;"></select>
         </div>
         <div id="assignments-list"></div>
+      </div>
+      <div class="sub-panel" id="sub-quizzes">
+        <iframe id="class-quiz-frame" title="Quizzes for this class" style="width:100%;min-height:70vh;border:0;background:transparent;display:block;"></iframe>
+      </div>
+      <div class="sub-panel" id="sub-grades">
+        <div class="t-card">
+          <div class="t-card-title">Quiz grades</div>
+          <p class="qg-empty" style="margin-top:0;">Choose a quiz, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.</p>
+          <div class="qg-filters">
+            <label>Quiz
+              <select id="grade-quiz-select" onchange="QG_loadScores()"></select>
+            </label>
+            <label>Student
+              <input id="grade-student-filter" type="search" placeholder="Filter by name" oninput="QG_renderList()">
+            </label>
+          </div>
+          <div id="grade-list"></div>
+          <div id="grade-detail"></div>
+        </div>
       </div>
       <div class="sub-panel" id="sub-records">
         <div class="sheet-bar" id="sheet-bar">
@@ -458,8 +479,28 @@ function switchSub(name, btn) {
   if (panel) panel.classList.add('active');
   if (btn) btn.classList.add('active');
   if (name === 'announcements') renderSubjectAnnouncements();
+  if (name === 'quizzes') ensureClassQuizFrame();
+  if (name === 'grades' && typeof QG_open === 'function') QG_open();
   if (name === 'records' && typeof renderActiveSheet === 'function') renderActiveSheet();
 }
+
+function ensureClassQuizFrame() {
+  var frame = document.getElementById('class-quiz-frame');
+  if (!frame || !activeClassId) return;
+  var next = 'quizmaker.html?embed=1&class=' + encodeURIComponent(activeClassId);
+  if (frame.dataset.src !== next) {
+    frame.dataset.src = next;
+    frame.src = next;
+  }
+}
+
+window.addEventListener('message', function (e) {
+  if (e.origin !== location.origin || !e.data || e.data.type !== 'prism-quiz-height') return;
+  var frame = document.getElementById('class-quiz-frame');
+  if (!frame || e.source !== frame.contentWindow) return;
+  var h = parseInt(e.data.height, 10) || 0;
+  if (h > 400) frame.style.height = h + 'px';
+});
 
 function openSubjectRecords() {
   var btn = document.querySelector('#class-content > .sub-tabs > .sub-tab[data-sub="records"]');

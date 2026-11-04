@@ -66,12 +66,24 @@
     .section-pill { padding:.38rem .9rem; border-radius:20px; border:1.5px solid #d1fae5; background:#fff; color:#6b7280; font-size:.82rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .section-pill:hover { border-color:var(--t); color:var(--t); }
     .section-pill.active { background:var(--t); color:#fff; border-color:var(--t); }
-    .saved-q-item { display:flex; align-items:center; gap:.7rem; padding:.7rem .9rem; border:1.5px solid #d1fae5; border-radius:10px; margin-bottom:.5rem; background:#f0fdf4; transition:all .15s; }
+    .saved-q-item { display:flex; flex-direction:column; align-items:stretch; gap:.55rem; padding:.85rem .9rem; border:1.5px solid #d1fae5; border-radius:12px; margin-bottom:.65rem; background:#f0fdf4; }
+    .sq-top { display:flex; align-items:flex-start; gap:.7rem; min-width:0; }
+    .sq-copy { min-width:0; flex:1; }
+    html.qm-embed .topbar,
+    html.qm-embed .sidebar,
+    html.qm-embed .sidebar-backdrop,
+    html.qm-embed .page-header,
+    html.qm-embed .class-bar,
+    html.qm-embed #quizmaker-class-scope-banner { display:none !important; }
+    html.qm-embed .app-layout { display:block !important; }
+    html.qm-embed .main-content { margin:0 !important; padding:.4rem .2rem 1.2rem !important; width:auto !important; max-width:none !important; }
+    .sq-title { overflow-wrap:anywhere; }
+    .sq-meta { line-height:1.45; }
     .saved-q-item:hover { border-color:var(--t); }
     .sq-icon { width:auto; min-width:34px; height:24px; padding:0 8px; border-radius:6px; background:#059669; color:#fff; display:flex; align-items:center; justify-content:center; font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; flex-shrink:0; }
     .sq-title { font-weight:700; font-size:.85rem; color:#16132b; }
     .sq-meta  { font-size:.72rem; color:#9ca3af; margin-top:1px; }
-    .sq-actions { display:flex; flex-shrink:0; gap:.35rem; align-items:center; margin-left:auto; }
+    .sq-actions { display:flex; flex-wrap:wrap; gap:.35rem; align-items:center; margin:0; }
     .sq-log-btn { padding:.32rem .55rem; border:1px solid #e9d5ff; background:#faf5ff; color:#7c3aed; border-radius:8px; font-size:.72rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
     .sq-log-btn:hover { background:#f3e8ff; }
     .sq-del-btn { padding:.32rem .65rem; border:1.5px solid #fecaca; background:#fff; color:#dc2626; border-radius:8px; font-size:.72rem; font-weight:800; cursor:pointer; font-family:'DM Sans',sans-serif; white-space:nowrap; }
@@ -81,6 +93,19 @@
     .choice-box input[type="text"] { flex:1; border:none; background:transparent; padding:.35rem .15rem; font-size:.88rem; outline:none; min-width:0; color:#16132b; }
     .choice-key { display:flex; align-items:center; gap:.3rem; font-size:.72rem; font-weight:700; color:#6b7280; white-space:nowrap; }
     .choice-key input { accent-color:#10b981; }
+    .qm-match { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; margin:.35rem 0 .7rem; }
+    .qm-match .match-col { display:flex; flex-direction:column; gap:.55rem; min-width:0; position:relative; z-index:1; }
+    .qm-match h4 { margin:0; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:#059669; }
+    .qm-match .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; }
+    .qm-match .match-item { display:flex; align-items:center; gap:.4rem; background:#f0fdf4; border:1.5px solid #d1fae5; border-radius:12px; padding:.4rem .45rem; min-height:46px; }
+    .qm-match .match-item input { flex:1; min-width:0; border:none; background:transparent; font:inherit; font-weight:600; font-size:.88rem; color:#16132b; outline:none; }
+    .qm-match .match-dot { width:16px; height:16px; border-radius:50%; border:3px solid #059669; background:#fff; flex-shrink:0; position:relative; z-index:3; }
+    .qm-match .match-dot.used { background:var(--dot,#059669); border-color:var(--dot,#059669); }
+    .qm-match-handle { width:16px; border:none; background:transparent; padding:0; cursor:grab; display:flex; flex-direction:column; justify-content:center; gap:3px; touch-action:none; flex-shrink:0; }
+    .qm-match-handle i { display:block; height:2px; border-radius:2px; background:#059669; }
+    .qm-match-handle.is-dragging { cursor:grabbing; }
+    .qm-match-b.is-drop { border-color:#059669; background:#d1fae5; }
+    .qm-match-b.is-across { border-color:#dc2626; }
     .pair-row { display:grid; grid-template-columns:1fr 1fr auto; gap:.45rem; align-items:center; }
     .q-note { border:1.5px solid #d1fae5; border-radius:10px; padding:.65rem .8rem; font-size:.8rem; color:#065f46; background:#f0fdf4; line-height:1.45; }
     .q-image-row { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin-top:.75rem; }
@@ -117,16 +142,25 @@
     html[data-theme="dark"] .choice-box { background:#241c3d; border-color:#4c3d73; }
     html[data-theme="dark"] .choice-letter { background:#3b2d63; color:#f5f3ff; }
     html[data-theme="dark"] .q-note, html[data-theme="dark"] .qm-skip, html[data-theme="dark"] .sa-ph { background:#241c3d; border-color:#4c3d73; color:#ddd6fe; }
+    html[data-theme="dark"] .qm-match .match-item { background:#241c3d; border-color:#4c3d73; }
+    html[data-theme="dark"] .qm-match .match-item input { color:#f5f3ff !important; -webkit-text-fill-color:#f5f3ff; }
+    html[data-theme="dark"] .qm-match h4, html[data-theme="dark"] .qm-match-handle i { color:#6ee7b7; }
+    html[data-theme="dark"] .qm-match-handle i { background:#6ee7b7; }
+    html[data-theme="dark"] .qm-match-b.is-drop { background:#064e3b; }
+    html[data-theme="dark"] .qm-match-b.is-across { border-color:#fca5a5; }
     html[data-theme="dark"] .mtf-sample, html[data-theme="dark"] .choice-key { color:#d1d5db; }
     html[data-theme="dark"] .qm-skip strong { color:#d1fae5; }
     html[data-theme="dark"] .qm-skip small, html[data-theme="dark"] .q-note { color:#ddd6fe; }
-    @media (max-width:640px) { .pair-row { grid-template-columns:1fr; } }
+    @media (max-width:640px) { .pair-row { grid-template-columns:1fr; } .qm-match { gap:1.15rem; } }
+    html.qm-embed .qm-layout { grid-template-columns: minmax(0,1.4fr) minmax(300px,420px) !important; }
+    @media (max-width:900px) { html.qm-embed .qm-layout { grid-template-columns: 1fr !important; } }
   </style>
+  <script>if (/[?&]embed=1(?:&|$)/.test(location.search)) document.documentElement.classList.add('qm-embed');</script>
 </head>
 <body>
 <script src="api.js?v=25"></script>
 <script src="script.js?v=17"></script>
-<script src="portal-sidebar.js?v=22"></script>
+<script src="portal-sidebar.js?v=23"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -226,6 +260,6 @@
 <!-- Quiz Log Modal -->
 <div id="quiz-log-modal-wrap"></div>
 
-<script src="pages/quizmaker.js?v=17"></script>
+<script src="pages/quizmaker.js?v=19"></script>
 </body>
 </html>

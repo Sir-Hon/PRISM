@@ -918,6 +918,9 @@ const PrismQuizzes = {
   async submitScore(quiz_id, score, answers) {
     return await apiCall('quizzes', 'submit_score', 'POST', { quiz_id, score, answers });
   },
+  async reviewScore(quiz_id, student_id, item_scores) {
+    return await apiCall('quizzes', 'review_score', 'POST', { quiz_id, student_id, item_scores });
+  },
   async log(quiz_id, type, detail) {
     return await apiCall('quizzes', 'log', 'POST', { quiz_id, type, detail });
   },

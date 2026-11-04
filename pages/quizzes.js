@@ -167,6 +167,37 @@ function QUIZ_allowSkip() {
   var q = QUIZ_currentQuiz || {};
   return !!(q.allowSkip || q.allow_skip === 1 || q.allow_skip === '1' || q.allow_skip === true);
 }
+function QUIZ_unalign(order) {
+  var a = order.slice();
+  var n = a.length;
+  if (n < 2) return a;
+  var guard = 0;
+  for (var i = 0; i < n; i++) {
+    if (a[i] !== i) continue;
+    var j = (i + 1) % n;
+    var tmp = a[i];
+    a[i] = a[j];
+    a[j] = tmp;
+    if (++guard > n * 3) break;
+    i = -1;
+  }
+  return a;
+}
+function QUIZ_matchBank(raw, pairs) {
+  var n = pairs.length;
+  var order = Array.isArray(raw.bankOrder) ? raw.bankOrder.map(function (k) { return parseInt(k, 10); }) : [];
+  var seen = {};
+  var ok = order.length === n;
+  order.forEach(function (k) { if (!(k >= 0) || k >= n || seen[k]) ok = false; seen[k] = true; });
+  if (!ok) {
+    order = [];
+    for (var i = 0; i < n; i++) order.push(i);
+  }
+  if (order.some(function (k, i) { return k === i; })) order = QUIZ_unalign(order);
+  return order.map(function (key) {
+    return { text: pairs[key].right, key: key };
+  });
+}
 function QUIZ_shuffle(list) {
   var a = list.slice();
   for (var i = a.length - 1; i > 0; i--) {
@@ -179,7 +210,11 @@ function QUIZ_isFilled(q, ans) {
   if (!q) return false;
   if (q.type === 'match') {
     if (!Array.isArray(ans) || !q.pairs) return false;
-    return q.pairs.every(function (_, i) { return ans[i] !== null && ans[i] !== undefined && ans[i] !== ''; });
+    return q.pairs.every(function (_, i) {
+      var pick = ans[i];
+      if (pick && typeof pick === 'object') return pick.key !== undefined && pick.key !== null;
+      return pick !== null && pick !== undefined && pick !== '';
+    });
   }
   if (q.type === 'sa' || q.type === 'essay' || q.type === 'id' || q.type === 'mtf') {
     return String(ans || '').trim() !== '';
@@ -203,8 +238,8 @@ function QUIZ_gradeOne(q, ans) {
     pairs.forEach(function (p, i) {
       var pick = Array.isArray(ans) ? ans[i] : null;
       if (pick === null || pick === undefined || pick === '' || pick !== pick) return;
-      var bankItem = q.bank && q.bank[pick];
-      if (bankItem && bankItem.key === p.key) got++;
+      var key = (pick && typeof pick === 'object') ? pick.key : (q.bank && q.bank[pick] ? q.bank[pick].key : null);
+      if (key === p.key) got++;
     });
     return { review: 0, earned: pairs.length ? Math.round(pts * got / pairs.length) : 0, auto: pts };
   }
@@ -251,7 +286,7 @@ function QUIZ_normalizeQuestion(raw) {
     out.pairs = (raw.pairs || []).map(function (p, i) {
       return { left: String(p.left || ''), right: String(p.right || ''), key: i };
     }).filter(function (p) { return p.left.trim() && p.right.trim(); });
-    out.bank = QUIZ_shuffle(out.pairs.map(function (p) { return { text: p.right, key: p.key }; }));
+    out.bank = QUIZ_matchBank(raw, out.pairs);
   } else {
     out.type = 'mc';
     if (raw.options && raw.options.length) {
@@ -489,8 +524,14 @@ function QUIZ_setMatch(from, to) {
   var arr = QUIZ_matchAnswers();
   if (to === null || to === undefined || to === '') arr[from] = null;
   else {
-    arr.forEach(function (v, i) { if (i !== from && v === to) arr[i] = null; });
-    arr[from] = to;
+    var bankItem = q.bank && q.bank[to];
+    var saved = bankItem ? { key: bankItem.key, text: bankItem.text } : null;
+    arr.forEach(function (v, i) {
+      if (i === from || !v) return;
+      var same = (v && typeof v === 'object') ? v.key === (saved && saved.key) : v === to;
+      if (same) arr[i] = null;
+    });
+    arr[from] = saved;
   }
   QUIZ_userAnswers[QUIZ_currentQ] = arr;
   QUIZ_answered[QUIZ_currentQ] = QUIZ_isFilled(q, arr);
@@ -502,6 +543,7 @@ function QUIZ_drawMatch(fromDot, pointer) {
   if (!board || !svg) return;
   var rect = board.getBoundingClientRect();
   svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
+  var q = QUIZ_currentQuiz && QUIZ_currentQuiz.questions[QUIZ_currentQ];
   var ans = QUIZ_matchAnswers();
   function center(el) {
     var r = el.getBoundingClientRect();
@@ -512,7 +554,12 @@ function QUIZ_drawMatch(fromDot, pointer) {
     dot.style.removeProperty('--dot');
   });
   var lines = '';
-  ans.forEach(function (bi, i) {
+  ans.forEach(function (pick, i) {
+    var bi = pick;
+    if (pick && typeof pick === 'object' && q && q.bank) {
+      bi = null;
+      q.bank.forEach(function (item, idx) { if (item.key === pick.key) bi = idx; });
+    }
     if (bi === null || bi === undefined || bi === '') return;
     var a = board.querySelector('.match-dot[data-from="' + i + '"]');
     var b = board.querySelector('.match-dot[data-to="' + bi + '"]');
@@ -829,7 +876,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
         var apiScores = await PrismQuizzes.getMyScores();
         var scores = QUIZ_getScores();
         Object.keys(apiScores || {}).forEach(function (id) {
-          if (scores[id] === undefined) scores[id] = apiScores[id];
+          scores[id] = apiScores[id];
         });
         QUIZ_saveScores(scores);
       } catch (e2) { /* local scores still apply */ }
