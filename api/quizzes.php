@@ -22,6 +22,29 @@ function prism_quiz_item_scores_ready(PDO $db): bool {
     return $ready;
 }
 
+function prism_quiz_logs_ready(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS quiz_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                quiz_id VARCHAR(50) NOT NULL,
+                student_id VARCHAR(50) NOT NULL,
+                type VARCHAR(30) NOT NULL,
+                detail TEXT NULL,
+                logged_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_quiz_logs_quiz (quiz_id)
+            )'
+        );
+        $ready = true;
+    } catch (Throwable $e) {
+        error_log('PRISM quiz_logs: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
 function prism_quiz_allow_skip_ready(PDO $db): bool {
     static $ready = null;
     if ($ready !== null) {
@@ -260,6 +283,7 @@ if ($method === 'POST' && $action === 'review_score') {
 // ── LOG QUIZ ACTIVITY ──────────────────────────────────
 if ($method === 'POST' && $action === 'log') {
     if (($user['role'] ?? '') !== 'student') fail('Forbidden', 403);
+    if (!prism_quiz_logs_ready($db)) fail('Could not store the activity log', 500);
     $b = getBody();
     $qid = $b['quiz_id'] ?? '';
     $qc = $db->prepare('SELECT * FROM quizzes WHERE id = ?');
@@ -276,13 +300,14 @@ if ($method === 'POST' && $action === 'log') {
 // ── GET QUIZ LOG (teacher) ─────────────────────────────
 if ($action === 'get_log') {
     requireAuth(['teacher']);
+    if (!prism_quiz_logs_ready($db)) fail('Could not read the activity log', 500);
     $quiz_id = $_GET['quiz_id'] ?? '';
     $chk = $db->prepare('SELECT id FROM quizzes WHERE id = ? AND teacher_id = ?');
     $chk->execute([$quiz_id, $user['id']]);
     if (!$chk->fetch()) fail('Quiz not found', 404);
     $stmt = $db->prepare(
         'SELECT ql.*, u.name AS student_name FROM quiz_logs ql
-         JOIN users u ON ql.student_id = u.id
+         LEFT JOIN users u ON ql.student_id = u.id
          WHERE ql.quiz_id = ? ORDER BY ql.logged_at DESC'
     );
     $stmt->execute([$quiz_id]);

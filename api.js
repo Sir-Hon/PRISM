@@ -746,6 +746,13 @@ const PrismClasses = {
     const data = await apiGet('classes', 'students', params);
     return data.students || [];
   },
+  async getMembers(class_id) {
+    const data = await apiGet('classes', 'students', { class_id: class_id, avatars: '1' });
+    return {
+      teacher: data.teacher || null,
+      students: data.students || [],
+    };
+  },
   async delete(class_id) {
     return await apiCall('classes', 'delete', 'DELETE', { class_id });
   },

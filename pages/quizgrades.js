@@ -40,15 +40,15 @@ function QG_auto(q, ans) {
     return { review: false, earned: ans === want ? pts : 0, max: pts, detail: 'Correct answer: ' + (want === 0 ? 'True' : 'False') };
   }
   if (type === 'match') {
-    var pairs = q.pairs || [];
+    var model = QG_matchModel(q, ans);
     var got = 0;
-    pairs.forEach(function (p, i) {
-      var pick = Array.isArray(ans) ? ans[i] : null;
-      var key = (pick && typeof pick === 'object') ? pick.key : null;
-      if (key === i || key === p.key) got++;
+    model.pairs.forEach(function (p, i) {
+      var slot = model.picks[i];
+      var right = slot >= 0 ? model.rights[slot] : null;
+      if (right && (right.key === i || right.key === p.key)) got++;
     });
-    var earned = pairs.length ? Math.round(pts * got / pairs.length) : 0;
-    return { review: false, earned: earned, max: pts, detail: got + ' of ' + pairs.length + ' pairs matched' };
+    var earned = model.pairs.length ? Math.round(pts * got / model.pairs.length) : 0;
+    return { review: false, earned: earned, max: pts, detail: got + ' of ' + model.pairs.length + ' pairs matched' };
   }
   var options = q.options || [];
   var correct = options.findIndex(function (o) { return o.correct; });
@@ -62,13 +62,7 @@ function QG_answerText(q, ans) {
     return opt ? opt.text : 'Choice ' + ans;
   }
   if (type === 'tf') return ans === 0 ? 'True' : ans === 1 ? 'False' : String(ans);
-  if (type === 'match' && Array.isArray(ans)) {
-    return (q.pairs || []).map(function (p, i) {
-      var pick = ans[i];
-      var text = (pick && typeof pick === 'object') ? (pick.text || '') : (pick === 0 || pick ? ('saved choice ' + pick) : '');
-      return p.left + ' → ' + (text || 'blank');
-    }).join('; ');
-  }
+  if (type === 'match' && Array.isArray(ans)) return '';
   if (typeof ans === 'object') return JSON.stringify(ans);
   return String(ans);
 }
@@ -142,15 +136,115 @@ function QG_renderList() {
   var total = quiz ? (parseInt(quiz.total_points, 10) || 0) : 0;
   host.innerHTML = rows.map(function (row) {
     var when = row.taken_at ? new Date(String(row.taken_at).replace(' ', 'T')).toLocaleString() : '';
-    return '<button type="button" class="qg-student" data-student="' + QG_esc(row.student_id) + '">'
+    var open = String(QG_openStudent) === String(row.student_id);
+    return '<button type="button" class="qg-student' + (open ? ' is-open' : '') + '" data-student="' + QG_esc(row.student_id) + '" aria-expanded="' + (open ? 'true' : 'false') + '">'
       + '<span><b>' + QG_esc(row.student_name || row.student_id) + '</b><small>' + QG_esc(when) + '</small></span>'
       + '<strong>' + QG_esc(row.score) + ' / ' + total + '</strong></button>';
   }).join('');
   host.querySelectorAll('.qg-student').forEach(function (btn) {
-    btn.onclick = function () { QG_showStudent(btn.getAttribute('data-student')); };
+    btn.onclick = function () {
+      var id = btn.getAttribute('data-student');
+      if (String(QG_openStudent) === String(id)) QG_closeStudent();
+      else QG_showStudent(id);
+    };
   });
 }
 
+function QG_matchModel(q, ans) {
+  var pairs = q.pairs || [];
+  var order = Array.isArray(q.bankOrder) ? q.bankOrder.map(function (k) { return parseInt(k, 10); }) : [];
+  var seen = {};
+  var ok = order.length === pairs.length;
+  order.forEach(function (k) { if (!(k >= 0) || k >= pairs.length || seen[k]) ok = false; seen[k] = true; });
+  if (!ok) order = pairs.map(function (_, i) { return i; });
+  var rights = order.map(function (key) {
+    return { key: key, text: (pairs[key] && pairs[key].right) || '' };
+  });
+  var picks = pairs.map(function (_, i) {
+    var pick = Array.isArray(ans) ? ans[i] : null;
+    if (pick && typeof pick === 'object') {
+      var byKey = rights.findIndex(function (r) { return r.key === pick.key; });
+      if (byKey < 0 && pick.text) byKey = rights.findIndex(function (r) { return r.text && r.text === pick.text; });
+      return byKey;
+    }
+    if (pick === 0 || typeof pick === 'number' || (pick && !isNaN(pick))) {
+      var bi = parseInt(pick, 10);
+      return rights[bi] ? bi : -1;
+    }
+    return -1;
+  });
+  return { pairs: pairs, rights: rights, picks: picks };
+}
+function QG_matchHtml(q, ans) {
+  var model = QG_matchModel(q, ans);
+  var left = model.pairs.map(function (p, i) {
+    return '<div class="match-item"><span>' + QG_esc(p.left || '') + '</span><i class="match-dot" data-from="' + i + '"></i></div>';
+  }).join('');
+  var right = model.rights.map(function (r, slot) {
+    return '<div class="match-item"><i class="match-dot" data-to="' + slot + '"></i><span>' + QG_esc(r.text || '') + '</span></div>';
+  }).join('');
+  var correct = model.pairs.map(function (_, i) {
+    return model.rights.findIndex(function (r) { return r.key === i; });
+  }).join(',');
+  return '<div class="qg-match" data-picks="' + model.picks.join(',') + '" data-correct="' + correct + '">'
+    + '<div class="match-col"><h4>Column A</h4>' + left + '</div>'
+    + '<div class="match-col"><h4>Column B</h4>' + right + '</div>'
+    + '<svg class="match-lines"></svg></div>'
+    + '<p class="qg-match-legend">Solid line is the student. Dashed line is the correct answer.</p>';
+}
+function QG_drawMatchBoards() {
+  document.querySelectorAll('.qg-match').forEach(function (board) {
+    var svg = board.querySelector('.match-lines');
+    if (!svg) return;
+    var rect = board.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
+    function center(el) {
+      var r = el.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
+    }
+    var picks = String(board.getAttribute('data-picks') || '').split(',').map(function (n) { return parseInt(n, 10); });
+    var correct = String(board.getAttribute('data-correct') || '').split(',').map(function (n) { return parseInt(n, 10); });
+    board.querySelectorAll('.match-dot').forEach(function (dot) {
+      dot.classList.remove('used');
+      dot.style.removeProperty('--dot');
+    });
+    var lines = '';
+    function line(from, to, color, dash) {
+      var a = board.querySelector('[data-from="' + from + '"]');
+      var b = board.querySelector('[data-to="' + to + '"]');
+      if (!a || !b || !(to >= 0)) return;
+      var p1 = center(a);
+      var p2 = center(b);
+      a.classList.add('used');
+      b.classList.add('used');
+      if (!dash) {
+        a.style.setProperty('--dot', color);
+        b.style.setProperty('--dot', color);
+      }
+      lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"' + (dash ? ' stroke-dasharray="5 4"' : '') + '/>';
+    }
+    picks.forEach(function (slot, i) {
+      var good = slot === correct[i] && slot >= 0;
+      if (slot >= 0) line(i, slot, good ? '#059669' : '#dc2626', false);
+      if (!good && correct[i] >= 0) line(i, correct[i], '#059669', true);
+    });
+    svg.innerHTML = lines;
+  });
+}
+function QG_markOpenStudent() {
+  document.querySelectorAll('.qg-student').forEach(function (el) {
+    var open = String(el.getAttribute('data-student')) === String(QG_openStudent);
+    el.classList.toggle('is-open', open);
+    el.setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+}
+function QG_closeStudent() {
+  QG_openStudent = '';
+  var detail = document.getElementById('grade-detail');
+  if (detail) detail.innerHTML = '';
+  QG_markOpenStudent();
+}
 function QG_showStudent(studentId) {
   var quiz = QG_quizzes.find(function (q) { return String(q.id) === String(document.getElementById('grade-quiz-select').value); });
   var row = QG_scores.find(function (r) { return String(r.student_id) === String(studentId); });
@@ -169,7 +263,9 @@ function QG_showStudent(studentId) {
     return '<article class="qg-item ' + cls + '">'
       + '<div class="qg-status">' + status + '</div>'
       + '<h4>' + (i + 1) + '. ' + QG_esc(q.question || q.q || 'Question') + '</h4>'
-      + '<p><b>Student:</b> ' + QG_esc(QG_answerText(q, answers[i])) + '</p>'
+      + ((q.type || 'mc') === 'match'
+        ? QG_matchHtml(q, answers[i])
+        : '<p><b>Student:</b> ' + QG_esc(QG_answerText(q, answers[i])) + '</p>')
       + (auto.detail ? '<p class="qg-key">' + QG_esc(auto.detail) + '</p>' : '')
       + '<label>Points <input type="number" min="0" max="' + auto.max + '" data-qg-i="' + i + '" value="' + awarded + '"> / ' + auto.max + '</label>'
       + '</article>';
@@ -180,6 +276,8 @@ function QG_showStudent(studentId) {
     + '<p class="qg-note" id="qg-note"></p>';
   var save = document.getElementById('qg-save');
   if (save) save.onclick = function () { QG_save(studentId, questions.length); };
+  QG_markOpenStudent();
+  requestAnimationFrame(QG_drawMatchBoards);
 }
 
 async function QG_save(studentId, count) {

@@ -99,7 +99,7 @@
     .qm-match .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; }
     .qm-match .match-item { display:flex; align-items:center; gap:.4rem; background:#f0fdf4; border:1.5px solid #d1fae5; border-radius:12px; padding:.4rem .45rem; min-height:46px; }
     .qm-match .match-item input { flex:1; min-width:0; border:none; background:transparent; font:inherit; font-weight:600; font-size:.88rem; color:#16132b; outline:none; }
-    .qm-match .match-dot { width:16px; height:16px; border-radius:50%; border:3px solid #059669; background:#fff; flex-shrink:0; position:relative; z-index:3; }
+    .qm-match .match-dot { width:16px; height:16px; border-radius:50%; border:3px solid #059669; background:#fff; flex-shrink:0; position:relative; z-index:3; padding:0; cursor:grab; touch-action:none; }
     .qm-match .match-dot.used { background:var(--dot,#059669); border-color:var(--dot,#059669); }
     .qm-match-handle { width:16px; border:none; background:transparent; padding:0; cursor:grab; display:flex; flex-direction:column; justify-content:center; gap:3px; touch-action:none; flex-shrink:0; }
     .qm-match-handle i { display:block; height:2px; border-radius:2px; background:#059669; }
@@ -260,6 +260,6 @@
 <!-- Quiz Log Modal -->
 <div id="quiz-log-modal-wrap"></div>
 
-<script src="pages/quizmaker.js?v=19"></script>
+<script src="pages/quizmaker.js?v=21"></script>
 </body>
 </html>

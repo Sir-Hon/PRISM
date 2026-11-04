@@ -167,8 +167,8 @@ function classAccentColor(raw) {
 
 function applyClassAccent(cls) {
   const color = classAccentColor(cls && cls.color);
-  const hero = document.querySelector('.teacher-hero');
-  if (hero) hero.style.background = color;
+  const gem = document.getElementById('tc-class-gem');
+  if (gem) gem.style.background = color;
   document.documentElement.style.setProperty('--t', color);
   document.documentElement.style.setProperty('--t-dark', color);
 }
@@ -461,13 +461,12 @@ function renderWorkspacePage() {
   }
   loadWorkspaceSectionForClass(activeClassId);
   renderWorkspaceSectionPills();
-  const jcEl = document.getElementById('join-code-display');
-  if (jcEl) {
-    const jc = (cls.code || '').replace(/'/g, "\\'");
-    jcEl.innerHTML = '<span class="tc-code">' + (cls.code || '—') + '</span>'
-      + '<button type="button" class="tc-code-btn" onclick="copyJoinCode(\'' + jc + '\', this)">Copy</button>'
-      + '<button type="button" class="tc-code-btn" onclick="regenJoinCode(\'' + cls.id + '\')">New code</button>';
-  }
+  const codeEl = document.getElementById('tc-code-text');
+  if (codeEl) codeEl.textContent = cls.code || '\u2014';
+  const copyBtn = document.getElementById('tc-copy-btn');
+  if (copyBtn) copyBtn.onclick = function () { copyJoinCode(cls.code || '', copyBtn); };
+  const newBtn = document.getElementById('tc-new-code-btn');
+  if (newBtn) newBtn.onclick = function () { regenJoinCode(cls.id); };
 }
 
 function switchSub(name, btn) {
@@ -567,21 +566,26 @@ function renderSubjectAnnouncements() {
 }
 
 function copyJoinCode(code, btn) {
-  const el = btn || (typeof event !== 'undefined' ? event.target : null);
-  navigator.clipboard.writeText(code).then(()=>{
-    if (!el) return;
-    const orig = el.textContent;
-    el.textContent='Copied!'; el.style.color='#10b981';
-    setTimeout(()=>{el.textContent=orig;el.style.color='';},1800);
-  });
+  const el = btn || document.getElementById('tc-copy-btn');
+  const finish = function () {
+    const tip = el && el.parentElement ? el.parentElement.querySelector('.tc-tip-label') : null;
+    if (!tip) return;
+    const orig = tip.getAttribute('data-label') || 'Copy code';
+    tip.textContent = 'Copied';
+    setTimeout(function () { tip.textContent = orig; }, 1600);
+  };
+  const text = String(code || '');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(finish).catch(function () {});
+  }
 }
 
 async function regenJoinCode(classId) {
   if (!confirm('Generate a new join code? The old code will stop working.')) return;
   const cls = CLASSES.find(c=>c.id===classId);
   if (!cls) return;
-  var regenBtn = (typeof event !== 'undefined' && event && event.currentTarget && event.currentTarget.tagName === 'BUTTON') ? event.currentTarget : null;
-  if (typeof prismSetBusy === 'function') prismSetBusy(regenBtn, true, 'Updating…');
+  var regenBtn = document.getElementById('tc-new-code-btn');
+  if (regenBtn) { regenBtn.disabled = true; regenBtn.classList.add('is-busy'); }
   const oldCode = cls.code;
   const newCode = genJoinCode();
   try {
@@ -595,7 +599,7 @@ async function regenJoinCode(classId) {
     cls.code = String(j.code || newCode).toUpperCase();
   } catch(e) {
     alert(e.message || 'Could not update join code on the server.');
-    if (typeof prismSetBusy === 'function') prismSetBusy(regenBtn, false);
+    if (regenBtn) { regenBtn.disabled = false; regenBtn.classList.remove('is-busy'); }
     return;
   }
   const idx = getCodeIndex();
@@ -604,6 +608,7 @@ async function regenJoinCode(classId) {
   saveCodeIndex(idx);
   persistTeacherClassesLocal();
   renderWorkspacePage();
+  if (regenBtn) { regenBtn.disabled = false; regenBtn.classList.remove('is-busy'); }
 }
 
 /* ═══════════════════════════ MATERIALS ═══════════════════════════ */

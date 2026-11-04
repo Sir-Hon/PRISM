@@ -100,9 +100,26 @@ if ($method === 'POST' && $action === 'leave') {
     ok();
 }
 
-// ── GET STUDENTS IN CLASS (teacher) ───────────────────
+// ── GET CLASS MEMBERS (teacher of the class, or an enrolled student) ─
 if ($method === 'GET' && $action === 'students') {
-    $class_id = $_GET['class_id'] ?? '';
+    $class_id = trim((string) ($_GET['class_id'] ?? ''));
+    if ($class_id === '') fail('Class required');
+    $cls = $db->prepare(
+        'SELECT c.teacher_id, u.name AS teacher_name, u.avatar AS teacher_avatar
+         FROM classes c
+         LEFT JOIN users u ON u.id = c.teacher_id
+         WHERE c.id = ?'
+    );
+    $cls->execute([$class_id]);
+    $class = $cls->fetch();
+    if (!$class) fail('Not found', 404);
+    $allowed = ($user['role'] === 'teacher' && (string) $class['teacher_id'] === (string) $user['id']);
+    if (!$allowed && $user['role'] === 'student') {
+        $en = $db->prepare('SELECT 1 FROM enrollments WHERE student_id = ? AND class_id = ?');
+        $en->execute([$user['id'], $class_id]);
+        $allowed = (bool) $en->fetch();
+    }
+    if (!$allowed) fail('Forbidden', 403);
     $wantAvatars = (string) ($_GET['avatars'] ?? '') === '1';
     $cols = $wantAvatars
         ? 'u.id, u.name, u.section, u.avatar, e.joined_at'
@@ -113,7 +130,14 @@ if ($method === 'GET' && $action === 'students') {
          WHERE e.class_id = ? ORDER BY u.name'
     );
     $stmt->execute([$class_id]);
-    ok(['students' => $stmt->fetchAll()]);
+    ok([
+        'students' => $stmt->fetchAll(),
+        'teacher' => [
+            'id' => $class['teacher_id'],
+            'name' => $class['teacher_name'] ?: $class['teacher_id'],
+            'avatar' => $class['teacher_avatar'] ?? null,
+        ],
+    ]);
 }
 
 // ── REGENERATE JOIN CODE (teacher) ─────────────────────

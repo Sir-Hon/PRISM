@@ -468,6 +468,7 @@ function paintClassOverlay(classId, teacherId, subject, color) {
     + '<div class="class-view-tabs">'
     + '<button class="class-view-tab active" data-tab="stream">Stream</button>'
     + '<button class="class-view-tab" data-tab="work">Work</button>'
+    + '<button class="class-view-tab" data-tab="people">People</button>'
     + '</div>'
     + '<div class="class-view-body"><div class="class-view-content" id="class-panel-content"></div></div>';
   overlay.querySelectorAll('.class-view-tab').forEach(function(btn) {
@@ -528,7 +529,103 @@ function closeClassView() {
 function buildPanel(tab, classId) {
   if (tab === 'stream') return buildStreamPanel(classId);
   if (tab === 'work') return buildWorkPanel(classId);
+  if (tab === 'people') return buildPeoplePanel(classId);
   return '';
+}
+
+var peopleCache = {};
+var peopleReq = 0;
+
+function peopleAvatarSrc(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return '';
+  if (/^data:image\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.charAt(0) === '/' || s.indexOf('uploads/') === 0) return s;
+  return '';
+}
+
+function peopleAvatarHtml(person, tone) {
+  var src = peopleAvatarSrc(person && person.avatar);
+  if (src) return '<img class="people-av" src="' + prismEscAttr(src) + '" alt="">';
+  var name = String((person && person.name) || '?').trim();
+  return '<span class="people-av ' + tone + '">' + prismEscHtml((name.charAt(0) || '?').toUpperCase()) + '</span>';
+}
+
+function classTeacherFallback(classId) {
+  var joined = getJoinedClasses();
+  var keys = Object.keys(joined);
+  for (var i = 0; i < keys.length; i++) {
+    var row = joined[keys[i]];
+    if (row && String(row.classId) === String(classId)) return getTeacherProfile(row.teacherId);
+  }
+  return { name: 'Teacher', avatar: null };
+}
+
+function renderPeopleHtml(data) {
+  var teacher = (data && data.teacher) || { name: 'Teacher' };
+  var students = (data && data.students) || [];
+  var html = '<div class="people-block"><h2>Teacher</h2><div class="people-row">'
+    + peopleAvatarHtml(teacher, 'teacher')
+    + '<div class="people-main"><div class="people-name">' + prismEscHtml(teacher.name || 'Teacher') + '</div>'
+    + '<div class="people-meta">Teacher</div></div></div></div>';
+  html += '<div class="people-block"><h2>Classmates</h2>';
+  if (!students.length) {
+    html += '<div class="empty-state">No classmates yet.</div>';
+  } else {
+    students.forEach(function (s) {
+      var mine = String(s.id) === String(STUDENT_ID);
+      html += '<div class="people-row">'
+        + peopleAvatarHtml(s, 'student')
+        + '<div class="people-main"><div class="people-name">' + prismEscHtml(s.name || 'Student') + '</div>'
+        + (s.section ? '<div class="people-meta">' + prismEscHtml(s.section) + '</div>' : '')
+        + '</div>'
+        + (mine ? '<span class="people-you">You</span>' : '')
+        + '</div>';
+    });
+  }
+  html += '</div>';
+  return html;
+}
+
+function paintPeoplePanel(classId) {
+  var panel = document.getElementById('class-panel-content');
+  var tab = document.querySelector('.class-view-tab.active');
+  if (!panel || !tab || tab.getAttribute('data-tab') !== 'people') return;
+  if (String(activeDetailId) !== String(classId)) return;
+  var data = peopleCache[String(classId)];
+  if (!data) return;
+  panel.innerHTML = renderPeopleHtml(data);
+}
+
+function loadClassPeople(classId) {
+  var req = ++peopleReq;
+  var task = (typeof PrismClasses !== 'undefined' && PrismClasses.getMembers)
+    ? PrismClasses.getMembers(classId)
+    : Promise.reject(new Error('People list is unavailable'));
+  task.then(function (data) {
+    if (!data.teacher || !data.teacher.name) {
+      data.teacher = classTeacherFallback(classId);
+    }
+    peopleCache[String(classId)] = data;
+    if (req !== peopleReq) return;
+    paintPeoplePanel(classId);
+  }).catch(function () {
+    if (req !== peopleReq) return;
+    if (peopleCache[String(classId)]) return;
+    var panel = document.getElementById('class-panel-content');
+    var tab = document.querySelector('.class-view-tab.active');
+    if (!panel || !tab || tab.getAttribute('data-tab') !== 'people') return;
+    if (String(activeDetailId) !== String(classId)) return;
+    panel.innerHTML = '<div class="empty-state">Could not load the class members.</div>';
+  });
+}
+
+function buildPeoplePanel(classId) {
+  var cached = peopleCache[String(classId)];
+  loadClassPeople(classId);
+  if (cached) return renderPeopleHtml(cached);
+  return '<div class="empty-state">Loading classmates…</div>';
 }
 
 function showStudentClassTab(tab) {

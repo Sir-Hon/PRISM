@@ -253,19 +253,17 @@ function renderOpts(q){
     var leftCol = (q.pairs||[]).map(function(p,i){
       return `<div class="match-item a">
         <input type="text" value="${esc(p.left)}" placeholder="Item ${i+1}" oninput="updatePair('${q.id}',${i},'left',this.value)"/>
-        <span class="match-dot" data-from="${i}"></span>
+        <button type="button" class="match-dot" data-from="${i}" aria-label="Connect item ${i+1}"></button>
         ${(q.pairs||[]).length>2?`<button type="button" class="mc-rm" onclick="removePair('${q.id}',${i})" aria-label="Remove match">&times;</button>`:''}
       </div>`;
     }).join('');
-    var rightCol = (q.bankOrder||[]).map(function(key,slot){
-      var p = q.pairs[key] || {right:''};
-      return `<div class="match-item b qm-match-b${key===slot?' is-across':''}" data-slot="${slot}">
-        <button type="button" class="qm-match-handle" data-slot="${slot}" aria-label="Drag this answer to another row"><i></i><i></i><i></i></button>
-        <span class="match-dot" data-key="${key}"></span>
-        <input type="text" value="${esc(p.right)}" placeholder="Correct answer" oninput="updatePair('${q.id}',${key},'right',this.value)"/>
+    var rightCol = (q.columnB||[]).map(function(text,slot){
+      return `<div class="match-item b qm-match-b" data-slot="${slot}">
+        <button type="button" class="match-dot" data-to="${slot}" aria-label="Answer ${slot+1}"></button>
+        <input type="text" value="${esc(text)}" placeholder="Answer" oninput="updateColumnB('${q.id}',${slot},this.value)"/>
       </div>`;
     }).join('');
-    body = `<div class="q-note">Type each item and its answer. Drag an answer by the grip to another row. Students see this order, so the correct answer cannot sit straight across from its item.</div>
+    body = `<div class="q-note">Type the items and the answers. Drag a dot in column A to the matching dot in column B. Nothing is connected until you do that. Tap a connected dot to undo it.</div>
       <div class="qm-match" id="qm-match-${q.id}" data-qid="${q.id}">
         <div class="match-col"><h4>Column A</h4>${leftCol}</div>
         <div class="match-col"><h4>Column B</h4>${rightCol}</div>
@@ -302,6 +300,11 @@ function updateAnswer(id,i,v){var q=qmFind(id); if(q&&q.answers) q.answers[i]=v;
 function addAnswer(id){var q=qmFind(id); if(!q||q.answers.length>=6) return; q.answers.push(''); qmRefreshOpts(id);}
 function removeAnswer(id,i){var q=qmFind(id); if(!q||q.answers.length<=1) return; q.answers.splice(i,1); qmRefreshOpts(id);}
 function updatePair(id,i,side,v){var q=qmFind(id); if(q&&q.pairs[i]) q.pairs[i][side]=v;}
+function updateColumnB(id,slot,value){
+  var q=qmFind(id); if(!q||!q.columnB) return;
+  q.columnB[slot]=value;
+  (q.links||[]).forEach(function(link,i){ if(link===slot && q.pairs[i]) q.pairs[i].right=value; });
+}
 function qmUnalign(order){
   var a = order.slice();
   var n = a.length;
@@ -321,59 +324,89 @@ function qmUnalign(order){
 function qmEnsureBank(q){
   if (!q.pairs || q.pairs.length < 2) q.pairs = [{left:'',right:''},{left:'',right:''}];
   var n = q.pairs.length;
-  var order = Array.isArray(q.bankOrder) ? q.bankOrder.map(function(k){ return parseInt(k, 10); }) : [];
-  var seen = {};
-  var ok = order.length === n;
-  order.forEach(function(k){ if (!(k >= 0) || k >= n || seen[k]) ok = false; seen[k] = true; });
-  if (!ok) {
-    order = [];
-    for (var i = 0; i < n; i++) order.push(i);
-    order = qmUnalign(order);
+  var ready = Array.isArray(q.columnB) && q.columnB.length === n && Array.isArray(q.links) && q.links.length === n;
+  if (!ready) {
+    var order = Array.isArray(q.bankOrder) ? q.bankOrder.map(function(k){ return parseInt(k, 10); }) : [];
+    var seen = {};
+    var saved = order.length === n && q.pairs.some(function(p){ return String(p.right || '').trim(); });
+    order.forEach(function(k){ if (!(k >= 0) || k >= n || seen[k]) saved = false; seen[k] = true; });
+    if (saved) {
+      q.columnB = order.map(function(k){ return (q.pairs[k] && q.pairs[k].right) || ''; });
+      q.links = [];
+      for (var i = 0; i < n; i++) q.links.push(order.indexOf(i));
+    } else {
+      q.columnB = q.pairs.map(function(p){ return p.right || ''; });
+      q.links = q.pairs.map(function(){ return null; });
+    }
   }
-  q.bankOrder = order;
+  q.links = q.links.map(function(v){
+    var nlink = parseInt(v, 10);
+    if (v === null || v === undefined || v === '' || isNaN(nlink) || nlink < 0 || nlink >= n) return null;
+    return nlink;
+  });
 }
 function qmPackMatch(q){
+  qmEnsureBank(q);
   var next = [];
-  var map = {};
-  (q.pairs || []).forEach(function(p, i){
-    if (!String(p.left || '').trim() || !String(p.right || '').trim()) return;
-    map[i] = next.length;
-    next.push({ left: String(p.left).trim(), right: String(p.right).trim() });
+  q.pairs.forEach(function(p, i){
+    var slot = q.links[i];
+    var right = slot === null ? '' : String(q.columnB[slot] || '').trim();
+    var left = String(p.left || '').trim();
+    if (!left || !right) return;
+    next.push({ left: left, right: right });
   });
   var order = [];
-  (q.bankOrder || []).forEach(function(k){ if (map[k] !== undefined) order.push(map[k]); });
-  next.forEach(function(_, i){ if (order.indexOf(i) < 0) order.push(i); });
-  return { pairs: next, bankOrder: order };
+  for (var i = 0; i < next.length; i++) order.push(i);
+  if (next.length >= 2) order = qmUnalign(order);
+  return { pairs: next, bankOrder: order, columnB: q.columnB.slice(), links: q.links.slice() };
 }
 function addPair(id){
   var q=qmFind(id); if(!q||q.pairs.length>=8) return;
+  qmEnsureBank(q);
   q.pairs.push({left:'',right:''});
-  q.bankOrder = (q.bankOrder || []).concat([q.pairs.length - 1]);
-  q.bankOrder = qmUnalign(q.bankOrder);
+  q.columnB.push('');
+  q.links.push(null);
   qmRefreshOpts(id);
 }
 function removePair(id,i){
   var q=qmFind(id); if(!q||q.pairs.length<=2) return;
+  qmEnsureBank(q);
   q.pairs.splice(i,1);
-  q.bankOrder = (q.bankOrder || []).filter(function(k){ return k !== i; }).map(function(k){ return k > i ? k - 1 : k; });
-  q.bankOrder = qmUnalign(q.bankOrder);
+  q.columnB.splice(i,1);
+  q.links.splice(i,1);
+  q.links = q.links.map(function(slot){
+    if (slot === null || slot === undefined) return null;
+    if (slot === i) return null;
+    return slot > i ? slot - 1 : slot;
+  });
   qmRefreshOpts(id);
 }
-function qmMoveAnswer(id, from, to){
+function qmSetLink(id, from, to){
   var q = qmFind(id);
-  if (!q || !q.bankOrder || from === to || to == null || isNaN(to)) return;
-  var order = q.bankOrder.slice();
-  var item = order.splice(from, 1)[0];
-  order.splice(to, 0, item);
-  q.bankOrder = order;
-  qmRefreshOpts(id);
+  if (!q) return;
+  qmEnsureBank(q);
+  if (to === null || to === undefined || isNaN(to)) {
+    q.links[from] = null;
+    if (q.pairs[from]) q.pairs[from].right = '';
+  } else {
+    q.links.forEach(function(v, i){
+      if (i !== from && v === to) {
+        q.links[i] = null;
+        if (q.pairs[i]) q.pairs[i].right = '';
+      }
+    });
+    q.links[from] = to;
+    if (q.pairs[from]) q.pairs[from].right = q.columnB[to] || '';
+  }
+  var board = document.getElementById('qm-match-' + id);
+  if (board) qmDrawTeacherMatch(board);
 }
 var QM_MATCH_COLORS = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d','#0284c7','#9333ea'];
-function qmDrawTeacherMatch(board){
+function qmDrawTeacherMatch(board, fromDot, pointer){
   if (!board) return;
   var svg = board.querySelector('.match-lines');
   var q = qmFind(board.getAttribute('data-qid'));
-  if (!svg || !q || !q.bankOrder) return;
+  if (!svg || !q || !q.links) return;
   var rect = board.getBoundingClientRect();
   if (!rect.width || !rect.height) return;
   svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
@@ -381,12 +414,17 @@ function qmDrawTeacherMatch(board){
     var r = el.getBoundingClientRect();
     return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
   }
+  board.querySelectorAll('.match-dot').forEach(function(dot){
+    dot.classList.remove('used');
+    dot.style.removeProperty('--dot');
+  });
   var lines = '';
-  q.bankOrder.forEach(function(key, slot){
-    var a = board.querySelector('.match-dot[data-from="' + key + '"]');
-    var b = board.querySelector('.qm-match-b[data-slot="' + slot + '"] .match-dot');
+  q.links.forEach(function(slot, i){
+    if (slot === null || slot === undefined) return;
+    var a = board.querySelector('.match-dot[data-from="' + i + '"]');
+    var b = board.querySelector('.match-dot[data-to="' + slot + '"]');
     if (!a || !b) return;
-    var color = QM_MATCH_COLORS[key % QM_MATCH_COLORS.length];
+    var color = QM_MATCH_COLORS[i % QM_MATCH_COLORS.length];
     var p1 = center(a);
     var p2 = center(b);
     a.style.setProperty('--dot', color);
@@ -395,6 +433,10 @@ function qmDrawTeacherMatch(board){
     b.classList.add('used');
     lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"/>';
   });
+  if (fromDot && pointer) {
+    var start = center(fromDot);
+    lines += '<line x1="' + start.x + '" y1="' + start.y + '" x2="' + pointer.x + '" y2="' + pointer.y + '" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 4"/>';
+  }
   svg.innerHTML = lines;
 }
 function qmBindTeacherMatches(root){
@@ -409,36 +451,35 @@ function qmBindTeacherMatches(root){
     if (board.dataset.bound === '1') return;
     board.dataset.bound = '1';
     var drag = null;
+    function point(e){
+      var r = board.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
     function onMove(e){
       if (!drag || e.pointerId !== drag.id) return;
-      if (Math.abs(e.clientY - drag.y) > 4) drag.moved = true;
-      var hit = document.elementFromPoint(e.clientX, e.clientY);
-      var row = hit && hit.closest ? hit.closest('.qm-match-b') : null;
-      board.querySelectorAll('.qm-match-b').forEach(function(el){ el.classList.remove('is-drop'); });
-      if (row && board.contains(row)) {
-        drag.over = parseInt(row.getAttribute('data-slot'), 10);
-        row.classList.add('is-drop');
-      }
+      if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 6) drag.moved = true;
+      qmDrawTeacherMatch(board, drag.dot, point(e));
     }
     function finish(e){
       if (!drag || e.pointerId !== drag.id) return;
-      var from = drag.slot;
-      var to = drag.over;
+      var from = drag.from;
       var moved = drag.moved;
+      var q = qmFind(board.getAttribute('data-qid'));
+      var hit = document.elementFromPoint(e.clientX, e.clientY);
+      var target = hit && hit.closest ? hit.closest('[data-to]') : null;
       drag = null;
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
-      board.querySelectorAll('.qm-match-handle,.qm-match-b').forEach(function(el){ el.classList.remove('is-dragging'); el.classList.remove('is-drop'); });
-      if (moved && to != null && to !== from) qmMoveAnswer(board.getAttribute('data-qid'), from, to);
+      if (moved && target && board.contains(target)) qmSetLink(board.getAttribute('data-qid'), from, parseInt(target.getAttribute('data-to'), 10));
+      else if (!moved && q && q.links && q.links[from] !== null && q.links[from] !== undefined) qmSetLink(board.getAttribute('data-qid'), from, null);
       else qmDrawTeacherMatch(board);
     }
     board.addEventListener('pointerdown', function(e){
-      var handle = e.target.closest('.qm-match-handle');
-      if (!handle) return;
+      var dot = e.target.closest('.match-dot[data-from]');
+      if (!dot || !board.contains(dot)) return;
       e.preventDefault();
-      drag = { id: e.pointerId, slot: parseInt(handle.getAttribute('data-slot'), 10), over: null, y: e.clientY, moved: false };
-      handle.classList.add('is-dragging');
+      drag = { id: e.pointerId, from: parseInt(dot.getAttribute('data-from'), 10), x: e.clientX, y: e.clientY, moved: false, dot: dot };
       try { board.setPointerCapture(e.pointerId); } catch (err) {}
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', finish);
@@ -477,6 +518,8 @@ function qmCleanQuestion(q){
     var packed = qmPackMatch(copy);
     copy.pairs = packed.pairs;
     copy.bankOrder = packed.bankOrder;
+    copy.columnB = packed.columnB;
+    copy.links = packed.links;
   }
   if (copy.type==='id') copy.answers = (copy.answers||[]).map(function(a){ return String(a||'').trim(); }).filter(Boolean);
   if (copy.type==='mtf' && copy.mtfMode!=='fix') { copy.mtfMode='true'; copy.mtfAnswer='True'; }
@@ -489,8 +532,10 @@ function qmQuestionProblem(q, n){
     if ((q.options||[]).length < 2) return label + ' needs at least two choices.';
     if (!(q.options||[]).some(function(o){ return o.correct && String(o.text||'').trim(); })) return label + ' needs a correct choice.';
   }
+  if (q.type==='match' && Array.isArray(q.links) && q.links.some(function(v){ return v === null || v === undefined; })) return label + ' needs every item connected to an answer.';
+  if (q.type==='match' && Array.isArray(q.columnB) && q.columnB.some(function(t){ return !String(t || '').trim(); })) return label + ' needs an answer in every row of column B.';
+  if (q.type==='match' && (q.pairs||[]).some(function(p){ return !String(p.left || '').trim(); })) return label + ' needs an item in every row of column A.';
   if (q.type==='match' && (q.pairs||[]).length < 2) return label + ' needs at least two matches.';
-  if (q.type==='match' && (q.bankOrder||[]).some(function(k,i){ return k===i; })) return label + ' has an answer straight across from its item. Drag that answer to another row.';
   if (q.type==='id' && !(q.answers||[]).length) return label + ' needs an accepted answer.';
   if (q.type==='mtf' && q.mtfMode==='fix' && !String(q.mtfAnswer||'').trim()) return label + ' needs the correction students should write.';
   return '';
@@ -784,35 +829,55 @@ async function viewQuizGrades(quizId){
   if(closeBtn) closeBtn.onclick=function(){modal.remove();};
 }
 
-function viewQuizLog(quizId){
-  const quiz=getQuizzes().find(q=>String(q.id)===String(quizId)); if(!quiz)return;
-  if(!quiz.published){ openDraft(quiz.id); return; }
-  const key='prism_quiz_log_'+quiz.classId+'_'+quiz.id;
-  const log=JSON.parse(localStorage.getItem(key)||'[]');
-  const existing=document.getElementById('quiz-log-modal'); if(existing)existing.remove();
-  const modal=document.createElement('div');
-  modal.id='quiz-log-modal';
-  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);z-index:9999;display:flex;align-items:center;justify-content:center;';
-  const typeColors={'start':'#d1fae5','submit':'#dbeafe','tab-switch':'#fef3c7','abandon':'#fee2e2'};
-  const typeIcons={'start':'Start','submit':'Submit','tab-switch':'Tab','abandon':'Left'};
-  const rows=log.length?log.slice().reverse().map(e=>{
-    const t=new Date(e.time).toLocaleString();
-    const bg=typeColors[e.type]||'#f9fafb';
-    return `<div style="display:flex;gap:.8rem;align-items:flex-start;padding:.7rem .9rem;background:${bg};border-radius:10px;margin-bottom:.5rem;font-size:.83rem;">
-      <span style="font-size:.65rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;flex-shrink:0;color:#374151;">${typeIcons[e.type]||e.type}</span>
-      <div style="flex:1;"><div style="font-weight:700;color:#16132b;">${e.student} <span style="font-weight:400;color:#9ca3af;">(${e.studentId})</span></div>
-      <div style="color:#374151;margin:.15rem 0;">${e.detail}</div>
-      <div style="font-size:.75rem;color:#9ca3af;">${t}</div></div></div>`;
-  }).join(''):'<div style="text-align:center;color:#9ca3af;padding:2rem;">No activity recorded yet.</div>';
-  modal.innerHTML=`<div style="background:#fff;border-radius:20px;width:580px;max-width:94vw;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25);padding:1.8rem 2rem;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;">
-      <div><div style="font-family:DM Sans,sans-serif;font-size:1.15rem;font-weight:800;color:#16132b;"> Activity Log</div>
-      <div style="font-size:.82rem;color:#9ca3af;">${quiz.title}</div></div>
-      <button id="log-close-btn" style="background:#f0ecff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:1rem;"></button>
-    </div>${rows}</div>`;
+function qmModalOffset(){
+  var top = 16;
+  try {
+    if (window.parent !== window && window.frameElement) {
+      var frameTop = window.frameElement.getBoundingClientRect().top;
+      if (frameTop < 0) top = Math.max(16, Math.round(-frameTop + 16));
+    }
+  } catch (e) {}
+  return top;
+}
+function qmEsc(s){
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+async function viewQuizLog(quizId){
+  var quiz = getQuizzes().find(function(q){ return String(q.id) === String(quizId); });
+  if (quiz && !quiz.published) { openDraft(quiz.id); return; }
+  var existing = document.getElementById('quiz-log-modal');
+  if (existing) existing.remove();
+  var modal = document.createElement('div');
+  modal.id = 'quiz-log-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow:auto;';
+  var title = quiz && quiz.title ? quiz.title : 'Quiz';
+  modal.innerHTML = '<div class="grade-sheet" style="margin-top:' + qmModalOffset() + 'px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;"><div><h3>Activity log</h3><div class="sub">' + qmEsc(title) + '</div></div><button type="button" id="log-close-btn" aria-label="Close" style="width:32px;height:32px;border-radius:50%;border:none;background:#f0ecff;cursor:pointer;font-weight:800;">\u00d7</button></div><p class="sub">Loading activity\u2026</p></div>';
   document.body.appendChild(modal);
-  document.getElementById('log-close-btn').onclick=function(){modal.remove();};
-  modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
+  var closeBtn = document.getElementById('log-close-btn');
+  if (closeBtn) closeBtn.onclick = function(){ modal.remove(); };
+  var sheet = modal.querySelector('.grade-sheet');
+  var log = [];
+  var error = '';
+  try {
+    log = await PrismQuizzes.getLog(quizId);
+    if (!Array.isArray(log)) log = [];
+  } catch (e) {
+    error = (e && e.message) ? e.message : 'Could not load the activity log.';
+  }
+  var typeLabels = { start: 'Start', submit: 'Submit', 'tab-switch': 'Tab', abandon: 'Left' };
+  var rows = error
+    ? '<p class="sub">' + qmEsc(error) + '</p>'
+    : (log.length ? log.map(function(entry){
+        var when = entry.logged_at || entry.time || '';
+        var shown = when ? new Date(String(when).replace(' ', 'T')).toLocaleString() : '';
+        var who = entry.student_name || entry.student || entry.student_id || 'Student';
+        return '<div class="grade-row"><div><b>' + qmEsc(who) + '</b><div class="sub">' + qmEsc(typeLabels[entry.type] || entry.type || 'Activity') + ' \u00b7 ' + qmEsc(entry.detail || '') + '</div><div class="sub">' + qmEsc(shown) + '</div></div></div>';
+      }).join('') : '<p class="sub">No activity yet. Starts, submits, and tab switches show up here after a student takes this quiz.</p>');
+  if (!sheet) return;
+  sheet.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;"><div><h3>Activity log</h3><div class="sub">' + qmEsc(title) + '</div></div><button type="button" id="log-close-btn" aria-label="Close" style="width:32px;height:32px;border-radius:50%;border:none;background:#f0ecff;cursor:pointer;font-weight:800;">\u00d7</button></div>' + rows;
+  var closeAgain = document.getElementById('log-close-btn');
+  if (closeAgain) closeAgain.onclick = function(){ modal.remove(); };
 }
 
 function qmFitEmbed() {
