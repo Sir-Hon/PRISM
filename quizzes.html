@@ -131,12 +131,28 @@
     .mtf-blank { width:148px; flex-shrink:0; border:none; border-bottom:2px solid #7c3aed; background:#faf8ff; border-radius:10px 10px 0 0; padding:.7rem .75rem; font-size:1rem; font-weight:700; color:#16132b; }
     .mtf-stem { font-size:1.02rem; font-weight:700; color:#16132b; line-height:1.5; padding-top:.55rem; }
     .mtf-no { color:#7c3aed; margin-right:.35rem; }
-    .match-board { display:flex; flex-direction:column; gap:.7rem; }
-    .match-bank { display:flex; flex-wrap:wrap; gap:.4rem; }
-    .match-chip { background:#f5f3ff; border:1px solid #ddd6fe; border-radius:999px; padding:.28rem .65rem; font-size:.8rem; font-weight:700; color:#5b21b6; }
-    .match-row { display:grid; grid-template-columns:1fr minmax(140px, 42%); gap:.6rem; align-items:center; border:1.5px solid #e9d5ff; border-radius:12px; padding:.65rem .75rem; }
-    .match-left { font-size:.95rem; color:#16132b; line-height:1.4; }
-    .match-row select { width:100%; border:1.5px solid #ddd6fe; border-radius:8px; padding:.45rem .5rem; font-weight:700; font-family:DM Sans,sans-serif; }
+    .match-connect { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:2.4rem; align-items:start; }
+    .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; }
+    .match-col { display:flex; flex-direction:column; gap:.65rem; position:relative; z-index:1; min-width:0; }
+    .match-col h4 { margin:0 0 .15rem; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:#7c3aed; }
+    .match-item { display:flex; align-items:center; gap:.55rem; background:#faf9ff; border:1.5px solid #e9d5ff; border-radius:12px; padding:.6rem .7rem; color:#16132b; min-height:46px; }
+    .match-item span { flex:1; min-width:0; font-size:.92rem; font-weight:600; line-height:1.35; }
+    .match-item.a { flex-direction:row; }
+    .match-item.b { flex-direction:row; }
+    .match-dot { width:18px; height:18px; border-radius:50%; border:3px solid #7c3aed; background:#fff; padding:0; cursor:grab; flex-shrink:0; touch-action:none; position:relative; z-index:3; }
+    .match-dot.used { background:var(--dot,#7c3aed); }
+    .match-hint { margin:.7rem 0 0; font-size:.75rem; color:#6b7280; line-height:1.4; }
+    html[data-theme="dark"] #shared-qz-modal [style*="color:#16132b"],
+    html[data-theme="dark"] #shared-qz-modal [style*="color:#374151"],
+    html[data-theme="dark"] #shared-qz-modal .match-item,
+    html[data-theme="dark"] #shared-qz-modal .match-hint {
+      color:#16132b !important;
+    }
+    @media (max-width:640px) {
+      .match-connect { gap:1.3rem; }
+      .match-item { padding:.5rem .45rem; }
+      .match-item span { font-size:.82rem; }
+    }
     .qz-missing { background:#fff7ed; border:1.5px solid #fdba74; color:#9a3412; border-radius:12px; padding:.85rem 1rem; margin-bottom:1rem; }
     .qz-missing strong { display:block; font-size:.95rem; }
     .qz-missing p { margin:.25rem 0 .45rem; font-size:.82rem; }
@@ -208,6 +224,6 @@
 
 
 
-<script src="pages/quizzes.js?v=13"></script>
+<script src="pages/quizzes.js?v=14"></script>
 </body>
 </html>

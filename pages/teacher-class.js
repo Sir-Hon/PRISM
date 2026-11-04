@@ -158,8 +158,24 @@ window.addEventListener('DOMContentLoaded', async () => {
   await initTeacherClassPage();
 });
 
+function classAccentColor(raw) {
+  const value = String(raw || '').trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) return value;
+  if (/^#[0-9a-fA-F]{3}$/.test(value)) return '#' + value[1] + value[1] + value[2] + value[2] + value[3] + value[3];
+  return '#7c3aed';
+}
+
+function applyClassAccent(cls) {
+  const color = classAccentColor(cls && cls.color);
+  const hero = document.querySelector('.teacher-hero');
+  if (hero) hero.style.background = color;
+  document.documentElement.style.setProperty('--t', color);
+  document.documentElement.style.setProperty('--t-dark', color);
+}
+
 function paintTeacherClassShell(cls) {
   if (!cls) return;
+  applyClassAccent(cls);
   const titleEl = document.getElementById('tc-subject-title');
   if (titleEl) {
     titleEl.textContent = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'Subject');

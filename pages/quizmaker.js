@@ -245,7 +245,7 @@ function renderOpts(q){
         ${(q.answers||[]).length<6?`<button type="button" class="mc-add" onclick="addAnswer('${q.id}')">+ Add another accepted answer</button>`:''}
       </div>`;
   } else if(q.type==='match'){
-    body = `<div class="q-note">Each item on the left matches one answer on the right. Students pick the letter.</div>
+    body = `<div class="q-note">Each item on the left matches one answer on the right. Students drag a line from column A to column B.</div>
       <div class="mc-opts">${(q.pairs||[]).map((p,i)=>`
         <div class="pair-row">
           <div class="choice-box"><span class="choice-letter">${i+1}</span><input type="text" value="${esc(p.left)}" placeholder="Item" oninput="updatePair('${q.id}',${i},'left',this.value)"/></div>
@@ -564,7 +564,7 @@ function renderSavedQuizzes(){
       <div style="flex:1;min-width:0;"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${(q.questions||[]).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
       <div class="sq-actions">
         ${q.published
-          ? `<button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>`
+          ? `<button type="button" class="sq-log-btn" onclick="viewQuizGrades(${qid})" title="Student scores">Grades</button><button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>`
           : `<button type="button" class="sq-log-btn" onclick="openDraft(${qid})" title="Open this draft">Edit</button>`}
         <button type="button" class="sq-del-btn" onclick="deleteQuiz(${qid})" title="Remove this quiz">Delete</button>
       </div>
@@ -583,6 +583,37 @@ async function deleteQuiz(id){
   saveQuizzes(getQuizzes().filter(function(q){ return String(q.id)!==String(id); }));
   await syncQuizzesFromApiForClass(activeClassId);
   renderSavedQuizzes();
+}
+
+async function viewQuizGrades(quizId){
+  const quiz=getQuizzes().find(q=>String(q.id)===String(quizId)); if(!quiz)return;
+  const existing=document.getElementById('quiz-grades-modal'); if(existing)existing.remove();
+  const modal=document.createElement('div');
+  modal.id='quiz-grades-modal';
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+  modal.innerHTML='<div class="grade-sheet"><h3>Grades</h3><div class="sub">'+String(quiz.title||'Quiz').replace(/</g,'&lt;')+'</div><p class="sub">Loading scores…</p></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click',function(e){if(e.target===modal)modal.remove();});
+  var rows='<p class="sub">No one has submitted this quiz yet.</p>';
+  try {
+    var scores=await PrismQuizzes.getScores(quizId);
+    if(!Array.isArray(scores)) scores=[];
+    if(scores.length){
+      var total=quiz.totalPoints||0;
+      rows=scores.map(function(row){
+        var name=String(row.student_name||row.student_id||'Student').replace(/</g,'&lt;');
+        var when=row.taken_at?new Date(String(row.taken_at).replace(' ','T')).toLocaleString():'';
+        return '<div class="grade-row"><div><b>'+name+'</b><div class="sub">'+when+'</div></div><div class="grade-score">'+row.score+' / '+total+'</div></div>';
+      }).join('');
+    }
+  } catch(e) {
+    rows='<p class="sub">'+(e&&e.message?String(e.message).replace(/</g,'&lt;'):'Could not load scores.')+'</p>';
+  }
+  var sheet=modal.querySelector('.grade-sheet');
+  if(!sheet) return;
+  sheet.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;"><div><h3>Grades</h3><div class="sub">'+String(quiz.title||'Quiz').replace(/</g,'&lt;')+'</div></div><button type="button" id="grades-close" aria-label="Close" style="width:32px;height:32px;border-radius:50%;border:none;background:#f0ecff;cursor:pointer;font-weight:800;">&times;</button></div>'+rows;
+  var closeBtn=document.getElementById('grades-close');
+  if(closeBtn) closeBtn.onclick=function(){modal.remove();};
 }
 
 function viewQuizLog(quizId){

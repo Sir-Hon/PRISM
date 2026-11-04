@@ -345,13 +345,7 @@ function QUIZ_captureCurrent() {
   var q = QUIZ_currentQuiz && QUIZ_currentQuiz.questions[QUIZ_currentQ];
   if (!q) return;
   if (q.type === 'match') {
-    var arr = [];
-    (q.pairs || []).forEach(function (_, i) {
-      var el = document.getElementById('match-' + QUIZ_currentQ + '-' + i);
-      arr[i] = el && el.value !== '' ? parseInt(el.value, 10) : null;
-    });
-    QUIZ_userAnswers[QUIZ_currentQ] = arr;
-    QUIZ_answered[QUIZ_currentQ] = QUIZ_isFilled(q, arr);
+    QUIZ_answered[QUIZ_currentQ] = QUIZ_isFilled(q, QUIZ_userAnswers[QUIZ_currentQ]);
     return;
   }
   var field = document.getElementById('qz-write-' + QUIZ_currentQ);
@@ -419,17 +413,13 @@ function QUIZ_renderQuestion() {
     choicesHtml = '<div class="mtf-line"><input id="qz-write-' + QUIZ_currentQ + '" class="mtf-blank" value="' + QUIZ_esc(sel || '') + '" placeholder="Answer" oninput="QUIZ_saveWrite(this)">'
       + '<div class="mtf-stem"><span class="mtf-no">' + (QUIZ_currentQ + 1) + '.</span>' + QUIZ_esc(q.q) + '</div></div>';
   } else if (q.type === 'match') {
-    var bank = (q.bank || []).map(function (b, i) {
-      return '<span class="match-chip">' + String.fromCharCode(65 + i) + '. ' + QUIZ_esc(b.text) + '</span>';
+    var leftCol = (q.pairs || []).map(function (p, i) {
+      return '<div class="match-item a"><span>' + QUIZ_esc(p.left) + '</span><button type="button" class="match-dot" data-from="' + i + '" aria-label="Connect ' + QUIZ_esc(p.left) + '"></button></div>';
     }).join('');
-    var rows = (q.pairs || []).map(function (p, i) {
-      var current = Array.isArray(sel) ? sel[i] : null;
-      var opts = '<option value="">Choose</option>' + (q.bank || []).map(function (b, bi) {
-        return '<option value="' + bi + '"' + (current === bi ? ' selected' : '') + '>' + String.fromCharCode(65 + bi) + '. ' + QUIZ_esc(b.text) + '</option>';
-      }).join('');
-      return '<div class="match-row"><div class="match-left"><strong>' + (i + 1) + '.</strong> ' + QUIZ_esc(p.left) + '</div><select id="match-' + QUIZ_currentQ + '-' + i + '" onchange="QUIZ_saveMatch()">' + opts + '</select></div>';
+    var rightCol = (q.bank || []).map(function (b, bi) {
+      return '<div class="match-item b" data-to="' + bi + '"><button type="button" class="match-dot" data-to="' + bi + '" aria-label="Answer ' + QUIZ_esc(b.text) + '"></button><span>' + QUIZ_esc(b.text) + '</span></div>';
     }).join('');
-    choicesHtml = '<div class="match-board"><div class="match-bank">' + bank + '</div>' + rows + '</div>';
+    choicesHtml = '<div class="match-connect" id="match-board"><div class="match-col"><h4>Column A</h4>' + leftCol + '</div><div class="match-col"><h4>Column B</h4>' + rightCol + '</div><svg class="match-lines" id="match-svg"></svg></div><p class="match-hint">Drag from a dot in column A to the matching answer in column B. Tap a connected dot to undo it.</p>';
   } else if (q.type === 'id') {
     choicesHtml = '<input id="qz-write-' + QUIZ_currentQ + '" class="qz-write" value="' + QUIZ_esc(sel || '') + '" placeholder="Type the answer" oninput="QUIZ_saveWrite(this)">';
   } else {
@@ -482,7 +472,105 @@ function QUIZ_renderQuestion() {
     + '</div></div>';
   var write = document.getElementById('qz-write-' + QUIZ_currentQ);
   if (write) setTimeout(function () { write.focus(); }, 50);
+  if (q.type === 'match') QUIZ_bindMatch();
   if (tlShow > 0 && QUIZ_active) QUIZ_tickTimer();
+}
+var QUIZ_MATCH_COLORS = ['#7c3aed','#0d9488','#d97706','#2563eb','#be123c','#15803d','#0284c7','#9333ea'];
+function QUIZ_matchAnswers() {
+  var q = QUIZ_currentQuiz && QUIZ_currentQuiz.questions[QUIZ_currentQ];
+  var n = q && q.pairs ? q.pairs.length : 0;
+  var arr = Array.isArray(QUIZ_userAnswers[QUIZ_currentQ]) ? QUIZ_userAnswers[QUIZ_currentQ].slice() : [];
+  while (arr.length < n) arr.push(null);
+  return arr;
+}
+function QUIZ_setMatch(from, to) {
+  var q = QUIZ_currentQuiz && QUIZ_currentQuiz.questions[QUIZ_currentQ];
+  if (!q || q.type !== 'match') return;
+  var arr = QUIZ_matchAnswers();
+  if (to === null || to === undefined || to === '') arr[from] = null;
+  else {
+    arr.forEach(function (v, i) { if (i !== from && v === to) arr[i] = null; });
+    arr[from] = to;
+  }
+  QUIZ_userAnswers[QUIZ_currentQ] = arr;
+  QUIZ_answered[QUIZ_currentQ] = QUIZ_isFilled(q, arr);
+  QUIZ_drawMatch();
+}
+function QUIZ_drawMatch(fromDot, pointer) {
+  var board = document.getElementById('match-board');
+  var svg = document.getElementById('match-svg');
+  if (!board || !svg) return;
+  var rect = board.getBoundingClientRect();
+  svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
+  var ans = QUIZ_matchAnswers();
+  function center(el) {
+    var r = el.getBoundingClientRect();
+    return { x: r.left + r.width / 2 - rect.left, y: r.top + r.height / 2 - rect.top };
+  }
+  board.querySelectorAll('.match-dot').forEach(function (dot) {
+    dot.classList.remove('used');
+    dot.style.removeProperty('--dot');
+  });
+  var lines = '';
+  ans.forEach(function (bi, i) {
+    if (bi === null || bi === undefined || bi === '') return;
+    var a = board.querySelector('.match-dot[data-from="' + i + '"]');
+    var b = board.querySelector('.match-dot[data-to="' + bi + '"]');
+    if (!a || !b) return;
+    var color = QUIZ_MATCH_COLORS[i % QUIZ_MATCH_COLORS.length];
+    var p1 = center(a);
+    var p2 = center(b);
+    a.classList.add('used');
+    b.classList.add('used');
+    a.style.setProperty('--dot', color);
+    b.style.setProperty('--dot', color);
+    lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"/>';
+  });
+  if (fromDot && pointer) {
+    var start = center(fromDot);
+    lines += '<line x1="' + start.x + '" y1="' + start.y + '" x2="' + pointer.x + '" y2="' + pointer.y + '" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 4"/>';
+  }
+  svg.innerHTML = lines;
+}
+function QUIZ_bindMatch() {
+  var board = document.getElementById('match-board');
+  if (!board) return;
+  var drag = null;
+  function point(e) {
+    var r = board.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  board.addEventListener('pointerdown', function (e) {
+    var dot = e.target.closest('.match-dot[data-from]');
+    if (!dot) return;
+    e.preventDefault();
+    drag = { from: parseInt(dot.getAttribute('data-from'), 10), id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, dot: dot };
+    board.setPointerCapture(e.pointerId);
+  });
+  board.addEventListener('pointermove', function (e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 6) drag.moved = true;
+    QUIZ_drawMatch(drag.dot, point(e));
+  });
+  function finish(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    var hit = document.elementFromPoint(e.clientX, e.clientY);
+    var target = hit && hit.closest ? hit.closest('[data-to]') : null;
+    if (drag.moved && target) QUIZ_setMatch(drag.from, parseInt(target.getAttribute('data-to'), 10));
+    else if (!drag.moved) {
+      var current = QUIZ_matchAnswers()[drag.from];
+      if (current !== null && current !== undefined && current !== '') QUIZ_setMatch(drag.from, null);
+      else QUIZ_drawMatch();
+    } else QUIZ_drawMatch();
+    drag = null;
+  }
+  board.addEventListener('pointerup', finish);
+  board.addEventListener('pointercancel', finish);
+  if (!window.__quizMatchResize) {
+    window.__quizMatchResize = true;
+    window.addEventListener('resize', function () { if (document.getElementById('match-board')) QUIZ_drawMatch(); });
+  }
+  QUIZ_drawMatch();
 }
 function QUIZ_saveWrite(el) {
   QUIZ_userAnswers[QUIZ_currentQ] = el.value;
