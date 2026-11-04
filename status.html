@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Status</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=25"/>
+  <link rel="stylesheet" href="portal.css?v=26"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     .status-wrap { max-width: 1100px; }
     .status-lead { color:#6b7280; font-size:.92rem; margin:0 0 1rem; }
-    .status-search { width:100%; max-width:420px; border:1.5px solid #e4dffa; border-radius:12px; padding:.7rem .85rem; font-family:'DM Sans',sans-serif; font-size:.95rem; color:#16132b; background:#f5f2eb; margin-bottom:.85rem; }
+    .status-search { width:100%; max-width:420px; border:1.5px solid #e4dffa; border-radius:12px; padding:.7rem .85rem; font-family:'DM Sans',sans-serif; font-size:.95rem; color:#16132b; background:#fff; margin-bottom:.85rem; }
     .status-count { font-size:.78rem; color:#9ca3af; margin:0 0 .7rem; }
     .status-list { display:flex; flex-direction:column; gap:.55rem; margin-bottom:1rem; }
-    .status-card { text-align:left; background:#f5f2eb; border:1px solid rgba(124,58,237,.16); border-radius:12px; padding:.85rem 1rem; cursor:pointer; font-family:'DM Sans',sans-serif; color:#16132b; }
+    .status-card { text-align:left; background:#fff; border:1px solid rgba(124,58,237,.16); border-radius:12px; padding:.85rem 1rem; cursor:pointer; font-family:'DM Sans',sans-serif; color:#16132b; }
     .status-card strong { display:block; font-size:1rem; }
     .status-card .meta { color:#6b7280; font-size:.82rem; margin-top:.15rem; }
     .status-card .chips { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.45rem; }
@@ -22,19 +22,19 @@
     .status-card.active { border-color:#7c3aed; box-shadow:0 0 0 3px rgba(124,58,237,.12); }
     .status-empty { color:#6b7280; font-size:.92rem; margin:.4rem 0 1rem; }
     .status-tabs { display:flex; gap:.4rem; margin:.2rem 0 .8rem; }
-    .status-tab { border:1px solid #ddd6fe; background:#f5f2eb; color:#6d28d9; border-radius:999px; padding:.4rem .85rem; font-family:'DM Sans',sans-serif; font-weight:700; cursor:pointer; }
+    .status-tab { border:1px solid #ddd6fe; background:#fff; color:#6d28d9; border-radius:999px; padding:.4rem .85rem; font-family:'DM Sans',sans-serif; font-weight:700; cursor:pointer; }
     .status-tab.active { background:#7c3aed; color:#fff; border-color:#7c3aed; }
     .paper { background:#fffdfb; color:#1f1630; border:1px solid #eadff2; border-radius:14px; padding:1rem 1rem 1.2rem; }
     .paper-title { font-family:'Segoe Script','Brush Script MT',cursive; font-size:1.7rem; color:#5b3d73; line-height:1.1; }
     .paper-year, .paper-teacher { font-size:.82rem; color:#7c6a86; margin-bottom:.35rem; }
     .paper-head { display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:.55rem; margin:.7rem 0 .8rem; }
     .paper-head label { display:block; font-size:.62rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#9a6ea8; margin-bottom:.2rem; }
-    .paper-value { border:1px solid #e7d5ee; background:#f5f2eb; border-radius:8px; padding:.4rem .5rem; min-height:2rem; color:#1f1630; font-size:.85rem; }
+    .paper-value { border:1px solid #e7d5ee; background:#fff; border-radius:8px; padding:.4rem .5rem; min-height:2rem; color:#1f1630; font-size:.85rem; }
     .legend { display:flex; flex-wrap:wrap; gap:.45rem .8rem; font-size:.75rem; color:#6b5478; margin-bottom:.6rem; }
     .legend b { color:#5b3d73; }
     .att-scroll, .score-scroll { overflow-x:auto; }
     .att-table, .score-table { border-collapse:collapse; width:max-content; min-width:100%; }
-    .att-table th, .att-table td, .score-table th, .score-table td { border:1px solid #ead7f0; background:#f5f2eb; text-align:center; padding:.15rem; color:#1f1630; }
+    .att-table th, .att-table td, .score-table th, .score-table td { border:1px solid #ead7f0; background:#fff; text-align:center; padding:.15rem; color:#1f1630; }
     .att-table th { background:#f8eef6; font-size:.68rem; font-weight:800; color:#6b4c7a; }
     .att-table .month { text-align:left; padding:.25rem .45rem; font-size:.75rem; white-space:nowrap; background:#f8eef6; }
     .mark-cell { min-width:30px; width:30px; }
@@ -45,7 +45,7 @@
     .mk-p { color:#047857; } .mk-a { color:#b91c1c; } .mk-l { color:#b45309; } .mk-h { color:#6d28d9; }
     .att-total { min-width:42px; font-size:.72rem; font-weight:800; background:#f8eef6; }
     .sheet-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
-    .sheet-block { border:1px solid #ead7f0; border-radius:10px; overflow:hidden; background:#f5f2eb; }
+    .sheet-block { border:1px solid #ead7f0; border-radius:10px; overflow:hidden; background:#fff; }
     .sheet-block h3 { margin:0; padding:.45rem .65rem; background:#f8eef6; color:#6b3f86; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; }
     .score-table th { background:#fbf7fb; font-size:.65rem; font-weight:800; color:#6b4c7a; }
     .score-table td { min-width:34px; font-size:.78rem; font-weight:700; }
@@ -57,7 +57,7 @@
     .day-pill.on { background:#f5f3ff; color:#6d28d9; border-color:#ddd6fe; }
     .sched-time { font-size:.85rem; color:#1f1630; }
     .avg-row { display:flex; flex-wrap:wrap; gap:.4rem; padding:.65rem; }
-    .avg-box { min-width:72px; border:1px solid #ead7f0; border-radius:8px; padding:.35rem .4rem; text-align:center; background:#f5f2eb; }
+    .avg-box { min-width:72px; border:1px solid #ead7f0; border-radius:8px; padding:.35rem .4rem; text-align:center; background:#fff; }
     .avg-box span { display:block; font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#9a6ea8; }
     .avg-box strong { font-size:.95rem; color:#1f1630; }
     .avg-note { margin:0; padding:0 .65rem .65rem; font-size:.72rem; color:#8b7396; }

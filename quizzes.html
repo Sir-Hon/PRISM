@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Quizzes</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=25"/>
+  <link rel="stylesheet" href="portal.css?v=26"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
 
     /* -- QUIZ CARDS -- */
     .quiz-filter-row { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1.8rem; }
-    .q-filter-btn { padding:.5rem 1.1rem; border-radius:20px; border:1.5px solid #e4dffa; background:#f5f2eb; color:#6b7280; font-size:.88rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .q-filter-btn { padding:.5rem 1.1rem; border-radius:20px; border:1.5px solid #e4dffa; background:#fff; color:#6b7280; font-size:.88rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .q-filter-btn:hover         { border-color:#a78bfa; color:#7c3aed; }
     .q-filter-btn.active        { background:#7c3aed; color:white; border-color:#7c3aed; }
 
@@ -24,7 +24,7 @@
     }
 
     .quiz-card {
-      background:#f5f2eb; border-radius:18px; overflow:hidden;
+      background:#fff; border-radius:18px; overflow:hidden;
       box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.09);
       cursor:pointer; transition:transform .22s, box-shadow .22s;
       animation:fadeUp .4s ease both;
@@ -68,14 +68,14 @@
     .qz-overlay.active { display:flex; }
 
     .qz-modal {
-      background:#f5f2eb; border-radius:22px; width:620px; max-width:94vw; max-height:90vh;
+      background:#fff; border-radius:22px; width:620px; max-width:94vw; max-height:90vh;
       overflow-y:auto; box-shadow:0 24px 70px rgba(0,0,0,.22);
       animation:popIn .28s cubic-bezier(.34,1.56,.64,1);
     }
 
     @keyframes popIn { from{transform:scale(.88);opacity:0} to{transform:scale(1);opacity:1} }
 
-    .qz-modal-header { padding:2rem 2rem 1.2rem; border-bottom:1px solid #f0ecff; position:sticky; top:0; background:#f5f2eb; z-index:2; border-radius:22px 22px 0 0; }
+    .qz-modal-header { padding:2rem 2rem 1.2rem; border-bottom:1px solid #f0ecff; position:sticky; top:0; background:#fff; z-index:2; border-radius:22px 22px 0 0; }
     .qz-modal-header h2 { font-family:'DM Sans',sans-serif; font-size:1.35rem; font-weight:800; color:#16132b; margin-bottom:.3rem; }
     .qz-modal-header p  { font-size:.9rem; color:#9ca3af; margin:0; }
 
@@ -125,7 +125,7 @@
     .qz-close-btn:hover { background:#e4dffa; }
     .qz-modal { position:relative; }
     .qz-q-img { display:block; max-width:100%; max-height:240px; object-fit:contain; border-radius:12px; margin:0 0 .9rem; background:#faf8ff; }
-    .qz-write { width:100%; box-sizing:border-box; border:1.5px solid #e4dffa; border-radius:12px; padding:.85rem 1rem; font-size:.98rem; font-family:DM Sans,sans-serif; color:#16132b; outline:none; background:#f5f2eb; }
+    .qz-write { width:100%; box-sizing:border-box; border:1.5px solid #e4dffa; border-radius:12px; padding:.85rem 1rem; font-size:.98rem; font-family:DM Sans,sans-serif; color:#16132b; outline:none; background:#fff; }
     textarea.qz-write { min-height:120px; resize:vertical; }
     .mtf-line { display:flex; align-items:flex-start; gap:.75rem; }
     .mtf-blank { width:148px; flex-shrink:0; border:none; border-bottom:2px solid #7c3aed; background:#faf8ff; border-radius:10px 10px 0 0; padding:.7rem .75rem; font-size:1rem; font-weight:700; color:#16132b; }
@@ -135,7 +135,7 @@
     .qz-part-kicker { font-family:DM Sans,sans-serif; font-size:1.05rem; font-weight:800; color:#16132b; }
     .qz-part-dir { margin-top:.25rem; color:#4b5563; font-size:.92rem; line-height:1.45; }
     .qz-bank { display:flex; flex-wrap:wrap; gap:.45rem; margin-top:.7rem; padding:.7rem; border:1.5px dashed #c4b5fd; border-radius:12px; background:#faf8ff; }
-    .qz-bank-word { border:1px solid #ddd6fe; background:#f5f2eb; color:#5b21b6; border-radius:8px; padding:.35rem .65rem; font-family:DM Sans,sans-serif; font-size:.86rem; font-weight:700; cursor:pointer; }
+    .qz-bank-word { border:1px solid #ddd6fe; background:#fff; color:#5b21b6; border-radius:8px; padding:.35rem .65rem; font-family:DM Sans,sans-serif; font-size:.86rem; font-weight:700; cursor:pointer; }
     .qz-bank-word:hover { background:#ede9fe; }
     .match-connect { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:2.4rem; align-items:start; }
     .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; grid-column:1 / -1; grid-row:1 / -1; }
@@ -146,7 +146,7 @@
     .match-item span { flex:1; min-width:0; font-size:.92rem; font-weight:600; line-height:1.35; }
     .match-item.a { flex-direction:row; }
     .match-item.b { flex-direction:row; }
-    .match-dot { width:18px; height:18px; border-radius:50%; border:3px solid #7c3aed; background:#f5f2eb; padding:0; cursor:grab; flex-shrink:0; touch-action:none; position:relative; z-index:3; }
+    .match-dot { width:18px; height:18px; border-radius:50%; border:3px solid #7c3aed; background:#fff; padding:0; cursor:grab; flex-shrink:0; touch-action:none; position:relative; z-index:3; }
     .match-dot.used { background:var(--dot,#7c3aed); }
     .match-hint { margin:.7rem 0 0; font-size:.75rem; color:#6b7280; line-height:1.4; }
     html[data-theme="dark"] #shared-qz-modal [style*="color:#16132b"],
@@ -163,9 +163,9 @@
     .qz-missing { background:#fff7ed; border:1.5px solid #fdba74; color:#9a3412; border-radius:12px; padding:.85rem 1rem; margin-bottom:1rem; }
     .qz-missing strong { display:block; font-size:.95rem; }
     .qz-missing p { margin:.25rem 0 .45rem; font-size:.82rem; }
-    .qz-missing button { display:block; width:100%; text-align:left; margin-top:.35rem; background:#f5f2eb; border:1px solid #fdba74; border-radius:8px; padding:.45rem .65rem; color:#9a3412; font-weight:700; cursor:pointer; font-family:DM Sans,sans-serif; }
+    .qz-missing button { display:block; width:100%; text-align:left; margin-top:.35rem; background:#fff; border:1px solid #fdba74; border-radius:8px; padding:.45rem .65rem; color:#9a3412; font-weight:700; cursor:pointer; font-family:DM Sans,sans-serif; }
     .qz-pills { display:flex; flex-wrap:wrap; gap:.35rem; margin-bottom:.9rem; }
-    .qz-pill { width:32px; height:32px; border-radius:8px; border:1.5px solid #e4dffa; background:#f5f2eb; font-weight:800; cursor:pointer; color:#6b7280; font-family:DM Sans,sans-serif; }
+    .qz-pill { width:32px; height:32px; border-radius:8px; border:1.5px solid #e4dffa; background:#fff; font-weight:800; cursor:pointer; color:#6b7280; font-family:DM Sans,sans-serif; }
     .qz-pill.on { background:#ede9fe; border-color:#c4b5fd; color:#6d28d9; }
     .qz-pill.now { background:#7c3aed; color:#fff; border-color:#7c3aed; }
     .qz-pill.need { border-color:#f97316; color:#c2410c; }
@@ -224,6 +224,6 @@
 
 
 
-<script src="pages/quizzes.js?v=19"></script>
+<script src="pages/quizzes.js?v=20"></script>
 </body>
 </html>

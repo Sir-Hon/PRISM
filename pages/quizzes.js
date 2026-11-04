@@ -415,7 +415,7 @@ function QUIZ_open(qid, sourceQuizzes) {
   overlay.id = 'shared-qz-overlay';
   overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(10,10,20,.78);backdrop-filter:blur(8px);z-index:9999;align-items:center;justify-content:center;';
   overlay.innerHTML =
-    '<div id="shared-qz-modal" style="background:#f5f2eb;border-radius:22px;width:720px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.3);position:relative;">'
+    '<div id="shared-qz-modal" style="background:#fff;border-radius:22px;width:720px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.3);position:relative;">'
     + '<div id="quiz-security-banner" style="display:none;background:#fef3c7;color:#92400e;font-size:.82rem;font-weight:700;padding:.65rem 1.2rem;border-radius:12px 12px 0 0;text-align:center;"></div>'
     + '<div id="shared-qz-inner"></div>'
     + '</div>';
@@ -542,7 +542,7 @@ function QUIZ_renderQuestion() {
   var lockedBadge = '<div style="font-size:.72rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;">Quiz locked</div>';
   if (tlShow > 0 && QUIZ_active) QUIZ_ensureViewportTimer();
   document.getElementById('shared-qz-inner').innerHTML =
-    '<div style="padding:1.6rem 2rem 1rem;border-bottom:1px solid #f0ecff;position:sticky;top:0;background:#f5f2eb;z-index:2;border-radius:22px 22px 0 0;">'
+    '<div style="padding:1.6rem 2rem 1rem;border-bottom:1px solid #f0ecff;position:sticky;top:0;background:#fff;z-index:2;border-radius:22px 22px 0 0;">'
     + '<div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:.75rem;margin-bottom:.35rem;">'
     + '<div style="flex:1;min-width:0;font-size:.75rem;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.07em;">'+subj+'</div>'
     + '<div style="display:flex;align-items:flex-start;gap:.5rem;flex-shrink:0;margin-left:auto;">'
