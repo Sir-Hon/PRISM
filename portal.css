@@ -14,11 +14,11 @@
   --prism-dark:   #6d28d9;
   --prism-light:  #ede9fe;
   --prism-mid:    #a78bfa;
-  --sidebar-bg:   #fffcff;
+  --sidebar-bg:   #f3efe6;
   --sidebar-hover:#f3eefe;
   --sidebar-active:#ede9fe;
   --bg:           #f0ecff;
-  --surface:      #ffffff;
+  --surface:      #f5f2eb;
   --text:         #16132b;
   --text-muted:   #6b7280;
   --border:       #e4dffa;
@@ -819,7 +819,7 @@ html[data-theme="dark"] .paper input,
 html[data-theme="dark"] .paper textarea,
 html[data-theme="dark"] .paper select {
   color-scheme: light;
-  background: #fff !important;
+  background: #f5f2eb !important;
   color: #1f1630 !important;
   border-color: #e7d5ee !important;
   -webkit-text-fill-color: #1f1630;
@@ -959,7 +959,7 @@ html[data-theme="dark"] .cor-doc thead,
 html[data-theme="dark"] .cor-doc th,
 html[data-theme="dark"] .cor-doc td,
 html[data-theme="dark"] .cor-doc tr:hover td {
-  background: #fff !important;
+  background: #f5f2eb !important;
   color: #16132b !important;
 }
 
@@ -1054,7 +1054,7 @@ html[data-theme="dark"] .quiz-card,
 html[data-theme="dark"] .qz-modal,
 html[data-theme="dark"] .qz-modal-header,
 html[data-theme="dark"] .cor-card {
-  background-color: #fff;
+  background-color: #f5f2eb;
 }
 html[data-theme="dark"] .cal-cell.today .cell-num {
   color: #fff !important;
@@ -1112,7 +1112,7 @@ html[data-theme="dark"] .section-label-small { color: #d1d5db !important; }
   align-items: center;
   gap: .35rem;
   max-width: 100%;
-  background: #fff;
+  background: #f5f2eb;
   border: 1px solid #ddd6fe;
   color: #4c1d95;
   border-radius: 999px;
@@ -1155,7 +1155,7 @@ html[data-theme="dark"] .pf-chip button {
 html[data-theme="dark"] #shared-qz-modal input,
 html[data-theme="dark"] #shared-qz-modal textarea,
 html[data-theme="dark"] #shared-qz-modal select {
-  background: #fff !important;
+  background: #f5f2eb !important;
   color: #16132b !important;
   -webkit-text-fill-color: #16132b;
   border-color: #e4dffa !important;

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Roster</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=24"/>
+  <link rel="stylesheet" href="portal.css?v=25"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --a:#f59e0b; --a-dark:#d97706; --a-light:#fef3c7; }
@@ -18,21 +18,21 @@
     .admin-hero h1 { font-family:'DM Sans',sans-serif; font-size:1.7rem; font-weight:700; margin:0; }
     .admin-hero p { font-size:.95rem; color:rgba(255,255,255,.78); margin:.55rem 0 0; }
 
-    .page-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.4rem; box-shadow:0 4px 24px rgba(245,158,11,.10); width:fit-content; margin-bottom:1.4rem; border:1px solid rgba(245,158,11,.12); }
+    .page-tabs { display:flex; gap:.35rem; background:#f5f2eb; border-radius:14px; padding:.4rem; box-shadow:0 4px 24px rgba(245,158,11,.10); width:fit-content; margin-bottom:1.4rem; border:1px solid rgba(245,158,11,.12); }
     .page-tab { padding:.6rem 1.35rem; border-radius:10px; font-size:.92rem; font-weight:700; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; }
     .page-tab.active { background:var(--a); color:#fff; }
 
     .gc-head { display:flex; align-items:center; gap:.7rem; margin:0 0 1rem; }
     .gc-head h2 { font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:700; color:#202124; margin:0; }
-    .gc-plus { width:40px; height:40px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#d97706; font-size:1.55rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
+    .gc-plus { width:40px; height:40px; border-radius:50%; border:1.5px solid #dadce0; background:#f5f2eb; color:#d97706; font-size:1.55rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
     .gc-plus:hover { background:#fffbeb; border-color:#f59e0b; }
     .gc-back { width:40px; height:40px; border-radius:50%; border:1.5px solid rgba(255,255,255,.25); background:rgba(255,255,255,.08); color:#fff; font-size:1.15rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; }
-    .gc-back.on-card { border-color:#dadce0; background:#fff; color:#202124; }
+    .gc-back.on-card { border-color:#dadce0; background:#f5f2eb; color:#202124; }
     .gc-back:hover, .gc-back.on-card:hover { background:#fffbeb; border-color:#f59e0b; color:#202124; }
     .import-btn { margin-left:auto; border:1.5px solid #fde68a; background:#fffbeb; color:#92400e; border-radius:10px; padding:.55rem 1rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
 
     .main-content { min-width:0; }
-    .roster-panel { background:#fff; border:1px solid rgba(245,158,11,.14); border-radius:18px; padding:1.45rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 24px rgba(245,158,11,.08); min-width:0; max-width:100%; overflow:hidden; }
+    .roster-panel { background:#f5f2eb; border:1px solid rgba(245,158,11,.14); border-radius:18px; padding:1.45rem 1.5rem; margin-bottom:1.25rem; box-shadow:0 4px 24px rgba(245,158,11,.08); min-width:0; max-width:100%; overflow:hidden; }
     .table-scroll { overflow:auto; max-width:100%; }
     .roster-panel h2 { font-family:'DM Sans',sans-serif; font-size:1.15rem; margin:0; }
     .fields { display:grid; grid-template-columns:repeat(2, minmax(260px, 1fr)); gap:1.05rem 1.25rem; }
@@ -40,7 +40,7 @@
     .fields input, .fields select, .fields textarea, .search-bar input, .filter-row select {
       width:100%; border:1.5px solid #fde68a; border-radius:10px; padding:.72rem .9rem; font:inherit; font-size:.95rem; color:#16132b; background:#fef9e7;
     }
-    .fields input:focus, .fields select:focus, .fields textarea:focus, .search-bar input:focus, .filter-row select:focus { outline:none; border-color:#f59e0b; background:#fff; }
+    .fields input:focus, .fields select:focus, .fields textarea:focus, .search-bar input:focus, .filter-row select:focus { outline:none; border-color:#f59e0b; background:#f5f2eb; }
     .fields textarea { min-height:6rem; resize:vertical; }
     .fields .wide { grid-column:1 / -1; }
     .pw-wrap { display:flex; gap:.5rem; align-items:center; }
@@ -105,8 +105,8 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=25"></script>
-<script src="script.js?v=17"></script>
+<script src="api.js?v=29"></script>
+<script src="script.js?v=18"></script>
 <script src="portal-sidebar.js?v=23"></script>
 <div class="topbar">
   <a class="topbar-logo" href="admin.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>

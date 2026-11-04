@@ -4,6 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Prism Portal - Login</title>
+  <script>
+    try {
+      if (localStorage.getItem('prism_remember') === '1') document.documentElement.classList.add('prism-remembering');
+    } catch (e) {}
+  </script>
+  <style>html.prism-remembering body { visibility:hidden; }</style>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -127,6 +133,13 @@
     .pw-toggle { position:absolute; right:.75rem; top:50%; transform:translateY(-50%); background:none; border:none; color:#9ca3af; cursor:pointer; font-size:.75rem; font-weight:700; letter-spacing:.04em; text-transform:uppercase; padding:0; }
     .pw-toggle:hover { color:#d1d5db; }
 
+    .remember { position:relative; display:flex; align-items:center; gap:.6rem; margin:.05rem 0 .75rem; color:#d1d5db; font-size:.82rem; font-weight:600; cursor:pointer; user-select:none; }
+    .remember input { position:absolute; opacity:0; width:1px; height:1px; }
+    .remember-switch { width:34px; height:20px; border-radius:999px; background:#2a2a38; border:1px solid #3a3a4a; position:relative; flex-shrink:0; }
+    .remember-switch::after { content:''; position:absolute; top:2px; left:2px; width:14px; height:14px; border-radius:50%; background:#9ca3af; transition:transform .15s, background .15s; }
+    .remember input:checked + .remember-switch { background:var(--modal-accent, #7c3aed); border-color:transparent; }
+    .remember input:checked + .remember-switch::after { transform:translateX(14px); background:#fff; }
+    .remember input:focus-visible + .remember-switch { outline:2px solid var(--modal-accent, #7c3aed); outline-offset:2px; }
     .modal-submit { width:100%; padding:.62rem; border:none; border-radius:10px; background:var(--modal-accent,var(--prism)); color:#fff; font-family:'DM Sans',sans-serif; font-size:.9rem; font-weight:700; cursor:pointer; margin-top:.15rem; transition:opacity .2s; }
     .modal-submit:hover { opacity:.85; }
     .modal-submit.loading { opacity:.85; pointer-events:none; }
@@ -147,7 +160,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=25"></script>
+<script src="api.js?v=29"></script>
 <div class="wrapper">
   <div class="logo">
     <div class="logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>
@@ -180,6 +193,11 @@
         <button class="pw-toggle" type="button" onclick="togglePw()" aria-label="Show or hide password">Show</button>
       </div>
     </div>
+    <label class="remember">
+      <input type="checkbox" id="remember-me"/>
+      <span class="remember-switch" aria-hidden="true"></span>
+      <span>Remember me</span>
+    </label>
     <button type="submit" class="modal-submit" id="submit-btn">Sign In</button>
     </form>
     <div class="error-msg" id="login-error"></div>
@@ -189,6 +207,6 @@
   <p class="footer">&copy; 2026 Prism Portal &middot; CTU Daanbantayan</p>
 </div>
 
-<script src="pages/login.js?v=20"></script>
+<script src="pages/login.js?v=21"></script>
 </body>
 </html>

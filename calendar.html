@@ -5,13 +5,13 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
  <title>PRISM Calendar</title>
  <link rel="icon" type="image/png" href="Prismcrys.png"/>
- <link rel="stylesheet" href="portal.css?v=24"/>
+ <link rel="stylesheet" href="portal.css?v=25"/>
  <script src="portal-mobile.js?v=4" defer></script>
  <style>
  :root { --cal-accent: #7c3aed; --cal-dark: #6d28d9; }
 
  .cal-wrap {
- background: #fff;
+ background: #f5f2eb;
  border-radius: 18px;
  padding: 2rem;
  box-shadow: 0 4px 24px rgba(124,58,237,0.10);
@@ -106,18 +106,20 @@
  .no-events { color: #c4b5fd; font-size: 0.92rem; text-align: center; padding: 1.2rem 0; }
 
  /* Event modal */
- .ev-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 500; align-items: center; justify-content: center; }
+ .ev-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 500; align-items: center; justify-content: center; padding: 0.75rem; overflow: hidden; }
  .ev-overlay.active { display: flex; }
 
  .ev-modal {
- background: white; border-radius: 20px; padding: 2.2rem;
- width: 420px; max-width: 92vw;
+ background: #f5f2eb; border-radius: 20px; padding: 1.35rem 1.15rem 1.15rem;
+ width: min(420px, 100%); max-width: 100%; box-sizing: border-box;
+ max-height: calc(100vh - 1.5rem); max-height: calc(100dvh - 1.5rem);
+ overflow-y: auto;
  box-shadow: 0 20px 60px rgba(0,0,0,0.2); animation: popIn 0.28s cubic-bezier(0.34,1.56,0.64,1); position: relative;
  }
 
- .ev-modal h3 { font-family: 'DM Sans', sans-serif; font-size: 1.3rem; font-weight: 800; color: #16132b; margin-bottom: 1.3rem; }
+ .ev-modal h3 { font-family: 'DM Sans', sans-serif; font-size: 1.15rem; font-weight: 800; color: #16132b; margin-bottom: 0.9rem; padding-right: 2rem; }
 
- .ev-field { margin-bottom: 1.1rem; }
+ .ev-field { margin-bottom: 0.75rem; }
  .ev-field label { display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: #9ca3af; margin-bottom: 0.4rem; }
  .ev-field input, .ev-field select, .ev-field textarea {
  width: 100%; border: 1.5px solid #e4dffa; border-radius: 10px;
@@ -125,13 +127,13 @@
  color: #16132b; outline: none; transition: border-color 0.2s; background: #faf9ff;
  }
  .ev-field input:focus, .ev-field select:focus, .ev-field textarea:focus { border-color: var(--cal-accent); }
- .ev-field textarea { resize: vertical; min-height: 72px; }
+ .ev-field textarea { resize: vertical; min-height: 64px; }
 
  .color-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
  .color-chip { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform 0.2s, border-color 0.2s; }
  .color-chip:hover, .color-chip.selected { transform: scale(1.2); border-color: #16132b; }
 
- .ev-actions { display: flex; gap: 0.7rem; margin-top: 1.3rem; }
+ .ev-actions { display: flex; gap: 0.7rem; margin-top: 0.85rem; }
  .ev-btn { flex: 1; padding: 0.68rem; border: none; border-radius: 11px; font-size: 0.92rem; font-weight: 700; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: opacity 0.2s; }
  .ev-btn:hover { opacity: 0.85; }
  .ev-btn.save { background: var(--cal-accent); color: white; }
@@ -170,13 +172,40 @@
  html[data-theme="dark"] .ev-meta,
  html[data-theme="dark"] .no-events { color: #d1d5db !important; -webkit-text-fill-color: #d1d5db; }
  html[data-theme="dark"] .cal-cell.today .cell-num { color: #fff !important; -webkit-text-fill-color: #fff; }
+ html[data-theme="dark"] .ev-modal {
+   background: #1a1d2e;
+   border: 1px solid #2e3350;
+   color: #f3f4f6;
+ }
+ html[data-theme="dark"] .ev-modal h3,
+ html[data-theme="dark"] .ev-field label {
+   color: #f3f4f6 !important;
+   -webkit-text-fill-color: #f3f4f6;
+ }
+ html[data-theme="dark"] .ev-field label { color: #d1d5db !important; -webkit-text-fill-color: #d1d5db; }
+ html[data-theme="dark"] .ev-field input,
+ html[data-theme="dark"] .ev-field select,
+ html[data-theme="dark"] .ev-field textarea {
+   background: #241c3d !important;
+   color: #f5f3ff !important;
+   -webkit-text-fill-color: #f5f3ff;
+   border-color: #4c3d73 !important;
+ }
+ html[data-theme="dark"] .ev-btn.cancel,
+ html[data-theme="dark"] .ev-close {
+   background: #2a2450;
+   color: #f3f4f6;
+   -webkit-text-fill-color: #f3f4f6;
+ }
+ html[data-theme="dark"] .color-chip.selected,
+ html[data-theme="dark"] .color-chip:hover { border-color: #f3f4f6; }
  html[data-theme="dark"] .cal-cell.other-month { opacity: 0.55; }
  html[data-theme="dark"] .cal-nav-btns { flex-wrap: wrap; justify-content: center; }
  </style>
 </head>
 <body>
-<script src="api.js?v=25"></script>
-<script src="script.js?v=17"></script>
+<script src="api.js?v=29"></script>
+<script src="script.js?v=18"></script>
 <script src="portal-sidebar.js?v=23"></script>
 <!-- TOPBAR -->
 <div class="topbar">

@@ -333,6 +333,13 @@ function deskWhen(offset) {
   if (offset === 1) return 'Due tomorrow';
   return 'Due in ' + offset + ' days';
 }
+function deskClock(time) {
+  var raw = String(time || '').trim();
+  if (!raw || typeof prismFormatDueLine !== 'function') return '';
+  var line = prismFormatDueLine('2000-01-01', raw);
+  var cut = line.indexOf(' · ');
+  return cut === -1 ? '' : line.slice(cut + 3);
+}
 function deskEmpty(message) {
   return '<div class="p-empty"><div>' + profileEsc(message) + '</div></div>';
 }
@@ -445,7 +452,7 @@ async function loadTeacherDesk(gen) {
         href: 'teacher-class.html?class=' + encodeURIComponent(q._classId) + '&tab=quizzes',
         color: q._color,
         title: q.title || 'Untitled quiz',
-        sub: (q._subject || 'Class') + ' · Quiz · ' + deskWhen(offset)
+        sub: (q._subject || 'Class') + ' · Quiz · ' + deskWhen(offset) + (deskClock(q.due_time) ? ' · ' + deskClock(q.due_time) : '')
       });
     });
     assignments.forEach(function (a) {
@@ -456,7 +463,7 @@ async function loadTeacherDesk(gen) {
         href: 'teacher-class.html?class=' + encodeURIComponent(a._classId) + '&tab=assignments',
         color: a._color,
         title: a.title || 'Untitled assignment',
-        sub: (a._subject || 'Class') + ' · Assignment · ' + deskWhen(offset)
+        sub: (a._subject || 'Class') + ' · Assignment · ' + deskWhen(offset) + (deskClock(a.due_time) ? ' · ' + deskClock(a.due_time) : '')
       });
     });
     var events = [];

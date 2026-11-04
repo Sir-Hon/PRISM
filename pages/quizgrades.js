@@ -13,7 +13,7 @@ function QG_questions(quiz) {
   if (typeof qs === 'string') {
     try { qs = JSON.parse(qs || '[]'); } catch (e) { qs = []; }
   }
-  return Array.isArray(qs) ? qs : [];
+  return (Array.isArray(qs) ? qs : []).filter(function (q) { return q && q.type !== 'part'; });
 }
 function QG_parseList(raw) {
   if (Array.isArray(raw)) return raw;

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Account Management</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=24"/>
+  <link rel="stylesheet" href="portal.css?v=25"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --teacher:#10b981; --admin-c:#f59e0b; --student:#6366f1; }
@@ -14,7 +14,7 @@
     .security-grid { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; max-width:900px; }
     @media(max-width:700px){ .security-grid{ grid-template-columns:1fr; } }
 
-    .page-tabs { display:flex; gap:.35rem; background:#fff; border-radius:14px; padding:.38rem; box-shadow:0 4px 24px rgba(124,58,237,.10); width:fit-content; margin-bottom:2rem; flex-wrap:wrap; }
+    .page-tabs { display:flex; gap:.35rem; background:#f5f2eb; border-radius:14px; padding:.38rem; box-shadow:0 4px 24px rgba(124,58,237,.10); width:fit-content; margin-bottom:2rem; flex-wrap:wrap; }
     .page-tab  { padding:.58rem 1.4rem; border-radius:10px; font-size:.95rem; font-weight:600; cursor:pointer; border:none; background:none; color:#6b7280; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .page-tab:hover:not(.active) { background:#ede9fe; color:#7c3aed; }
     .page-tab.active             { background:#7c3aed; color:white; }
@@ -23,7 +23,7 @@
     .tab-panel.active { display:block; }
 
     /* -- CREATE ACCOUNT -- */
-    .create-card { background:#fff; border-radius:18px; padding:2.2rem; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.1); max-width:600px; animation:fadeUp .4s ease; }
+    .create-card { background:#f5f2eb; border-radius:18px; padding:2.2rem; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.1); max-width:600px; animation:fadeUp .4s ease; }
     .card-heading { font-family:'DM Sans',sans-serif; font-size:1.2rem; font-weight:800; color:#16132b; margin-bottom:.3rem; }
     .card-sub     { font-size:.9rem; color:#9ca3af; margin-bottom:1.6rem; }
 
@@ -43,7 +43,7 @@
     .f.full    { grid-column:1/-1; }
     .f label   { display:block; font-size:.75rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.45rem; }
     .f input, .f select   { width:100%; border:1.5px solid #e4dffa; border-radius:11px; padding:.75rem 1rem; color:#16132b; font-family:'DM Sans',sans-serif; font-size:.95rem; outline:none; transition:border-color .2s; background:#faf9ff; }
-    .f input:focus, .f select:focus { border-color:#a78bfa; background:#fff; }
+    .f input:focus, .f select:focus { border-color:#a78bfa; background:#f5f2eb; }
     .f-hint    { font-size:.72rem; color:#c4b5fd; margin-top:.3rem; }
 
     .pw-wrap { position:relative; }
@@ -63,7 +63,7 @@
     .invite-sub { font-size:.85rem; color:#9ca3af; margin-bottom:1.2rem; }
 
     .invite-grid { display:flex; flex-direction:column; }
-    .invite-row { background:#fff; border:1px solid #e4dffa; border-bottom:none; }
+    .invite-row { background:#f5f2eb; border:1px solid #e4dffa; border-bottom:none; }
     .invite-row:first-child { border-radius:12px 12px 0 0; }
     .invite-row:last-child { border-bottom:1px solid #e4dffa; border-radius:0 0 12px 12px; }
     .invite-row:only-child { border-radius:12px; }
@@ -78,7 +78,7 @@
     .invite-teacher-info span { width:7.2rem; flex-shrink:0; color:#9ca3af; font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding-top:.15rem; }
     .invite-empty { color:#c4b5fd; font-size:.9rem; margin:0; }
     .invite-search { width:100%; max-width:360px; border:1.5px solid #e4dffa; border-radius:10px; padding:.6rem .9rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#16132b; outline:none; background:#faf9ff; margin-bottom:.9rem; }
-    .invite-search:focus { border-color:#a78bfa; background:#fff; }
+    .invite-search:focus { border-color:#a78bfa; background:#f5f2eb; }
     .invite-row .copy-btn { background:none; border:1.5px solid #e4dffa; border-radius:7px; padding:2px 9px; font-size:.72rem; font-weight:700; color:#7c3aed; cursor:pointer; font-family:'DM Sans',sans-serif; }
     .invite-card { background:#faf9ff; border:1.5px solid #e4dffa; border-radius:14px; padding:1.2rem; position:relative; transition:border-color .2s; }
     .invite-card:hover { border-color:#a78bfa; }
@@ -103,11 +103,11 @@
 
     /* -- USERS TABLE -- */
     .users-controls { display:flex; gap:.8rem; align-items:center; flex-wrap:wrap; margin-bottom:1.3rem; }
-    .search-input   { flex:1; min-width:200px; border:1.5px solid #e4dffa; border-radius:11px; padding:.68rem 1.1rem; font-family:'DM Sans',sans-serif; font-size:.95rem; outline:none; transition:border-color .2s; background:#fff; color:#16132b; }
+    .search-input   { flex:1; min-width:200px; border:1.5px solid #e4dffa; border-radius:11px; padding:.68rem 1.1rem; font-family:'DM Sans',sans-serif; font-size:.95rem; outline:none; transition:border-color .2s; background:#f5f2eb; color:#16132b; }
     .search-input:focus { border-color:#a78bfa; }
 
     .filter-btns { display:flex; gap:.4rem; flex-wrap:wrap; }
-    .filter-btn  { padding:.48rem 1rem; border-radius:9px; border:1.5px solid #e4dffa; background:#fff; color:#6b7280; font-size:.82rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .filter-btn  { padding:.48rem 1rem; border-radius:9px; border:1.5px solid #e4dffa; background:#f5f2eb; color:#6b7280; font-size:.82rem; font-weight:600; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .filter-btn:hover           { border-color:#c4b5fd; color:#7c3aed; }
     .filter-btn.active-all      { border-color:#7c3aed;       color:#7c3aed;       background:rgba(124,58,237,.07); }
     .filter-btn.active-student  { border-color:var(--student); color:var(--student); background:rgba(99,102,241,.07); }
@@ -116,7 +116,7 @@
 
     .total-badge { font-size:.82rem; color:#6b7280; background:#f5f3ff; padding:5px 14px; border-radius:20px; border:1px solid #e4dffa; white-space:nowrap; }
 
-    .users-table-wrap { background:#fff; border-radius:18px; overflow:hidden; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.08); animation:fadeUp .4s ease; }
+    .users-table-wrap { background:#f5f2eb; border-radius:18px; overflow:hidden; box-shadow:0 4px 24px rgba(124,58,237,.10); border:1px solid rgba(124,58,237,.08); animation:fadeUp .4s ease; }
     html[data-theme="dark"] .users-table-wrap,
     html[data-theme="dark"] .card-heading,
     html[data-theme="dark"] .invite-heading { color:#f3f4f6 !important; }
@@ -177,8 +177,8 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=25"></script>
-<script src="script.js?v=17"></script>
+<script src="api.js?v=29"></script>
+<script src="script.js?v=18"></script>
 <script src="portal-sidebar.js?v=23"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
@@ -342,7 +342,7 @@
 </div>
 
 <div class="m-overlay" id="email-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;padding:1.4rem 1.3rem;width:min(420px,92vw);">
+  <div style="background:#f5f2eb;border-radius:16px;padding:1.4rem 1.3rem;width:min(420px,92vw);">
     <h3 style="font-family:'DM Sans',sans-serif;margin-bottom:.35rem;">Assign CTU email</h3>
     <p id="email-who" style="font-size:.88rem;color:#6b7280;margin-bottom:.9rem;"></p>
     <input id="email-input" type="email" placeholder="name.surname@ctu.edu.ph" autocomplete="off" style="width:100%;border:1.5px solid #e4dffa;border-radius:10px;padding:.65rem .85rem;font-family:'DM Sans',sans-serif;"/>

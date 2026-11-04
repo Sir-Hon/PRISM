@@ -237,7 +237,7 @@ async function syncStudentClassContent(classId, opts) {
       allAsgns[cid] = asgnList.map(function(a) {
         return normalizeAssignmentForUI(Object.assign({}, a, {
           due: a.due_date || a.due || '',
-          due_time: '',
+          due_time: a.due_time || '',
           pts: a.points || a.pts || 0,
         }));
       });
@@ -757,6 +757,7 @@ function normalizeAssignmentForUI(a) {
   o.target_section = o.target_section != null ? String(o.target_section).trim() : '';
   o.instructions = o.instructions != null ? o.instructions : '';
   if (!o.due) o.due = o.due_date || '';
+  o.due_time = o.due_time || o.dueTime || '';
   if (o.pts == null && o.points != null) o.pts = o.points;
   return o;
 }
@@ -980,7 +981,7 @@ function resolveStudentStreamAssignment(classId, p) {
 function studentWorkState(a, sub) {
   var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
   var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, a.due_time || null);
-  var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due) : (a.due || '');
+  var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due, a.due_time) : (a.due || '');
   if (hasSub) return { key: 'done', label: 'Turned in', rank: 2 };
   if (overdue) return { key: 'missing', label: 'Missing', rank: 0 };
   return { key: 'due', label: dueLine ? ('Due ' + dueLine) : 'Due', rank: 1 };
@@ -991,7 +992,7 @@ function studentAssignmentStreamHtml(classId, a) {
   var sub = getSubmissionMap(classId)[String(a.id)];
   var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
   var state = studentWorkState(a, sub);
-  var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due) : (a.due || '');
+  var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due, a.due_time) : (a.due || '');
   var overdue = state.key === 'missing';
   var instructions = String(a.instructions || '').trim();
   var metaBits = [];
@@ -1162,8 +1163,8 @@ async function openStudentAssignmentModal(classId, asgnId) {
   }
   a = normalizeAssignmentForUI(a);
   closeStudentAssignmentModal();
-  var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, null);
-  var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due) : a.due;
+  var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, a.due_time || null);
+  var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due, a.due_time) : a.due;
   var sid = asgnDomId(a.id);
   var subMap = getSubmissionMap(classId);
   var sub = subMap[String(a.id)];

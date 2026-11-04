@@ -392,7 +392,10 @@ function switchSub(name, btn) {
   document.querySelectorAll('#class-content > .sub-tabs > .sub-tab').forEach(t=>t.classList.remove('active'));
   var panel = document.getElementById('sub-' + name);
   if (panel) panel.classList.add('active');
-  if (btn) btn.classList.add('active');
+  var tab = document.querySelector('#class-content > .sub-tabs > .sub-tab[data-sub="' + name + '"]');
+  if (tab) tab.classList.add('active');
+  var pick = document.getElementById('class-sub-pick');
+  if (pick && pick.value !== name) pick.value = name;
   if (name === 'announcements') renderSubjectAnnouncements();
   if (name === 'quizzes') ensureClassQuizFrame();
   if (name === 'grades' && typeof QG_open === 'function') QG_open();
@@ -402,7 +405,7 @@ function switchSub(name, btn) {
 function ensureClassQuizFrame() {
   var frame = document.getElementById('class-quiz-frame');
   if (!frame || !activeClassId) return;
-  var next = 'quizmaker.html?embed=1&class=' + encodeURIComponent(activeClassId);
+  var next = 'quizmaker.html?embed=1&v=3&class=' + encodeURIComponent(activeClassId);
   if (frame.dataset.src !== next) {
     frame.dataset.src = next;
     frame.src = next;
@@ -870,7 +873,8 @@ function renderClasswork() {
   }
   function asgnRow(it) {
     var dStr = it.due_date || it.due || '';
-    var dueDisp = dStr && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(dStr) : dStr;
+    var dTime = it.due_time || '';
+    var dueDisp = dStr && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(dStr, dTime) : dStr;
     var attachPath = String(it.attach_file_path || it.attachFilePath || '').trim();
     var attachName = String(it.attach_file_name || it.attachFileName || 'file').trim();
     var attachMime = String(it.attach_mime || it.attachMime || '').trim();
@@ -986,6 +990,8 @@ async function addAssignment(){
   const title=document.getElementById('asgn-title').value.trim();
   if(!title){alert('Title is required.');return;}
   const due=document.getElementById('asgn-due').value;
+  const dueTimeEl=document.getElementById('asgn-due-time');
+  const dueTime=due && dueTimeEl && dueTimeEl.value ? dueTimeEl.value.trim() : '';
   const urlRaw = (document.getElementById('asgn-url') && document.getElementById('asgn-url').value || '').trim();
   let attachUrl = '';
   if (urlRaw) {
@@ -998,7 +1004,7 @@ async function addAssignment(){
     const asgnRes = await PrismAssignments.add({
       class_id:activeClassId, title,
       due: due||null,
-      due_time: null,
+      due_time: dueTime || null,
       pts:document.getElementById('asgn-pts').value,
       type:document.getElementById('asgn-type').value,
       instructions:document.getElementById('asgn-instructions').value.trim(),
@@ -1006,7 +1012,7 @@ async function addAssignment(){
       attach_url: attachUrl || '',
       file: _asgnFile || null,
     });
-    const dueLine = due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(due) : due;
+    const dueLine = due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(due, dueTime) : due;
     const streamAttach = (asgnRes && asgnRes.attach_file_path) ? asgnRes.attach_file_path : (attachUrl || null);
     await PrismPosts.add({
       class_id:activeClassId, teacherId:TEACHER_ID, type:'assignment',
@@ -1015,7 +1021,7 @@ async function addAssignment(){
       author:sessionStorage.getItem('prism_user_name')||'Teacher',
       target_section: assignmentTargetSection(),
     });
-    ['asgn-title','asgn-pts','asgn-instructions','asgn-due','asgn-url'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+    ['asgn-title','asgn-pts','asgn-instructions','asgn-due','asgn-due-time','asgn-url'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
     syncAsgnReady();
     closeClassworkComposer();
     clearAsgnFile();
@@ -1044,8 +1050,9 @@ function renderAssignments(){
   const btnBase = 'border:none;padding:.32rem .7rem;border-radius:8px;font-size:.72rem;font-weight:700;white-space:nowrap;cursor:pointer;text-decoration:none;';
   list.innerHTML=displayItems.map(it=>{
     const dStr = it.due_date||it.due||'';
-    const overdue = dStr && typeof prismIsPastDue === 'function' ? prismIsPastDue(dStr, null) : false;
-    const dueDisp = dStr && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(dStr) : dStr;
+    const dTime = it.due_time||'';
+    const overdue = dStr && typeof prismIsPastDue === 'function' ? prismIsPastDue(dStr, dTime) : false;
+    const dueDisp = dStr && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(dStr, dTime) : dStr;
     const attachPath = String(it.attach_file_path || it.attachFilePath || '').trim();
     const attachName = String(it.attach_file_name || it.attachFileName || 'file').trim();
     const attachMime = String(it.attach_mime || it.attachMime || '').trim();

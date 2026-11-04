@@ -71,6 +71,55 @@ function prismPortalSlug() {
 function prismPortalRole() {
   return PRISM_PORTAL_ROLES[prismPortalSlug()] || 'student';
 }
+var PRISM_RETURN_PAGES = {
+  student: ['index.html', 'calendar.html', 'notes.html', 'quizzes.html', 'profile.html', 'cor.html', 'status.html'],
+  teacher: ['teacher.html', 'teacher-class.html', 'quizmaker.html', 'records.html', 'grading.html', 'lesson.html', 'calendar.html', 'profile.html'],
+  admin: ['admin.html', 'manage.html', 'roster.html', 'cor.html', 'calendar.html', 'profile.html']
+};
+function prismRememberOn() {
+  try { return localStorage.getItem('prism_remember') === '1'; } catch (e) { return false; }
+}
+function prismRememberChoose(on) {
+  try {
+    if (on) localStorage.setItem('prism_remember', '1');
+    else {
+      localStorage.removeItem('prism_remember');
+      localStorage.removeItem('prism_return');
+    }
+  } catch (e) { /* ignore */ }
+}
+function prismRememberClear() {
+  prismRememberChoose(false);
+}
+function prismRememberTarget() {
+  var raw = '';
+  try { raw = localStorage.getItem('prism_return') || ''; } catch (e) { return ''; }
+  var cut = raw.indexOf('?');
+  var page = (cut === -1 ? raw : raw.slice(0, cut)).split('/').pop();
+  var search = cut === -1 ? '' : raw.slice(cut);
+  if (!/^[a-z0-9-]+\.html$/i.test(page)) return '';
+  if (search && !/^\?[A-Za-z0-9_.%=&+-]*$/.test(search)) return '';
+  if (search.length > 300) return '';
+  var role = prismPortalRole();
+  var allowed = PRISM_RETURN_PAGES[role] || [];
+  if (allowed.indexOf(page) === -1) return '';
+  return page + search;
+}
+function prismRememberSaveHere() {
+  try {
+    if (localStorage.getItem('prism_remember') !== '1') return;
+    if (window.top !== window.self) return;
+  } catch (e) { return; }
+  var search = window.location.search || '';
+  if (search.indexOf('embed=1') !== -1) return;
+  var page = ((window.location.pathname || '').split('/').pop() || '').split('#')[0];
+  if (!/^[a-z0-9-]+\.html$/i.test(page)) return;
+  var role = prismPortalRole();
+  var allowed = PRISM_RETURN_PAGES[role] || [];
+  if (allowed.indexOf(page) === -1) return;
+  if (search && !/^\?[A-Za-z0-9_.%=&+-]*$/.test(search)) search = '';
+  try { localStorage.setItem('prism_return', page + search.slice(0, 300)); } catch (e2) { /* ignore */ }
+}
 function prismStoreAdminAccess(data) {
   var role = data && data.role ? data.role : '';
   if (role !== 'admin') {
@@ -265,8 +314,10 @@ function prismFormatDueLine(dateStr, timeStr) {
   return ds + ' · ' + h12 + ':' + mm + ' ' + am;
 }
 
-function prismFormatAssignmentDue(dateStr) {
+function prismFormatAssignmentDue(dateStr, timeStr) {
   if (!dateStr) return '';
+  var t = timeStr != null ? String(timeStr).trim() : '';
+  if (t) return prismFormatDueLine(dateStr, t);
   const d = new Date(dateStr + 'T12:00:00');
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -649,6 +700,7 @@ const PrismAuth = {
       await apiCall('auth', 'logout', 'POST');
     } catch (e) { /* still leave the page */ }
     try { sessionStorage.clear(); } catch (e2) { /* ignore */ }
+    if (typeof prismRememberClear === 'function') prismRememberClear();
     window.location.href = 'login.html';
   },
 
@@ -837,6 +889,7 @@ const PrismAssignments = {
       fd.append('instructions', asgn.instructions || '');
       fd.append('pts', asgn.pts != null ? String(asgn.pts) : '0');
       if (asgn.due) fd.append('due', asgn.due);
+      if (asgn.due_time) fd.append('due_time', asgn.due_time);
       if (asgn.target_section != null && asgn.target_section !== '') {
         fd.append('target_section', asgn.target_section);
       }

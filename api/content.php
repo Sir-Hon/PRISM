@@ -523,6 +523,7 @@ if ($action === 'add_assignment') {
             'instructions' => $_POST['instructions'] ?? '',
             'pts' => $_POST['pts'] ?? 0,
             'due' => $_POST['due'] ?? null,
+            'due_time' => $_POST['due_time'] ?? null,
             'attach_url' => $_POST['attach_url'] ?? '',
             'target_section' => $_POST['target_section'] ?? '',
         ];
@@ -533,7 +534,14 @@ if ($action === 'add_assignment') {
     $id = uniqid('asgn_');
     $dueA     = $b['due'] ?? null;
     $dueA     = ($dueA !== null && $dueA !== '') ? $dueA : null;
-    $dueTimeA = null;
+    $dueTimeA = $b['due_time'] ?? null;
+    $dueTimeA = ($dueTimeA !== null && trim((string) $dueTimeA) !== '') ? trim((string) $dueTimeA) : null;
+    if ($dueTimeA !== null && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $dueTimeA)) {
+        $dueTimeA = null;
+    }
+    if ($dueA === null) {
+        $dueTimeA = null;
+    }
 
     $attach_url = prism_normalize_http_url($b['attach_url'] ?? '');
     $attach_url = $attach_url !== '' ? $attach_url : null;
@@ -697,7 +705,10 @@ if ($action === 'submit') {
     $note     = trim((string) ($b['note'] ?? ''));
 
     prism_assert_student_enrolled($db, $user['id'], $class_id);
-    $asgnClassChk = $db->prepare('SELECT class_id, due_date FROM assignments WHERE id = ?');
+    $dueCols = prism_table_has_column($db, 'assignments', 'due_time')
+        ? 'class_id, due_date, due_time'
+        : 'class_id, due_date';
+    $asgnClassChk = $db->prepare('SELECT ' . $dueCols . ' FROM assignments WHERE id = ?');
     $asgnClassChk->execute([$asgn_id]);
     $asgnClassRow = $asgnClassChk->fetch();
     if (!$asgnClassRow || $asgnClassRow['class_id'] !== $class_id) {
@@ -725,7 +736,7 @@ if ($action === 'submit') {
     $link_url = $link_url !== '' ? $link_url : null;
 
     $asgnRow = $asgnClassRow;
-    if ($asgnRow && !empty($asgnRow['due_date']) && prism_is_past_deadline($asgnRow['due_date'], null)) {
+    if ($asgnRow && !empty($asgnRow['due_date']) && prism_is_past_deadline($asgnRow['due_date'], $asgnRow['due_time'] ?? null)) {
         fail('The deadline for this assignment has passed. Please contact your teacher if you need more time.', 403);
     }
 

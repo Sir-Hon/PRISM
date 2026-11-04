@@ -5,7 +5,7 @@
  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
  <title>PRISM My Profile</title>
  <link rel="icon" type="image/png" href="Prismcrys.png"/>
- <link rel="stylesheet" href="portal.css?v=24"/>
+ <link rel="stylesheet" href="portal.css?v=25"/>
  <script src="portal-mobile.js?v=4" defer></script>
  <style>
  @keyframes fadeUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
@@ -138,7 +138,7 @@
 
  /* CARDS */
  .p-card {
- background: #fff;
+ background: #f5f2eb;
  border-radius: 18px;
  box-shadow: 0 4px 24px rgba(124,58,237,.09);
  border: 1px solid rgba(124,58,237,.08);
@@ -296,7 +296,7 @@
  .edit-overlay.active { display:flex; }
 
  .edit-modal {
- background:#fff; border-radius:22px; padding:2.2rem;
+ background:#f5f2eb; border-radius:22px; padding:2.2rem;
  width:440px; max-width:92vw;
  box-shadow:0 24px 70px rgba(0,0,0,.2);
  animation:popIn .28s cubic-bezier(.34,1.56,.64,1);
@@ -310,7 +310,7 @@
  padding:.72rem 1rem; font-size:.95rem; font-family:'DM Sans',sans-serif;
  color:#16132b; outline:none; transition:border-color .2s; background:#faf9ff;
  }
- .edit-field input:focus, .edit-field select:focus, .edit-field textarea:focus { border-color:#7c3aed; background:#fff; }
+ .edit-field input:focus, .edit-field select:focus, .edit-field textarea:focus { border-color:#7c3aed; background:#f5f2eb; }
  .edit-field textarea { resize:vertical; min-height:80px; }
 
  .edit-actions { display:flex; gap:.7rem; margin-top:1.4rem; }
@@ -360,8 +360,8 @@
  </style>
 </head>
 <body>
-<script src="api.js?v=25"></script>
-<script src="script.js?v=17"></script>
+<script src="api.js?v=29"></script>
+<script src="script.js?v=18"></script>
 <script src="portal-sidebar.js?v=23"></script>
 <!-- TOPBAR -->
 <div class="topbar">
@@ -545,6 +545,6 @@
  </div>
 </div>
 
-<script src="pages/profile.js?v=14"></script>
+<script src="pages/profile.js?v=15"></script>
 </body>
 </html>

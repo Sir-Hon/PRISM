@@ -261,6 +261,62 @@ function QUIZ_missingItems() {
   });
   return out;
 }
+function QUIZ_prepareQuestions(list) {
+  var part = null;
+  var partCount = 0;
+  var nInPart = 0;
+  var out = [];
+  (list || []).forEach(function (raw) {
+    if (!raw) return;
+    if (raw.type === 'part') {
+      partCount++;
+      nInPart = 0;
+      var box = Array.isArray(raw.box) ? raw.box : [];
+      part = {
+        n: partCount,
+        title: String(raw.title || '').trim(),
+        directions: String(raw.directions || '').trim(),
+        image: raw.image || '',
+        box: box.map(function (w) { return String(w || '').trim(); }).filter(Boolean)
+      };
+      return;
+    }
+    nInPart++;
+    var q = QUIZ_normalizeQuestion(raw);
+    q.part = part;
+    q.partNo = part ? nInPart : 0;
+    out.push(q);
+  });
+  return out;
+}
+function QUIZ_pickBank(i) {
+  var q = QUIZ_currentQuiz && QUIZ_currentQuiz.questions[QUIZ_currentQ];
+  if (!q || !q.part || !q.part.box || q.type === 'mc' || q.type === 'tf' || q.type === 'match') return;
+  var word = q.part.box[i];
+  if (!word) return;
+  QUIZ_userAnswers[QUIZ_currentQ] = word;
+  QUIZ_render();
+}
+function QUIZ_partHtml(q) {
+  var part = q && q.part;
+  if (!part) return '';
+  if (!part.title && !part.directions && !part.image && !(part.box && part.box.length)) return '';
+  var img = '';
+  if (part.image) {
+    var src = typeof prismResolveUploadUrl === 'function' ? prismResolveUploadUrl(part.image) : part.image;
+    if (src) img = '<img class="qz-q-img" src="' + QUIZ_esc(src) + '" alt="">';
+  }
+  var box = '';
+  if (part.box && part.box.length && q.type !== 'mc' && q.type !== 'tf' && q.type !== 'match') {
+    box = '<div class="qz-bank">' + part.box.map(function (word, i) {
+      return '<button type="button" class="qz-bank-word" onclick="QUIZ_pickBank(' + i + ')">' + QUIZ_esc(word) + '</button>';
+    }).join('') + '</div>';
+  }
+  var name = 'Part ' + part.n + (part.title ? '. ' + QUIZ_esc(part.title) : '');
+  return '<div class="qz-part"><div class="qz-part-kicker">' + name + '</div>'
+    + (part.directions ? '<div class="qz-part-dir">' + QUIZ_esc(part.directions) + '</div>' : '')
+    + img + box + '</div>';
+}
 function QUIZ_normalizeQuestion(raw) {
   var type = raw.type || 'mc';
   var out = {
@@ -323,7 +379,11 @@ function QUIZ_open(qid, sourceQuizzes) {
   }
   QUIZ_currentQuiz = JSON.parse(JSON.stringify(raw));
   QUIZ_currentQuiz.allowSkip = !!(raw.allowSkip || +raw.allow_skip);
-  QUIZ_currentQuiz.questions = QUIZ_currentQuiz.questions.map(QUIZ_normalizeQuestion);
+  QUIZ_currentQuiz.questions = QUIZ_prepareQuestions(QUIZ_currentQuiz.questions);
+  if (!QUIZ_currentQuiz.questions.length) {
+    alert('This quiz has no questions yet. Ask your teacher to publish it again.');
+    return;
+  }
   QUIZ_showMissing = false;
   QUIZ_currentQ    = 0;
   QUIZ_userAnswers = new Array(QUIZ_currentQuiz.questions.length).fill(null);
@@ -355,7 +415,7 @@ function QUIZ_open(qid, sourceQuizzes) {
   overlay.id = 'shared-qz-overlay';
   overlay.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(10,10,20,.78);backdrop-filter:blur(8px);z-index:9999;align-items:center;justify-content:center;';
   overlay.innerHTML =
-    '<div id="shared-qz-modal" style="background:#fff;border-radius:22px;width:720px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.3);position:relative;">'
+    '<div id="shared-qz-modal" style="background:#f5f2eb;border-radius:22px;width:720px;max-width:95vw;max-height:92vh;overflow-y:auto;box-shadow:0 24px 70px rgba(0,0,0,.3);position:relative;">'
     + '<div id="quiz-security-banner" style="display:none;background:#fef3c7;color:#92400e;font-size:.82rem;font-weight:700;padding:.65rem 1.2rem;border-radius:12px 12px 0 0;text-align:center;"></div>'
     + '<div id="shared-qz-inner"></div>'
     + '</div>';
@@ -445,8 +505,9 @@ function QUIZ_renderQuestion() {
         + QUIZ_esc(ch) + '</div>';
     });
   } else if (q.type === 'mtf') {
+    var mtfNo = q.partNo || (QUIZ_currentQ + 1);
     choicesHtml = '<div class="mtf-line"><input id="qz-write-' + QUIZ_currentQ + '" class="mtf-blank" value="' + QUIZ_esc(sel || '') + '" placeholder="Answer" oninput="QUIZ_saveWrite(this)">'
-      + '<div class="mtf-stem"><span class="mtf-no">' + (QUIZ_currentQ + 1) + '.</span>' + QUIZ_esc(q.q) + '</div></div>';
+      + '<div class="mtf-stem"><span class="mtf-no">' + mtfNo + '.</span>' + QUIZ_esc(q.q) + '</div></div>';
   } else if (q.type === 'match') {
     var leftCol = (q.pairs || []).map(function (p, i) {
       return '<div class="match-item a"><span>' + QUIZ_esc(p.left) + '</span><button type="button" class="match-dot" data-from="' + i + '" aria-label="Connect ' + QUIZ_esc(p.left) + '"></button></div>';
@@ -481,7 +542,7 @@ function QUIZ_renderQuestion() {
   var lockedBadge = '<div style="font-size:.72rem;font-weight:700;background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;flex-shrink:0;white-space:nowrap;">Quiz locked</div>';
   if (tlShow > 0 && QUIZ_active) QUIZ_ensureViewportTimer();
   document.getElementById('shared-qz-inner').innerHTML =
-    '<div style="padding:1.6rem 2rem 1rem;border-bottom:1px solid #f0ecff;position:sticky;top:0;background:#fff;z-index:2;border-radius:22px 22px 0 0;">'
+    '<div style="padding:1.6rem 2rem 1rem;border-bottom:1px solid #f0ecff;position:sticky;top:0;background:#f5f2eb;z-index:2;border-radius:22px 22px 0 0;">'
     + '<div style="display:flex;align-items:flex-start;justify-content:space-between;width:100%;gap:.75rem;margin-bottom:.35rem;">'
     + '<div style="flex:1;min-width:0;font-size:.75rem;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.07em;">'+subj+'</div>'
     + '<div style="display:flex;align-items:flex-start;gap:.5rem;flex-shrink:0;margin-left:auto;">'
@@ -494,7 +555,8 @@ function QUIZ_renderQuestion() {
     + '<div style="padding:1.5rem 2rem 2rem;">'
     + QUIZ_missingHtml(missing)
     + pills
-    + '<div style="font-size:.78rem;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem;">Question '+(QUIZ_currentQ+1)+' / '+tot+' \u00b7 '+QUIZ_esc(QUIZ_typeLabel(q.type))+'</div>'
+    + '<div style="font-size:.78rem;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.5rem;">Question '+(q.partNo||(QUIZ_currentQ+1))+(q.partNo?'':' / '+tot)+' \u00b7 '+QUIZ_esc(QUIZ_typeLabel(q.type))+'</div>'
+    + QUIZ_partHtml(q)
     + imgHtml
     + (q.type==='mtf' ? '' : '<div style="font-size:1.05rem;font-weight:700;color:#16132b;margin-bottom:1.2rem;line-height:1.55;">'+QUIZ_esc(q.q)+'</div>')
     + choicesHtml + feedbackHtml

@@ -68,6 +68,7 @@
       return;
     }
     document.documentElement.classList.remove('prism-loading');
+    if (typeof prismRememberSaveHere === 'function') prismRememberSaveHere();
   }
 
   var allowed = PAGE_ROLES[currentPage];
@@ -83,6 +84,7 @@
     return;
   }
   document.documentElement.classList.remove('prism-loading');
+  if (typeof prismRememberSaveHere === 'function') prismRememberSaveHere();
 })();
 
 document.addEventListener('click', function (e) {
@@ -101,6 +103,7 @@ function logout() {
   if (!confirm('Are you sure you want to log out?')) return;
   var go = function () {
     try { sessionStorage.clear(); } catch (e) { /* ignore */ }
+    if (typeof prismRememberClear === 'function') prismRememberClear();
     window.location.href = 'login.html';
   };
   if (typeof PrismAuth !== 'undefined' && PrismAuth.logout) {
