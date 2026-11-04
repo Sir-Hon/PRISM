@@ -251,7 +251,7 @@ nav { display: none !important; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #4b5563;
+  color: #d1d5db;
   padding: 0 1.3rem;
   margin: 0.5rem 0 0.35rem;
 }
@@ -627,6 +627,9 @@ body.sidebar-open {
   .page-header h1 { font-size: 1.4rem; letter-spacing: -0.3px; }
   .page-header p { font-size: 0.92rem; }
   .main-content > * { min-width: 0; max-width: 100%; }
+  .page-tabs { width: 100%; max-width: 100%; }
+  .page-tab { padding: .55rem .85rem; }
+  img, video, iframe, table { max-width: 100%; }
 }
 
 /* ── DARK MODE ── */
@@ -891,9 +894,15 @@ html[data-theme="dark"] .sidebar-link {
   color: #d1d5db !important;
 }
 
+html[data-theme="dark"] .page-tab:hover:not(.active) {
+  background: #2a2450 !important;
+  color: #f3f4f6 !important;
+}
+
 html[data-theme="dark"] .page-tab.active {
   background: #f59e0b !important;
   color: #1c1300 !important;
+  -webkit-text-fill-color: #1c1300;
 }
 
 html[data-theme="dark"] .sidebar-link.active {
@@ -1003,10 +1012,6 @@ html[data-theme="dark"] .quiz-card .quiz-title,
 html[data-theme="dark"] .qz-modal,
 html[data-theme="dark"] .qz-modal h2,
 html[data-theme="dark"] .qz-question,
-html[data-theme="dark"] .ev-item,
-html[data-theme="dark"] .ev-item .ev-title,
-html[data-theme="dark"] .cal-cell,
-html[data-theme="dark"] .cal-cell .cell-num,
 html[data-theme="dark"] .cor-card,
 html[data-theme="dark"] .cor-card h2,
 html[data-theme="dark"] .cor-card strong,
@@ -1017,8 +1022,6 @@ html[data-theme="dark"] .cor-choice strong {
 html[data-theme="dark"] .quiz-card,
 html[data-theme="dark"] .qz-modal,
 html[data-theme="dark"] .qz-modal-header,
-html[data-theme="dark"] .ev-item,
-html[data-theme="dark"] .cal-cell,
 html[data-theme="dark"] .cor-card {
   background-color: #fff;
 }
@@ -1033,6 +1036,11 @@ html[data-theme="dark"] .notes-topbar h2 {
   color: #f3f4f6 !important;
   -webkit-text-fill-color: #f3f4f6;
 }
+html[data-theme="dark"] .fmt-bar,
+html[data-theme="dark"] .note-list-panel {
+  border-color: #2e3350 !important;
+}
+html[data-theme="dark"] .section-label-small { color: #d1d5db !important; }
 
 .prism-file-zone {
   display: flex;

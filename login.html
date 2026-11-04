@@ -60,7 +60,7 @@
       font-weight:600;
       font-size:0.62em;
       letter-spacing:0.2em;
-      color: rgba(229, 231, 235, 0.42);
+      color: rgba(229, 231, 235, 0.82);
       text-transform: uppercase;
     }
     .subtitle { display:none; }
@@ -84,7 +84,7 @@
     .card.admin   .card-icon { background:linear-gradient(145deg,#f59e0b,#d97706); box-shadow:0 8px 18px rgba(245,158,11,.28); }
 
     .card-label { font-family:'DM Sans',sans-serif; font-size:1.05rem; font-weight:700; color:#e5e7eb; }
-    .card-desc  { font-size:.76rem; color:#4b5563; text-align:center; line-height:1.5; }
+    .card-desc  { font-size:.76rem; color:#9ca3af; text-align:center; line-height:1.5; }
 
     .card-btn { margin-top:.3rem; width:100%; padding:.6rem; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.87rem; font-weight:600; cursor:pointer; transition:opacity .2s; color:#fff; }
     .card-btn:hover { opacity:.85; }
@@ -115,11 +115,12 @@
 
     .modal-role-badge { display:inline-flex; align-items:center; justify-content:center; gap:.4rem; font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; padding:2px 9px; border-radius:20px; margin:0 auto .45rem; }
     .modal-title { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:800; color:#f0f0f5; margin:0; text-align:center; }
-    .modal-sub   { font-size:.75rem; color:#6b7280; margin:.28rem 0 0; text-align:center; }
+    .modal-sub   { font-size:.75rem; color:#9ca3af; margin:.28rem 0 0; text-align:center; }
 
     .field { margin-bottom:.7rem; text-align:left; }
     .field label { display:block; font-size:.68rem; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:.08em; margin-bottom:.28rem; }
-    .field input { width:100%; background:#0e0e16; border:1.5px solid #22222e; border-radius:9px; padding:.55rem .75rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:.88rem; outline:none; transition:border-color .2s; }
+    .field input { width:100%; background:#0e0e16; border:1.5px solid #3a3a4a; border-radius:9px; padding:.55rem .75rem; color:#f0f0f5; font-family:'DM Sans',sans-serif; font-size:16px; outline:none; transition:border-color .2s; }
+    #input-pw { padding-right:4.4rem; }
     .field input:focus { border-color:var(--modal-accent,var(--prism)); }
 
     .pw-wrap { position:relative; }
@@ -136,7 +137,11 @@
 
     .access-note { display:none; }
 
-    .footer { margin-top:.85rem; font-size:.72rem; color:#374151; }
+    .footer { margin-top:.85rem; font-size:.72rem; color:#9ca3af; }
+    @media (max-width:420px) {
+      .wrapper { padding:1rem .85rem 1.4rem; }
+      .modal { max-width:none; }
+    }
 
     
   </style>

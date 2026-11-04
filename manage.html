@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Account Management</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=21"/>
+  <link rel="stylesheet" href="portal.css?v=22"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --teacher:#10b981; --admin-c:#f59e0b; --student:#6366f1; }
@@ -132,13 +132,29 @@
     html[data-theme="dark"] .clear-btn { color:#fecaca !important; border-color:#fca5a5 !important; }
     html[data-theme="dark"] .filter-btn,
     html[data-theme="dark"] .total-badge { background:#24283d !important; color:#f3f4f6 !important; border-color:#3d4468 !important; }
+    html[data-theme="dark"] .filter-btn.active-all { color:#ddd6fe !important; border-color:#a78bfa !important; }
+    html[data-theme="dark"] .filter-btn.active-student { color:#c7d2fe !important; border-color:#818cf8 !important; }
+    html[data-theme="dark"] .filter-btn.active-teacher { color:#a7f3d0 !important; border-color:#34d399 !important; }
+    html[data-theme="dark"] .filter-btn.active-admin { color:#fde68a !important; border-color:#f59e0b !important; }
     html[data-theme="dark"] .role-tag.student { color:#c7d2fe !important; background:rgba(99,102,241,.28) !important; }
     html[data-theme="dark"] .role-tag.teacher { color:#a7f3d0 !important; background:rgba(16,185,129,.22) !important; }
     html[data-theme="dark"] .role-tag.admin,
     html[data-theme="dark"] .role-tag.superadmin { color:#fde68a !important; background:rgba(245,158,11,.22) !important; }
-    html[data-theme="dark"] .perm-grid label,
-    html[data-theme="dark"] .type-pill { color:#f3f4f6 !important; }
-    html[data-theme="dark"] .type-pill.selected { color:#fde68a !important; }
+    html[data-theme="dark"] .perm-grid label { color:#f3f4f6 !important; }
+    html[data-theme="dark"] .type-pill {
+      background:#24283d !important; border-color:#3d4468 !important;
+      color:#f3f4f6 !important; -webkit-text-fill-color:#f3f4f6;
+    }
+    html[data-theme="dark"] .type-pill.selected {
+      background:#3b2a08 !important; border-color:#f59e0b !important;
+      color:#fde68a !important; -webkit-text-fill-color:#fde68a;
+    }
+    @media (max-width:640px) {
+      .form-grid, .perm-grid { grid-template-columns:1fr; }
+      .page-tabs { width:100%; }
+      .create-card { padding:1.15rem 1rem; }
+      .type-pill { min-height:40px; }
+    }
     table { width:100%; border-collapse:collapse; }
     thead { background:#faf9ff; }
     th    { padding:.85rem 1.2rem; font-size:.75rem; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.07em; text-align:left; border-bottom:1px solid #f0ecff; }

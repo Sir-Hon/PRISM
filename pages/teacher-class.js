@@ -387,15 +387,18 @@ function renderWorkspaceSectionPills() {
   if (activeWorkspaceSection !== '__all__' && sections.indexOf(activeWorkspaceSection) < 0) {
     sections = [...sections, activeWorkspaceSection].sort();
   }
-  wrap.style.display = 'block';
-  let html = '<div style="font-size:.72rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.45rem;">Materials &amp; assignments — filter by section</div>'
-    + '<div class="section-pills">';
-  html += '<button type="button" class="section-pill' + (activeWorkspaceSection === '__all__' ? ' active' : '') + '" data-sec="__all__">All Sections</button>';
+  if (!sections.length) { wrap.style.display = 'none'; wrap.innerHTML = ''; return; }
+  wrap.style.display = 'flex';
+  wrap.style.alignItems = 'center';
+  wrap.style.gap = '.45rem';
+  wrap.style.flexWrap = 'wrap';
+  let html = '<span style="font-size:.72rem;font-weight:700;color:#9ca3af;">Section</span><div class="section-pills" style="margin:0;">';
+  html += '<button type="button" class="section-pill' + (activeWorkspaceSection === '__all__' ? ' active' : '') + '" data-sec="__all__">All</button>';
   sections.forEach(sec => {
     const esc = String(sec).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     html += '<button type="button" class="section-pill' + (activeWorkspaceSection === sec ? ' active' : '') + '" data-sec="' + esc + '">' + esc + '</button>';
   });
-  html += '</div><p style="font-size:.74rem;color:#6b7280;margin:.5rem 0 0;line-height:1.45;">New uploads, assignments, and announcements use the section you pick here.</p>';
+  html += '</div>';
   wrap.innerHTML = html;
   wrap.querySelectorAll('.section-pill').forEach(btn => {
     btn.onclick = function() {
@@ -419,25 +422,14 @@ function renderWorkspacePage() {
     const asgn = getAssignments()[activeClassId] || [];
     stEl.textContent = nStud + ' student' + (nStud === 1 ? '' : 's') + ' · ' + mats.length + ' material' + (mats.length === 1 ? '' : 's') + ' · ' + asgn.length + ' assignment' + (asgn.length === 1 ? '' : 's');
   }
-  const scopeEl = document.getElementById('teacher-class-scope-banner');
-  if (scopeEl) {
-    const subj = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'This class');
-    const safe = String(subj).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
-    scopeEl.style.display = 'block';
-    scopeEl.innerHTML = '<strong style="font-family:DM Sans,sans-serif;font-size:.92rem;">' + safe + '</strong>'
-      + '<span style="display:block;margin-top:.4rem;opacity:.95;font-weight:500;">Announcements, materials, assignments, and records for this subject.</span>';
-  }
   loadWorkspaceSectionForClass(activeClassId);
   renderWorkspaceSectionPills();
   const jcEl = document.getElementById('join-code-display');
   if (jcEl) {
     const jc = (cls.code || '').replace(/'/g, "\\'");
-    jcEl.innerHTML = `
-      <span style="font-size:.78rem;color:#9ca3af;margin-right:.5rem;">Join Code:</span>
-      <span style="font-family:'DM Sans',sans-serif;font-size:1.1rem;font-weight:800;color:#10b981;letter-spacing:.1em;">${cls.code || '—'}</span>
-      <button type="button" onclick="copyJoinCode('${jc}', this)" style="margin-left:.6rem;background:none;border:1.5px solid #d1fae5;border-radius:7px;padding:2px 9px;font-size:.75rem;font-weight:700;color:#065f46;cursor:pointer;">Copy</button>
-      <button onclick="regenJoinCode('${cls.id}')" style="margin-left:.3rem;background:none;border:1.5px solid #fde68a;border-radius:7px;padding:2px 9px;font-size:.75rem;font-weight:700;color:#92400e;cursor:pointer;">New Code</button>
-    `;
+    jcEl.innerHTML = '<span class="tc-code">' + (cls.code || '—') + '</span>'
+      + '<button type="button" class="tc-code-btn" onclick="copyJoinCode(\'' + jc + '\', this)">Copy</button>'
+      + '<button type="button" class="tc-code-btn" onclick="regenJoinCode(\'' + cls.id + '\')">New code</button>';
   }
 }
 

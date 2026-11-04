@@ -5,17 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Subject workspace</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=21"/>
+  <link rel="stylesheet" href="portal.css?v=22"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
 
-    .teacher-hero { border-radius:12px; padding:1.5rem 1.75rem; background:#064e3b; color:white; margin-bottom:1.5rem; position:relative; overflow:hidden; }
-    .teacher-hero::before { display:none; }
-    .teacher-hero-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#6ee7b7; margin-bottom:.4rem; position:relative; }
-    .teacher-hero h1 { font-family:'DM Sans',sans-serif; font-size:1.65rem; font-weight:700; margin-bottom:.3rem; position:relative; }
-    .teacher-hero p  { font-size:.9rem; color:rgba(255,255,255,.75); position:relative; }
-    .teacher-hero-gem { display:none; }
+    .teacher-hero { display:flex; align-items:center; gap:.55rem 1rem; flex-wrap:wrap; border-radius:12px; padding:.6rem .9rem; background:#064e3b; color:white; margin-bottom:.65rem; }
+    .teacher-hero-label, #tc-subject-desc, #teacher-class-scope-banner { display:none !important; }
+    .tc-back { color:rgba(255,255,255,.92); font-size:.78rem; font-weight:700; text-decoration:none; white-space:nowrap; }
+    .tc-title-block { min-width:0; }
+    .teacher-hero h1 { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:700; margin:0; line-height:1.2; }
+    #tc-class-stats { margin:.1rem 0 0; font-size:.75rem; font-weight:600; color:rgba(255,255,255,.72); }
+    #join-code-display { margin-left:auto; display:flex; align-items:center; gap:.35rem; background:rgba(255,255,255,.12); border-radius:9px; padding:.28rem .5rem; }
+    .tc-code { font-family:'DM Sans',sans-serif; font-weight:800; letter-spacing:.08em; color:#fff; font-size:.92rem; }
+    .tc-code-btn { background:transparent; border:1px solid rgba(255,255,255,.4); color:#fff; border-radius:7px; padding:2px 8px; font-size:.72rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .tc-code-btn:hover { background:rgba(255,255,255,.16); }
 
     .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem; margin-bottom:2rem; }
     .stat-card { background:#fff; border-radius:16px; padding:1.2rem 1.4rem; box-shadow:0 4px 18px rgba(16,185,129,.09); border:1px solid rgba(16,185,129,.09); animation:fadeUp .4s ease both; }
@@ -29,7 +33,7 @@
     .class-tab.active { background:var(--t); color:white; }
 
     /* SUB TABS � within a class */
-    .sub-tabs { display:flex; gap:.25rem; margin-bottom:1.5rem; border-bottom:2px solid #f0fdf4; padding-bottom:.4rem; flex-wrap:wrap; }
+    .sub-tabs { display:flex; gap:.25rem; margin-bottom:.75rem; border-bottom:2px solid #f0fdf4; padding-bottom:.35rem; flex-wrap:wrap; }
     .sub-tab { padding:.45rem 1rem; border-radius:8px 8px 0 0; font-size:.88rem; font-weight:600; cursor:pointer; border:none; background:none; color:#9ca3af; font-family:'DM Sans',sans-serif; transition:all .15s; }
     .sub-tab:hover:not(.active) { color:var(--t); }
     .sub-tab.active { color:var(--t); border-bottom:2px solid var(--t); margin-bottom:-2px; }
@@ -225,8 +229,38 @@
     .avg-box { min-width:72px; border:1px solid #ead7f0; border-radius:8px; padding:.35rem .4rem; text-align:center; background:#fff; }
     .avg-box span { display:block; font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#9a6ea8; }
     .avg-box strong { font-size:.95rem; color:#1f1630; }
+    .asgn-pair { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; margin-bottom:.9rem; }
     @media(max-width:900px){ .sheet-grid { grid-template-columns:1fr; } .paper-head { grid-template-columns:1fr 1fr; } }
-    @media(max-width:640px){ .stats-row{grid-template-columns:1fr 1fr;} }
+    @media(max-width:640px){
+      .stats-row{grid-template-columns:1fr 1fr;}
+      .teacher-hero { align-items:flex-start; padding:.7rem .75rem; }
+      .teacher-hero h1 { font-size:1.05rem; }
+      #join-code-display { margin-left:0; width:100%; flex-wrap:wrap; }
+      .tc-code-btn { min-height:36px; padding:.35rem .7rem; }
+      .sub-tab { padding:.5rem .7rem; font-size:.82rem; }
+      .t-card { padding:1rem; }
+      .asgn-pair { grid-template-columns:1fr; }
+      .paper-head { grid-template-columns:1fr; }
+    }
+    html[data-theme="dark"] .sub-tab { color:#d1d5db; }
+    html[data-theme="dark"] .sub-tab.active { color:#6ee7b7; border-bottom-color:#6ee7b7; }
+    html[data-theme="dark"] .sub-tabs { border-bottom-color:#2e3350; }
+    html[data-theme="dark"] .class-tab { color:#d1d5db; }
+    html[data-theme="dark"] .class-tab.active { color:#fff; }
+    html[data-theme="dark"] .section-pill { background:#1e2438; color:#e5e7eb; border-color:#3d4468; }
+    html[data-theme="dark"] .section-pill.active { background:#059669; color:#fff; border-color:#059669; }
+    html[data-theme="dark"] #teacher-section-pills-wrap > span { color:#d1d5db !important; }
+    html[data-theme="dark"] .m-field label,
+    html[data-theme="dark"] .qm-field label,
+    html[data-theme="dark"] .sheet-bar label { color:#d1d5db; }
+    html[data-theme="dark"] #mat-drop-zone,
+    html[data-theme="dark"] #asgn-drop-zone { background:#1b2433 !important; border-color:#3d5c4f !important; }
+    html[data-theme="dark"] #mat-drop-label,
+    html[data-theme="dark"] #asgn-drop-label,
+    html[data-theme="dark"] #mat-drop-label span,
+    html[data-theme="dark"] #asgn-drop-label span { color:#e5e7eb !important; }
+    html[data-theme="dark"] #teacher-mat-filter-wrap { background:#1a1d2e !important; border-color:#2e3350 !important; }
+    html[data-theme="dark"] #teacher-mat-filter-wrap span { color:#d1d5db !important; }
   </style>
 </head>
 <body>
@@ -260,21 +294,16 @@
 
   <main class="main-content">
 
-    <div class="teacher-hero" style="padding-bottom:2rem;">
-      <a href="teacher.html" style="display:inline-flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:700;color:rgba(255,255,255,.9);text-decoration:none;margin-bottom:.75rem;opacity:.95;">&larr; Back to classes</a>
-      <div class="teacher-hero-label">Subject workspace</div>
-      <h1 id="tc-subject-title">Subject</h1>
-      <p id="tc-subject-desc">Post PDFs, images, videos, slides, and website links as materials or assignment sources. Use the section filter so items reach the right students.</p>
-</div>
+    <div class="teacher-hero">
+      <a class="tc-back" href="teacher.html">&larr; Classes</a>
+      <div class="tc-title-block">
+        <h1 id="tc-subject-title">Subject</h1>
+        <p id="tc-class-stats"></p>
+      </div>
+      <div id="join-code-display"></div>
+    </div>
 
-    <p id="tc-class-stats" style="font-size:.88rem;color:#6b7280;margin:-.5rem 0 1.25rem;font-weight:600;"></p>
-
-    <!-- JOIN CODE BAR -->
-    <div id="join-code-display" style="display:flex;align-items:center;gap:.5rem;background:#fff;border-radius:12px;padding:.6rem 1.2rem;margin-bottom:1rem;box-shadow:0 2px 12px rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.12);flex-wrap:wrap;"></div>
-
-    <div id="teacher-class-scope-banner" style="display:none;margin-bottom:1rem;padding:.85rem 1.15rem;border-radius:14px;background:linear-gradient(135deg,#ecfdf5 0%,#f0fdf4 100%);border:1.5px solid #a7f3d0;font-size:.84rem;line-height:1.55;color:#065f46;"></div>
-
-    <div id="teacher-section-pills-wrap" style="display:none;margin-bottom:1rem;"></div>
+    <div id="teacher-section-pills-wrap" style="display:none;margin:0 0 .45rem;"></div>
 
     <div id="class-content">
       <div class="sub-tabs">
@@ -301,7 +330,7 @@
           <div class="m-field" id="mat-file-row">
             <label>Attach files (optional)</label>
             <div style="border:2px dashed #d1fae5;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#f0fdf4;transition:border-color .2s;" id="mat-drop-zone" onclick="document.getElementById('mat-file-input').click()">
-              <div id="mat-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to choose files, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel � up to 8 files, 15 MB each</span></div>
+              <div id="mat-drop-label" style="font-size:.88rem;color:#374151;"> Click to choose files, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, Word, Excel, up to 8 files, 15 MB each</span></div>
               <div id="mat-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#10b981;margin-top:.3rem;text-align:left;"></div>
             </div>
             <input type="file" id="mat-file-input" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onMatFileChosen(this)"/>
@@ -327,7 +356,7 @@
       <div class="sub-panel" id="sub-assignments">
         <div class="t-card">
           <div class="t-card-title"> Create Assignment</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;">
+          <div class="asgn-pair">
             <div class="m-field" style="margin:0;"><label>Title</label><input type="text" id="asgn-title" placeholder="e.g. Problem Set 1"/></div>
             <div class="m-field" style="margin:0;"><label>Due Date</label><input type="date" id="asgn-due"/></div>
           </div>
@@ -351,7 +380,7 @@
               <span class="src-chip">Website link</span>
             </div>
             <div style="border:2px dashed #fbcfe8;border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;background:#fff5f9;transition:border-color .2s;" id="asgn-drop-zone" onclick="document.getElementById('asgn-file-input').click()">
-              <div id="asgn-drop-label" style="font-size:.88rem;color:#9ca3af;"> Click to attach a source file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT � max 15 MB</span></div>
+              <div id="asgn-drop-label" style="font-size:.88rem;color:#374151;"> Click to attach a source file, or drag &amp; drop here<br/><span style="font-size:.75rem;">PDF, images, videos, PPT, max 15 MB</span></div>
               <div id="asgn-file-chosen" style="display:none;font-size:.85rem;font-weight:700;color:#be185d;margin-top:.3rem;"></div>
             </div>
             <input type="file" id="asgn-file-input" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange="onAsgnFileChosen(this)"/>
@@ -385,7 +414,7 @@
   </main>
 </div>
 
-<script src="pages/teacher-class.js?v=19"></script>
+<script src="pages/teacher-class.js?v=20"></script>
 <script src="pages/sheets.js?v=2"></script>
 </body>
 </html>
