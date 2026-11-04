@@ -101,6 +101,7 @@ function paintProfilePage(profile) {
  renderAssignments();
  renderActivity(profile);
  renderQuickStats();
+ scheduleTeacherDesk();
 }
 
 async function syncProfileClasses(user) {
@@ -279,12 +280,292 @@ function renderInfoCard(profile) {
 }
 
 // 
+// TEACHER DESK
+// 
+var teacherDeskGen = 0;
+
+function profileEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function deskColor(c) {
+  return /^#[0-9a-fA-F]{3,8}$/.test(String(c || '')) ? String(c) : '#7c3aed';
+}
+function teacherClassList() {
+  var uid = sessionStorage.getItem('prism_user_id') || '';
+  try { return JSON.parse(localStorage.getItem('prism_classes_' + uid) || '[]'); } catch (e) { return []; }
+}
+function deskQuestions(q) {
+  var raw = q && q.questions;
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw || '[]'); } catch (e) { raw = []; }
+  }
+  return Array.isArray(raw) ? raw : [];
+}
+function deskPublished(q) {
+  return q && (q.published === 1 || q.published === '1' || q.published === true);
+}
+function deskNeedsReview(q) {
+  return deskQuestions(q).some(function (item) {
+    var type = item && item.type;
+    return type === 'sa' || type === 'essay';
+  });
+}
+function deskReviewed(row) {
+  var raw = row && row.item_scores;
+  if (Array.isArray(raw)) return raw.length > 0;
+  if (typeof raw === 'string' && raw) {
+    try { var parsed = JSON.parse(raw); return Array.isArray(parsed) && parsed.length > 0; } catch (e) { return false; }
+  }
+  return false;
+}
+function deskDayOffset(iso) {
+  var day = String(iso || '').slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) return null;
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var when = new Date(day + 'T00:00:00');
+  if (isNaN(when.getTime())) return null;
+  return Math.round((when.getTime() - today.getTime()) / 86400000);
+}
+function deskWhen(offset) {
+  if (offset < 0) return offset === -1 ? 'Due yesterday' : 'Overdue';
+  if (offset === 0) return 'Due today';
+  if (offset === 1) return 'Due tomorrow';
+  return 'Due in ' + offset + ' days';
+}
+function deskEmpty(message) {
+  return '<div class="p-empty"><div>' + profileEsc(message) + '</div></div>';
+}
+function setCardChrome(bodyId, title, href, linkText) {
+  var body = document.getElementById(bodyId);
+  if (!body) return;
+  var card = body.closest('.p-card');
+  if (!card) return;
+  var titleEl = card.querySelector('.p-card-title');
+  if (titleEl) titleEl.textContent = title;
+  var header = card.querySelector('.p-card-header');
+  var link = card.querySelector('.view-all-link');
+  if (!href) {
+    if (link) link.style.display = 'none';
+    return;
+  }
+  if (!link && header) {
+    link = document.createElement('a');
+    link.className = 'view-all-link';
+    header.appendChild(link);
+  }
+  if (link) {
+    link.style.display = '';
+    link.href = href;
+    link.textContent = linkText;
+  }
+}
+function deskLine(href, color, title, sub) {
+  return '<a class="desk-line" href="' + profileEsc(href) + '">'
+    + '<div class="desk-dot" style="background:' + deskColor(color) + '"></div>'
+    + '<div style="flex:1;min-width:0;"><b>' + profileEsc(title) + '</b><span>' + profileEsc(sub) + '</span></div></a>';
+}
+function scheduleTeacherDesk() {
+  if ((sessionStorage.getItem('prism_role') || '') !== 'teacher') return;
+  var gen = ++teacherDeskGen;
+  loadTeacherDesk(gen);
+}
+async function loadTeacherDesk(gen) {
+  window.__prismTeacherDesk = { status: 'loading', classes: teacherClassList(), waiting: 0, reviewed: 0, reviews: [], reminders: [], activity: [], drafts: 0 };
+  try {
+    var classes = teacherClassList();
+    var packs = await Promise.all(classes.map(function (c) {
+      return Promise.all([
+        (typeof PrismQuizzes !== 'undefined' ? PrismQuizzes.get(c.id) : Promise.resolve([])).catch(function () { return []; }),
+        (typeof PrismAssignments !== 'undefined' ? PrismAssignments.get(c.id) : Promise.resolve([])).catch(function () { return []; }),
+        (typeof PrismPosts !== 'undefined' ? PrismPosts.get(c.id) : Promise.resolve([])).catch(function () { return []; })
+      ]).then(function (parts) {
+        return { cls: c, quizzes: parts[0] || [], assignments: parts[1] || [], posts: parts[2] || [] };
+      });
+    }));
+    if (gen !== teacherDeskGen) return;
+    var quizzes = [];
+    var assignments = [];
+    var posts = [];
+    packs.forEach(function (pack) {
+      (pack.quizzes || []).forEach(function (q) {
+        q._subject = pack.cls.subject;
+        q._color = pack.cls.color;
+        q._classId = pack.cls.id;
+        quizzes.push(q);
+      });
+      (pack.assignments || []).forEach(function (a) {
+        a._subject = pack.cls.subject;
+        a._color = pack.cls.color;
+        a._classId = pack.cls.id;
+        assignments.push(a);
+      });
+      (pack.posts || []).forEach(function (p) {
+        p._subject = pack.cls.subject;
+        p._color = pack.cls.color;
+        p._classId = pack.cls.id;
+        posts.push(p);
+      });
+    });
+    var reviewable = quizzes.filter(function (q) { return deskPublished(q) && deskNeedsReview(q); }).slice(0, 40);
+    var scorePacks = await Promise.all(reviewable.map(function (q) {
+      return PrismQuizzes.getScores(q.id).then(function (rows) {
+        return { quiz: q, rows: Array.isArray(rows) ? rows : [] };
+      }).catch(function () { return { quiz: q, rows: [] }; });
+    }));
+    if (gen !== teacherDeskGen) return;
+    var waiting = 0;
+    var reviewed = 0;
+    var reviews = [];
+    scorePacks.forEach(function (pack) {
+      var open = 0;
+      (pack.rows || []).forEach(function (row) {
+        if (deskReviewed(row)) reviewed += 1;
+        else { waiting += 1; open += 1; }
+      });
+      if (open) reviews.push({ quiz: pack.quiz, open: open });
+    });
+    reviews.sort(function (a, b) { return b.open - a.open; });
+    var reminders = [];
+    quizzes.forEach(function (q) {
+      if (!deskPublished(q)) {
+        reminders.push({
+          sort: 50,
+          href: 'teacher-class.html?class=' + encodeURIComponent(q._classId) + '&tab=quizzes',
+          color: q._color,
+          title: q.title || 'Untitled quiz',
+          sub: (q._subject || 'Class') + ' · Draft'
+        });
+        return;
+      }
+      var offset = deskDayOffset(q.due_date || q.due);
+      if (offset === null || offset < -7 || offset > 14) return;
+      reminders.push({
+        sort: offset,
+        href: 'teacher-class.html?class=' + encodeURIComponent(q._classId) + '&tab=quizzes',
+        color: q._color,
+        title: q.title || 'Untitled quiz',
+        sub: (q._subject || 'Class') + ' · Quiz · ' + deskWhen(offset)
+      });
+    });
+    assignments.forEach(function (a) {
+      var offset = deskDayOffset(a.due_date || a.due);
+      if (offset === null || offset < -7 || offset > 14) return;
+      reminders.push({
+        sort: offset,
+        href: 'teacher-class.html?class=' + encodeURIComponent(a._classId) + '&tab=assignments',
+        color: a._color,
+        title: a.title || 'Untitled assignment',
+        sub: (a._subject || 'Class') + ' · Assignment · ' + deskWhen(offset)
+      });
+    });
+    var events = [];
+    try { events = await PrismEvents.get(); } catch (e) { events = []; }
+    if (gen !== teacherDeskGen) return;
+    (events || []).forEach(function (ev) {
+      var offset = deskDayOffset(ev.event_date || ev.date);
+      if (offset === null || offset < 0 || offset > 14) return;
+      var when = offset === 0 ? 'Today' : (offset === 1 ? 'Tomorrow' : 'In ' + offset + ' days');
+      if (ev.event_time) when += ' · ' + String(ev.event_time).slice(0, 5);
+      reminders.push({
+        sort: offset,
+        href: 'calendar.html',
+        color: ev.color || '#7c3aed',
+        title: ev.title || 'Reminder',
+        sub: when
+      });
+    });
+    reminders.sort(function (a, b) { return a.sort - b.sort; });
+    var activity = [];
+    quizzes.forEach(function (q) {
+      var ts = Date.parse(q.published_at || q.created_at || '') || 0;
+      if (!ts) return;
+      activity.push({
+        ts: ts,
+        href: 'teacher-class.html?class=' + encodeURIComponent(q._classId) + '&tab=' + (deskPublished(q) ? 'grades' : 'quizzes'),
+        color: q._color,
+        title: (deskPublished(q) ? 'Published quiz: ' : 'Saved draft: ') + (q.title || 'Untitled'),
+        sub: q._subject || ''
+      });
+    });
+    assignments.forEach(function (a) {
+      var ts = Date.parse(a.created_at || '') || 0;
+      if (!ts) return;
+      activity.push({
+        ts: ts,
+        href: 'teacher-class.html?class=' + encodeURIComponent(a._classId) + '&tab=assignments',
+        color: a._color,
+        title: 'Posted assignment: ' + (a.title || 'Untitled'),
+        sub: a._subject || ''
+      });
+    });
+    posts.forEach(function (p) {
+      var ts = Date.parse(p.created_at || '') || 0;
+      if (!ts) return;
+      var body = String(p.body || '').replace(/\s+/g, ' ').trim();
+      activity.push({
+        ts: ts,
+        href: 'teacher-class.html?class=' + encodeURIComponent(p._classId),
+        color: p._color,
+        title: body ? body.slice(0, 72) : 'Class post',
+        sub: p._subject || ''
+      });
+    });
+    activity.sort(function (a, b) { return b.ts - a.ts; });
+    window.__prismTeacherDesk = {
+      status: 'ready',
+      classes: classes,
+      waiting: waiting,
+      reviewed: reviewed,
+      reviews: reviews,
+      reminders: reminders,
+      activity: activity,
+      drafts: quizzes.filter(function (q) { return !deskPublished(q); }).length
+    };
+  } catch (e) {
+    if (gen !== teacherDeskGen) return;
+    window.__prismTeacherDesk = { status: 'error', classes: teacherClassList(), waiting: 0, reviewed: 0, reviews: [], reminders: [], activity: [], drafts: 0 };
+  }
+  renderSubjectProgress();
+  renderQuizStatus();
+  renderAssignments();
+  renderActivity({});
+  renderQuickStats();
+}
+
+// 
 // SUBJECT PROGRESS
 // 
 function renderSubjectProgress() {
   var role = sessionStorage.getItem('prism_role') || 'student';
   var container = document.getElementById('subject-progress');
   if (!container) return;
+  if (role === 'teacher') {
+    setCardChrome('subject-progress', 'Classes', 'teacher.html', 'All classes');
+    var desk = window.__prismTeacherDesk;
+    if (!desk || desk.status === 'loading') {
+      container.innerHTML = deskEmpty('Loading your classes…');
+      return;
+    }
+    if (desk.status === 'error') {
+      container.innerHTML = deskEmpty('Could not load your classes yet.');
+      return;
+    }
+    if (!desk.classes.length) {
+      container.innerHTML = deskEmpty('You have no classes yet. Create one from My Classes.');
+      return;
+    }
+    container.innerHTML = desk.classes.map(function (c) {
+      var n = parseInt(c.student_count, 10) || 0;
+      return deskLine(
+        'teacher-class.html?class=' + encodeURIComponent(c.id),
+        c.color,
+        c.subject || 'Class',
+        n === 1 ? '1 student' : n + ' students'
+      );
+    }).join('');
+    return;
+  }
   SUBJECT_LIST = getSubjectList();
   if (role !== 'student' || !SUBJECT_LIST.length) {
     container.innerHTML = '<div style="text-align:center;padding:1.5rem;color:#9ca3af;font-size:.9rem;">'
@@ -314,6 +595,37 @@ function renderQuizStatus() {
   var container = document.getElementById('quiz-status-list');
   if (!container) return;
 
+  if (role === 'teacher') {
+    var reviewHref = 'teacher.html';
+    var desk = window.__prismTeacherDesk;
+    if (desk && desk.reviews && desk.reviews[0] && desk.reviews[0].quiz) {
+      reviewHref = 'teacher-class.html?class=' + encodeURIComponent(desk.reviews[0].quiz._classId) + '&tab=grades';
+    }
+    setCardChrome('quiz-status-list', 'Reviews', reviewHref, 'Open grades');
+    if (!desk || desk.status === 'loading') {
+      container.innerHTML = deskEmpty('Loading reviews…');
+      return;
+    }
+    if (desk.status === 'error') {
+      container.innerHTML = deskEmpty('Could not load reviews yet.');
+      return;
+    }
+    var summary = '<div class="desk-summary">'
+      + '<div class="desk-count">' + desk.waiting + '<small>To review</small></div>'
+      + '<div class="desk-count">' + desk.reviewed + '<small>Reviewed</small></div>'
+      + '</div>';
+    var rows = (desk.reviews || []).slice(0, 6).map(function (item) {
+      var q = item.quiz;
+      return deskLine(
+        'teacher-class.html?class=' + encodeURIComponent(q._classId) + '&tab=grades',
+        q._color,
+        q.title || 'Quiz',
+        (q._subject || 'Class') + ' · ' + item.open + (item.open === 1 ? ' submission waiting' : ' submissions waiting')
+      );
+    }).join('');
+    container.innerHTML = summary + (rows || deskEmpty('No short answers or essays are waiting. They show up here after students turn them in.'));
+    return;
+  }
   if (role !== 'student') {
     container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>Quiz status is shown for students.</div></div>';
     return;
@@ -355,6 +667,26 @@ function renderAssignments() {
   var role = sessionStorage.getItem('prism_role') || 'student';
   var container = document.getElementById('asgn-list');
   if (!container) return;
+  if (role === 'teacher') {
+    setCardChrome('asgn-list', 'Reminders', 'calendar.html', 'Calendar');
+    var desk = window.__prismTeacherDesk;
+    if (!desk || desk.status === 'loading') {
+      container.innerHTML = deskEmpty('Loading reminders…');
+      return;
+    }
+    if (desk.status === 'error') {
+      container.innerHTML = deskEmpty('Could not load reminders yet.');
+      return;
+    }
+    if (!desk.reminders.length) {
+      container.innerHTML = deskEmpty('Nothing due in the next two weeks. Drafts, deadlines, and calendar events show up here.');
+      return;
+    }
+    container.innerHTML = desk.reminders.slice(0, 8).map(function (item) {
+      return deskLine(item.href, item.color, item.title, item.sub);
+    }).join('');
+    return;
+  }
   if (role !== 'student') {
     container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>Assignments are shown for students.</div></div>';
     return;
@@ -385,8 +717,28 @@ function renderAssignments() {
 // 
 function renderActivity(profile) {
   var role = sessionStorage.getItem('prism_role') || 'student';
-  var container = document.getElementById('activity-list');
+  var container = document.getElementById('activity-feed') || document.getElementById('activity-list');
   if (!container) return;
+  if (role === 'teacher') {
+    setCardChrome('activity-feed', 'Recent work', '', '');
+    var desk = window.__prismTeacherDesk;
+    if (!desk || desk.status === 'loading') {
+      container.innerHTML = deskEmpty('Loading recent work…');
+      return;
+    }
+    if (desk.status === 'error') {
+      container.innerHTML = deskEmpty('Could not load recent work yet.');
+      return;
+    }
+    if (!desk.activity.length) {
+      container.innerHTML = deskEmpty('Quizzes, assignments, and class posts you publish show up here.');
+      return;
+    }
+    container.innerHTML = desk.activity.slice(0, 6).map(function (item) {
+      return deskLine(item.href, item.color, item.title, item.sub);
+    }).join('');
+    return;
+  }
   if (role !== 'student') {
     container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>Activity is shown for students.</div></div>';
     return;
@@ -436,6 +788,16 @@ function renderQuickStats() {
   var uid  = sessionStorage.getItem('prism_user_id') || 'student';
 
   if (role === 'teacher') {
+    var desk = window.__prismTeacherDesk;
+    if (desk && desk.status === 'ready') {
+      renderStatCards([
+        { icon:'', label:'To review', val: desk.waiting },
+        { icon:'', label:'Reviewed', val: desk.reviewed },
+        { icon:'', label:'Reminders', val: desk.reminders.length },
+        { icon:'', label:'Drafts', val: desk.drafts },
+      ]);
+      return;
+    }
     var classes   = JSON.parse(localStorage.getItem('prism_classes_' + uid) || '[]');
     var allPosts  = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]');
     var allQuizzes= JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Quizzes</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=23"/>
+  <link rel="stylesheet" href="portal.css?v=24"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -132,7 +132,8 @@
     .mtf-stem { font-size:1.02rem; font-weight:700; color:#16132b; line-height:1.5; padding-top:.55rem; }
     .mtf-no { color:#7c3aed; margin-right:.35rem; }
     .match-connect { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:2.4rem; align-items:start; }
-    .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; }
+    .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; grid-column:1 / -1; grid-row:1 / -1; }
+    .match-item.b.is-drop { border-color:#7c3aed; background:#ede9fe; }
     .match-col { display:flex; flex-direction:column; gap:.65rem; position:relative; z-index:1; min-width:0; }
     .match-col h4 { margin:0 0 .15rem; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:#7c3aed; }
     .match-item { display:flex; align-items:center; gap:.55rem; background:#faf9ff; border:1.5px solid #e9d5ff; border-radius:12px; padding:.6rem .7rem; color:#16132b; min-height:46px; }
@@ -217,6 +218,6 @@
 
 
 
-<script src="pages/quizzes.js?v=16"></script>
+<script src="pages/quizzes.js?v=17"></script>
 </body>
 </html>

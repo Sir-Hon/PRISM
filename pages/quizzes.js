@@ -571,11 +571,11 @@ function QUIZ_drawMatch(fromDot, pointer) {
     b.classList.add('used');
     a.style.setProperty('--dot', color);
     b.style.setProperty('--dot', color);
-    lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"/>';
+    lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="3" stroke-linecap="round"/>';
   });
   if (fromDot && pointer) {
     var start = center(fromDot);
-    lines += '<line x1="' + start.x + '" y1="' + start.y + '" x2="' + pointer.x + '" y2="' + pointer.y + '" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 4"/>';
+    lines += '<line x1="' + start.x + '" y1="' + start.y + '" x2="' + pointer.x + '" y2="' + pointer.y + '" stroke="#7c3aed" stroke-width="3.5" stroke-linecap="round"/>';
   }
   svg.innerHTML = lines;
 }
@@ -592,17 +592,27 @@ function QUIZ_bindMatch() {
     if (!dot) return;
     e.preventDefault();
     drag = { from: parseInt(dot.getAttribute('data-from'), 10), id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, dot: dot };
-    board.setPointerCapture(e.pointerId);
+    try { dot.setPointerCapture(e.pointerId); } catch (err) {}
+    QUIZ_drawMatch(dot, point(e));
   });
+  function markDrop(e) {
+    board.querySelectorAll('.match-item.b').forEach(function (row) { row.classList.remove('is-drop'); });
+    if (!e) return;
+    var hit = document.elementFromPoint(e.clientX, e.clientY);
+    var row = hit && hit.closest ? hit.closest('.match-item.b') : null;
+    if (row && board.contains(row)) row.classList.add('is-drop');
+  }
   board.addEventListener('pointermove', function (e) {
     if (!drag || e.pointerId !== drag.id) return;
-    if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 6) drag.moved = true;
+    if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 4) drag.moved = true;
+    markDrop(e);
     QUIZ_drawMatch(drag.dot, point(e));
   });
   function finish(e) {
     if (!drag || e.pointerId !== drag.id) return;
     var hit = document.elementFromPoint(e.clientX, e.clientY);
     var target = hit && hit.closest ? hit.closest('[data-to]') : null;
+    markDrop(null);
     if (drag.moved && target) QUIZ_setMatch(drag.from, parseInt(target.getAttribute('data-to'), 10));
     else if (!drag.moved) {
       var current = QUIZ_matchAnswers()[drag.from];

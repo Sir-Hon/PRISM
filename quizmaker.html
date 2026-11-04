@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Quiz Maker</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=23"/>
+  <link rel="stylesheet" href="portal.css?v=24"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -69,14 +69,19 @@
     .saved-q-item { display:flex; flex-direction:column; align-items:stretch; gap:.55rem; padding:.85rem .9rem; border:1.5px solid #d1fae5; border-radius:12px; margin-bottom:.65rem; background:#f0fdf4; }
     .sq-top { display:flex; align-items:flex-start; gap:.7rem; min-width:0; }
     .sq-copy { min-width:0; flex:1; }
+    html.qm-embed,
+    html.qm-embed body { min-height:0 !important; height:auto !important; }
     html.qm-embed .topbar,
     html.qm-embed .sidebar,
     html.qm-embed .sidebar-backdrop,
     html.qm-embed .page-header,
     html.qm-embed .class-bar,
-    html.qm-embed #quizmaker-class-scope-banner { display:none !important; }
-    html.qm-embed .app-layout { display:block !important; }
-    html.qm-embed .main-content { margin:0 !important; padding:.4rem .2rem 1.2rem !important; width:auto !important; max-width:none !important; }
+    html.qm-embed #quizmaker-class-scope-banner { display:none !important; position:static !important; height:0 !important; min-height:0 !important; overflow:hidden !important; }
+    html.qm-embed .app-layout { display:block !important; min-height:0 !important; padding-top:0 !important; }
+    html.qm-embed .main-content { margin:0 !important; padding:.4rem .2rem 1.2rem !important; width:auto !important; max-width:none !important; min-height:0 !important; }
+    html.qm-embed.prism-loading .main-content { min-height:0 !important; }
+    html.qm-embed.prism-loading .main-content > * { visibility:visible !important; }
+    html.qm-embed.prism-loading .main-content::after { display:none !important; }
     .sq-title { overflow-wrap:anywhere; }
     .sq-meta { line-height:1.45; }
     .saved-q-item:hover { border-color:var(--t); }
@@ -96,7 +101,7 @@
     .qm-match { position:relative; display:grid; grid-template-columns:1fr 1fr; gap:2rem; align-items:start; margin:.35rem 0 .7rem; }
     .qm-match .match-col { display:flex; flex-direction:column; gap:.55rem; min-width:0; position:relative; z-index:1; }
     .qm-match h4 { margin:0; font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:#059669; }
-    .qm-match .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; }
+    .qm-match .match-lines { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; overflow:visible; grid-column:1 / -1; grid-row:1 / -1; }
     .qm-match .match-item { display:flex; align-items:center; gap:.4rem; background:#f0fdf4; border:1.5px solid #d1fae5; border-radius:12px; padding:.4rem .45rem; min-height:46px; }
     .qm-match .match-item input { flex:1; min-width:0; border:none; background:transparent; font:inherit; font-weight:600; font-size:.88rem; color:#16132b; outline:none; }
     .qm-match .match-dot { width:16px; height:16px; border-radius:50%; border:3px solid #059669; background:#fff; flex-shrink:0; position:relative; z-index:3; padding:0; cursor:grab; touch-action:none; }
@@ -152,7 +157,7 @@
     html[data-theme="dark"] .qm-skip strong { color:#d1fae5; }
     html[data-theme="dark"] .qm-skip small, html[data-theme="dark"] .q-note { color:#ddd6fe; }
     @media (max-width:640px) { .pair-row { grid-template-columns:1fr; } .qm-match { gap:1.15rem; } }
-    html.qm-embed .qm-layout { grid-template-columns: minmax(0,1.4fr) minmax(300px,420px) !important; }
+    html.qm-embed .qm-layout { grid-template-columns: minmax(0,1fr) 276px !important; gap: 0.75rem !important; }
     @media (max-width:900px) { html.qm-embed .qm-layout { grid-template-columns: 1fr !important; } }
   </style>
   <script>if (/[?&]embed=1(?:&|$)/.test(location.search)) document.documentElement.classList.add('qm-embed');</script>
@@ -260,6 +265,6 @@
 <!-- Quiz Log Modal -->
 <div id="quiz-log-modal-wrap"></div>
 
-<script src="pages/quizmaker.js?v=21"></script>
+<script src="pages/quizmaker.js?v=23"></script>
 </body>
 </html>

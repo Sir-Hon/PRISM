@@ -143,7 +143,7 @@ let activeWorkspaceSection = '__all__';
 let teacherAssignmentViewFilter = '__all__';
 /** __all__ = list every material; else one material id (teacher materials tab) */
 let teacherMaterialViewFilter = '__all__';
-let activeSub      = 'materials';
+let activeSub      = 'classwork';
 
 /* ═══════════════════════════ INIT ═══════════════════════════ */
 window.addEventListener('DOMContentLoaded', async () => {
@@ -223,6 +223,7 @@ async function initTeacherClassPage() {
   await refreshClassData(activeClassId);
   renderWorkspacePage();
   var openTab = params.get('tab');
+  if (openTab === 'materials' || openTab === 'assignments') openTab = 'classwork';
   if (openTab) {
     var tabBtn = document.querySelector('#class-content > .sub-tabs > .sub-tab[data-sub="' + openTab + '"]');
     if (tabBtn) switchSub(openTab, tabBtn);
@@ -235,18 +236,18 @@ var classContentSnapshot = '';
 function ensureWorkspacePanel() {
   var wrap = document.getElementById('class-content');
   if (!wrap) return;
-  if (document.getElementById('materials-list')) {
+  if (document.getElementById('classwork-list')) {
     if (!classContentSnapshot) classContentSnapshot = wrap.innerHTML;
     return;
   }
   if (!classContentSnapshot) return;
   wrap.innerHTML = classContentSnapshot;
-  activeSub = 'materials';
+  activeSub = 'classwork';
   wrap.querySelectorAll('.sub-panel').forEach(function (p) { p.classList.remove('active'); });
   wrap.querySelectorAll(':scope > .sub-tabs > .sub-tab').forEach(function (t) { t.classList.remove('active'); });
-  var subMat = document.getElementById('sub-materials');
+  var subMat = document.getElementById('sub-classwork');
   if (subMat) subMat.classList.add('active');
-  var matTab = wrap.querySelector('.sub-tab[data-sub="materials"]');
+  var matTab = wrap.querySelector('.sub-tab[data-sub="classwork"]');
   if (matTab) matTab.classList.add('active');
   bindMatDropZone();
   resetMatComposer();
@@ -323,6 +324,48 @@ function renderWorkspaceSectionPills() {
       renderMaterials(); renderAssignments();
     };
   });
+  fillAsgnSide();
+}
+
+function fillAsgnSide() {
+  var nameEl = document.getElementById('asgn-class-name');
+  var sel = document.getElementById('asgn-assign-to');
+  var cls = CLASSES.find(function (c) { return c.id === activeClassId; });
+  if (nameEl) {
+    nameEl.textContent = cls && typeof prismTeacherClassLabel === 'function'
+      ? prismTeacherClassLabel(cls)
+      : ((cls && cls.subject) || 'This class');
+  }
+  if (!sel) return;
+  var keep = sel.value || activeWorkspaceSection || '__all__';
+  var sections = uniqueSectionsFromStudents(activeClassId);
+  sel.innerHTML = '';
+  var all = document.createElement('option');
+  all.value = '__all__';
+  all.textContent = 'All students';
+  sel.appendChild(all);
+  sections.forEach(function (sec) {
+    var o = document.createElement('option');
+    o.value = sec;
+    o.textContent = sec;
+    sel.appendChild(o);
+  });
+  sel.value = (keep === '__all__' || sections.indexOf(keep) >= 0) ? keep : '__all__';
+}
+
+function syncAsgnReady() {
+  var title = document.getElementById('asgn-title');
+  var btn = document.getElementById('asgn-assign-btn');
+  if (!title || !btn) return;
+  btn.classList.toggle('is-ready', !!title.value.trim());
+}
+
+function assignmentTargetSection() {
+  var sel = document.getElementById('asgn-assign-to');
+  if (!sel) return getWorkspaceTargetSectionForApi();
+  var v = String(sel.value || '').trim();
+  if (!v || v === '__all__') return null;
+  return v;
 }
 
 function renderWorkspacePage() {
@@ -338,9 +381,11 @@ function renderWorkspacePage() {
   if (copyBtn) copyBtn.onclick = function () { copyJoinCode(cls.code || '', copyBtn); };
   const newBtn = document.getElementById('tc-new-code-btn');
   if (newBtn) newBtn.onclick = function () { regenJoinCode(cls.id); };
+  fillAsgnSide();
 }
 
 function switchSub(name, btn) {
+  if (name === 'materials' || name === 'assignments') name = 'classwork';
   if (activeSub === 'records' && name !== 'records' && typeof flushSave === 'function') flushSave();
   activeSub = name;
   document.querySelectorAll('.sub-panel').forEach(p=>p.classList.remove('active'));
@@ -369,7 +414,7 @@ window.addEventListener('message', function (e) {
   var frame = document.getElementById('class-quiz-frame');
   if (!frame || e.source !== frame.contentWindow) return;
   var h = parseInt(e.data.height, 10) || 0;
-  if (h > 400) frame.style.height = h + 'px';
+  if (h > 200 && h < 20000) frame.style.height = h + 'px';
 });
 
 function openSubjectRecords() {
@@ -501,10 +546,26 @@ function prismTeacherCheckFile(file) {
 
 
 function matLinkRowHtml() {
-  return '<div class="mat-link-row" style="display:flex;gap:.4rem;margin-top:.4rem;align-items:center;">'
-    + '<input type="text" class="mat-link-input" placeholder="Paste a website or YouTube link…" style="flex:1;"/>'
-    + '<button type="button" onclick="removeMatLinkRow(this)" style="background:#fff;color:#6b7280;border:1px solid #d1fae5;border-radius:8px;padding:.4rem .6rem;font-size:.75rem;font-weight:700;cursor:pointer;">Remove</button>'
+  return '<div class="mat-link-row">'
+    + '<input type="text" class="mat-link-input" placeholder="Paste a website or YouTube link"/>'
+    + '<button type="button" class="gc-link-remove" onclick="removeMatLinkRow(this)">Remove</button>'
     + '</div>';
+}
+
+function showMatLinks() {
+  const panel = document.getElementById('mat-link-panel');
+  const list = document.getElementById('mat-link-list');
+  if (list && !list.querySelector('.mat-link-input')) list.insertAdjacentHTML('beforeend', matLinkRowHtml());
+  if (panel) panel.classList.add('is-open');
+  const input = list && list.querySelector('.mat-link-input');
+  if (input) input.focus();
+}
+
+function showAsgnLink() {
+  const panel = document.getElementById('asgn-link-panel');
+  if (panel) panel.classList.add('is-open');
+  const input = document.getElementById('asgn-url');
+  if (input) input.focus();
 }
 
 function addMatLinkRow() {
@@ -514,7 +575,11 @@ function addMatLinkRow() {
     alert('You can attach up to 8 links.');
     return;
   }
+  const panel = document.getElementById('mat-link-panel');
+  if (panel) panel.classList.add('is-open');
   list.insertAdjacentHTML('beforeend', matLinkRowHtml());
+  const inputs = list.querySelectorAll('.mat-link-input');
+  if (inputs.length) inputs[inputs.length - 1].focus();
 }
 
 function removeMatLinkRow(btn) {
@@ -574,6 +639,8 @@ function resetMatComposer() {
   renderMatChosenFiles();
   const list = document.getElementById('mat-link-list');
   if (list) list.innerHTML = matLinkRowHtml();
+  const panel = document.getElementById('mat-link-panel');
+  if (panel) panel.classList.remove('is-open');
 }
 
 function bindDropZone(zoneId, inputId, onChosen) {
@@ -614,8 +681,17 @@ function onAsgnFileChosen(input) {
   const chosen = document.getElementById('asgn-file-chosen');
   if (chosen) {
     chosen.style.display = 'flex';
-    chosen.innerHTML = '<span class="pf-chip">' + teacherEsc(file.name) + '</span>';
+    chosen.innerHTML = '<span class="pf-chip">' + teacherEsc(file.name)
+      + '<button type="button" onclick="clearAsgnFile()" aria-label="Remove file">\u00d7</button></span>';
   }
+}
+
+function clearAsgnFile() {
+  _asgnFile = null;
+  const input = document.getElementById('asgn-file-input');
+  if (input) input.value = '';
+  const chosen = document.getElementById('asgn-file-chosen');
+  if (chosen) { chosen.style.display = 'none'; chosen.innerHTML = ''; }
 }
 
 function showMatMsg(msg,type){ const el=document.getElementById('mat-msg'); if(!el) return; el.textContent=msg; el.className='form-msg '+type; setTimeout(()=>el.textContent='',3000); }
@@ -680,6 +756,7 @@ async function addMaterial(){
     resetMatComposer();
     await refreshClassData(activeClassId);
     renderMaterials(); renderWorkspacePage();
+    closeClassworkComposer();
     showMatMsg(' Shared with the class.','ok');
   } catch(e) { showMatMsg(e.message||'Upload failed.','err'); }
   finally {
@@ -709,7 +786,129 @@ function teacherMaterialPieces(it) {
   return pieces;
 }
 
+function toggleClassworkMenu(ev) {
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  var menu = document.getElementById('cw-menu');
+  if (menu) menu.hidden = !menu.hidden;
+}
+function openClassworkComposer(kind) {
+  var menu = document.getElementById('cw-menu');
+  if (menu) menu.hidden = true;
+  var mat = document.getElementById('cw-composer-material');
+  var asgn = document.getElementById('cw-composer-assignment');
+  if (mat) mat.hidden = kind !== 'material';
+  if (asgn) asgn.hidden = kind !== 'assignment';
+  if (kind === 'assignment') fillAsgnSide();
+  var box = kind === 'assignment' ? asgn : mat;
+  if (box && box.scrollIntoView) box.scrollIntoView({ block: 'nearest' });
+}
+function closeClassworkComposer() {
+  var mat = document.getElementById('cw-composer-material');
+  var asgn = document.getElementById('cw-composer-assignment');
+  if (mat) mat.hidden = true;
+  if (asgn) asgn.hidden = true;
+}
+document.addEventListener('click', function (e) {
+  var menu = document.getElementById('cw-menu');
+  if (!menu || menu.hidden) return;
+  if (menu.contains(e.target)) return;
+  menu.hidden = true;
+});
+
+function classworkPosted(raw) {
+  var t = Date.parse(raw || '');
+  if (!t) return '';
+  return 'Posted ' + new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function classworkIcon(kind) {
+  if (kind === 'assignment') {
+    return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="6" y="3" width="12" height="18" rx="2"/><path d="M9 3.5h6v2.5H9z"/></svg>';
+  }
+  return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h9l4 4v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/><path d="M15 3v5h5"/></svg>';
+}
+function classworkTopic(title, rows) {
+  return '<details class="cw-topic" open><summary><span>' + teacherEsc(title) + '</span>'
+    + '<svg class="cw-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary>'
+    + rows + '</details>';
+}
+function renderClasswork() {
+  var list = document.getElementById('classwork-list');
+  if (!list || !activeClassId) return;
+  var filterEl = document.getElementById('cw-filter');
+  var searchEl = document.getElementById('cw-search');
+  var filter = filterEl ? filterEl.value : 'all';
+  var q = searchEl ? String(searchEl.value || '').trim().toLowerCase() : '';
+  function named(title) {
+    if (!q) return true;
+    return String(title || '').toLowerCase().indexOf(q) !== -1;
+  }
+  var mats = ((getMaterials()[activeClassId]) || []).filter(itemMatchesWorkspaceSectionFilter).filter(function (it) { return named(it.title); });
+  var asgns = ((getAssignments()[activeClassId]) || []).filter(itemMatchesWorkspaceSectionFilter).filter(function (it) { return named(it.title); });
+  if (filter === 'material') asgns = [];
+  else if (filter === 'assignment') mats = [];
+  else if (filter === 'written' || filter === 'project' || filter === 'lab' || filter === 'oral') {
+    mats = [];
+    asgns = asgns.filter(function (it) { return (it.type || 'written') === filter; });
+  }
+  var btn = 'border:none;padding:.32rem .7rem;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;background:#ede9fe;color:#5b21b6;';
+  function matRow(it) {
+    var pieces = teacherMaterialPieces(it);
+    var actions = pieces.map(function (p) {
+      if (p.kind === 'file' && p.path) {
+        return '<button type="button" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(p.path) + ',' + JSON.stringify(p.mime || '') + ',' + JSON.stringify(p.name || '') + ')\' style="' + btn + '">' + teacherEsc(p.name || 'File') + '</button>';
+      }
+      if (p.kind === 'file') return '<button type="button" onclick="downloadMaterial(\'' + it.id + '\')" style="' + btn + '">' + teacherEsc(p.name || 'Download') + '</button>';
+      return '<a href="' + teacherEsc(p.url) + '" target="_blank" rel="noopener" style="' + btn + '">Open link</a>';
+    }).join('');
+    var note = it.description || it.desc || '';
+    var sec = (it.target_section && String(it.target_section).trim()) ? teacherEsc(String(it.target_section).trim()) : '';
+    var body = (sec ? '<div>' + sec + '</div>' : '')
+      + (note ? '<div style="margin-top:.25rem;white-space:pre-wrap;">' + teacherEsc(note) + '</div>' : '')
+      + '<div class="cw-actions">' + actions
+      + '<button type="button" class="mat-del" onclick="deleteMaterial(\'' + it.id + '\')">Remove</button></div>';
+    return '<details class="cw-item"><summary><span class="cw-ico">' + classworkIcon('material') + '</span><span class="cw-title">' + teacherEsc(it.title || 'Material') + '</span><span class="cw-date">' + teacherEsc(classworkPosted(it.created_at || it.date)) + '</span></summary><div class="cw-body">' + body + '</div></details>';
+  }
+  function asgnRow(it) {
+    var dStr = it.due_date || it.due || '';
+    var dueDisp = dStr && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(dStr) : dStr;
+    var attachPath = String(it.attach_file_path || it.attachFilePath || '').trim();
+    var attachName = String(it.attach_file_name || it.attachFileName || 'file').trim();
+    var attachMime = String(it.attach_mime || it.attachMime || '').trim();
+    var attachUrl = String(it.attach_url || it.attachUrl || '').trim();
+    var actions = '';
+    if (attachPath) actions += '<button type="button" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(attachPath) + ',' + JSON.stringify(attachMime) + ',' + JSON.stringify(attachName) + ')\' style="' + btn + '">' + teacherEsc(attachName) + '</button>';
+    if (attachUrl) {
+      var href = typeof prismNormalizeHttpUrl === 'function' ? (prismNormalizeHttpUrl(attachUrl) || attachUrl) : attachUrl;
+      actions += '<a href="' + teacherEsc(href) + '" target="_blank" rel="noopener" style="' + btn + '">Open link</a>';
+    }
+    var bits = [];
+    if (it.points || it.pts) bits.push((it.points || it.pts) + ' pts');
+    if (dueDisp) bits.push('Due ' + dueDisp);
+    if (it.target_section && String(it.target_section).trim()) bits.push(String(it.target_section).trim());
+    var instructions = String(it.instructions || '').trim();
+    var body = (bits.length ? '<div>' + teacherEsc(bits.join(' · ')) + '</div>' : '')
+      + (instructions ? '<div style="margin-top:.25rem;white-space:pre-wrap;">' + teacherEsc(instructions) + '</div>' : '')
+      + '<div class="cw-actions">' + actions
+      + '<button type="button" onclick="openSubjectRecords()" style="border:none;background:none;color:#059669;font-weight:700;cursor:pointer;font-family:inherit;font-size:.78rem;">Records</button>'
+      + '<button type="button" class="mat-del" onclick="deleteAssignment(\'' + it.id + '\')">Remove</button></div>';
+    return '<details class="cw-item"><summary><span class="cw-ico assignment">' + classworkIcon('assignment') + '</span><span class="cw-title">' + teacherEsc(it.title || 'Assignment') + '</span><span class="cw-date">' + teacherEsc(classworkPosted(it.created_at || it.date)) + '</span></summary><div class="cw-body">' + body + '</div></details>';
+  }
+  var groups = [];
+  if (mats.length) groups.push(classworkTopic('Materials', mats.map(matRow).join('')));
+  var typeNames = { written: 'Written', project: 'Projects', lab: 'Laboratory exercises', oral: 'Oral' };
+  var typeOrder = ['lab', 'written', 'project', 'oral'];
+  typeOrder.forEach(function (type) {
+    var rows = asgns.filter(function (it) { return (it.type || 'written') === type; });
+    if (rows.length) groups.push(classworkTopic(typeNames[type], rows.map(asgnRow).join('')));
+  });
+  var empty = (filter === 'all' && !q)
+    ? 'No classwork yet. Use the plus button to add a material or an assignment.'
+    : 'Nothing matches this filter.';
+  list.innerHTML = groups.length ? groups.join('') : '<div class="cw-empty">' + empty + '</div>';
+}
+
 function renderMaterials(){
+  if (document.getElementById('classwork-list')) { renderClasswork(); return; }
   loadTeacherMaterialViewFilter();
   const m=getMaterials(),list=document.getElementById('materials-list'),raw=(m[activeClassId]||[]);
   const items=raw.filter(itemMatchesWorkspaceSectionFilter);
@@ -803,7 +1002,7 @@ async function addAssignment(){
       pts:document.getElementById('asgn-pts').value,
       type:document.getElementById('asgn-type').value,
       instructions:document.getElementById('asgn-instructions').value.trim(),
-      target_section: getWorkspaceTargetSectionForApi(),
+      target_section: assignmentTargetSection(),
       attach_url: attachUrl || '',
       file: _asgnFile || null,
     });
@@ -814,14 +1013,14 @@ async function addAssignment(){
       body:'New assignment: "'+title+'"'+(due?' · Due '+dueLine:''),
       attachment: streamAttach,
       author:sessionStorage.getItem('prism_user_name')||'Teacher',
-      target_section: getWorkspaceTargetSectionForApi(),
+      target_section: assignmentTargetSection(),
     });
     ['asgn-title','asgn-pts','asgn-instructions','asgn-due','asgn-url'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    const fileInp = document.getElementById('asgn-file-input');
-    if (fileInp) fileInp.value = '';
-    _asgnFile = null;
-    const chosen = document.getElementById('asgn-file-chosen');
-    if (chosen) { chosen.style.display = 'none'; chosen.innerHTML = ''; }
+    syncAsgnReady();
+    closeClassworkComposer();
+    clearAsgnFile();
+    const linkPanel = document.getElementById('asgn-link-panel');
+    if (linkPanel) linkPanel.classList.remove('is-open');
     await refreshClassData(activeClassId);
     renderAssignments(); renderWorkspacePage();
   } catch(e){ alert(e.message||'Failed to create assignment.'); }
@@ -829,6 +1028,7 @@ async function addAssignment(){
 }
 
 function renderAssignments(){
+  if (document.getElementById('classwork-list')) return;
   loadTeacherAssignmentViewFilter();
   const a=getAssignments(),list=document.getElementById('assignments-list'),raw=(a[activeClassId]||[]);
   const items=raw.filter(itemMatchesWorkspaceSectionFilter);

@@ -14,9 +14,9 @@
   --prism-dark:   #6d28d9;
   --prism-light:  #ede9fe;
   --prism-mid:    #a78bfa;
-  --sidebar-bg:   #16122a;
-  --sidebar-hover:#26204a;
-  --sidebar-active:#342a62;
+  --sidebar-bg:   #fffcff;
+  --sidebar-hover:#f3eefe;
+  --sidebar-active:#ede9fe;
   --bg:           #f0ecff;
   --surface:      #ffffff;
   --text:         #16132b;
@@ -169,6 +169,7 @@ nav { display: none !important; }
   width: var(--sidebar-w);
   min-width: var(--sidebar-w);
   background: var(--sidebar-bg);
+  border-right: 1px solid #e6e0f4;
   position: fixed;
   top: var(--topbar-h);
   left: 0;
@@ -194,12 +195,12 @@ nav { display: none !important; }
   overflow-y: auto;
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  scrollbar-color: rgba(167, 139, 250, 0.55) transparent;
+  scrollbar-color: rgba(124, 58, 237, 0.35) transparent;
 }
 
 #sidebar-classes::-webkit-scrollbar { width: 8px; }
 #sidebar-classes::-webkit-scrollbar-track { background: transparent; }
-#sidebar-classes::-webkit-scrollbar-thumb { background: rgba(167, 139, 250, 0.45); border-radius: 8px; }
+#sidebar-classes::-webkit-scrollbar-thumb { background: rgba(124, 58, 237, 0.28); border-radius: 8px; }
 
 /* Sidebar user card — hidden (profile is in the top bar) */
 .sidebar-user-card {
@@ -251,14 +252,14 @@ nav { display: none !important; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: #d1d5db;
+  color: #6b647c;
   padding: 0 1.3rem;
   margin: 0.5rem 0 0.35rem;
 }
 
 .sidebar-divider {
   height: 1px;
-  background: rgba(255,255,255,0.06);
+  background: #efeaf8;
   margin: 0.5rem 1.1rem;
 }
 
@@ -268,7 +269,7 @@ nav { display: none !important; }
   align-items: center;
   gap: 0.7rem;
   padding: 0.55rem 1.05rem;
-  color: #9ca3af;
+  color: #3d3654;
   text-decoration: none;
   font-size: 0.875rem;
   font-weight: 500;
@@ -284,13 +285,13 @@ nav { display: none !important; }
 
 .sidebar-link:hover {
   background: var(--sidebar-hover);
-  color: #e5e7eb;
+  color: #16132b;
 }
 
 .sidebar-link.active {
   background: var(--sidebar-active);
-  color: #fff;
-  border-left-color: var(--prism-mid);
+  color: #5b21b6;
+  border-left-color: var(--prism);
   font-weight: 600;
 }
 
@@ -322,7 +323,7 @@ nav { display: none !important; }
   align-items: center;
   gap: 0.7rem;
   padding: 0.48rem 1.05rem;
-  color: #9ca3af;
+  color: #3d3654;
   font-size: 0.84rem;
   font-weight: 500;
   cursor: pointer;
@@ -336,8 +337,8 @@ nav { display: none !important; }
   touch-action: manipulation;
 }
 
-.sidebar-class-item:hover { background: var(--sidebar-hover); color: #e5e7eb; }
-.sidebar-class-item.active { background: var(--sidebar-active); color: #fff; border-left-color: var(--prism-mid); }
+.sidebar-class-item:hover { background: var(--sidebar-hover); color: #16132b; }
+.sidebar-class-item.active { background: var(--sidebar-active); color: #5b21b6; border-left-color: var(--prism); }
 
 /* Diamond SVG icon */
 .sidebar-diamond {
@@ -905,7 +906,21 @@ html[data-theme="dark"] .page-tab.active {
   -webkit-text-fill-color: #1c1300;
 }
 
-html[data-theme="dark"] .sidebar-link.active {
+html[data-theme="dark"] .sidebar {
+  border-right-color: transparent;
+}
+html[data-theme="dark"] .sidebar-divider {
+  background: rgba(255,255,255,0.08);
+}
+html[data-theme="dark"] .sidebar-link:hover,
+html[data-theme="dark"] .sidebar-class-item:hover {
+  color: #f3f4f6 !important;
+}
+html[data-theme="dark"] .sidebar-class-item {
+  color: #d1d5db !important;
+}
+html[data-theme="dark"] .sidebar-link.active,
+html[data-theme="dark"] .sidebar-class-item.active {
   color: #fff !important;
 }
 

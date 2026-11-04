@@ -431,11 +431,11 @@ function qmDrawTeacherMatch(board, fromDot, pointer){
     b.style.setProperty('--dot', color);
     a.classList.add('used');
     b.classList.add('used');
-    lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="2.5" stroke-linecap="round"/>';
+    lines += '<line x1="' + p1.x + '" y1="' + p1.y + '" x2="' + p2.x + '" y2="' + p2.y + '" stroke="' + color + '" stroke-width="3" stroke-linecap="round"/>';
   });
   if (fromDot && pointer) {
     var start = center(fromDot);
-    lines += '<line x1="' + start.x + '" y1="' + start.y + '" x2="' + pointer.x + '" y2="' + pointer.y + '" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-dasharray="5 4"/>';
+    lines += '<line x1="' + start.x + '" y1="' + start.y + '" x2="' + pointer.x + '" y2="' + pointer.y + '" stroke="#34d399" stroke-width="3.5" stroke-linecap="round"/>';
   }
   svg.innerHTML = lines;
 }
@@ -455,9 +455,17 @@ function qmBindTeacherMatches(root){
       var r = board.getBoundingClientRect();
       return { x: e.clientX - r.left, y: e.clientY - r.top };
     }
+    function markDrop(e){
+      board.querySelectorAll('.qm-match-b').forEach(function(row){ row.classList.remove('is-drop'); });
+      if (!e) return;
+      var hit = document.elementFromPoint(e.clientX, e.clientY);
+      var row = hit && hit.closest ? hit.closest('.qm-match-b') : null;
+      if (row && board.contains(row)) row.classList.add('is-drop');
+    }
     function onMove(e){
       if (!drag || e.pointerId !== drag.id) return;
-      if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 6) drag.moved = true;
+      if (Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y) > 4) drag.moved = true;
+      markDrop(e);
       qmDrawTeacherMatch(board, drag.dot, point(e));
     }
     function finish(e){
@@ -466,12 +474,13 @@ function qmBindTeacherMatches(root){
       var moved = drag.moved;
       var q = qmFind(board.getAttribute('data-qid'));
       var hit = document.elementFromPoint(e.clientX, e.clientY);
-      var target = hit && hit.closest ? hit.closest('[data-to]') : null;
+      var row = hit && hit.closest ? hit.closest('.qm-match-b') : null;
       drag = null;
+      markDrop(null);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', finish);
       window.removeEventListener('pointercancel', finish);
-      if (moved && target && board.contains(target)) qmSetLink(board.getAttribute('data-qid'), from, parseInt(target.getAttribute('data-to'), 10));
+      if (moved && row && board.contains(row)) qmSetLink(board.getAttribute('data-qid'), from, parseInt(row.getAttribute('data-slot'), 10));
       else if (!moved && q && q.links && q.links[from] !== null && q.links[from] !== undefined) qmSetLink(board.getAttribute('data-qid'), from, null);
       else qmDrawTeacherMatch(board);
     }
@@ -480,7 +489,8 @@ function qmBindTeacherMatches(root){
       if (!dot || !board.contains(dot)) return;
       e.preventDefault();
       drag = { id: e.pointerId, from: parseInt(dot.getAttribute('data-from'), 10), x: e.clientX, y: e.clientY, moved: false, dot: dot };
-      try { board.setPointerCapture(e.pointerId); } catch (err) {}
+      try { dot.setPointerCapture(e.pointerId); } catch (err) {}
+      qmDrawTeacherMatch(board, dot, point(e));
       window.addEventListener('pointermove', onMove);
       window.addEventListener('pointerup', finish);
       window.addEventListener('pointercancel', finish);
@@ -881,15 +891,27 @@ async function viewQuizLog(quizId){
 }
 
 function qmFitEmbed() {
-  if (!document.body.classList.contains('qm-embed') || window.parent === window) return;
-  var h = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
-  window.parent.postMessage({ type: 'prism-quiz-height', height: h + 28 }, location.origin);
+  var embedded = document.documentElement.classList.contains('qm-embed') || (document.body && document.body.classList.contains('qm-embed'));
+  if (!embedded || window.parent === window) return;
+  var main = document.querySelector('.main-content');
+  var h = main ? main.offsetHeight : 0;
+  if (h < 80 && document.body) h = document.body.scrollHeight;
+  window.parent.postMessage({ type: 'prism-quiz-height', height: Math.ceil(h) + 16 }, location.origin);
 }
 
 window.addEventListener('DOMContentLoaded', async function(){
   var early = new URLSearchParams(window.location.search);
-  if (early.get('embed') === '1') document.body.classList.add('qm-embed');
-  else {
+  if (early.get('embed') === '1') {
+    document.body.classList.add('qm-embed');
+    qmFitEmbed();
+    if (window.ResizeObserver && !window.__qmFitObs) {
+      var fitMain = document.querySelector('.main-content');
+      if (fitMain) {
+        window.__qmFitObs = new ResizeObserver(function () { qmFitEmbed(); });
+        window.__qmFitObs.observe(fitMain);
+      }
+    }
+  } else {
     var jump = early.get('class') || sessionStorage.getItem('prism_teacher_active_class_id') || '';
     window.location.replace(jump ? ('teacher-class.html?class=' + encodeURIComponent(jump) + '&tab=quizzes') : 'teacher.html');
     return;
