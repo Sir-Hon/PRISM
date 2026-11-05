@@ -729,6 +729,12 @@ html[data-theme="dark"] .class-view-tab:hover:not(.active) {
 html[data-theme="dark"] .class-view-back:hover {
   background: #221c3a !important;
 }
+html[data-theme="dark"] .class-view-banner .class-view-back,
+html[data-theme="dark"] .class-view-banner .class-view-back:hover {
+  background: rgba(0,0,0,.35) !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff;
+}
 
 html[data-theme="dark"] .topbar-theme-btn {
   background: #2e1065;
@@ -1221,3 +1227,82 @@ a.is-busy::after {
   flex-shrink: 0;
 }
 html[data-theme="dark"] .prism-wait { color: #e5e7eb; }
+
+.banner-custom { position:absolute; top:.7rem; right:.75rem; z-index:6; }
+.banner-custom-btn {
+  border:1px solid rgba(255,255,255,.5);
+  background:rgba(0,0,0,.32);
+  color:#fff;
+  -webkit-text-fill-color:#fff;
+  border-radius:999px;
+  padding:.32rem .75rem;
+  font:700 .75rem/1 'DM Sans',sans-serif;
+  cursor:pointer;
+}
+.banner-custom-btn:hover { background:rgba(0,0,0,.5); }
+.student-hero.banner-open,
+.teacher-hero.banner-open,
+.admin-hero.banner-open,
+.class-view-banner.banner-open { z-index:40; }
+.banner-pop {
+  position:absolute;
+  top:calc(100% + .45rem);
+  right:0;
+  width:232px;
+  background:#fff;
+  color:#16132b;
+  border:1px solid #e5e7eb;
+  border-radius:14px;
+  box-shadow:0 16px 40px rgba(15,23,42,.18);
+  padding:.8rem;
+  z-index:30;
+}
+.banner-pop-label {
+  font-size:.68rem;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#6b7280;
+  -webkit-text-fill-color:#6b7280;
+  margin:0 0 .45rem;
+}
+.banner-swatches { display:flex; flex-wrap:wrap; gap:.4rem; margin-bottom:.7rem; }
+.banner-swatch {
+  width:26px; height:26px; border-radius:50%;
+  border:2px solid #fff;
+  box-shadow:0 0 0 1px #d1d5db;
+  cursor:pointer;
+  padding:0;
+}
+.banner-swatch.selected { box-shadow:0 0 0 2px #7c3aed; }
+.banner-upload, .banner-reset {
+  display:block;
+  width:100%;
+  box-sizing:border-box;
+  text-align:center;
+  border-radius:9px;
+  padding:.45rem .6rem;
+  font:700 .8rem/1.2 'DM Sans',sans-serif;
+  cursor:pointer;
+}
+.banner-upload {
+  background:#f5f3ff;
+  color:#5b21b6;
+  -webkit-text-fill-color:#5b21b6;
+  border:1px solid #ddd6fe;
+  margin-bottom:.4rem;
+}
+.banner-reset {
+  background:#fff;
+  color:#374151;
+  -webkit-text-fill-color:#374151;
+  border:1px solid #e5e7eb;
+}
+.banner-pop-msg {
+  margin-top:.4rem;
+  font-size:.75rem;
+  font-weight:600;
+  color:#b91c1c;
+  -webkit-text-fill-color:#b91c1c;
+}
+html[data-theme="dark"] .banner-pop { background:#fff; color:#16132b; border-color:#e5e7eb; }

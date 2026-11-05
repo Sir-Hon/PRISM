@@ -72,6 +72,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const hour = new Date().getHours();
   const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
   document.getElementById('admin-greeting').textContent = `${g}, ${user.name}`;
+  if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.admin-hero'), 'greet');
   var adminUrl = document.getElementById('admin-url');
   if (adminUrl) adminUrl.textContent = location.origin + location.pathname.replace(/[^/]+$/, '') + 'admin-register.html';
   try {

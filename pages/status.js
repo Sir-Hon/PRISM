@@ -53,15 +53,58 @@ function statusPart(scores, hps) {
   return (total / h) * 100;
 }
 
-function statusQuarter(q) {
-  var nums = [statusPart(q.ww, q.wwHps), statusPart(q.pt, q.ptHps), statusPart(q.qz, q.qzHps), statusPart(q.rec, q.recHps)]
-    .filter(function (n) { return n != null && isFinite(n); });
+function statusQuarter(q, tables) {
+  var list = tables && tables.length ? tables : [
+    { part: 'ww' }, { part: 'pt' }, { part: 'qz' }, { part: 'rec' }
+  ];
+  var nums = list.map(function (table) {
+    return statusPart(q[table.part], q[table.part + 'Hps']);
+  }).filter(function (n) { return n != null && isFinite(n); });
   if (!nums.length) return null;
   return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
 }
 
+function statusQuarterLabel(i) {
+  var names = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+  return names[i] || ((i + 1) + 'th');
+}
+
+function statusTables(saved) {
+  if (saved && Array.isArray(saved.tables) && saved.tables.length) {
+    return saved.tables.map(function (table, i) {
+      var part = String((table && table.part) || ('t' + i)).replace(/[^a-z0-9_]/gi, '').slice(0, 24) || ('t' + i);
+      var count = parseInt(table && table.count, 10);
+      if (!(count >= 1)) count = 1;
+      if (count > 20) count = 20;
+      return { title: String((table && table.title) || 'Table'), part: part, count: count };
+    });
+  }
+  return [
+    { title: 'Written Works', part: 'ww', count: 10 },
+    { title: 'Performance Task', part: 'pt', count: 10 },
+    { title: 'Quizzes', part: 'qz', count: 6 },
+    { title: 'Recitation / Assignments (Oral)', part: 'rec', count: 6 }
+  ];
+}
+
+function statusAttendanceRows(saved, year) {
+  if (saved && Array.isArray(saved.rows) && saved.rows.length) {
+    return saved.rows.map(function (row, i) {
+      return {
+        id: String((row && row.id) || ('row-' + i)),
+        name: String((row && row.name) || 'Row'),
+        year: parseInt(row && row.year, 10) || 0,
+        month: parseInt(row && row.month, 10) || 0
+      };
+    });
+  }
+  return statusMonths(year).map(function (m, i) {
+    return { id: 'cal-' + i, name: m.name, year: m.year, month: m.month };
+  });
+}
+
 function statusFinal(data) {
-  var nums = data.quarters.map(statusQuarter).filter(function (n) { return n != null; });
+  var nums = data.quarters.map(function (q) { return statusQuarter(q, data.tables); }).filter(function (n) { return n != null; });
   if (!nums.length) return null;
   return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
 }
@@ -87,25 +130,25 @@ function statusWhen(value) {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-function statusBlankQuarter() {
-  return {
-    wwHps: '', ww: statusPad([], 10),
-    ptHps: '', pt: statusPad([], 10),
-    qzHps: '', qz: statusPad([], 6),
-    recHps: '', rec: statusPad([], 6),
-    exam: '',
-    signature: ''
-  };
+function statusBlankQuarter(tables) {
+  var q = { exam: '', signature: '' };
+  (tables || statusTables(null)).forEach(function (table) {
+    q[table.part + 'Hps'] = '';
+    q[table.part] = statusPad([], table.count);
+  });
+  return q;
 }
 
 function statusAssessment(saved) {
+  var tables = statusTables(saved);
   var data = {
     name: '',
     section: '',
     subject: '',
     tracker: '',
     year: '2026-2027',
-    quarters: [statusBlankQuarter(), statusBlankQuarter(), statusBlankQuarter(), statusBlankQuarter()],
+    tables: tables,
+    quarters: [statusBlankQuarter(tables), statusBlankQuarter(tables), statusBlankQuarter(tables), statusBlankQuarter(tables)],
     remarks: '',
     scheduleDays: { M: false, T: false, W: false, TH: false, F: false },
     scheduleTime: ''
@@ -116,22 +159,16 @@ function statusAssessment(saved) {
   });
   var days = saved.scheduleDays || {};
   ['M', 'T', 'W', 'TH', 'F'].forEach(function (d) { data.scheduleDays[d] = !!days[d]; });
-  if (Array.isArray(saved.quarters)) {
-    for (var i = 0; i < 4; i++) {
-      var q = saved.quarters[i] || {};
-      data.quarters[i] = {
-        wwHps: q.wwHps != null ? String(q.wwHps) : '',
-        ww: statusPad(q.ww, 10),
-        ptHps: q.ptHps != null ? String(q.ptHps) : '',
-        pt: statusPad(q.pt, 10),
-        qzHps: q.qzHps != null ? String(q.qzHps) : '',
-        qz: statusPad(q.qz, 6),
-        recHps: q.recHps != null ? String(q.recHps) : '',
-        rec: statusPad(q.rec, 6),
-        exam: q.exam != null ? String(q.exam) : '',
-        signature: q.signature != null ? String(q.signature) : ''
-      };
-    }
+  var source = Array.isArray(saved.quarters) && saved.quarters.length ? saved.quarters.slice(0, 8) : null;
+  if (source) {
+    data.quarters = source.map(function (q) {
+      var shaped = { exam: q && q.exam != null ? String(q.exam) : '', signature: q && q.signature != null ? String(q.signature) : '' };
+      tables.forEach(function (table) {
+        shaped[table.part + 'Hps'] = q && q[table.part + 'Hps'] != null ? String(q[table.part + 'Hps']) : '';
+        shaped[table.part] = statusPad(q && q[table.part], table.count);
+      });
+      return shaped;
+    });
   }
   return data;
 }
@@ -233,28 +270,30 @@ function renderAttendancePaper(row) {
   var saved = row.attendance || {};
   var marks = saved.marks && typeof saved.marks === 'object' ? saved.marks : {};
   var year = saved.year ? String(saved.year) : '2026-2027';
-  var months = statusMonths(year);
+  var months = statusAttendanceRows(saved, year);
   var head = '<tr><th>Month</th>';
   for (var d = 1; d <= 31; d++) head += '<th>' + d + '</th>';
   head += '<th>Total</th></tr>';
   var body = months.map(function (month) {
     var cells = '';
-    var max = statusDays(month.year, month.month);
+    var calendar = month.year && month.month;
+    var max = calendar ? statusDays(month.year, month.month) : 31;
     var present = 0;
     for (var day = 1; day <= 31; day++) {
       if (day > max) {
         cells += '<td class="mark-cell invalid"></td>';
         continue;
       }
-      var key = month.year + '-' + month.month + '-' + day;
+      var key = calendar ? (month.year + '-' + month.month + '-' + day) : (month.id + '-' + day);
       var val = String(marks[key] || '').toUpperCase().replace(/[^PALH]/g, '').slice(0, 1);
       if (val === 'P') present++;
-      var letter = statusWeekday(month.year, month.month, day);
+      var letter = calendar ? statusWeekday(month.year, month.month, day) : '';
       var weekend = letter === 'Su' || letter === 'Sa' ? ' weekend' : '';
-      cells += '<td class="mark-cell' + weekend + '"><span class="wd">' + letter + '</span>' +
+      cells += '<td class="mark-cell' + weekend + '">' +
+        (letter ? '<span class="wd">' + letter + '</span>' : '') +
         '<span class="mark-show' + (val ? ' mk-' + val.toLowerCase() : '') + '">' + statusEsc(val) + '</span></td>';
     }
-    return '<tr><th class="month">' + month.name + '</th>' + cells + '<td class="att-total">' + present + '</td></tr>';
+    return '<tr><th class="month">' + statusEsc(month.name) + '</th>' + cells + '<td class="att-total">' + present + '</td></tr>';
   }).join('');
   var updated = statusWhen(row.attendance_updated);
   return '<div class="paper">' +
@@ -276,35 +315,36 @@ function statusComponent(title, part, count, data) {
   var heads = '<tr><th>Quarter</th><th>HPS</th>';
   for (var i = 1; i <= count; i++) heads += '<th>' + i + '</th>';
   heads += '<th>Total</th></tr>';
-  var rows = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    var q = data.quarters[qi];
+  var rows = data.quarters.map(function (q, qi) {
+    var label = statusQuarterLabel(qi);
     var cells = '';
     for (var n = 0; n < count; n++) cells += '<td>' + statusEsc(q[part][n]) + '</td>';
     return '<tr><th class="q-name">' + label + '</th><td>' + statusEsc(q[part + 'Hps']) + '</td>' + cells +
       '<td class="score-total">' + statusEsc(statusFmt(statusSum(q[part]))) + '</td></tr>';
   }).join('');
-  return '<div class="sheet-block"><h3>' + title + '</h3><div class="score-scroll"><table class="score-table"><thead>' + heads + '</thead><tbody>' + rows + '</tbody></table></div></div>';
+  return '<div class="sheet-block"><h3>' + statusEsc(title) + '</h3><div class="score-scroll"><table class="score-table"><thead>' + heads + '</thead><tbody>' + rows + '</tbody></table></div></div>';
 }
 
 function renderAssessmentPaper(row) {
   var data = statusAssessment(row.assessment);
   if (!data.subject) data.subject = row.subject || '';
-  var exams = '<tr>' + ['1st', '2nd', '3rd', '4th'].map(function (label) {
-    return '<th>' + label + '</th>';
+  var exams = '<tr>' + data.quarters.map(function (q, qi) {
+    return '<th>' + statusQuarterLabel(qi) + '</th>';
   }).join('') + '</tr><tr>' + data.quarters.map(function (q) {
     return '<td>' + statusEsc(q.exam) + '</td>';
   }).join('') + '</tr>';
-  var signs = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
+  var signs = data.quarters.map(function (q, qi) {
+    var label = statusQuarterLabel(qi);
     return '<div><label>' + label + ' Quarter</label><div class="paper-value">' + statusEsc(data.quarters[qi].signature || '—') + '</div></div>';
   }).join('');
   var days = ['M', 'T', 'W', 'TH', 'F'].map(function (d) {
     return '<span class="day-pill' + (data.scheduleDays[d] ? ' on' : '') + '">' + d + '</span>';
   }).join('');
-  var avgs = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    return '<div class="avg-box"><span>' + label + '</span><strong>' + statusEsc(statusFmt(statusQuarter(data.quarters[qi]))) + '</strong></div>';
+  var avgs = data.quarters.map(function (q, qi) {
+    return '<div class="avg-box"><span>' + statusQuarterLabel(qi) + '</span><strong>' + statusEsc(statusFmt(statusQuarter(q, data.tables))) + '</strong></div>';
   }).join('');
-  var examsView = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    return '<div class="avg-box"><span>' + label + '</span><strong>' + statusEsc(data.quarters[qi].exam) + '</strong></div>';
+  var examsView = data.quarters.map(function (q, qi) {
+    return '<div class="avg-box"><span>' + statusQuarterLabel(qi) + '</span><strong>' + statusEsc(q.exam) + '</strong></div>';
   }).join('');
   var updated = statusWhen(row.assessment_updated);
   return '<div class="paper">' +
@@ -313,15 +353,14 @@ function renderAssessmentPaper(row) {
     '<div class="paper-teacher">Teacher ' + statusEsc(row.teacher_name || '') + '</div>' +
     statusHead(data) +
     '<div class="sheet-grid">' +
-      statusComponent('Written Works', 'ww', 10, data) +
-      statusComponent('Performance Task', 'pt', 10, data) +
-      statusComponent('Quizzes', 'qz', 6, data) +
-      statusComponent('Recitation / Assignments (Oral)', 'rec', 6, data) +
+      (data.tables || []).map(function (table) {
+        return statusComponent(table.title, table.part, table.count, data);
+      }).join('') +
       '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
       '<div class="sheet-block"><h3>Parent\'s / Guardian Signature</h3><div class="sign-row">' + signs + '</div></div>' +
       '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs +
         '<div class="avg-box"><span>Final Average</span><strong>' + statusEsc(statusFmt(statusFinal(data))) + '</strong></div></div>' +
-        '<p class="avg-note">Each quarter averages the written, performance, quiz, and oral scores that have a highest possible score.</p></div>' +
+        '<p class="avg-note">Each quarter averages the score tables that have a highest possible score.</p></div>' +
       '<div class="sheet-block"><h3>Exam Grade</h3><div class="avg-row">' + examsView + '</div></div>' +
       '<div class="sheet-block"><h3>Remarks</h3><div class="remarks-view">' + statusEsc(data.remarks || 'No remarks') + '</div></div>' +
       '<div class="sheet-block"><h3>Schedule</h3><div class="sched-days">' + days +

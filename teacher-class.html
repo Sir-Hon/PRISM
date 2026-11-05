@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Subject workspace</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=26"/>
+  <link rel="stylesheet" href="portal.css?v=27"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -354,6 +354,34 @@
     .sheet-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
     .sheet-block { border:1px solid #ead7f0; border-radius:10px; overflow:hidden; background:#fff; }
     .sheet-block h3 { margin:0; padding:.45rem .65rem; background:#f8eef6; color:#6b3f86; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; }
+    .sheet-actions { display:flex; flex-wrap:wrap; gap:.45rem; margin:.15rem 0 .75rem; }
+    .sheet-tool { border:1px solid #e7d5ee; background:#fff; color:#6b3f86; border-radius:8px; font-size:.72rem; font-weight:800; padding:.32rem .6rem; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .sheet-tool:hover { background:#f8eef6; }
+    .sheet-tool.danger { color:#b91c1c; }
+    .sheet-block-head { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; background:#f8eef6; padding:.35rem .5rem; }
+    .sheet-block-head h3 { flex:1; min-width:120px; padding:0; background:transparent; }
+    .sheet-title { width:100%; border:none; background:transparent; color:#6b3f86; font:800 .72rem 'DM Sans',sans-serif; letter-spacing:.08em; text-transform:uppercase; }
+    .sheet-title:focus { outline:2px solid #c4b5fd; border-radius:4px; }
+    .col-x, .row-x { border:none; background:transparent; color:#c4b5d4; cursor:pointer; font-size:.8rem; line-height:1; padding:0 .1rem; }
+    .col-x:hover, .row-x:hover { color:#b91c1c; }
+    .month-edit { display:flex; align-items:center; gap:.1rem; }
+    .month-name { width:6.4rem; border:none; background:transparent; color:#6b4c7a; font:800 .75rem 'DM Sans',sans-serif; }
+    .month-name:focus { outline:2px solid #c4b5fd; border-radius:4px; }
+    html[data-theme="dark"] .paper .mark-inp,
+    html[data-theme="dark"] .paper .box-inp,
+    html[data-theme="dark"] .paper .month-name,
+    html[data-theme="dark"] .paper .sheet-title,
+    html[data-theme="dark"] .paper .remarks-inp,
+    html[data-theme="dark"] .paper .paper-head input,
+    html[data-theme="dark"] .paper .paper-year input,
+    html[data-theme="dark"] .paper .sched-days input[type="text"] {
+      background:transparent !important;
+      color:#1f1630 !important;
+      -webkit-text-fill-color:#1f1630 !important;
+      border-color:#e7d5ee !important;
+    }
+    html[data-theme="dark"] .paper .sheet-title { color:#6b3f86 !important; -webkit-text-fill-color:#6b3f86 !important; }
+    html[data-theme="dark"] .paper .month-name { color:#6b4c7a !important; -webkit-text-fill-color:#6b4c7a !important; }
     .score-table th { background:#fbf7fb; font-size:.65rem; font-weight:800; color:#6b4c7a; padding:.3rem .2rem; }
     .score-table td { min-width:34px; }
     .score-table .q-name { text-align:left; padding:.2rem .45rem; font-size:.75rem; font-weight:700; white-space:nowrap; background:#fbf7fb; }
@@ -449,9 +477,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=29"></script>
+<script src="api.js?v=31"></script>
 <script src="script.js?v=18"></script>
-<script src="portal-sidebar.js?v=23"></script>
+<script src="portal-sidebar.js?v=24"></script>
 <div class="topbar tc-topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="tc-bar-class">
@@ -685,8 +713,8 @@
   </main>
 </div>
 
-<script src="pages/teacher-class.js?v=30"></script>
+<script src="pages/teacher-class.js?v=31"></script>
 <script src="pages/quizgrades.js?v=4"></script>
-<script src="pages/sheets.js?v=2"></script>
+<script src="pages/sheets.js?v=3"></script>
 </body>
 </html>

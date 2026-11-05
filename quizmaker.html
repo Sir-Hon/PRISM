@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Quiz Maker</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=26"/>
+  <link rel="stylesheet" href="portal.css?v=27"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -138,7 +138,22 @@
     .part-title, .part-dir { width:100%; box-sizing:border-box; border:1.5px solid #e4dffa; border-radius:10px; background:#fff; color:#16132b; font-family:'DM Sans',sans-serif; padding:.65rem .8rem; margin-bottom:.55rem; outline:none; }
     .part-title { font-size:1rem; font-weight:700; }
     .part-dir { min-height:68px; resize:vertical; font-size:.9rem; }
-    .part-box-label { font-size:.75rem; font-weight:800; color:#5b21b6; margin:.2rem 0 .4rem; }
+    .part-field, .part-field-label { display:block; font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6d28d9; margin:0 0 .65rem; }
+    .part-field-label { margin-bottom:.35rem; }
+    .part-field .part-title, .part-field .part-dir { display:block; width:100%; margin:.3rem 0 0; text-transform:none; letter-spacing:0; }
+    .answer-bank { display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; min-height:76px; box-sizing:border-box; border:1.5px solid #c4b5fd; border-radius:12px; background:#fff; padding:.65rem; margin:0 0 .4rem; }
+    .bank-chip { display:inline-flex; align-items:center; max-width:100%; border:1px solid #ddd6fe; border-radius:8px; background:#faf8ff; padding:.1rem .15rem .1rem .45rem; }
+    .bank-chip input { width:8.5rem; max-width:100%; min-width:0; border:none; background:transparent; padding:.32rem .15rem; font:600 .86rem 'DM Sans',sans-serif; color:#16132b; outline:none; }
+    .bank-x { border:none; background:transparent; color:#9ca3af; cursor:pointer; font-size:1rem; line-height:1; padding:.15rem .3rem; }
+    .bank-x:hover { color:#ef4444; }
+    .bank-insert { border:1.5px dashed #c4b5fd; background:transparent; color:#6d28d9; border-radius:8px; padding:.38rem .65rem; font:700 .78rem 'DM Sans',sans-serif; cursor:pointer; }
+    .bank-insert:hover { background:#f5f3ff; }
+    .part-hint { margin:0 0 .75rem; font-size:.75rem; line-height:1.4; color:#6b7280; font-weight:500; text-transform:none; letter-spacing:0; }
+    .part-add-q { align-self:flex-start; border:none; background:none; color:#059669; font:700 .84rem 'DM Sans',sans-serif; cursor:pointer; padding:.15rem 0; }
+    .part-add-q:hover { text-decoration:underline; }
+    .add-q-btn { flex-direction:column; align-items:flex-start; text-align:left; gap:.15rem; padding:.75rem .9rem; }
+    .add-q-main { font-weight:800; }
+    .add-q-sub { font-size:.72rem; font-weight:600; color:#6b7280; }
     .qm-skip { display:flex; gap:.7rem; align-items:flex-start; border:1.5px solid #d1fae5; border-radius:12px; padding:.75rem .8rem; background:#f0fdf4; cursor:pointer; }
     .qm-skip input { margin-top:.15rem; accent-color:#10b981; }
     .qm-skip strong { display:block; font-size:.84rem; color:#065f46; }
@@ -150,6 +165,13 @@
     html[data-theme="dark"] .part-title,
     html[data-theme="dark"] .part-dir { color:#f5f3ff !important; -webkit-text-fill-color:#f5f3ff; background:#241c3d; }
     html[data-theme="dark"] .part-card { background:#1b1730; border-color:#4c3d73; }
+    html[data-theme="dark"] .part-field, html[data-theme="dark"] .part-field-label { color:#c4b5fd; }
+    html[data-theme="dark"] .answer-bank { background:#141022; border-color:#4c3d73; }
+    html[data-theme="dark"] .bank-chip { background:#241c3d; border-color:#4c3d73; }
+    html[data-theme="dark"] .bank-chip input { color:#f5f3ff !important; -webkit-text-fill-color:#f5f3ff; background:transparent; }
+    html[data-theme="dark"] .bank-insert { color:#ddd6fe; border-color:#6d5a96; }
+    html[data-theme="dark"] .part-hint, html[data-theme="dark"] .add-q-sub { color:#d1d5db; }
+    html[data-theme="dark"] .part-add-q { color:#6ee7b7; }
     html[data-theme="dark"] .tf-ico { background:#241c3d; color:#e5e7eb; border-color:#4c3d73; }
     html[data-theme="dark"] .tf-ico.sel-true { background:#064e3b; color:#6ee7b7; border-color:#10b981; }
     html[data-theme="dark"] .tf-ico.sel-false { background:#7f1d1d; color:#fecaca; border-color:#ef4444; }
@@ -196,9 +218,9 @@
   <script>if (/[?&]embed=1(?:&|$)/.test(location.search)) document.documentElement.classList.add('qm-embed');</script>
 </head>
 <body>
-<script src="api.js?v=29"></script>
+<script src="api.js?v=31"></script>
 <script src="script.js?v=18"></script>
-<script src="portal-sidebar.js?v=23"></script>
+<script src="portal-sidebar.js?v=24"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -258,8 +280,8 @@
         </div>
         <div id="questions-list"></div>
         <div class="qm-add-row">
-          <button type="button" class="add-q-btn" onclick="addPart()">+ Add a part</button>
-          <button type="button" class="add-q-btn" onclick="addQuestion()">+ Add a question</button>
+          <button type="button" class="add-q-btn" onclick="addPart()"><span class="add-q-main">Add a part</span><span class="add-q-sub">Name, directions, and an answer box</span></button>
+          <button type="button" class="add-q-btn" onclick="addQuestion()"><span class="add-q-main">Add a question</span><span class="add-q-sub">One question, with no part</span></button>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:1.1rem;">
@@ -301,6 +323,6 @@
 <!-- Quiz Log Modal -->
 <div id="quiz-log-modal-wrap"></div>
 
-<script src="pages/quizmaker.js?v=24"></script>
+<script src="pages/quizmaker.js?v=25"></script>
 </body>
 </html>

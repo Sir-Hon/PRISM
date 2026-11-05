@@ -666,20 +666,44 @@ async function apiForm(endpoint, action, formData, _retried) {
 // ══════════════════════════════════════════════════════
 //  AUTH
 // ══════════════════════════════════════════════════════
+function prismPaintTopbarAvatar(profile) {
+  const tb = document.getElementById('topbar-avatar');
+  if (!tb) return;
+  const name = (profile && profile.name) || sessionStorage.getItem('prism_user_name') || '';
+  const initial = String(name || 'U').charAt(0).toUpperCase();
+  const src = typeof prismSafeAvatarUrl === 'function' ? prismSafeAvatarUrl(profile && profile.avatar) : '';
+  if (src) {
+    tb.innerHTML = '<img src="' + prismEscAttr(src) + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" alt=""/>';
+    return;
+  }
+  tb.textContent = initial;
+}
+
 function prismCacheUserProfile(user) {
   if (!user || !user.id) return;
   let prev = {};
   try {
     prev = JSON.parse(localStorage.getItem('prism_profile_' + user.id) || '{}');
   } catch (e) { /* ignore */ }
-  localStorage.setItem(
-    'prism_profile_' + user.id,
-    JSON.stringify({
-      ...prev,
-      name: user.name != null ? user.name : prev.name,
-      avatar: user.avatar != null ? user.avatar : prev.avatar,
-    })
-  );
+  const next = Object.assign({}, prev);
+  if (user.name != null) next.name = user.name;
+  if (Object.prototype.hasOwnProperty.call(user, 'avatar')) {
+    const incoming = user.avatar || '';
+    if (user.avatarPending) {
+      next.avatar = incoming || prev.avatar || '';
+      next.avatarPending = true;
+    } else if (prev.avatarPending && prev.avatar && prev.avatar !== incoming) {
+      next.avatar = prev.avatar;
+      next.avatarPending = true;
+    } else {
+      next.avatar = incoming;
+      next.avatarPending = false;
+    }
+  }
+  try {
+    localStorage.setItem('prism_profile_' + user.id, JSON.stringify(next));
+  } catch (e) { /* keep the previous photo if this one cannot be stored */ }
+  prismPaintTopbarAvatar(next);
 }
 
 const PrismAuth = {
@@ -1184,5 +1208,189 @@ async function prismAuthGuard(allowedRoles = []) {
     return null;
   }
 }
+
+var PRISM_BANNER_COLORS = ['#1e1b2e','#064e3b','#0f766e','#0d9488','#1d4ed8','#7c3aed','#be123c','#9a3412','#1e293b','#0e7490'];
+var __prismBannerPop = null;
+
+function prismBannerKey(scope) {
+  var uid = '';
+  try { uid = sessionStorage.getItem('prism_user_id') || ''; } catch (e) { uid = ''; }
+  return 'prism_banner_' + (uid || 'local') + '_' + String(scope || 'greet').replace(/[^A-Za-z0-9_-]/g, '');
+}
+
+function prismBannerRead(scope) {
+  try {
+    var raw = localStorage.getItem(prismBannerKey(scope));
+    if (!raw) return null;
+    var data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return null;
+    var color = /^#[0-9a-fA-F]{6}$/.test(data.color || '') ? data.color : '';
+    var image = typeof data.image === 'string' && data.image.indexOf('data:image/') === 0 ? data.image : '';
+    if (!color && !image) return null;
+    return { color: color, image: image };
+  } catch (e) { return null; }
+}
+
+function prismBannerWrite(scope, data) {
+  var key = prismBannerKey(scope);
+  if (!data || (!data.color && !data.image)) {
+    localStorage.removeItem(key);
+    return;
+  }
+  localStorage.setItem(key, JSON.stringify({ color: data.color || '', image: data.image || '' }));
+}
+
+function prismBannerApply(el, saved) {
+  if (!el) return;
+  if (el.dataset.bannerReady !== '1') {
+    el.dataset.bannerReady = '1';
+    el.dataset.bannerDefault = el.style.background || '';
+  }
+  el.style.backgroundSize = '';
+  el.style.backgroundPosition = '';
+  if (!saved || (!saved.color && !saved.image)) {
+    el.style.background = el.dataset.bannerDefault || '';
+    return;
+  }
+  var color = saved.color || '#1e1b2e';
+  if (saved.image) {
+    var safe = String(saved.image).replace(/["\\()]/g, '');
+    el.style.backgroundColor = color;
+    el.style.backgroundImage = 'linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.45)),url("' + safe + '")';
+    el.style.backgroundSize = 'cover';
+    el.style.backgroundPosition = 'center';
+    return;
+  }
+  el.style.background = color;
+}
+
+function prismBannerClose() {
+  document.querySelectorAll('.banner-open').forEach(function (node) { node.classList.remove('banner-open'); });
+  if (__prismBannerPop) {
+    __prismBannerPop.remove();
+    __prismBannerPop = null;
+  }
+}
+
+function prismBannerEncode(file, done) {
+  if (!file || !/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+    done(new Error('Use a JPG, PNG, or WebP photo.'));
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    done(new Error('Choose a photo under 8 MB.'));
+    return;
+  }
+  var reader = new FileReader();
+  reader.onerror = function () { done(new Error('Could not read that photo.')); };
+  reader.onload = function () {
+    var img = new Image();
+    img.onload = function () {
+      var max = 1100;
+      var w = img.width;
+      var h = img.height;
+      if (w > max) { h = Math.round(h * max / w); w = max; }
+      var canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      var url = canvas.toDataURL('image/jpeg', 0.72);
+      if (url.length > 900000) url = canvas.toDataURL('image/jpeg', 0.5);
+      if (url.length > 1200000) { done(new Error('That photo is too large to save.')); return; }
+      done(null, url);
+    };
+    img.onerror = function () { done(new Error('Could not read that photo.')); };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function prismBannerOpen(wrap, el, scope) {
+  prismBannerClose();
+  var saved = prismBannerRead(scope) || { color: '', image: '' };
+  var pop = document.createElement('div');
+  pop.className = 'banner-pop';
+  pop.addEventListener('click', function (ev) { ev.stopPropagation(); });
+  var label = document.createElement('div');
+  label.className = 'banner-pop-label';
+  label.textContent = 'Banner color';
+  pop.appendChild(label);
+  var row = document.createElement('div');
+  row.className = 'banner-swatches';
+  PRISM_BANNER_COLORS.forEach(function (hex) {
+    var swatch = document.createElement('button');
+    swatch.type = 'button';
+    swatch.className = 'banner-swatch' + (saved.color === hex && !saved.image ? ' selected' : '');
+    swatch.style.background = hex;
+    swatch.title = hex;
+    swatch.addEventListener('click', function () {
+      var next = { color: hex, image: '' };
+      prismBannerWrite(scope, next);
+      prismBannerApply(el, next);
+      prismBannerClose();
+    });
+    row.appendChild(swatch);
+  });
+  pop.appendChild(row);
+  var upload = document.createElement('label');
+  upload.className = 'banner-upload';
+  upload.textContent = 'Use a photo';
+  var file = document.createElement('input');
+  file.type = 'file';
+  file.accept = 'image/jpeg,image/png,image/webp';
+  file.hidden = true;
+  file.addEventListener('change', function () {
+    var chosen = file.files && file.files[0];
+    var msg = pop.querySelector('.banner-pop-msg');
+    prismBannerEncode(chosen, function (err, url) {
+      if (err) { if (msg) msg.textContent = err.message; return; }
+      var prev = prismBannerRead(scope) || {};
+      var next = { color: prev.color || '#1e1b2e', image: url };
+      try { prismBannerWrite(scope, next); }
+      catch (e) { if (msg) msg.textContent = 'That photo is too large to save.'; return; }
+      prismBannerApply(el, next);
+      prismBannerClose();
+    });
+  });
+  upload.appendChild(file);
+  pop.appendChild(upload);
+  var reset = document.createElement('button');
+  reset.type = 'button';
+  reset.className = 'banner-reset';
+  reset.textContent = 'Use default';
+  reset.addEventListener('click', function () {
+    prismBannerWrite(scope, null);
+    prismBannerApply(el, null);
+    prismBannerClose();
+  });
+  pop.appendChild(reset);
+  var msg = document.createElement('div');
+  msg.className = 'banner-pop-msg';
+  pop.appendChild(msg);
+  wrap.appendChild(pop);
+  el.classList.add('banner-open');
+  __prismBannerPop = pop;
+}
+
+function prismBannerMount(el, scope) {
+  if (!el) return;
+  prismBannerApply(el, prismBannerRead(scope));
+  if (el.querySelector('.banner-custom')) return;
+  var wrap = document.createElement('div');
+  wrap.className = 'banner-custom';
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'banner-custom-btn';
+  btn.textContent = 'Customize';
+  btn.addEventListener('click', function (ev) {
+    ev.stopPropagation();
+    if (wrap.querySelector('.banner-pop')) prismBannerClose();
+    else prismBannerOpen(wrap, el, scope);
+  });
+  wrap.appendChild(btn);
+  el.appendChild(wrap);
+}
+
+document.addEventListener('click', function () { prismBannerClose(); });
 
 console.log('[PRISM] api.js loaded — API base:', window.__PRISM_API_BASE__);

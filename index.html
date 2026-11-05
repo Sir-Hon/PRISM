@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Student Dashboard</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=26"/>
+  <link rel="stylesheet" href="portal.css?v=27"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -13,7 +13,7 @@
     .student-hero {
       border-radius:12px; padding:1.5rem 1.75rem;
       background:#1e1b2e;
-      color:white; margin-bottom:1.5rem; position:relative; overflow:hidden;
+      color:white; margin-bottom:1.5rem; position:relative; overflow:visible;
     }
     .student-hero::before { display:none; }
     .hero-label { font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.12em; color:#c4b5fd; margin-bottom:.4rem; position:relative; }
@@ -112,8 +112,13 @@
     .class-view-banner {
       height:140px; position:relative;
       display:flex; align-items:flex-end; padding:1.25rem 1.75rem;
-      overflow:hidden;
+      overflow:visible;
     }
+    .class-view-banner .class-view-back {
+      position:absolute; top:.65rem; left:.75rem; z-index:5;
+      background:rgba(0,0,0,.28); color:#fff;
+    }
+    .class-view-banner .class-view-back:hover { background:rgba(0,0,0,.48); color:#fff; }
     .class-view-banner::before { display:none; }
     .class-view-banner-content { position:relative; color:white; }
     .class-view-name   { font-family:'DM Sans',sans-serif; font-size:1.55rem; font-weight:700; line-height:1.2; }
@@ -304,9 +309,9 @@
       </style>
 </head>
 <body>
-<script src="api.js?v=29"></script>
+<script src="api.js?v=31"></script>
 <script src="script.js?v=18"></script>
-<script src="portal-sidebar.js?v=23"></script>
+<script src="portal-sidebar.js?v=24"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -360,6 +365,6 @@
 
 
 
-<script src="pages/index.js?v=25"></script>
+<script src="pages/index.js?v=26"></script>
 </body>
 </html>

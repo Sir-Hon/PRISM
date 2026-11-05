@@ -97,6 +97,7 @@ window.addEventListener('DOMContentLoaded', async function() {
   var g = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   var greetEl = document.getElementById('student-greeting');
   if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
+  if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.student-hero'), 'greet');
   if (!Object.keys(getJoinedClasses()).length && typeof prismShowWait === 'function') {
     prismShowWait(document.getElementById('classes-area'), 'Loading classes');
   } else {
@@ -118,6 +119,7 @@ window.addEventListener('DOMContentLoaded', async function() {
       STUDENT_ID = user.id;
       STUDENT_NAME = user.name || STUDENT_NAME;
       if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
+      if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.student-hero'), 'greet');
     }
   } catch (e) { console.warn('API session check failed:', e); }
   try { await loadClassDataFromAPI(); } catch (loadErr) { console.warn('loadClassDataFromAPI failed:', loadErr); }
@@ -451,14 +453,8 @@ function paintClassOverlay(classId, teacherId, subject, color) {
     overlay.style.animation = 'none';
   }
   overlay.innerHTML =
-    '<div class="class-view-topbar">'
-    + '<button class="class-view-back" onclick="closeClassView()" title="Back">←</button>'
-    + '<div>'
-    + '<div class="class-view-title">' + prismEscHtml(subject) + '</div>'
-    + '<div class="class-view-sub" style="display:flex;align-items:center;gap:.4rem;">' + buildTeacherChipInline(teacherId) + (code ? '  ·   ' + prismEscHtml(code) : '') + '</div>'
-    + '</div>'
-    + '</div>'
-    + '<div class="class-view-banner" style="background:linear-gradient(135deg,' + color + ' 0%,' + shadeColor(color,-40) + ' 100%)">'
+    '<div class="class-view-banner" id="class-view-banner" style="background:linear-gradient(135deg,' + color + ' 0%,' + shadeColor(color,-40) + ' 100%)">'
+    + '<button type="button" class="class-view-back" onclick="closeClassView()" title="Back">\u2190</button>'
     + '<div class="class-view-banner-content">'
     + '<div class="class-view-name">' + prismEscHtml(subject) + '</div>'
     + '<div class="class-view-teacher" style="display:flex;align-items:center;gap:.5rem;opacity:.9;">' + buildTeacherChipInline(teacherId) + '</div>'
@@ -471,6 +467,7 @@ function paintClassOverlay(classId, teacherId, subject, color) {
     + '<button class="class-view-tab" data-tab="people">People</button>'
     + '</div>'
     + '<div class="class-view-body"><div class="class-view-content" id="class-panel-content"></div></div>';
+  if (typeof prismBannerMount === 'function') prismBannerMount(overlay.querySelector('#class-view-banner'), 'class-' + classId);
   overlay.querySelectorAll('.class-view-tab').forEach(function(btn) {
     btn.addEventListener('click', function() {
       overlay.querySelectorAll('.class-view-tab').forEach(function(t){ t.classList.remove('active'); });

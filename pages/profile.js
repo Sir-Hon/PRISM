@@ -80,6 +80,7 @@ function loadProfile() {
 function saveProfileData(data) {
   localStorage.setItem(getProfileKey(), JSON.stringify(data));
 }
+var profileAvatarGen = 0;
 
 // 
 // INIT
@@ -161,6 +162,7 @@ window.addEventListener('DOMContentLoaded', async () => {
    }
  }
 
+ const avatarGenAtFetch = profileAvatarGen;
  const user = await prismAuthGuard();
  if (!user) return;
  initSidebar('home');
@@ -177,6 +179,9 @@ window.addEventListener('DOMContentLoaded', async () => {
  } catch (e) { console.warn('profile load:', e); }
 
  const saved = loadProfile();
+ const keepNewAvatar = profileAvatarGen !== avatarGenAtFetch
+   ? !!saved.avatar
+   : !!(saved.avatarPending && saved.avatar);
  const profile = {
    name:    apiProfile.name    || saved.name    || user.name    || userId,
    id:      userId,
@@ -185,12 +190,28 @@ window.addEventListener('DOMContentLoaded', async () => {
    email:   apiProfile.email   || saved.email   || '',
    bio:     apiProfile.bio     || saved.bio     || '',
    since:   apiProfile.member_since ? new Date(apiProfile.member_since).toLocaleDateString('en-US',{year:'numeric',month:'long'}) : (saved.since || new Date().toLocaleDateString('en-US',{year:'numeric',month:'long'})),
-   avatar:  apiProfile.avatar  || saved.avatar  || null,
+   avatar:  keepNewAvatar ? saved.avatar : (apiProfile.avatar || saved.avatar || null),
+   avatarPending: keepNewAvatar,
  };
 
  saveProfileData(profile);
  sessionStorage.setItem('prism_user_name', profile.name);
  sessionStorage.setItem('prism_section', profile.section);
+ if (keepNewAvatar) {
+   PrismProfile.save({
+     name: profile.name,
+     section: profile.section,
+     email: '',
+     bio: profile.bio || '',
+     avatar: profile.avatar,
+   }).then(function () {
+     var again = loadProfile();
+     if (again.avatar === profile.avatar) {
+       again.avatarPending = false;
+       saveProfileData(again);
+     }
+   }).catch(function () { /* keep the new photo locally until the server accepts it */ });
+ }
  paintProfilePage(profile);
  if (typeof initSidebar === 'function') initSidebar('home');
 });
@@ -867,23 +888,30 @@ function renderStatCards(stats) {
 // 
 // AVATAR UPLOAD
 // 
-function downscaleAvatarDataUrl(dataUrl, maxDim, quality, done) {
+function downscaleAvatarDataUrl(dataUrl, done) {
  var img = new Image();
  img.onload = function() {
    var w = img.width, h = img.height;
-   if (!w || !h) { done(dataUrl); return; }
-   if (w <= maxDim && h <= maxDim) { done(dataUrl); return; }
-   var scale = maxDim / Math.max(w, h);
-   w = Math.round(w * scale);
-   h = Math.round(h * scale);
+   if (!w || !h) { done(null); return; }
+   var scale = Math.min(1, 256 / Math.max(w, h));
+   w = Math.max(1, Math.round(w * scale));
+   h = Math.max(1, Math.round(h * scale));
    var c = document.createElement('canvas');
    c.width = w;
    c.height = h;
    var ctx = c.getContext('2d');
+   ctx.fillStyle = '#fff';
+   ctx.fillRect(0, 0, w, h);
    ctx.drawImage(img, 0, 0, w, h);
-   done(c.toDataURL('image/jpeg', quality));
+   var quality = 0.82;
+   var url = c.toDataURL('image/jpeg', quality);
+   while (url.length > 90000 && quality > 0.4) {
+     quality -= 0.12;
+     url = c.toDataURL('image/jpeg', quality);
+   }
+   done(url);
  };
- img.onerror = function() { done(dataUrl); };
+ img.onerror = function() { done(null); };
  img.src = dataUrl;
 }
 
@@ -895,10 +923,19 @@ function handleAvatarUpload(event) {
    event.target.value = '';
    return;
  }
+ if (!/^image\/(jpeg|png|webp|gif)$/i.test(file.type)) {
+   alert('Use a JPG, PNG, or WebP photo.');
+   event.target.value = '';
+   return;
+ }
  const reader = new FileReader();
  reader.onload = function(e) {
    const raw = e.target.result;
-   downscaleAvatarDataUrl(raw, 512, 0.88, async function(dataUrl) {
+   downscaleAvatarDataUrl(raw, async function(dataUrl) {
+     if (!dataUrl) {
+       alert('Could not read that photo.');
+       return;
+     }
      const img = document.getElementById('avatar-img');
      img.src = dataUrl;
      img.style.display = 'block';
@@ -909,13 +946,20 @@ function handleAvatarUpload(event) {
      const name = saved.name || sessionStorage.getItem('prism_user_name') || userId;
      const section = saved.section || sessionStorage.getItem('prism_section') || '';
      const bio = saved.bio || '';
+     profileAvatarGen++;
      saved.avatar = dataUrl;
+     saved.avatarPending = true;
      saveProfileData(saved);
      if (typeof prismCacheUserProfile === 'function') {
-       prismCacheUserProfile({ id: userId, name: name, avatar: dataUrl });
+       prismCacheUserProfile({ id: userId, name: name, avatar: dataUrl, avatarPending: true });
      }
      try {
        await PrismProfile.save({ name: name, section: section, email: '', bio: bio, avatar: dataUrl });
+       const done = loadProfile();
+       if (done.avatar === dataUrl) {
+         done.avatarPending = false;
+         saveProfileData(done);
+       }
      } catch (err) {
        console.warn('Avatar server sync failed:', err);
        alert('Photo updated on this device only. Could not save to the server: ' + (err && err.message ? err.message : 'try a smaller image or check PHP upload/body limits.'));

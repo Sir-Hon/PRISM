@@ -171,11 +171,8 @@ function initSidebar(activePage) {
     tbRole.style.borderColor = (roleColors[role] || '#7c3aed') + '33';
   }
   if (tbAvatar) {
-    if (profile.avatar && String(profile.avatar).indexOf('data:image/') === 0) {
-      tbAvatar.innerHTML = '<img src="' + profile.avatar + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" alt=""/>';
-    } else {
-      tbAvatar.textContent = initial;
-    }
+    if (typeof prismPaintTopbarAvatar === 'function') prismPaintTopbarAvatar(profile);
+    else tbAvatar.textContent = initial;
   }
 
   var userCard = document.getElementById('sidebar-user-card');

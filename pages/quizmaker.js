@@ -203,20 +203,21 @@ function qmPartCard(q, partNo) {
   var card = document.createElement('div');
   card.className = 'q-card part-card';
   var words = (q.box || []).map(function(word, i){
-    return '<div class="choice-box"><span class="choice-letter">'+(i+1)+'</span>'
-      + '<input type="text" value="'+esc(word)+'" placeholder="Word in the box" oninput="updateBox(\''+q.id+'\','+i+',this.value)"/>'
-      + '<button type="button" class="mc-rm" onclick="removeBox(\''+q.id+'\','+i+')" aria-label="Remove word">&times;</button></div>';
+    return '<span class="bank-chip">'
+      + '<input type="text" data-box-for="'+esc(q.id)+'" value="'+esc(word)+'" placeholder="Choice" oninput="updateBox(\''+q.id+'\','+i+',this.value)"/>'
+      + '<button type="button" class="bank-x" onclick="removeBox(\''+q.id+'\','+i+')" aria-label="Remove choice">&times;</button>'
+      + '</span>';
   }).join('');
+  var insert = (q.box || []).length >= 12 ? '' : '<button type="button" class="bank-insert" onclick="addBox(\''+q.id+'\')">+ Choice</button>';
   card.innerHTML = '<div class="q-header"><div class="part-kicker" style="margin:0;">Part '+partNo+'</div>'
     + '<button type="button" class="q-del" onclick="removeQuestion(\''+q.id+'\')" title="Remove part" aria-label="Remove part">&times;</button></div>'
-    + '<input class="part-title" value="'+esc(q.title)+'" placeholder="Identification" oninput="updatePart(\''+q.id+'\',\'title\',this.value)"/>'
-    + '<textarea class="part-dir" placeholder="Write the directions, such as Write the answer asked" oninput="updatePart(\''+q.id+'\',\'directions\',this.value)">'+esc(q.directions)+'</textarea>'
+    + '<label class="part-field">Part name<input class="part-title" value="'+esc(q.title)+'" placeholder="Identification" oninput="updatePart(\''+q.id+'\',\'title\',this.value)"/></label>'
+    + '<label class="part-field">Directions<textarea class="part-dir" placeholder="Write the directions, such as Write the answer asked" oninput="updatePart(\''+q.id+'\',\'directions\',this.value)">'+esc(q.directions)+'</textarea></label>'
     + qmImageBlock(q)
-    + '<div class="part-box-label">Answer box</div>'
-    + '<div class="q-note">Add the words students choose from. Leave this empty when the part does not use a box.</div>'
-    + words
-    + '<button type="button" class="mc-add" onclick="addBox(\''+q.id+'\')">+ Add a word</button>'
-    + '<button type="button" class="mc-add" onclick="addQuestion(null,\''+q.id+'\')">+ Add a question in this part</button>';
+    + '<div class="part-field-label">Answer box</div>'
+    + '<div class="answer-bank">'+words+insert+'</div>'
+    + '<p class="part-hint">Choices sit in this box. Leave it empty when the part does not use one.</p>'
+    + '<button type="button" class="part-add-q" onclick="addQuestion(null,\''+q.id+'\')">+ Add a question in this part</button>';
   return card;
 }
 function renderQMQuestions(){
@@ -341,7 +342,16 @@ function changeQType(id,type){
 function updateQ(id,f,v){var q=qmFind(id); if(q) q[f]=f==='points'?parseInt(v,10)||1:v;}
 function updatePart(id,f,v){var q=qmFind(id); if(q) q[f]=v;}
 function updateBox(id,i,v){var q=qmFind(id); if(q&&q.box) q.box[i]=v;}
-function addBox(id){var q=qmFind(id); if(!q) return; if(!q.box) q.box=[]; if(q.box.length>=12) return; q.box.push(''); renderQMQuestions();}
+function addBox(id){
+  var q=qmFind(id); if(!q) return;
+  if(!q.box) q.box=[];
+  if(q.box.length>=12) return;
+  q.box.push('');
+  renderQMQuestions();
+  var nodes=document.querySelectorAll('[data-box-for="'+id+'"]');
+  var last=nodes[nodes.length-1];
+  if(last) last.focus();
+}
 function removeBox(id,i){var q=qmFind(id); if(!q||!q.box) return; q.box.splice(i,1); renderQMQuestions();}
 function updateOpt(id,i,v){var q=qmFind(id); if(q&&q.options[i]) q.options[i].text=v;}
 function setCorrect(id,i){var q=qmFind(id); if(!q) return; q.options.forEach(function(o,j){ o.correct=j===i; });}

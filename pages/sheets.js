@@ -32,15 +32,81 @@ function weekdayLetter(year, month, day) {
   return ['Su', 'M', 'T', 'W', 'TH', 'F', 'Sa'][new Date(year, month - 1, day).getDay()];
 }
 
-function blankQuarter() {
+function quarterLabel(i) {
+  var names = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th'];
+  return names[i] || ((i + 1) + 'th');
+}
+
+function defaultSheetTables() {
+  return [
+    { id: 'ww', title: 'Written Works', part: 'ww', count: 10 },
+    { id: 'pt', title: 'Performance Task', part: 'pt', count: 10 },
+    { id: 'qz', title: 'Quizzes', part: 'qz', count: 6 },
+    { id: 'rec', title: 'Recitation / Assignments (Oral)', part: 'rec', count: 6 }
+  ];
+}
+
+function sheetPartKey(part) {
+  return String(part || '').replace(/[^a-z0-9_]/gi, '').slice(0, 24);
+}
+
+function normalizeSheetTable(raw, i) {
+  var part = sheetPartKey(raw && raw.part) || ('t' + i);
+  var count = parseInt(raw && raw.count, 10);
+  if (!(count >= 1)) count = 1;
+  if (count > 20) count = 20;
   return {
-    wwHps: '', ww: ['', '', '', '', '', '', '', '', '', ''],
-    ptHps: '', pt: ['', '', '', '', '', '', '', '', '', ''],
-    qzHps: '', qz: ['', '', '', '', '', ''],
-    recHps: '', rec: ['', '', '', '', '', ''],
-    exam: '',
-    signature: ''
+    id: sheetPartKey(raw && raw.id) || part,
+    title: String((raw && raw.title) || 'Table').slice(0, 80),
+    part: part,
+    count: count
   };
+}
+
+function blankQuarterFor(tables) {
+  var q = { exam: '', signature: '' };
+  (tables || defaultSheetTables()).forEach(function (table) {
+    q[table.part + 'Hps'] = '';
+    q[table.part] = padScores([], table.count);
+  });
+  return q;
+}
+
+function ensureQuarterShape(q, tables) {
+  var out = {
+    exam: q && q.exam != null ? String(q.exam) : '',
+    signature: q && q.signature != null ? String(q.signature) : ''
+  };
+  (tables || []).forEach(function (table) {
+    out[table.part + 'Hps'] = q && q[table.part + 'Hps'] != null ? String(q[table.part + 'Hps']) : '';
+    out[table.part] = padScores(q && q[table.part], table.count);
+  });
+  return out;
+}
+
+function attendanceMonthRows(yearLabel) {
+  return schoolMonths(yearLabel).map(function (m, i) {
+    return { id: 'cal-' + i + '-' + m.month, name: m.name, year: m.year, month: m.month };
+  });
+}
+
+function attendanceRows(data) {
+  if (data && Array.isArray(data.rows) && data.rows.length) {
+    return data.rows.map(function (row, i) {
+      return {
+        id: String((row && row.id) || ('row-' + i)),
+        name: String((row && row.name) || 'Row'),
+        year: parseInt(row && row.year, 10) || 0,
+        month: parseInt(row && row.month, 10) || 0
+      };
+    });
+  }
+  return attendanceMonthRows(data && data.year);
+}
+
+function markKey(row, day) {
+  if (row.year && row.month) return row.year + '-' + row.month + '-' + day;
+  return row.id + '-' + day;
 }
 
 function padScores(arr, n) {
@@ -63,13 +129,15 @@ function blankAttendance(student) {
 
 function blankAssessment(student) {
   var base = blankAttendance(student);
+  var tables = defaultSheetTables();
   return {
     name: base.name,
     section: base.section,
     subject: base.subject,
     tracker: '',
     year: '2026-2027',
-    quarters: [blankQuarter(), blankQuarter(), blankQuarter(), blankQuarter()],
+    tables: tables,
+    quarters: [blankQuarterFor(tables), blankQuarterFor(tables), blankQuarterFor(tables), blankQuarterFor(tables)],
     remarks: '',
     scheduleDays: { M: false, T: false, W: false, TH: false, F: false },
     scheduleTime: ''
@@ -131,6 +199,7 @@ function applyAttendance(saved, student) {
   base.tracker = saved.tracker != null ? String(saved.tracker) : '';
   base.year = saved.year ? String(saved.year) : base.year;
   base.marks = saved.marks && typeof saved.marks === 'object' ? saved.marks : {};
+  if (Array.isArray(saved.rows) && saved.rows.length) base.rows = attendanceRows(saved);
   return base;
 }
 
@@ -146,23 +215,18 @@ function applyAssessment(saved, student) {
   base.scheduleTime = saved.scheduleTime != null ? String(saved.scheduleTime) : '';
   var days = saved.scheduleDays || {};
   ['M', 'T', 'W', 'TH', 'F'].forEach(function (d) { base.scheduleDays[d] = !!days[d]; });
-  if (Array.isArray(saved.quarters)) {
-    for (var i = 0; i < 4; i++) {
-      var q = saved.quarters[i] || {};
-      base.quarters[i] = {
-        wwHps: q.wwHps != null ? String(q.wwHps) : '',
-        ww: padScores(q.ww, 10),
-        ptHps: q.ptHps != null ? String(q.ptHps) : '',
-        pt: padScores(q.pt, 10),
-        qzHps: q.qzHps != null ? String(q.qzHps) : '',
-        qz: padScores(q.qz, 6),
-        recHps: q.recHps != null ? String(q.recHps) : '',
-        rec: padScores(q.rec, 6),
-        exam: q.exam != null ? String(q.exam) : '',
-        signature: q.signature != null ? String(q.signature) : ''
-      };
-    }
-  }
+  var tables = Array.isArray(saved.tables) && saved.tables.length
+    ? saved.tables.map(normalizeSheetTable)
+    : defaultSheetTables();
+  var seen = {};
+  base.tables = tables.filter(function (table) {
+    if (seen[table.part]) return false;
+    seen[table.part] = true;
+    return true;
+  });
+  var source = Array.isArray(saved.quarters) && saved.quarters.length ? saved.quarters.slice(0, 8) : [{}, {}, {}, {}];
+  base.quarters = source.map(function (q) { return ensureQuarterShape(q || {}, base.tables); });
+  if (!base.quarters.length) base.quarters = [ensureQuarterShape({}, base.tables)];
   return base;
 }
 
@@ -240,39 +304,91 @@ function bindHeader(root, data, rerender) {
   });
 }
 
-function countPresent(marks, month) {
+function countRowPresent(marks, row) {
   var n = 0;
-  Object.keys(marks || {}).forEach(function (key) {
-    if (key.indexOf(month.year + '-' + month.month + '-') === 0 && marks[key] === 'P') n++;
-  });
+  for (var day = 1; day <= 31; day++) {
+    if ((marks || {})[markKey(row, day)] === 'P') n++;
+  }
   return n;
+}
+
+function materializeAttendanceRows() {
+  if (!attendanceData) return;
+  if (!Array.isArray(attendanceData.rows) || !attendanceData.rows.length) {
+    attendanceData.rows = attendanceRows(attendanceData);
+  }
+}
+
+function shiftCalendarYears(data) {
+  if (!data || !Array.isArray(data.rows)) return;
+  var byMonth = {};
+  schoolMonths(data.year).forEach(function (month) { byMonth[month.month] = month; });
+  data.rows.forEach(function (row) {
+    if (!row.year || !row.month || !byMonth[row.month]) return;
+    var next = byMonth[row.month];
+    if (next.year === row.year) return;
+    for (var day = 1; day <= 31; day++) {
+      var oldKey = row.year + '-' + row.month + '-' + day;
+      var newKey = next.year + '-' + row.month + '-' + day;
+      if (data.marks[oldKey] != null && data.marks[newKey] == null) data.marks[newKey] = data.marks[oldKey];
+      delete data.marks[oldKey];
+    }
+    row.year = next.year;
+  });
+}
+
+function addAttendanceRow() {
+  if (!attendanceData) return;
+  materializeAttendanceRows();
+  if (attendanceData.rows.length >= 16) return;
+  attendanceData.rows.push({ id: 'r' + Date.now(), name: 'New row', year: 0, month: 0 });
+  renderAttendance();
+  scheduleSave();
+}
+
+function deleteAttendanceRow(id) {
+  if (!attendanceData) return;
+  materializeAttendanceRows();
+  if (attendanceData.rows.length <= 1) return;
+  var row = null;
+  attendanceData.rows.forEach(function (item) { if (item.id === id) row = item; });
+  attendanceData.rows = attendanceData.rows.filter(function (item) { return item.id !== id; });
+  if (row) {
+    for (var day = 1; day <= 31; day++) delete attendanceData.marks[markKey(row, day)];
+  }
+  renderAttendance();
+  scheduleSave();
 }
 
 function renderAttendance() {
   var host = document.getElementById('attendance-sheet');
   var data = attendanceData;
   if (!host || !data) return;
-  var months = schoolMonths(data.year);
+  var rows = attendanceRows(data);
   var head = '<tr><th>Month</th>';
   for (var d = 1; d <= 31; d++) head += '<th>' + d + '</th>';
   head += '<th>Total</th></tr>';
-  var body = months.map(function (month, mi) {
+  var body = rows.map(function (row, mi) {
     var cells = '';
-    var max = daysInMonth(month.year, month.month);
+    var calendar = row.year && row.month;
+    var max = calendar ? daysInMonth(row.year, row.month) : 31;
     for (var day = 1; day <= 31; day++) {
       if (day > max) {
         cells += '<td class="mark-cell invalid"></td>';
         continue;
       }
-      var key = month.year + '-' + month.month + '-' + day;
+      var key = markKey(row, day);
       var val = data.marks[key] || '';
-      var letter = weekdayLetter(month.year, month.month, day);
+      var letter = calendar ? weekdayLetter(row.year, row.month, day) : '';
       var weekend = letter === 'Su' || letter === 'Sa' ? ' weekend' : '';
-      cells += '<td class="mark-cell' + weekend + '"><span class="wd">' + letter + '</span>' +
-        '<input class="mark-inp mk-' + sheetEsc(val.toLowerCase()) + '" maxlength="1" data-mark="' + key + '" value="' + sheetEsc(val) + '"></td>';
+      cells += '<td class="mark-cell' + weekend + '">' +
+        (letter ? '<span class="wd">' + letter + '</span>' : '') +
+        '<input class="mark-inp mk-' + sheetEsc(String(val).toLowerCase()) + '" maxlength="1" data-mark="' + sheetEsc(key) + '" value="' + sheetEsc(val) + '"></td>';
     }
-    return '<tr><th class="month">' + month.name + '</th>' + cells +
-      '<td class="att-total" id="att-total-' + mi + '">' + countPresent(data.marks, month) + '</td></tr>';
+    return '<tr><th class="month"><span class="month-edit"><input class="month-name" data-row-name="' + sheetEsc(row.id) + '" value="' + sheetEsc(row.name) + '" aria-label="Row name">' +
+      (rows.length > 1 ? '<button type="button" class="row-x" data-del-row="' + sheetEsc(row.id) + '" aria-label="Delete row">&times;</button>' : '') +
+      '</span></th>' + cells +
+      '<td class="att-total" id="att-total-' + mi + '">' + countRowPresent(data.marks, row) + '</td></tr>';
   }).join('');
   host.innerHTML =
     '<div class="paper">' +
@@ -281,8 +397,27 @@ function renderAttendance() {
       headerFields(data) +
       '<div class="legend"><span><b>P</b> Present</span><span><b>A</b> Absent</span><span><b>L</b> Late</span><span><b>H</b> Holiday</span><span>Total counts days marked present. Weekend boxes are shaded.</span></div>' +
       '<div class="att-scroll"><table class="att-table"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
+      '<div class="sheet-actions"><button type="button" class="sheet-tool" id="add-att-row">+ Add a row</button></div>' +
     '</div>';
-  bindHeader(host, data, renderAttendance);
+  bindHeader(host, data, function () {
+    shiftCalendarYears(data);
+    renderAttendance();
+  });
+  var addRow = document.getElementById('add-att-row');
+  if (addRow) addRow.addEventListener('click', addAttendanceRow);
+  host.querySelectorAll('[data-del-row]').forEach(function (btn) {
+    btn.addEventListener('click', function () { deleteAttendanceRow(btn.getAttribute('data-del-row')); });
+  });
+  host.querySelectorAll('[data-row-name]').forEach(function (input) {
+    input.addEventListener('input', function () {
+      materializeAttendanceRows();
+      var id = input.getAttribute('data-row-name');
+      data.rows.forEach(function (row) {
+        if (row.id === id) row.name = input.value;
+      });
+      scheduleSave();
+    });
+  });
   host.querySelectorAll('[data-mark]').forEach(function (input) {
     input.addEventListener('input', function () {
       var v = input.value.toUpperCase().replace(/[^PALH]/g, '').slice(0, 1);
@@ -291,9 +426,9 @@ function renderAttendance() {
       var key = input.getAttribute('data-mark');
       if (v) data.marks[key] = v;
       else delete data.marks[key];
-      months.forEach(function (month, mi) {
+      attendanceRows(data).forEach(function (row, mi) {
         var cell = document.getElementById('att-total-' + mi);
-        if (cell) cell.textContent = String(countPresent(data.marks, month));
+        if (cell) cell.textContent = String(countRowPresent(data.marks, row));
       });
       scheduleSave();
     });
@@ -319,8 +454,12 @@ function partPct(scores, hps) {
 }
 
 function quarterAverage(q) {
-  var nums = [partPct(q.ww, q.wwHps), partPct(q.pt, q.ptHps), partPct(q.qz, q.qzHps), partPct(q.rec, q.recHps)]
-    .filter(function (n) { return n != null && isFinite(n); });
+  var tables = assessmentData && assessmentData.tables && assessmentData.tables.length
+    ? assessmentData.tables
+    : defaultSheetTables();
+  var nums = tables.map(function (table) {
+    return partPct(q[table.part], q[table.part + 'Hps']);
+  }).filter(function (n) { return n != null && isFinite(n); });
   if (!nums.length) return null;
   return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
 }
@@ -345,55 +484,131 @@ function scoreInputs(qIndex, part, count) {
   return html;
 }
 
-function componentTable(title, part, count) {
+function findSheetTable(part) {
+  var tables = assessmentData && assessmentData.tables ? assessmentData.tables : [];
+  for (var i = 0; i < tables.length; i++) {
+    if (tables[i].part === part) return tables[i];
+  }
+  return null;
+}
+
+function componentTable(table) {
+  var part = table.part;
+  var count = table.count;
   var heads = '<tr><th>Quarter</th><th>HPS</th>';
-  for (var i = 1; i <= count; i++) heads += '<th>' + i + '</th>';
+  for (var i = 1; i <= count; i++) {
+    heads += '<th><span>' + i + '</span>' +
+      (count > 1 ? '<button type="button" class="col-x" data-del-col="' + sheetEsc(part) + '" data-col="' + (i - 1) + '" aria-label="Delete column">&times;</button>' : '') +
+      '</th>';
+  }
   heads += '<th>Total</th></tr>';
-  var rows = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    var q = assessmentData.quarters[qi];
-    return '<tr><th class="q-name">' + label + '</th>' +
-      '<td><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="' + part + 'Hps" value="' + sheetEsc(q[part + 'Hps']) + '"></td>' +
+  var rows = assessmentData.quarters.map(function (q, qi) {
+    return '<tr><th class="q-name"><span>' + quarterLabel(qi) + '</span>' +
+      (assessmentData.quarters.length > 1 ? '<button type="button" class="row-x" data-del-q="' + qi + '" aria-label="Delete row">&times;</button>' : '') +
+      '</th>' +
+      '<td><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="' + sheetEsc(part) + 'Hps" value="' + sheetEsc(q[part + 'Hps']) + '"></td>' +
       scoreInputs(qi, part, count) +
       '<td class="score-total" id="' + part + '-total-' + qi + '">' + fmtNum(sumList(q[part])) + '</td></tr>';
   }).join('');
-  return '<div class="sheet-block"><h3>' + title + '</h3><div class="score-scroll"><table class="score-table"><thead>' + heads + '</thead><tbody>' + rows + '</tbody></table></div></div>';
+  return '<div class="sheet-block"><div class="sheet-block-head"><h3><input class="sheet-title" data-table-title="' + sheetEsc(part) + '" value="' + sheetEsc(table.title) + '" aria-label="Table name"></h3>' +
+    '<button type="button" class="sheet-tool" data-add-col="' + sheetEsc(part) + '">+ Column</button>' +
+    '<button type="button" class="sheet-tool danger" data-del-table="' + sheetEsc(part) + '">Delete table</button></div>' +
+    '<div class="score-scroll"><table class="score-table"><thead>' + heads + '</thead><tbody>' + rows + '</tbody></table></div></div>';
+}
+
+function addAssessmentRow() {
+  if (!assessmentData || assessmentData.quarters.length >= 8) return;
+  assessmentData.quarters.push(ensureQuarterShape({}, assessmentData.tables));
+  renderAssessment();
+  scheduleSave();
+}
+
+function deleteAssessmentRow(index) {
+  if (!assessmentData || assessmentData.quarters.length <= 1) return;
+  assessmentData.quarters.splice(index, 1);
+  renderAssessment();
+  scheduleSave();
+}
+
+function addAssessmentColumn(part) {
+  var table = findSheetTable(part);
+  if (!table || table.count >= 20) return;
+  table.count += 1;
+  assessmentData.quarters.forEach(function (q) {
+    if (!Array.isArray(q[part])) q[part] = [];
+    q[part].push('');
+  });
+  renderAssessment();
+  scheduleSave();
+}
+
+function deleteAssessmentColumn(part, index) {
+  var table = findSheetTable(part);
+  if (!table || table.count <= 1) return;
+  table.count -= 1;
+  assessmentData.quarters.forEach(function (q) {
+    if (Array.isArray(q[part])) q[part].splice(index, 1);
+  });
+  renderAssessment();
+  scheduleSave();
+}
+
+function deleteAssessmentTable(part) {
+  if (!assessmentData) return;
+  assessmentData.tables = assessmentData.tables.filter(function (table) { return table.part !== part; });
+  assessmentData.quarters.forEach(function (q) {
+    delete q[part];
+    delete q[part + 'Hps'];
+  });
+  renderAssessment();
+  scheduleSave();
+}
+
+function addAssessmentTable() {
+  if (!assessmentData || assessmentData.tables.length >= 8) return;
+  var part = 't' + Date.now();
+  assessmentData.tables.push({ id: part, title: 'New table', part: part, count: 4 });
+  assessmentData.quarters.forEach(function (q) {
+    q[part + 'Hps'] = '';
+    q[part] = ['', '', '', ''];
+  });
+  renderAssessment();
+  scheduleSave();
 }
 
 function renderAssessment() {
   var host = document.getElementById('assessment-sheet');
   var data = assessmentData;
   if (!host || !data) return;
-  var exams = '<tr>' + ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    return '<th>' + label + '</th>';
-  }).join('') + '</tr><tr>' + [0, 1, 2, 3].map(function (qi) {
-    return '<td><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="exam" value="' + sheetEsc(data.quarters[qi].exam) + '"></td>';
+  var exams = '<tr>' + data.quarters.map(function (q, qi) {
+    return '<th>' + quarterLabel(qi) + '</th>';
+  }).join('') + '</tr><tr>' + data.quarters.map(function (q, qi) {
+    return '<td><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="exam" value="' + sheetEsc(q.exam) + '"></td>';
   }).join('') + '</tr>';
-  var signs = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    return '<div style="flex:1;min-width:140px;"><label style="display:block;font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9a6ea8;margin-bottom:.2rem;">' + label + ' Quarter</label>' +
-      '<input class="box-inp" style="border:1px solid #ead7f0;border-radius:8px;height:32px;" data-q="' + qi + '" data-part="signature" value="' + sheetEsc(data.quarters[qi].signature) + '"></div>';
+  var signs = data.quarters.map(function (q, qi) {
+    return '<div style="flex:1;min-width:140px;"><label style="display:block;font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9a6ea8;margin-bottom:.2rem;">' + quarterLabel(qi) + ' Quarter</label>' +
+      '<input class="box-inp" style="border:1px solid #ead7f0;border-radius:8px;height:32px;" data-q="' + qi + '" data-part="signature" value="' + sheetEsc(q.signature) + '"></div>';
   }).join('');
   var days = ['M', 'T', 'W', 'TH', 'F'].map(function (d) {
     return '<label><input type="checkbox" data-day="' + d + '"' + (data.scheduleDays[d] ? ' checked' : '') + '> ' + d + '</label>';
   }).join('');
-  var avgs = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    return '<div class="avg-box"><span>' + label + '</span><strong id="ga-' + qi + '">' + fmtNum(quarterAverage(data.quarters[qi])) + '</strong></div>';
+  var avgs = data.quarters.map(function (q, qi) {
+    return '<div class="avg-box"><span>' + quarterLabel(qi) + '</span><strong id="ga-' + qi + '">' + fmtNum(quarterAverage(q)) + '</strong></div>';
   }).join('');
-  var examGrades = ['1st', '2nd', '3rd', '4th'].map(function (label, qi) {
-    return '<div class="avg-box"><span>' + label + '</span><strong id="eg-' + qi + '">' + sheetEsc(data.quarters[qi].exam) + '</strong></div>';
+  var examGrades = data.quarters.map(function (q, qi) {
+    return '<div class="avg-box"><span>' + quarterLabel(qi) + '</span><strong id="eg-' + qi + '">' + sheetEsc(q.exam) + '</strong></div>';
   }).join('');
   host.innerHTML =
     '<div class="paper">' +
       '<div class="paper-title">Learner\'s Individual Assessment Record</div>' +
       '<div class="paper-year">Academic year <input data-field="year" value="' + sheetEsc(data.year) + '" style="width:7.2rem;border:1px solid #e7d5ee;border-radius:8px;padding:.2rem .4rem;font-family:inherit;color:#1f1630;"></div>' +
       headerFields(data) +
+      '<div class="sheet-actions"><button type="button" class="sheet-tool" id="add-assess-row">+ Add a row</button><button type="button" class="sheet-tool" id="add-assess-table">+ Add a table</button></div>' +
       '<div class="sheet-grid">' +
-        componentTable('Written Works', 'ww', 10) +
-        componentTable('Performance Task', 'pt', 10) +
-        componentTable('Quizzes', 'qz', 6) +
-        componentTable('Recitation / Assignments (Oral)', 'rec', 6) +
+        data.tables.map(function (table) { return componentTable(table); }).join('') +
         '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
         '<div class="sheet-block"><h3>Parent\'s / Guardian Signature</h3><div style="display:flex;flex-wrap:wrap;gap:.5rem;padding:.65rem;">' + signs + '</div></div>' +
-        '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs + '<div class="avg-box"><span>Final Average</span><strong id="final-avg">' + fmtNum(finalAverage(data)) + '</strong></div></div><p style="margin:0;padding:0 .65rem .65rem;font-size:.72rem;color:#8b7396;">Each quarter averages the written, performance, quiz, and oral scores that have a highest possible score.</p></div>' +
+        '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs + '<div class="avg-box"><span>Final Average</span><strong id="final-avg">' + fmtNum(finalAverage(data)) + '</strong></div></div><p style="margin:0;padding:0 .65rem .65rem;font-size:.72rem;color:#8b7396;">Each quarter averages the score tables that have a highest possible score.</p></div>' +
         '<div class="sheet-block"><h3>Exam Grade</h3><div class="avg-row">' + examGrades + '</div></div>' +
         '<div class="sheet-block"><h3>Remarks</h3><textarea class="remarks-inp" id="sheet-remarks">' + sheetEsc(data.remarks) + '</textarea></div>' +
         '<div class="sheet-block"><h3>Schedule</h3><div class="sched-days">' + days +
@@ -401,6 +616,31 @@ function renderAssessment() {
       '</div>' +
     '</div>';
   bindHeader(host, data, null);
+  var addRowBtn = document.getElementById('add-assess-row');
+  var addTableBtn = document.getElementById('add-assess-table');
+  if (addRowBtn) addRowBtn.addEventListener('click', addAssessmentRow);
+  if (addTableBtn) addTableBtn.addEventListener('click', addAssessmentTable);
+  host.querySelectorAll('[data-del-q]').forEach(function (btn) {
+    btn.addEventListener('click', function () { deleteAssessmentRow(parseInt(btn.getAttribute('data-del-q'), 10)); });
+  });
+  host.querySelectorAll('[data-add-col]').forEach(function (btn) {
+    btn.addEventListener('click', function () { addAssessmentColumn(btn.getAttribute('data-add-col')); });
+  });
+  host.querySelectorAll('[data-del-col]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      deleteAssessmentColumn(btn.getAttribute('data-del-col'), parseInt(btn.getAttribute('data-col'), 10));
+    });
+  });
+  host.querySelectorAll('[data-del-table]').forEach(function (btn) {
+    btn.addEventListener('click', function () { deleteAssessmentTable(btn.getAttribute('data-del-table')); });
+  });
+  host.querySelectorAll('[data-table-title]').forEach(function (input) {
+    input.addEventListener('input', function () {
+      var table = findSheetTable(input.getAttribute('data-table-title'));
+      if (table) table.title = input.value.slice(0, 80);
+      scheduleSave();
+    });
+  });
   host.querySelectorAll('.box-inp').forEach(function (input) {
     input.addEventListener('input', function () {
       var qi = parseInt(input.getAttribute('data-q'), 10);
@@ -437,10 +677,10 @@ function renderAssessment() {
 function paintAssessmentTotals() {
   var data = assessmentData;
   if (!data) return;
-  ['ww', 'pt', 'qz', 'rec'].forEach(function (part) {
+  (data.tables || []).forEach(function (table) {
     data.quarters.forEach(function (q, qi) {
-      var cell = document.getElementById(part + '-total-' + qi);
-      if (cell) cell.textContent = fmtNum(sumList(q[part]));
+      var cell = document.getElementById(table.part + '-total-' + qi);
+      if (cell) cell.textContent = fmtNum(sumList(q[table.part]));
     });
   });
   data.quarters.forEach(function (q, qi) {

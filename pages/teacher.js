@@ -209,6 +209,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   const hour = new Date().getHours();
   const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
   document.getElementById('teacher-greeting').textContent = `${g}, ${user.name}`;
+  if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.teacher-hero'), 'greet');
   paintTeacherClassesFromCache();
   await loadClasses();
 });
