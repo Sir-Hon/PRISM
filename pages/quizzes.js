@@ -271,14 +271,22 @@ function QUIZ_prepareQuestions(list) {
     if (raw.type === 'part') {
       partCount++;
       nInPart = 0;
-      var box = Array.isArray(raw.box) ? raw.box : [];
+      var box = Array.isArray(raw.box) ? raw.box.map(function (w) { return String(w || '').trim(); }).filter(Boolean) : [];
+      var open = raw.showBox === true || (raw.showBox == null && box.length > 0);
       part = {
         n: partCount,
         title: String(raw.title || '').trim(),
         directions: String(raw.directions || '').trim(),
         image: raw.image || '',
-        box: box.map(function (w) { return String(w || '').trim(); }).filter(Boolean)
+        box: open ? box : []
       };
+      return;
+    }
+    if (raw.loose) {
+      var lone = QUIZ_normalizeQuestion(raw);
+      lone.part = null;
+      lone.partNo = 0;
+      out.push(lone);
       return;
     }
     nInPart++;

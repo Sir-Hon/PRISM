@@ -117,7 +117,43 @@ function renderQmSectionPills() {
   });
 }
 
+function qmAccentHex(raw) {
+  var value = String(raw || '').trim();
+  if (/^#[0-9a-fA-F]{3}$/.test(value)) value = '#' + value.charAt(1) + value.charAt(1) + value.charAt(2) + value.charAt(2) + value.charAt(3) + value.charAt(3);
+  return /^#[0-9a-fA-F]{6}$/.test(value) ? value : '';
+}
+function qmMixHex(hex, toward, amount) {
+  var from = parseInt(hex.slice(1), 16);
+  var to = parseInt(toward.slice(1), 16);
+  function channel(shift) {
+    var a = (from >> shift) & 255;
+    var b = (to >> shift) & 255;
+    return Math.round(a + (b - a) * amount);
+  }
+  function byte(n) { var s = n.toString(16); return s.length < 2 ? '0' + s : s; }
+  return '#' + byte(channel(16)) + byte(channel(8)) + byte(channel(0));
+}
+function qmApplySubjectColor(raw) {
+  var color = qmAccentHex(raw);
+  if (!color) {
+    try {
+      if (window.parent && window.parent !== window) {
+        color = qmAccentHex(window.parent.getComputedStyle(window.parent.document.documentElement).getPropertyValue('--t'));
+      }
+    } catch (e) {}
+  }
+  if (!color) color = '#7c3aed';
+  var root = document.documentElement;
+  root.style.setProperty('--t', color);
+  root.style.setProperty('--t-dark', qmMixHex(color, '#000000', 0.28));
+  root.style.setProperty('--t-light', qmMixHex(color, '#ffffff', 0.84));
+  root.style.setProperty('--t-soft', qmMixHex(color, '#ffffff', 0.93));
+  root.style.setProperty('--t-mid', qmMixHex(color, '#ffffff', 0.42));
+  root.style.setProperty('--t-deep', qmMixHex(color, '#000000', 0.62));
+}
 function updateQuizScopeBanner() {
+  var cls = activeClassId && CLASSES.length ? CLASSES.find(function (c) { return c.id === activeClassId; }) : null;
+  qmApplySubjectColor(cls && cls.color);
   var el = document.getElementById('quizmaker-class-scope-banner');
   if (!el) return;
   if (!activeClassId || !CLASSES.length) {
@@ -125,7 +161,6 @@ function updateQuizScopeBanner() {
     el.innerHTML = '';
     return;
   }
-  var cls = CLASSES.find(function(c) { return c.id === activeClassId; });
   var subj = cls ? (typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'This class')) : 'This class';
   var safe = String(subj).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
   el.style.display = 'block';
@@ -191,10 +226,33 @@ function qmTypeOptions(selected) {
 function qmPartUsesBox(type) {
   return type === 'id' || type === 'sa' || type === 'mtf' || type === 'essay';
 }
+function qmBoxOpen(part) {
+  if (!part || !qmPartUsesBox(part.qType || 'mc')) return false;
+  if (part.showBox === false) return false;
+  if (part.showBox === true) return true;
+  return (part.box || []).some(function (word) { return String(word || '').trim(); });
+}
+function qmIcon(name) {
+  var paths = {
+    image: '<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.4"/><path d="M21 16l-5-4-4 3-2-2-5 5"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    box: '<rect x="3" y="7" width="18" height="11" rx="2"/><path d="M7 11h4M13 11h4M7 15h3"/>',
+    part: '<rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/>',
+    question: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+    x: '<path d="M6 6l12 12M18 6L6 18"/>'
+  };
+  return '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (paths[name] || '') + '</svg>';
+}
+function qmTipButton(className, tip, inner, attrs) {
+  return '<button type="button" class="' + className + '" data-tip="' + esc(tip) + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '"' + (attrs || '') + '>' + inner + '</button>';
+}
 function qmOwningPart(id) {
   var at = questions.findIndex(function (item) { return String(item.id) === String(id); });
   if (at < 0) return null;
-  for (var i = at; i >= 0; i--) {
+  if (questions[at].type === 'part') return questions[at];
+  if (questions[at].loose) return null;
+  for (var i = at - 1; i >= 0; i--) {
+    if (questions[i].loose) continue;
     if (questions[i].type === 'part') return questions[i];
   }
   return null;
@@ -203,7 +261,9 @@ function qmQuestionsInPart(partId) {
   var at = questions.findIndex(function (item) { return String(item.id) === String(partId); });
   var out = [];
   if (at < 0 || questions[at].type !== 'part') return out;
-  for (var i = at + 1; i < questions.length && questions[i].type !== 'part'; i++) out.push(questions[i]);
+  for (var i = at + 1; i < questions.length && questions[i].type !== 'part'; i++) {
+    if (!questions[i].loose) out.push(questions[i]);
+  }
   return out;
 }
 function qmNormalizePartTypes() {
@@ -215,6 +275,7 @@ function qmNormalizePartTypes() {
         var next = '';
         for (var j = i + 1; j < questions.length; j++) {
           if (questions[j].type === 'part') break;
+          if (questions[j].loose) continue;
           next = questions[j].type;
           break;
         }
@@ -223,6 +284,7 @@ function qmNormalizePartTypes() {
       part = q;
       return;
     }
+    if (q.loose) return;
     if (part && q.type !== part.qType) {
       q.type = part.qType;
       ensureQuestionShape(q);
@@ -236,7 +298,11 @@ function addQuestion(pre, afterId) {
   const q=pre||blankQuestion();
   if (!pre && afterId) {
     var owner = qmOwningPart(afterId);
+    q.loose = false;
     if (owner && owner.qType) q.type = owner.qType;
+  } else if (!pre) {
+    q.loose = true;
+    q.type = 'mc';
   }
   ensureQuestionShape(q);
   if (afterId) {
@@ -244,14 +310,21 @@ function addQuestion(pre, afterId) {
     if (at < 0) questions.push(q);
     else {
       var insertAt = at + 1;
-      while (insertAt < questions.length && questions[insertAt].type !== 'part') insertAt++;
+      while (insertAt < questions.length && questions[insertAt].type !== 'part' && !questions[insertAt].loose) insertAt++;
       questions.splice(insertAt, 0, q);
     }
   } else questions.push(q);
   renderQMQuestions();
 }
 function addPart() {
-  questions.push({ id:'part-'+Date.now(), type:'part', qType:'mc', title:'', directions:'', image:'', box:[] });
+  questions.push({ id:'part-'+Date.now(), type:'part', qType:'mc', title:'', directions:'', image:'', box:[], showBox:false });
+  renderQMQuestions();
+}
+function setPartBox(id, open) {
+  var part = qmFind(id);
+  if (!part || part.type !== 'part') return;
+  part.showBox = !!open;
+  if (!part.box) part.box = [];
   renderQMQuestions();
 }
 function setPartType(id, type) {
@@ -267,11 +340,16 @@ function setPartType(id, type) {
 }
 function removeQuestion(id){questions=questions.filter(q=>String(q.id)!==String(id));renderQMQuestions();}
 function qmLocalNumber(q) {
+  var owner = qmOwningPart(q.id);
   var n = 0;
   for (var i = 0; i < questions.length; i++) {
-    if (questions[i].type === 'part') { n = 0; continue; }
+    var item = questions[i];
+    if (item.type === 'part') continue;
+    var itemOwner = qmOwningPart(item.id);
+    var same = owner ? (itemOwner && String(itemOwner.id) === String(owner.id)) : !itemOwner;
+    if (!same) continue;
     n++;
-    if (String(questions[i].id) === String(q.id)) return n;
+    if (String(item.id) === String(q.id)) return n;
   }
   return 1;
 }
@@ -284,21 +362,28 @@ function qmPartCard(q, partNo) {
       + '<button type="button" class="bank-x" onclick="removeBox(\''+q.id+'\','+i+')" aria-label="Remove choice">&times;</button>'
       + '</span>';
   }).join('');
-  var insert = (q.box || []).length >= 12 ? '' : '<button type="button" class="bank-insert" onclick="addBox(\''+q.id+'\')">+ Choice</button>';
+  var insert = (q.box || []).length >= 12 ? '' : qmTipButton('bank-insert qm-ico', 'Add a choice', qmIcon('plus'), ' onclick="addBox(\''+q.id+'\')"');
   var quizType = q.qType || 'mc';
-  var boxBlock = qmPartUsesBox(quizType)
-    ? '<div class="part-field-label">Answer box</div>'
-      + '<div class="answer-bank">'+words+insert+'</div>'
+  var boxOpen = qmBoxOpen(q);
+  var addBoxBtn = qmPartUsesBox(quizType) && !boxOpen
+    ? qmTipButton('qm-ico', 'Add answer box', qmIcon('box'), ' onclick="setPartBox(\''+q.id+'\',true)"')
+    : '';
+  var boxBlock = boxOpen
+    ? '<div class="part-box-head"><span class="part-field-label">Answer box</span>'
+      + qmTipButton('qm-ico qm-ico-quiet', 'Remove answer box', qmIcon('x'), ' onclick="setPartBox(\''+q.id+'\',false)"')
+      + '</div><div class="answer-bank">'+words+insert+'</div>'
       + '<p class="part-hint">These choices are shared by the questions in this part.</p>'
     : '';
   card.innerHTML = '<div class="q-header"><div class="part-kicker" style="margin:0;">Part '+partNo+'</div>'
-    + '<button type="button" class="q-del" onclick="removeQuestion(\''+q.id+'\')" title="Remove part" aria-label="Remove part">&times;</button></div>'
+    + '<span class="q-head-tools">' + addBoxBtn + qmImageButton(q)
+    + qmTipButton('q-del', 'Remove part', qmIcon('x'), ' onclick="removeQuestion(\''+q.id+'\')"')
+    + '</span></div>'
     + '<label class="part-field">Part name<input class="part-title" value="'+esc(q.title)+'" placeholder="Name this part" oninput="updatePart(\''+q.id+'\',\'title\',this.value)"/></label>'
     + '<label class="part-field">Quiz type<select class="q-type-sel" onchange="setPartType(\''+q.id+'\',this.value)">'+qmTypeOptions(quizType)+'</select></label>'
     + '<label class="part-field">Directions<textarea class="part-dir" placeholder="Write the directions for this part" oninput="updatePart(\''+q.id+'\',\'directions\',this.value)">'+esc(q.directions)+'</textarea></label>'
-    + qmImageBlock(q)
+    + qmImagePreview(q)
     + boxBlock
-    + '<button type="button" class="part-add-q" onclick="addQuestion(null,\''+q.id+'\')">+ Add a question in this part</button>';
+    + qmTipButton('part-add-q', 'Add a question in this part', qmIcon('plus'), ' onclick="addQuestion(null,\''+q.id+'\')"');
   return card;
 }
 function renderQMQuestions(){
@@ -325,25 +410,30 @@ function renderQMQuestions(){
       + typeControl
       + '<input class="q-pts" type="number" min="1" value="'+q.points+'" onchange="updateQ(\''+q.id+'\',\'points\',this.value)" title="Points"/>'
       + '<span style="font-size:.72rem;color:#9ca3af;">pts</span>'
-      + '<button type="button" class="q-del" onclick="removeQuestion(\''+q.id+'\')" title="Remove question" aria-label="Remove question">&times;</button></div>'
+      + '<span class="q-head-tools">' + qmImageButton(q)
+      + qmTipButton('q-del', 'Remove question', qmIcon('x'), ' onclick="removeQuestion(\''+q.id+'\')"')
+      + '</span></div>'
       + stem
-      + '<div id="qo-'+q.id+'">'+renderOpts(q)+'</div>';
+      + '<div id="qo-'+q.id+'">'+renderOpts(q)+'</div>'
+      + qmImagePreview(q);
     list.appendChild(card);
   });
   qmBindTeacherMatches(list);
 }
-function qmImageBlock(q){
-  var src = q.image ? (typeof prismResolveUploadUrl==='function' ? prismResolveUploadUrl(q.image) : q.image) : '';
-  var preview = src ? `<img class="q-image-preview" src="${esc(src)}" alt="">` : '';
-  var status = q._uploading ? `<div class="q-note">Uploading image…</div>` : '';
-  return `<div class="q-image-row">
-    ${preview}
-    ${status}
-    <label class="q-image-btn">${q.image ? 'Change image' : 'Add image'}
-      <input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.png,.jpg,.jpeg,.gif,.webp,.bmp" hidden onchange="onQuestionImage('${q.id}',this)"/>
-    </label>
-    ${q.image ? `<button type="button" class="q-image-clear" onclick="removeQuestionImage('${q.id}')">Remove image</button>` : ''}
-  </div>`;
+function qmImageButton(q) {
+  var tip = q.image ? 'Change image' : 'Add image';
+  return '<label class="qm-ico" data-tip="' + tip + '" title="' + tip + '" aria-label="' + tip + '">'
+    + qmIcon('image')
+    + '<input type="file" accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.png,.jpg,.jpeg,.gif,.webp,.bmp" hidden onchange="onQuestionImage(\'' + q.id + '\',this)"/>'
+    + '</label>';
+}
+function qmImagePreview(q) {
+  if (!q.image && !q._uploading) return '';
+  var src = q.image ? (typeof prismResolveUploadUrl === 'function' ? prismResolveUploadUrl(q.image) : q.image) : '';
+  var preview = src ? '<img class="q-image-preview" src="' + esc(src) + '" alt="">' : '';
+  var status = q._uploading ? '<div class="q-note">Uploading image…</div>' : '';
+  var remove = q.image ? qmTipButton('qm-ico qm-ico-quiet', 'Remove image', qmIcon('x'), ' onclick="removeQuestionImage(\'' + q.id + '\')"') : '';
+  return '<div class="q-image-row">' + preview + status + remove + '</div>';
 }
 function renderOpts(q){
   var body = '';
@@ -409,7 +499,7 @@ function renderOpts(q){
   } else if(q.type==='essay'){
     body = `<div class="q-note">Students write a longer response. You review it after they submit.</div>`;
   }
-  return body + qmImageBlock(q);
+  return body;
 }
 function changeQType(id,type){
   var q=qmFind(id); if(!q) return;
@@ -644,7 +734,7 @@ function qmBindTeacherMatches(root){
     });
   });
 }
-function removeQuestionImage(id){var q=qmFind(id); if(!q) return; q.image=''; if(q.type==='part') renderQMQuestions(); else qmRefreshOpts(id);}
+function removeQuestionImage(id){var q=qmFind(id); if(!q) return; q.image=''; renderQMQuestions();}
 async function onQuestionImage(id, input){
   var file = input.files && input.files[0];
   input.value = '';
@@ -655,7 +745,7 @@ async function onQuestionImage(id, input){
     return;
   }
   q._uploading = true;
-  if (q.type==='part') renderQMQuestions(); else qmRefreshOpts(id);
+  renderQMQuestions();
   try {
     var saved = await PrismQuizzes.uploadImage(file);
     q.image = saved.path || '';
@@ -664,7 +754,7 @@ async function onQuestionImage(id, input){
     showQMsg(e.message || 'Could not upload the image.', 'err');
   }
   q._uploading = false;
-  if (q.type==='part') renderQMQuestions(); else qmRefreshOpts(id);
+  renderQMQuestions();
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function qmCleanQuestion(q){
@@ -682,6 +772,8 @@ function qmCleanQuestion(q){
   if (copy.type==='mtf' && copy.mtfMode!=='fix') { copy.mtfMode='true'; copy.mtfAnswer='True'; }
   if (copy.type==='part') {
     copy.box = (copy.box||[]).map(function(w){ return String(w||'').trim(); }).filter(Boolean);
+    copy.showBox = copy.showBox === true || (copy.showBox == null && copy.box.length > 0);
+    if (!copy.showBox) copy.box = [];
     copy.points = 0;
   }
   return copy;
