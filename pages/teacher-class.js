@@ -405,7 +405,7 @@ function switchSub(name, btn) {
 function ensureClassQuizFrame() {
   var frame = document.getElementById('class-quiz-frame');
   if (!frame || !activeClassId) return;
-  var next = 'quizmaker.html?embed=1&v=4&class=' + encodeURIComponent(activeClassId);
+  var next = 'quizmaker.html?embed=1&v=5&class=' + encodeURIComponent(activeClassId);
   if (frame.dataset.src !== next) {
     frame.dataset.src = next;
     frame.src = next;

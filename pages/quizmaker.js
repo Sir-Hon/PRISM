@@ -168,11 +168,76 @@ function ensureQuestionShape(q){
     else if (q.mtfAnswer==null) q.mtfAnswer='';
   }
 }
-function blankQuestion() {
-  return {id:Date.now().toString(),type:'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true',image:''};
+var QM_TYPES = [
+  ['mc', 'Multiple choice'],
+  ['tf', 'True / False'],
+  ['mtf', 'Modified true or false'],
+  ['id', 'Identification'],
+  ['match', 'Matching'],
+  ['sa', 'Short answer'],
+  ['essay', 'Essay']
+];
+function qmTypeLabel(type) {
+  for (var i = 0; i < QM_TYPES.length; i++) {
+    if (QM_TYPES[i][0] === type) return QM_TYPES[i][1];
+  }
+  return 'Multiple choice';
+}
+function qmTypeOptions(selected) {
+  return QM_TYPES.map(function (pair) {
+    return '<option value="' + pair[0] + '"' + (pair[0] === selected ? ' selected' : '') + '>' + pair[1] + '</option>';
+  }).join('');
+}
+function qmPartUsesBox(type) {
+  return type === 'id' || type === 'sa' || type === 'mtf' || type === 'essay';
+}
+function qmOwningPart(id) {
+  var at = questions.findIndex(function (item) { return String(item.id) === String(id); });
+  if (at < 0) return null;
+  for (var i = at; i >= 0; i--) {
+    if (questions[i].type === 'part') return questions[i];
+  }
+  return null;
+}
+function qmQuestionsInPart(partId) {
+  var at = questions.findIndex(function (item) { return String(item.id) === String(partId); });
+  var out = [];
+  if (at < 0 || questions[at].type !== 'part') return out;
+  for (var i = at + 1; i < questions.length && questions[i].type !== 'part'; i++) out.push(questions[i]);
+  return out;
+}
+function qmNormalizePartTypes() {
+  var part = null;
+  questions.forEach(function (q, i) {
+    if (q.type === 'part') {
+      var known = QM_TYPES.some(function (pair) { return pair[0] === q.qType; });
+      if (!known) {
+        var next = '';
+        for (var j = i + 1; j < questions.length; j++) {
+          if (questions[j].type === 'part') break;
+          next = questions[j].type;
+          break;
+        }
+        q.qType = QM_TYPES.some(function (pair) { return pair[0] === next; }) ? next : 'mc';
+      }
+      part = q;
+      return;
+    }
+    if (part && q.type !== part.qType) {
+      q.type = part.qType;
+      ensureQuestionShape(q);
+    }
+  });
+}
+function blankQuestion(type) {
+  return {id:Date.now().toString(),type:type||'mc',question:'',points:5,options:[{text:'',correct:true},{text:'',correct:false},{text:'',correct:false},{text:'',correct:false}],tfAnswer:'true',image:''};
 }
 function addQuestion(pre, afterId) {
   const q=pre||blankQuestion();
+  if (!pre && afterId) {
+    var owner = qmOwningPart(afterId);
+    if (owner && owner.qType) q.type = owner.qType;
+  }
   ensureQuestionShape(q);
   if (afterId) {
     var at = questions.findIndex(function(item){ return String(item.id)===String(afterId); });
@@ -186,7 +251,18 @@ function addQuestion(pre, afterId) {
   renderQMQuestions();
 }
 function addPart() {
-  questions.push({ id:'part-'+Date.now(), type:'part', title:'', directions:'', image:'', box:[] });
+  questions.push({ id:'part-'+Date.now(), type:'part', qType:'mc', title:'', directions:'', image:'', box:[] });
+  renderQMQuestions();
+}
+function setPartType(id, type) {
+  var part = qmFind(id);
+  if (!part || part.type !== 'part') return;
+  if (!QM_TYPES.some(function (pair) { return pair[0] === type; })) return;
+  part.qType = type;
+  qmQuestionsInPart(id).forEach(function (q) {
+    q.type = type;
+    ensureQuestionShape(q);
+  });
   renderQMQuestions();
 }
 function removeQuestion(id){questions=questions.filter(q=>String(q.id)!==String(id));renderQMQuestions();}
@@ -209,20 +285,26 @@ function qmPartCard(q, partNo) {
       + '</span>';
   }).join('');
   var insert = (q.box || []).length >= 12 ? '' : '<button type="button" class="bank-insert" onclick="addBox(\''+q.id+'\')">+ Choice</button>';
+  var quizType = q.qType || 'mc';
+  var boxBlock = qmPartUsesBox(quizType)
+    ? '<div class="part-field-label">Answer box</div>'
+      + '<div class="answer-bank">'+words+insert+'</div>'
+      + '<p class="part-hint">These choices are shared by the questions in this part.</p>'
+    : '';
   card.innerHTML = '<div class="q-header"><div class="part-kicker" style="margin:0;">Part '+partNo+'</div>'
     + '<button type="button" class="q-del" onclick="removeQuestion(\''+q.id+'\')" title="Remove part" aria-label="Remove part">&times;</button></div>'
-    + '<label class="part-field">Part name<input class="part-title" value="'+esc(q.title)+'" placeholder="Identification" oninput="updatePart(\''+q.id+'\',\'title\',this.value)"/></label>'
-    + '<label class="part-field">Directions<textarea class="part-dir" placeholder="Write the directions, such as Write the answer asked" oninput="updatePart(\''+q.id+'\',\'directions\',this.value)">'+esc(q.directions)+'</textarea></label>'
+    + '<label class="part-field">Part name<input class="part-title" value="'+esc(q.title)+'" placeholder="Name this part" oninput="updatePart(\''+q.id+'\',\'title\',this.value)"/></label>'
+    + '<label class="part-field">Quiz type<select class="q-type-sel" onchange="setPartType(\''+q.id+'\',this.value)">'+qmTypeOptions(quizType)+'</select></label>'
+    + '<label class="part-field">Directions<textarea class="part-dir" placeholder="Write the directions for this part" oninput="updatePart(\''+q.id+'\',\'directions\',this.value)">'+esc(q.directions)+'</textarea></label>'
     + qmImageBlock(q)
-    + '<div class="part-field-label">Answer box</div>'
-    + '<div class="answer-bank">'+words+insert+'</div>'
-    + '<p class="part-hint">Choices sit in this box. Leave it empty when the part does not use one.</p>'
+    + boxBlock
     + '<button type="button" class="part-add-q" onclick="addQuestion(null,\''+q.id+'\')">+ Add a question in this part</button>';
   return card;
 }
 function renderQMQuestions(){
   const list=document.getElementById('questions-list');
   if (!list) return;
+  qmNormalizePartTypes();
   list.innerHTML='';
   var partNo = 0;
   questions.forEach(function(q){
@@ -233,18 +315,14 @@ function renderQMQuestions(){
       return;
     }
     var n = qmLocalNumber(q);
+    var inPart = qmOwningPart(q.id);
+    var typeControl = inPart
+      ? '<span class="q-type-lock">'+esc(qmTypeLabel(q.type))+'</span>'
+      : '<select class="q-type-sel" onchange="changeQType(\''+q.id+'\',this.value)">'+qmTypeOptions(q.type)+'</select>';
     const card=document.createElement('div');card.className='q-card';
     var stem = q.type==='mtf' ? '' : '<input class="q-text" placeholder="Type your question…" value="'+esc(q.question)+'" oninput="updateQ(\''+q.id+'\',\'question\',this.value)"/>';
     card.innerHTML='<div class="q-header"><div class="q-num">'+n+'</div>'
-      + '<select class="q-type-sel" onchange="changeQType(\''+q.id+'\',this.value)">'
-      + '<option value="mc" '+(q.type==='mc'?'selected':'')+'>Multiple choice</option>'
-      + '<option value="tf" '+(q.type==='tf'?'selected':'')+'>True / False</option>'
-      + '<option value="mtf" '+(q.type==='mtf'?'selected':'')+'>Modified true or false</option>'
-      + '<option value="id" '+(q.type==='id'?'selected':'')+'>Identification</option>'
-      + '<option value="match" '+(q.type==='match'?'selected':'')+'>Matching</option>'
-      + '<option value="sa" '+(q.type==='sa'?'selected':'')+'>Short answer</option>'
-      + '<option value="essay" '+(q.type==='essay'?'selected':'')+'>Essay</option>'
-      + '</select>'
+      + typeControl
       + '<input class="q-pts" type="number" min="1" value="'+q.points+'" onchange="updateQ(\''+q.id+'\',\'points\',this.value)" title="Points"/>'
       + '<span style="font-size:.72rem;color:#9ca3af;">pts</span>'
       + '<button type="button" class="q-del" onclick="removeQuestion(\''+q.id+'\')" title="Remove question" aria-label="Remove question">&times;</button></div>'
@@ -301,7 +379,7 @@ function renderOpts(q){
           <span class="choice-letter">${i+1}</span>
           <input type="text" value="${esc(a)}" placeholder="Accepted answer" oninput="updateAnswer('${q.id}',${i},this.value)"/>
           ${(q.answers||[]).length>1?`<button type="button" class="mc-rm" onclick="removeAnswer('${q.id}',${i})" aria-label="Remove answer">&times;</button>`:''}
-        </div>`).join('')}
+    </div>`).join('')}
         ${(q.answers||[]).length<6?`<button type="button" class="mc-add" onclick="addAnswer('${q.id}')">+ Add another accepted answer</button>`:''}
       </div>`;
   } else if(q.type==='match'){
@@ -311,13 +389,13 @@ function renderOpts(q){
         <input type="text" value="${esc(p.left)}" placeholder="Item ${i+1}" oninput="updatePair('${q.id}',${i},'left',this.value)"/>
         <button type="button" class="match-dot" data-from="${i}" aria-label="Connect item ${i+1}"></button>
         ${(q.pairs||[]).length>2?`<button type="button" class="mc-rm" onclick="removePair('${q.id}',${i})" aria-label="Remove match">&times;</button>`:''}
-      </div>`;
+  </div>`;
     }).join('');
     var rightCol = (q.columnB||[]).map(function(text,slot){
       return `<div class="match-item b qm-match-b" data-slot="${slot}">
         <button type="button" class="match-dot" data-to="${slot}" aria-label="Answer ${slot+1}"></button>
         <input type="text" value="${esc(text)}" placeholder="Answer" oninput="updateColumnB('${q.id}',${slot},this.value)"/>
-      </div>`;
+  </div>`;
     }).join('');
     body = `<div class="q-note">Type the items and the answers. Drag a dot in column A to the matching dot in column B. Nothing is connected until you do that. Tap a connected dot to undo it.</div>
       <div class="qm-match" id="qm-match-${q.id}" data-qid="${q.id}">
@@ -610,7 +688,7 @@ function qmCleanQuestion(q){
 }
 function qmQuestionProblem(q, n){
   if (q.type==='part') {
-    if (!String(q.title||'').trim()) return 'Each part needs a name, such as Identification.';
+    if (!String(q.title||'').trim()) return 'Each part needs a name.';
     return '';
   }
   var label = 'Question ' + n;
@@ -865,7 +943,7 @@ function renderSavedQuizzes(){
     var qid = "'" + String(q.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
     return `<div class="saved-q-item">
       <div class="sq-top">
-        <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
+      <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
         <div class="sq-copy"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${(q.questions||[]).filter(function(item){ return item.type!=='part'; }).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
       </div>
       <div class="sq-actions">

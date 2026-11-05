@@ -140,7 +140,9 @@
     .part-dir { min-height:68px; resize:vertical; font-size:.9rem; }
     .part-field, .part-field-label { display:block; font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6d28d9; margin:0 0 .65rem; }
     .part-field-label { margin-bottom:.35rem; }
-    .part-field .part-title, .part-field .part-dir { display:block; width:100%; margin:.3rem 0 0; text-transform:none; letter-spacing:0; }
+    .part-field .part-title, .part-field .part-dir, .part-field .q-type-sel { display:block; width:100%; max-width:none; margin:.3rem 0 0; text-transform:none; letter-spacing:0; }
+    .part-field .q-type-sel { font-size:.9rem; padding:.55rem .7rem; border-color:#e4dffa; }
+    .q-type-lock { font-size:.78rem; font-weight:700; color:#6d28d9; background:#f5f3ff; border-radius:8px; padding:.28rem .55rem; }
     .answer-bank { display:flex; flex-wrap:wrap; align-items:center; gap:.45rem; min-height:76px; box-sizing:border-box; border:1.5px solid #c4b5fd; border-radius:12px; background:#fff; padding:.65rem; margin:0 0 .4rem; }
     .bank-chip { display:inline-flex; align-items:center; max-width:100%; border:1px solid #ddd6fe; border-radius:8px; background:#faf8ff; padding:.1rem .15rem .1rem .45rem; }
     .bank-chip input { width:8.5rem; max-width:100%; min-width:0; border:none; background:transparent; padding:.32rem .15rem; font:600 .86rem 'DM Sans',sans-serif; color:#16132b; outline:none; }
@@ -166,6 +168,7 @@
     html[data-theme="dark"] .part-dir { color:#f5f3ff !important; -webkit-text-fill-color:#f5f3ff; background:#241c3d; }
     html[data-theme="dark"] .part-card { background:#1b1730; border-color:#4c3d73; }
     html[data-theme="dark"] .part-field, html[data-theme="dark"] .part-field-label { color:#c4b5fd; }
+    html[data-theme="dark"] .q-type-lock { color:#ddd6fe; background:#241c3d; }
     html[data-theme="dark"] .answer-bank { background:#141022; border-color:#4c3d73; }
     html[data-theme="dark"] .bank-chip { background:#241c3d; border-color:#4c3d73; }
     html[data-theme="dark"] .bank-chip input { color:#f5f3ff !important; -webkit-text-fill-color:#f5f3ff; background:transparent; }
@@ -280,7 +283,7 @@
         </div>
         <div id="questions-list"></div>
         <div class="qm-add-row">
-          <button type="button" class="add-q-btn" onclick="addPart()"><span class="add-q-main">Add a part</span><span class="add-q-sub">Name, directions, and an answer box</span></button>
+          <button type="button" class="add-q-btn" onclick="addPart()"><span class="add-q-main">Add a part</span><span class="add-q-sub">A group of questions of one quiz type</span></button>
           <button type="button" class="add-q-btn" onclick="addQuestion()"><span class="add-q-main">Add a question</span><span class="add-q-sub">One question, with no part</span></button>
         </div>
       </div>
@@ -323,6 +326,6 @@
 <!-- Quiz Log Modal -->
 <div id="quiz-log-modal-wrap"></div>
 
-<script src="pages/quizmaker.js?v=25"></script>
+<script src="pages/quizmaker.js?v=26"></script>
 </body>
 </html>

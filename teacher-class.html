@@ -367,21 +367,41 @@
     .month-edit { display:flex; align-items:center; gap:.1rem; }
     .month-name { width:6.4rem; border:none; background:transparent; color:#6b4c7a; font:800 .75rem 'DM Sans',sans-serif; }
     .month-name:focus { outline:2px solid #c4b5fd; border-radius:4px; }
-    html[data-theme="dark"] .paper .mark-inp,
-    html[data-theme="dark"] .paper .box-inp,
-    html[data-theme="dark"] .paper .month-name,
-    html[data-theme="dark"] .paper .sheet-title,
-    html[data-theme="dark"] .paper .remarks-inp,
-    html[data-theme="dark"] .paper .paper-head input,
-    html[data-theme="dark"] .paper .paper-year input,
-    html[data-theme="dark"] .paper .sched-days input[type="text"] {
-      background:transparent !important;
+    html[data-theme="dark"] .paper input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+    html[data-theme="dark"] .paper textarea {
+      background:#fff !important;
       color:#1f1630 !important;
       -webkit-text-fill-color:#1f1630 !important;
       border-color:#e7d5ee !important;
+      color-scheme:light;
     }
-    html[data-theme="dark"] .paper .sheet-title { color:#6b3f86 !important; -webkit-text-fill-color:#6b3f86 !important; }
-    html[data-theme="dark"] .paper .month-name { color:#6b4c7a !important; -webkit-text-fill-color:#6b4c7a !important; }
+    html[data-theme="dark"] .paper input.mark-inp:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+    html[data-theme="dark"] .paper input.box-inp:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+    html[data-theme="dark"] .paper input.month-name:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]),
+    html[data-theme="dark"] .paper input.sheet-title:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      background:transparent !important;
+      border-color:transparent !important;
+    }
+    html[data-theme="dark"] .paper input.month-name:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      color:#6b4c7a !important;
+      -webkit-text-fill-color:#6b4c7a !important;
+    }
+    html[data-theme="dark"] .paper input.sheet-title:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      color:#6b3f86 !important;
+      -webkit-text-fill-color:#6b3f86 !important;
+    }
+    html[data-theme="dark"] .paper input.mk-p:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      color:#047857 !important; -webkit-text-fill-color:#047857 !important;
+    }
+    html[data-theme="dark"] .paper input.mk-a:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      color:#b91c1c !important; -webkit-text-fill-color:#b91c1c !important;
+    }
+    html[data-theme="dark"] .paper input.mk-l:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      color:#b45309 !important; -webkit-text-fill-color:#b45309 !important;
+    }
+    html[data-theme="dark"] .paper input.mk-h:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="image"]) {
+      color:#6d28d9 !important; -webkit-text-fill-color:#6d28d9 !important;
+    }
     .score-table th { background:#fbf7fb; font-size:.65rem; font-weight:800; color:#6b4c7a; padding:.3rem .2rem; }
     .score-table td { min-width:34px; }
     .score-table .q-name { text-align:left; padding:.2rem .45rem; font-size:.75rem; font-weight:700; white-space:nowrap; background:#fbf7fb; }
@@ -713,7 +733,7 @@
   </main>
 </div>
 
-<script src="pages/teacher-class.js?v=31"></script>
+<script src="pages/teacher-class.js?v=32"></script>
 <script src="pages/quizgrades.js?v=4"></script>
 <script src="pages/sheets.js?v=3"></script>
 </body>

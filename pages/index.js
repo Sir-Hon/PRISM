@@ -101,7 +101,7 @@ window.addEventListener('DOMContentLoaded', async function() {
   if (!Object.keys(getJoinedClasses()).length && typeof prismShowWait === 'function') {
     prismShowWait(document.getElementById('classes-area'), 'Loading classes');
   } else {
-    renderClasses();
+  renderClasses();
   }
   renderStats();
   renderActivity();
@@ -113,20 +113,20 @@ window.addEventListener('DOMContentLoaded', async function() {
     }
   });
 
-  try {
-    var user = typeof prismAuthGuard === 'function' ? await prismAuthGuard(['student']) : null;
-    if (user) {
-      STUDENT_ID = user.id;
-      STUDENT_NAME = user.name || STUDENT_NAME;
-      if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
+      try {
+        var user = typeof prismAuthGuard === 'function' ? await prismAuthGuard(['student']) : null;
+        if (user) {
+          STUDENT_ID = user.id;
+          STUDENT_NAME = user.name || STUDENT_NAME;
+          if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
       if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.student-hero'), 'greet');
-    }
-  } catch (e) { console.warn('API session check failed:', e); }
+        }
+      } catch (e) { console.warn('API session check failed:', e); }
   try { await loadClassDataFromAPI(); } catch (loadErr) { console.warn('loadClassDataFromAPI failed:', loadErr); }
-  if (typeof initSidebar === 'function') initSidebar('home');
-  if (!document.getElementById('class-view-overlay')) renderClasses();
-  renderStats();
-  renderActivity();
+      if (typeof initSidebar === 'function') initSidebar('home');
+      if (!document.getElementById('class-view-overlay')) renderClasses();
+      renderStats();
+      renderActivity();
   tryOpenClassFromUrl();
   await Promise.all([
     (async function() {
@@ -293,12 +293,12 @@ async function leaveClass(classId, btn) {
   if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Leaving…');
   try {
     await PrismClasses.leave(classId);
-    var joined = getJoinedClasses();
-    delete joined[classId];
-    saveJoinedClasses(joined);
-    if (activeDetailId === classId) closeClassView();
-    renderClasses(); renderStats();
-    if (typeof initSidebar === 'function') initSidebar('home');
+  var joined = getJoinedClasses();
+  delete joined[classId];
+  saveJoinedClasses(joined);
+  if (activeDetailId === classId) closeClassView();
+  renderClasses(); renderStats();
+  if (typeof initSidebar === 'function') initSidebar('home');
   } catch(e) {
     console.warn('API leave failed:', e);
     if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
