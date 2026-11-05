@@ -50,6 +50,8 @@
     .score-table th { background:#fbf7fb; font-size:.65rem; font-weight:800; color:#6b4c7a; }
     .score-table td { min-width:34px; font-size:.78rem; font-weight:700; }
     .exam-pair { white-space:nowrap; min-width:5.5rem; }
+    .miss-mark { display:inline-flex; color:#b45309; vertical-align:middle; }
+    .miss-mark svg { display:block; }
     .score-table .q-name { text-align:left; padding:.2rem .45rem; font-size:.75rem; white-space:nowrap; background:#fbf7fb; }
     .score-total { font-size:.75rem; font-weight:800; min-width:48px; background:#f8eef6; }
     .remarks-view { min-height:72px; font-size:.85rem; color:#1f1630; padding:.55rem .65rem; white-space:pre-wrap; }
@@ -65,9 +67,6 @@
     .weight-list { display:flex; flex-direction:column; gap:.35rem; padding:.65rem .65rem .2rem; }
     .weight-row { display:flex; justify-content:space-between; gap:.6rem; font-size:.82rem; font-weight:700; color:#1f1630; }
     .weight-row strong { color:#6b3f86; }
-    .sign-row { display:flex; flex-wrap:wrap; gap:.5rem; padding:.65rem; }
-    .sign-row div { flex:1; min-width:140px; }
-    .sign-row label { display:block; font-size:.62rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#9a6ea8; margin-bottom:.2rem; }
     html[data-theme="dark"] .status-lead,
     html[data-theme="dark"] .status-count,
     html[data-theme="dark"] .status-empty { color:#d1d5db; }
@@ -92,7 +91,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=35"></script>
+<script src="api.js?v=36"></script>
 <script src="script.js?v=20"></script>
 <script src="portal-sidebar.js?v=25"></script>
 <div class="topbar">
@@ -134,6 +133,6 @@
     </div>
   </main>
 </div>
-<script src="pages/status.js?v=7"></script>
+<script src="pages/status.js?v=10"></script>
 </body>
 </html>

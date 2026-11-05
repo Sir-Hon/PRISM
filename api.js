@@ -1394,11 +1394,12 @@ function prismBannerOpen(wrap, el, scope, opts) {
   PRISM_BANNER_COLORS.forEach(function (hex) {
     var swatch = document.createElement('button');
     swatch.type = 'button';
-    swatch.className = 'banner-swatch' + (saved.color === hex && !saved.image ? ' selected' : '');
+    swatch.className = 'banner-swatch' + (saved.color === hex && (opts.onSave || !saved.image) ? ' selected' : '');
     swatch.style.background = hex;
     swatch.title = hex;
     swatch.addEventListener('click', function () {
-      prismBannerCommit({ color: hex, image: '' });
+      var keep = (opts.onSave && saved.image) ? saved.image : '';
+      prismBannerCommit({ color: hex, image: keep });
     });
     row.appendChild(swatch);
   });

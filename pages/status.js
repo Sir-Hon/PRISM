@@ -46,15 +46,41 @@ function statusSum(arr) {
   return any ? n : null;
 }
 
-function statusPart(scores, hps) {
+function statusPaired(scores, outs) {
+  var earned = 0;
+  var possible = 0;
+  var any = false;
+  (scores || []).forEach(function (value, i) {
+    if (value === '' || value == null) return;
+    var score = parseFloat(value);
+    var cap = parseFloat(outs && outs[i]);
+    if (!isFinite(score) || !(cap > 0)) return;
+    earned += score;
+    possible += cap;
+    any = true;
+  });
+  return any ? { earned: earned, possible: possible } : null;
+}
+
+function statusPart(scores, hps, outs) {
+  var paired = statusPaired(scores, outs);
+  if (paired) return (paired.earned / paired.possible) * 100;
   var total = statusSum(scores);
   var h = parseFloat(hps);
   if (total == null || !(h > 0)) return null;
   return (total / h) * 100;
 }
 
+function statusIsMissing(value) {
+  return String(value || '').toUpperCase() === 'M';
+}
+
+function statusMissMark() {
+  return '<span class="miss-mark" title="Missing"><svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></svg></span>';
+}
+
 function statusExamPct(q) {
-  if (!q || q.exam === '' || q.exam == null) return null;
+  if (!q || q.exam === '' || q.exam == null || statusIsMissing(q.exam)) return null;
   var score = parseFloat(q.exam);
   var hps = parseFloat(q.examHps);
   if (!isFinite(score) || !(hps > 0)) return null;
@@ -70,7 +96,7 @@ function statusQuarter(q, tables, examWeight) {
   list.forEach(function (table) {
     var weight = parseFloat(table && table.weight);
     if (isFinite(weight) && weight > 0) anyWeight = true;
-    var pct = statusPart(q[table.part], q[table.part + 'Hps']);
+    var pct = statusPart(q[table.part], q[table.part + 'Hps'], q[table.part + 'Out']);
     if (pct == null || !isFinite(pct) || !(weight > 0)) return;
     scored.push({ pct: pct, weight: weight });
   });
@@ -80,7 +106,7 @@ function statusQuarter(q, tables, examWeight) {
   if (examPercent != null && examShare > 0) scored.push({ pct: examPercent, weight: examShare });
   if (!anyWeight) {
     var plain = list.map(function (table) {
-      return statusPart(q[table.part], q[table.part + 'Hps']);
+      return statusPart(q[table.part], q[table.part + 'Hps'], q[table.part + 'Out']);
     }).filter(function (n) { return n != null && isFinite(n); });
     if (examPercent != null) plain.push(examPercent);
     if (!plain.length) return null;
@@ -115,8 +141,11 @@ function statusTables(saved) {
       var count = parseInt(table && table.count, 10);
       if (!(count >= 1)) count = 1;
       if (count > 20) count = 20;
+      var title = String((table && table.title) || 'Table');
       var weight = table && table.weight != null ? String(table.weight).replace(/[^0-9.]/g, '') : '';
-      return { title: String((table && table.title) || 'Table'), part: part, count: count, weight: weight };
+      var name = title.toLowerCase();
+      if ((part === 'qz' || part === 'rec' || name === 'quizzes' || name.indexOf('recitation') === 0) && weight === '25') weight = '';
+      return { title: title, part: part, count: count, weight: weight };
     });
   }
   return [
@@ -171,10 +200,11 @@ function statusWhen(value) {
 }
 
 function statusBlankQuarter(tables) {
-  var q = { exam: '', examHps: '', signature: '' };
+  var q = { exam: '', examHps: '' };
   (tables || statusTables(null)).forEach(function (table) {
     q[table.part + 'Hps'] = '';
     q[table.part] = statusPad([], table.count);
+    q[table.part + 'Out'] = statusPad([], table.count);
   });
   return q;
 }
@@ -208,12 +238,12 @@ function statusAssessment(saved) {
     data.quarters = source.map(function (q) {
       var shaped = {
         exam: q && q.exam != null ? String(q.exam) : '',
-        examHps: q && q.examHps != null ? String(q.examHps).replace(/[^0-9.]/g, '') : '',
-        signature: q && q.signature != null ? String(q.signature) : ''
+        examHps: q && q.examHps != null ? String(q.examHps).replace(/[^0-9.]/g, '') : ''
       };
       tables.forEach(function (table) {
         shaped[table.part + 'Hps'] = q && q[table.part + 'Hps'] != null ? String(q[table.part + 'Hps']) : '';
         shaped[table.part] = statusPad(q && q[table.part], table.count);
+        shaped[table.part + 'Out'] = statusPad(q && q[table.part + 'Out'], table.count);
       });
       return shaped;
     });
@@ -360,15 +390,22 @@ function renderAttendancePaper(row) {
 }
 
 function statusComponent(title, part, count, data) {
-  var heads = '<tr><th>Quarter</th><th>HPS</th>';
+  var heads = '<tr><th>Quarter</th>';
   for (var i = 1; i <= count; i++) heads += '<th>' + i + '</th>';
   heads += '<th>Total</th></tr>';
   var rows = data.quarters.map(function (q, qi) {
     var label = statusQuarterLabel(qi);
     var cells = '';
-    for (var n = 0; n < count; n++) cells += '<td>' + statusEsc(q[part][n]) + '</td>';
-    return '<tr><th class="q-name">' + label + '</th><td>' + statusEsc(q[part + 'Hps']) + '</td>' + cells +
-      '<td class="score-total">' + statusEsc(statusFmt(statusSum(q[part]))) + '</td></tr>';
+    var outs = q[part + 'Out'] || [];
+    for (var n = 0; n < count; n++) {
+      var scoreText = statusIsMissing(q[part][n]) ? statusMissMark() : statusEsc(q[part][n] || '—');
+      cells += '<td class="exam-pair">' + scoreText + ' / ' + statusEsc(outs[n] || '—') + '</td>';
+    }
+    var paired = statusPaired(q[part], outs);
+    var earned = paired ? paired.earned : statusSum(q[part]);
+    var possible = paired ? paired.possible : q[part + 'Hps'];
+    return '<tr><th class="q-name">' + label + '</th>' + cells +
+      '<td class="score-total exam-pair">' + statusEsc(statusFmt(earned)) + ' / ' + statusEsc(possible || '—') + '</td></tr>';
   }).join('');
   return '<div class="sheet-block"><h3>' + statusEsc(title) + '</h3><div class="score-scroll"><table class="score-table"><thead>' + heads + '</thead><tbody>' + rows + '</tbody></table></div></div>';
 }
@@ -379,12 +416,9 @@ function renderAssessmentPaper(row) {
   var exams = '<tr>' + data.quarters.map(function (q, qi) {
     return '<th>' + statusQuarterLabel(qi) + '</th>';
   }).join('') + '</tr><tr>' + data.quarters.map(function (q) {
-    return '<td class="exam-pair">' + statusEsc(q.exam || '—') + ' / ' + statusEsc(q.examHps || '—') + '</td>';
+    var examText = statusIsMissing(q.exam) ? statusMissMark() : statusEsc(q.exam || '—');
+    return '<td class="exam-pair">' + examText + ' / ' + statusEsc(q.examHps || '—') + '</td>';
   }).join('') + '</tr>';
-  var signs = data.quarters.map(function (q, qi) {
-    var label = statusQuarterLabel(qi);
-    return '<div><label>' + label + ' Quarter</label><div class="paper-value">' + statusEsc(data.quarters[qi].signature || '—') + '</div></div>';
-  }).join('');
   var days = ['M', 'T', 'W', 'TH', 'F'].map(function (d) {
     return '<span class="day-pill' + (data.scheduleDays[d] ? ' on' : '') + '">' + d + '</span>';
   }).join('');
@@ -402,7 +436,6 @@ function renderAssessmentPaper(row) {
         return statusComponent(table.title, table.part, table.count, data);
       }).join('') +
       '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
-      '<div class="sheet-block"><h3>Parent\'s / Guardian Signature</h3><div class="sign-row">' + signs + '</div></div>' +
       '<div class="sheet-block"><h3>Grade weights</h3><div class="weight-list">' +
         ((data.tables || []).map(function (table) {
           return '<div class="weight-row"><span>' + statusEsc(table.title || 'Table') + '</span><strong>' + statusEsc(table.weight || '—') + '%</strong></div>';

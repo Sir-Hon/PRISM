@@ -68,15 +68,28 @@ function normalizeSheetTable(raw, i) {
     title: String((raw && raw.title) || 'Table').slice(0, 80),
     part: part,
     count: count,
-    weight: sheetPercentText(raw && raw.weight)
+    weight: sheetCategoryWeight(raw)
   };
 }
 
+function isQuizOrRecitation(part, title) {
+  var name = String(title || '').toLowerCase();
+  return part === 'qz' || part === 'rec' || name === 'quizzes' || name.indexOf('recitation') === 0;
+}
+
+function sheetCategoryWeight(raw) {
+  var weight = sheetPercentText(raw && raw.weight);
+  var part = sheetPartKey(raw && raw.part);
+  if (isQuizOrRecitation(part, raw && raw.title) && weight === '25') return '';
+  return weight;
+}
+
 function blankQuarterFor(tables) {
-  var q = { exam: '', examHps: '', signature: '' };
+  var q = { exam: '', examHps: '' };
   (tables || defaultSheetTables()).forEach(function (table) {
     q[table.part + 'Hps'] = '';
     q[table.part] = padScores([], table.count);
+    q[table.part + 'Out'] = padScores([], table.count);
   });
   return q;
 }
@@ -84,12 +97,12 @@ function blankQuarterFor(tables) {
 function ensureQuarterShape(q, tables) {
   var out = {
     exam: q && q.exam != null ? String(q.exam) : '',
-    examHps: q && q.examHps != null ? String(q.examHps).replace(/[^0-9.]/g, '') : '',
-    signature: q && q.signature != null ? String(q.signature) : ''
+    examHps: q && q.examHps != null ? String(q.examHps).replace(/[^0-9.]/g, '') : ''
   };
   (tables || []).forEach(function (table) {
     out[table.part + 'Hps'] = q && q[table.part + 'Hps'] != null ? String(q[table.part + 'Hps']) : '';
     out[table.part] = padScores(q && q[table.part], table.count);
+    out[table.part + 'Out'] = padScores(q && q[table.part + 'Out'], table.count);
   });
   return out;
 }
@@ -499,7 +512,25 @@ function sumList(arr) {
   return any ? n : null;
 }
 
-function partPct(scores, hps) {
+function pairedTotals(scores, outs) {
+  var earned = 0;
+  var possible = 0;
+  var any = false;
+  (scores || []).forEach(function (value, i) {
+    if (value === '' || value == null) return;
+    var score = parseFloat(value);
+    var cap = parseFloat(outs && outs[i]);
+    if (!isFinite(score) || !(cap > 0)) return;
+    earned += score;
+    possible += cap;
+    any = true;
+  });
+  return any ? { earned: earned, possible: possible } : null;
+}
+
+function partPct(scores, hps, outs) {
+  var paired = pairedTotals(scores, outs);
+  if (paired) return (paired.earned / paired.possible) * 100;
   var total = sumList(scores);
   var h = parseFloat(hps);
   if (total == null || !(h > 0)) return null;
@@ -507,7 +538,7 @@ function partPct(scores, hps) {
 }
 
 function examPct(q) {
-  if (!q || q.exam === '' || q.exam == null) return null;
+  if (!q || q.exam === '' || q.exam == null || sheetIsMissing(q.exam)) return null;
   var score = parseFloat(q.exam);
   var hps = parseFloat(q.examHps);
   if (!isFinite(score) || !(hps > 0)) return null;
@@ -520,7 +551,7 @@ function weightedQuarter(q, tables, pctOf, examWeight) {
   (tables || []).forEach(function (table) {
     var weight = parseFloat(table && table.weight);
     if (isFinite(weight) && weight > 0) anyWeight = true;
-    var pct = pctOf(q[table.part], q[table.part + 'Hps']);
+    var pct = pctOf(q[table.part], q[table.part + 'Hps'], q[table.part + 'Out']);
     if (pct == null || !isFinite(pct) || !(weight > 0)) return;
     scored.push({ pct: pct, weight: weight });
   });
@@ -530,7 +561,7 @@ function weightedQuarter(q, tables, pctOf, examWeight) {
   if (examPercent != null && examShare > 0) scored.push({ pct: examPercent, weight: examShare });
   if (!anyWeight) {
     var plain = (tables || []).map(function (table) {
-      return pctOf(q[table.part], q[table.part + 'Hps']);
+      return pctOf(q[table.part], q[table.part + 'Hps'], q[table.part + 'Out']);
     }).filter(function (n) { return n != null && isFinite(n); });
     if (examPercent != null) plain.push(examPercent);
     if (!plain.length) return null;
@@ -583,10 +614,29 @@ function fmtNum(n) {
   return String(r);
 }
 
+function sheetIsMissing(value) {
+  return String(value || '').toUpperCase() === 'M';
+}
+
+function sheetMissIcon() {
+  return '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M8 12h8"/></svg>';
+}
+
+function sheetMissButton(qIndex, part, index, missing) {
+  return '<button type="button" class="miss-btn' + (missing ? ' on' : '') + '" data-q="' + qIndex + '" data-part="' + sheetEsc(part) + '"' +
+    (index == null ? '' : ' data-miss="' + index + '"') +
+    ' aria-pressed="' + (missing ? 'true' : 'false') + '" aria-label="Mark missing" title="Missing">' + sheetMissIcon() + '</button>';
+}
+
 function scoreInputs(qIndex, part, count) {
+  var q = assessmentData.quarters[qIndex];
+  var outs = q[part + 'Out'] || [];
   var html = '';
   for (var i = 0; i < count; i++) {
-    html += '<td><input class="box-inp" inputmode="decimal" data-q="' + qIndex + '" data-part="' + part + '" data-i="' + i + '" value="' + sheetEsc(assessmentData.quarters[qIndex][part][i]) + '"></td>';
+    var missing = sheetIsMissing(q[part][i]);
+    html += '<td class="exam-pair"><input class="box-inp' + (missing ? ' is-missing' : '') + '" inputmode="decimal" data-q="' + qIndex + '" data-part="' + part + '" data-i="' + i + '" value="' + (missing ? '' : sheetEsc(q[part][i])) + '"' + (missing ? ' disabled' : '') + ' aria-label="Score ' + (i + 1) + '">' +
+      '<span class="exam-slash">/</span><input class="box-inp" inputmode="decimal" data-q="' + qIndex + '" data-part="' + part + '" data-out="' + i + '" value="' + sheetEsc(outs[i] || '') + '" aria-label="Out of ' + (i + 1) + '">' +
+      sheetMissButton(qIndex, part, i, missing) + '</td>';
   }
   return html;
 }
@@ -602,7 +652,7 @@ function findSheetTable(part) {
 function componentTable(table) {
   var part = table.part;
   var count = table.count;
-  var heads = '<tr><th>Quarter</th><th>HPS</th>';
+  var heads = '<tr><th>Quarter</th>';
   for (var i = 1; i <= count; i++) {
     heads += '<th><span>' + i + '</span>' +
       (count > 1 ? '<button type="button" class="col-x" data-del-col="' + sheetEsc(part) + '" data-col="' + (i - 1) + '" aria-label="Delete column">&times;</button>' : '') +
@@ -613,9 +663,8 @@ function componentTable(table) {
     return '<tr><th class="q-name"><span>' + quarterLabel(qi) + '</span>' +
       (assessmentData.quarters.length > 1 ? '<button type="button" class="row-x" data-del-q="' + qi + '" aria-label="Delete row">&times;</button>' : '') +
       '</th>' +
-      '<td><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="' + sheetEsc(part) + 'Hps" value="' + sheetEsc(q[part + 'Hps']) + '"></td>' +
       scoreInputs(qi, part, count) +
-      '<td class="score-total" id="' + part + '-total-' + qi + '">' + fmtNum(sumList(q[part])) + '</td></tr>';
+      '<td class="score-total exam-pair"><span id="' + part + '-total-' + qi + '">' + fmtNum(sumList(q[part])) + '</span><span class="exam-slash">/</span><span id="' + part + '-out-' + qi + '">' + fmtNum((pairedTotals(q[part], q[part + 'Out']) || {}).possible || q[part + 'Hps']) + '</span></td></tr>';
   }).join('');
   return '<div class="sheet-block"><div class="sheet-block-head"><h3><input class="sheet-title" data-table-title="' + sheetEsc(part) + '" value="' + sheetEsc(table.title) + '" aria-label="Table name"></h3>' +
     '<button type="button" class="sheet-tool" data-add-col="' + sheetEsc(part) + '">+ Column</button>' +
@@ -643,7 +692,9 @@ function addAssessmentColumn(part) {
   table.count += 1;
   assessmentData.quarters.forEach(function (q) {
     if (!Array.isArray(q[part])) q[part] = [];
+    if (!Array.isArray(q[part + 'Out'])) q[part + 'Out'] = [];
     q[part].push('');
+    q[part + 'Out'].push('');
   });
   renderAssessment();
   scheduleSave();
@@ -655,6 +706,7 @@ function deleteAssessmentColumn(part, index) {
   table.count -= 1;
   assessmentData.quarters.forEach(function (q) {
     if (Array.isArray(q[part])) q[part].splice(index, 1);
+    if (Array.isArray(q[part + 'Out'])) q[part + 'Out'].splice(index, 1);
   });
   renderAssessment();
   scheduleSave();
@@ -666,6 +718,7 @@ function deleteAssessmentTable(part) {
   assessmentData.quarters.forEach(function (q) {
     delete q[part];
     delete q[part + 'Hps'];
+    delete q[part + 'Out'];
   });
   renderAssessment();
   scheduleSave();
@@ -678,6 +731,7 @@ function addAssessmentTable() {
   assessmentData.quarters.forEach(function (q) {
     q[part + 'Hps'] = '';
     q[part] = ['', '', '', ''];
+    q[part + 'Out'] = ['', '', '', ''];
   });
   renderAssessment();
   scheduleSave();
@@ -690,12 +744,10 @@ function renderAssessment() {
   var exams = '<tr>' + data.quarters.map(function (q, qi) {
     return '<th>' + quarterLabel(qi) + '</th>';
   }).join('') + '</tr><tr>' + data.quarters.map(function (q, qi) {
-    return '<td class="exam-pair"><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="exam" value="' + sheetEsc(q.exam) + '" aria-label="' + quarterLabel(qi) + ' exam score"><span class="exam-slash">/</span><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="examHps" value="' + sheetEsc(q.examHps) + '" aria-label="' + quarterLabel(qi) + ' exam out of"></td>';
+    var examMissing = sheetIsMissing(q.exam);
+    return '<td class="exam-pair"><input class="box-inp' + (examMissing ? ' is-missing' : '') + '" inputmode="decimal" data-q="' + qi + '" data-part="exam" value="' + (examMissing ? '' : sheetEsc(q.exam)) + '"' + (examMissing ? ' disabled' : '') + ' aria-label="' + quarterLabel(qi) + ' exam score"><span class="exam-slash">/</span><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="examHps" value="' + sheetEsc(q.examHps) + '" aria-label="' + quarterLabel(qi) + ' exam out of">' +
+      sheetMissButton(qi, 'exam', null, examMissing) + '</td>';
   }).join('') + '</tr>';
-  var signs = data.quarters.map(function (q, qi) {
-    return '<div style="flex:1;min-width:140px;"><label style="display:block;font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9a6ea8;margin-bottom:.2rem;">' + quarterLabel(qi) + ' Quarter</label>' +
-      '<input class="box-inp" style="border:1px solid #ead7f0;border-radius:8px;height:32px;" data-q="' + qi + '" data-part="signature" value="' + sheetEsc(q.signature) + '"></div>';
-  }).join('');
   var days = ['M', 'T', 'W', 'TH', 'F'].map(function (d) {
     return '<label><input type="checkbox" data-day="' + d + '"' + (data.scheduleDays[d] ? ' checked' : '') + '> ' + d + '</label>';
   }).join('');
@@ -721,7 +773,6 @@ function renderAssessment() {
       '<div class="sheet-grid">' +
         data.tables.map(function (table) { return componentTable(table); }).join('') +
         '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
-        '<div class="sheet-block"><h3>Parent\'s / Guardian Signature</h3><div style="display:flex;flex-wrap:wrap;gap:.5rem;padding:.65rem;">' + signs + '</div></div>' +
         '<div class="sheet-block"><h3>Grade weights</h3><div class="weight-list">' + (weightRows || '<p class="weight-sum">Add a score table to give it a percent.</p>') + '</div>' +
           '<p class="weight-sum" id="weight-sum">' + (listed ? 'These table weights total ' + sheetEsc(fmtNum(listed)) + '%.' : 'Enter a percent for each table. Only the tables on this card are included.') + '</p>' +
           '<label class="units-field">Units <input class="weight-inp" id="sheet-units" inputmode="decimal" value="' + sheetEsc(data.units || '') + '" aria-label="Subject units"></label></div>' +
@@ -762,13 +813,43 @@ function renderAssessment() {
       scheduleSave();
     });
   });
+  host.querySelectorAll('.miss-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var qi = parseInt(btn.getAttribute('data-q'), 10);
+      var part = btn.getAttribute('data-part');
+      var q = data.quarters[qi];
+      var score;
+      if (part === 'exam') {
+        q.exam = sheetIsMissing(q.exam) ? '' : 'M';
+        score = btn.parentElement.querySelector('[data-part="exam"]');
+      } else {
+        var index = parseInt(btn.getAttribute('data-miss'), 10);
+        q[part][index] = sheetIsMissing(q[part][index]) ? '' : 'M';
+        score = btn.parentElement.querySelector('[data-i="' + index + '"]');
+      }
+      var missing = part === 'exam' ? sheetIsMissing(q.exam) : sheetIsMissing(q[part][parseInt(btn.getAttribute('data-miss'), 10)]);
+      btn.classList.toggle('on', missing);
+      btn.setAttribute('aria-pressed', missing ? 'true' : 'false');
+      if (score) {
+        score.disabled = missing;
+        score.classList.toggle('is-missing', missing);
+        if (missing) score.value = '';
+      }
+      paintAssessmentTotals();
+      scheduleSave();
+    });
+  });
   host.querySelectorAll('.box-inp').forEach(function (input) {
     input.addEventListener('input', function () {
       var qi = parseInt(input.getAttribute('data-q'), 10);
       var part = input.getAttribute('data-part');
       var q = data.quarters[qi];
-      if (part === 'signature') {
-        q.signature = input.value;
+      if (input.hasAttribute('data-out')) {
+        var outIndex = parseInt(input.getAttribute('data-out'), 10);
+        var outNum = input.value.replace(/[^0-9.]/g, '');
+        if (outNum !== input.value) input.value = outNum;
+        if (!Array.isArray(q[part + 'Out'])) q[part + 'Out'] = [];
+        q[part + 'Out'][outIndex] = outNum;
       } else if (part === 'exam' || part.slice(-3) === 'Hps') {
         var clean = input.value.replace(/[^0-9.]/g, '');
         if (clean !== input.value) input.value = clean;
@@ -827,7 +908,10 @@ function paintAssessmentTotals() {
   (data.tables || []).forEach(function (table) {
     data.quarters.forEach(function (q, qi) {
       var cell = document.getElementById(table.part + '-total-' + qi);
-      if (cell) cell.textContent = fmtNum(sumList(q[table.part]));
+      var outCell = document.getElementById(table.part + '-out-' + qi);
+      var paired = pairedTotals(q[table.part], q[table.part + 'Out']);
+      if (cell) cell.textContent = fmtNum(paired ? paired.earned : sumList(q[table.part]));
+      if (outCell) outCell.textContent = fmtNum(paired ? paired.possible : q[table.part + 'Hps']);
     });
   });
   data.quarters.forEach(function (q, qi) {

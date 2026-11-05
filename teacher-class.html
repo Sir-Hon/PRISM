@@ -417,6 +417,10 @@
     .exam-pair { white-space:nowrap; min-width:7.2rem; }
     .exam-pair .box-inp { width:2.6rem; display:inline-block; }
     .exam-slash { display:inline-block; padding:0 .15rem; color:#9a6ea8; font-weight:800; }
+    .miss-btn { width:18px; height:18px; margin-left:.15rem; border:1px solid #ead7f0; border-radius:50%; background:#fff; color:#c4b5d4; display:inline-flex; align-items:center; justify-content:center; padding:0; cursor:pointer; vertical-align:middle; }
+    .miss-btn svg { display:block; }
+    .miss-btn.on { background:#fef3c7; color:#b45309; border-color:#fcd34d; }
+    .box-inp.is-missing { background:#fffbeb; }
     .score-table .q-name { text-align:left; padding:.2rem .45rem; font-size:.75rem; font-weight:700; white-space:nowrap; background:#fbf7fb; }
     .score-total { font-size:.75rem; font-weight:800; min-width:48px; background:#f8eef6; }
     .remarks-inp { width:100%; min-height:72px; border:none; resize:vertical; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#1f1630; padding:.55rem .65rem; }
@@ -522,7 +526,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=35"></script>
+<script src="api.js?v=36"></script>
 <script src="script.js?v=20"></script>
 <script src="portal-sidebar.js?v=25"></script>
 <div class="topbar tc-topbar">
@@ -767,6 +771,6 @@
 
 <script src="pages/teacher-class.js?v=37"></script>
 <script src="pages/quizgrades.js?v=4"></script>
-<script src="pages/sheets.js?v=8"></script>
+<script src="pages/sheets.js?v=11"></script>
 </body>
 </html>
