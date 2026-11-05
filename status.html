@@ -32,11 +32,18 @@
     .paper-value { border:1px solid #e7d5ee; background:#fff; border-radius:8px; padding:.4rem .5rem; min-height:2rem; color:#1f1630; font-size:.85rem; }
     .legend { display:flex; flex-wrap:wrap; gap:.45rem .8rem; font-size:.75rem; color:#6b5478; margin-bottom:.6rem; }
     .legend b { color:#5b3d73; }
-    .att-scroll, .score-scroll { overflow-x:auto; }
+    .att-scroll, .score-scroll { overflow-x:auto; max-width:100%; }
+    .att-scroll { border:1px solid #ead7f0; border-radius:10px; background:#fff; }
     .att-table, .score-table { border-collapse:separate; border-spacing:0; width:max-content; min-width:100%; border-top:1px solid #ead7f0; border-left:1px solid #ead7f0; }
-    .att-table th, .att-table td, .score-table th, .score-table td { border:0; border-right:1px solid #ead7f0; border-bottom:1px solid #ead7f0; background:#fff; background-clip:padding-box; text-align:center; padding:.15rem; color:#1f1630; }
+    .att-table { border:0; }
+    .att-table th, .att-table td, .score-table th, .score-table td { border:0; border-right:1px solid #ead7f0; border-bottom:1px solid #ead7f0; background:#fff; background-clip:padding-box; text-align:center; vertical-align:middle; padding:.15rem; color:#1f1630; }
+    .att-table tr > :last-child { border-right:0; }
+    .att-table tbody tr:last-child > * { border-bottom:0; }
     .att-table th { background:#f8eef6; font-size:.68rem; font-weight:800; color:#6b4c7a; }
-    .att-table .month { text-align:left; padding:.25rem .45rem; font-size:.75rem; white-space:nowrap; background:#f8eef6; }
+    .att-table th:first-child, .att-table .month { position:sticky; left:0; z-index:2; text-align:left; box-shadow:1px 0 0 #ead7f0; }
+    .att-table th:last-child, .att-table .att-total { position:sticky; right:0; z-index:2; box-shadow:-1px 0 0 #ead7f0; }
+    .att-table thead th:first-child, .att-table thead th:last-child { z-index:3; }
+    .att-table .month { padding:.25rem .45rem; font-size:.75rem; white-space:nowrap; background:#f8eef6; }
     .mark-cell { min-width:30px; width:30px; }
     .mark-cell .wd { display:block; font-size:.55rem; line-height:1; color:#a78bba; }
     .mark-cell.weekend { background:#f6f4f8; }
@@ -44,12 +51,15 @@
     .mark-show { display:block; font-weight:800; font-size:.78rem; color:#1f1630; min-height:1rem; }
     .mk-p { color:#047857; } .mk-a { color:#b91c1c; } .mk-l { color:#b45309; } .mk-h { color:#6d28d9; }
     .att-total { min-width:42px; font-size:.72rem; font-weight:800; background:#f8eef6; }
-    .sheet-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; }
+    .sheet-grid { display:grid; grid-template-columns:1fr 1fr; gap:.8rem; align-items:start; }
+    .sheet-span { grid-column:1 / -1; }
     .sheet-block { border:1px solid #ead7f0; border-radius:10px; overflow:hidden; background:#fff; }
     .sheet-block h3 { margin:0; padding:.45rem .65rem; background:#f8eef6; color:#6b3f86; font-size:.72rem; letter-spacing:.08em; text-transform:uppercase; }
     .score-table th { background:#fbf7fb; font-size:.65rem; font-weight:800; color:#6b4c7a; }
     .score-table td { min-width:34px; font-size:.78rem; font-weight:700; }
     .exam-pair { white-space:nowrap; min-width:5.5rem; }
+    .score-table.exam-fit { width:100%; min-width:0; table-layout:fixed; }
+    .score-table.exam-fit .exam-pair { min-width:0; }
     .miss-mark { display:inline-flex; color:#b45309; vertical-align:middle; }
     .miss-mark svg { display:block; }
     .score-table .q-name { text-align:left; padding:.2rem .45rem; font-size:.75rem; white-space:nowrap; background:#fbf7fb; }
@@ -91,7 +101,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=36"></script>
+<script src="api.js?v=37"></script>
 <script src="script.js?v=20"></script>
 <script src="portal-sidebar.js?v=25"></script>
 <div class="topbar">
@@ -133,6 +143,6 @@
     </div>
   </main>
 </div>
-<script src="pages/status.js?v=10"></script>
+<script src="pages/status.js?v=11"></script>
 </body>
 </html>

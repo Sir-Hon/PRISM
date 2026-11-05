@@ -435,7 +435,7 @@ function renderAssessmentPaper(row) {
       (data.tables || []).map(function (table) {
         return statusComponent(table.title, table.part, table.count, data);
       }).join('') +
-      '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
+      '<div class="sheet-block sheet-span"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table exam-fit">' + exams + '</table></div></div>' +
       '<div class="sheet-block"><h3>Grade weights</h3><div class="weight-list">' +
         ((data.tables || []).map(function (table) {
           return '<div class="weight-row"><span>' + statusEsc(table.title || 'Table') + '</span><strong>' + statusEsc(table.weight || '—') + '%</strong></div>';

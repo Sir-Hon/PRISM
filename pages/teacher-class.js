@@ -116,14 +116,20 @@ function saveCodeIndex(v) { localStorage.setItem('prism_join_codes', JSON.string
 /** Sync class list to localStorage so profile sidebar, quizmaker, and records see the same data as the API. */
 function persistTeacherClassesLocal() {
   if (!TEACHER_ID) return;
-  const slim = CLASSES.map(c => ({
-    id: c.id,
-    subject: c.subject,
-    color: c.color || '#7c3aed',
-    code: c.code,
-    teacher_id: c.teacher_id || TEACHER_ID,
-    student_count: parseInt(c.student_count, 10) || 0,
-  }));
+  const slim = CLASSES.map(c => {
+    var cover = (c.cover && String(c.cover).indexOf('data:image/') === 0) ? c.cover : '';
+    if (!cover && c.cover == null && c.has_cover && typeof prismCoverRecall === 'function') cover = prismCoverRecall(c.id);
+    if (typeof prismCoverRemember === 'function') prismCoverRemember(c.id, cover);
+    return {
+      id: c.id,
+      subject: c.subject,
+      color: c.color || '#7c3aed',
+      code: c.code,
+      teacher_id: c.teacher_id || TEACHER_ID,
+      student_count: parseInt(c.student_count, 10) || 0,
+      has_cover: !!cover,
+    };
+  });
   localStorage.setItem('prism_classes_' + TEACHER_ID, JSON.stringify(slim));
 }
 

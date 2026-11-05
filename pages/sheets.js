@@ -772,7 +772,7 @@ function renderAssessment() {
       '<div class="sheet-actions"><button type="button" class="sheet-tool" id="add-assess-row">+ Add a row</button><button type="button" class="sheet-tool" id="add-assess-table">+ Add a table</button></div>' +
       '<div class="sheet-grid">' +
         data.tables.map(function (table) { return componentTable(table); }).join('') +
-        '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
+        '<div class="sheet-block sheet-span"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table exam-fit">' + exams + '</table></div></div>' +
         '<div class="sheet-block"><h3>Grade weights</h3><div class="weight-list">' + (weightRows || '<p class="weight-sum">Add a score table to give it a percent.</p>') + '</div>' +
           '<p class="weight-sum" id="weight-sum">' + (listed ? 'These table weights total ' + sheetEsc(fmtNum(listed)) + '%.' : 'Enter a percent for each table. Only the tables on this card are included.') + '</p>' +
           '<label class="units-field">Units <input class="weight-inp" id="sheet-units" inputmode="decimal" value="' + sheetEsc(data.units || '') + '" aria-label="Subject units"></label></div>' +

@@ -1293,6 +1293,39 @@ function prismBannerWrite(scope, data) {
   localStorage.setItem(key, JSON.stringify({ color: data.color || '', image: data.image || '' }));
 }
 
+function prismCoverKey(id) {
+  return 'prism_cover_' + String(id || '').replace(/[^A-Za-z0-9_-]/g, '');
+}
+
+function prismCoverRecall(id) {
+  try {
+    var cover = localStorage.getItem(prismCoverKey(id)) || '';
+    return cover.indexOf('data:image/') === 0 ? cover : '';
+  } catch (e) {
+    return '';
+  }
+}
+
+function prismCoverRemember(id, cover) {
+  try {
+    if (cover && String(cover).indexOf('data:image/') === 0) localStorage.setItem(prismCoverKey(id), cover);
+    else localStorage.removeItem(prismCoverKey(id));
+  } catch (e) {
+    try { localStorage.removeItem(prismCoverKey(id)); } catch (err) {}
+  }
+}
+
+function prismCoversWarm(urls) {
+  return Promise.all((urls || []).map(function (src) {
+    if (!src || String(src).indexOf('data:image/') !== 0) return Promise.resolve();
+    return new Promise(function (resolve) {
+      var img = new Image();
+      img.onload = img.onerror = function () { resolve(); };
+      img.src = src;
+    });
+  }));
+}
+
 function prismBannerApply(el, saved) {
   if (!el) return;
   if (el.dataset.bannerReady !== '1') {

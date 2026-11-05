@@ -14,6 +14,10 @@ var classCovers = {};
 function rememberClassCover(id, cover) {
   if (cover && String(cover).indexOf('data:image/') === 0) classCovers[id] = cover;
   else delete classCovers[id];
+  if (typeof prismCoverRemember === 'function') prismCoverRemember(id, classCovers[id] || '');
+}
+function studentCardCover(id) {
+  return classCovers[id] || (typeof prismCoverRecall === 'function' ? prismCoverRecall(id) : '');
 }
 function getJoinedClasses()   { return JSON.parse(localStorage.getItem('prism_joined_'+STUDENT_ID)||'{}'); }
 function saveJoinedClasses(v) { localStorage.setItem('prism_joined_'+STUDENT_ID, JSON.stringify(v)); }
@@ -103,7 +107,12 @@ window.addEventListener('DOMContentLoaded', async function() {
   var greetEl = document.getElementById('student-greeting');
   if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
   if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.student-hero'), 'greet');
-  if (!Object.keys(getJoinedClasses()).length && typeof prismShowWait === 'function') {
+  var joinedNow = getJoinedClasses();
+  var joinedEntries = Object.values(joinedNow);
+  var waitingForCovers = !joinedEntries.length || joinedEntries.some(function (entry) {
+    return entry.has_cover == null || (entry.has_cover && !studentCardCover(entry.classId));
+  });
+  if (waitingForCovers && typeof prismShowWait === 'function') {
     prismShowWait(document.getElementById('classes-area'), 'Loading classes');
   } else {
   renderClasses();
@@ -163,13 +172,14 @@ async function loadClassDataFromAPI() {
     var joined = {};
     classesList.forEach(function(cls) {
       rememberClassCover(cls.id, cls.cover || '');
-      joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', code: cls.code || '', joinedAt: cls.joined_at || '' };
+      joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', code: cls.code || '', joinedAt: cls.joined_at || '', has_cover: !!(cls.cover && String(cls.cover).indexOf('data:image/') === 0) };
       var prev = {};
       try { prev = JSON.parse(localStorage.getItem('prism_profile_' + cls.teacher_id) || '{}'); } catch (e) { prev = {}; }
       prev.name = cls.teacher_name || cls.teacher_id;
       localStorage.setItem('prism_profile_' + cls.teacher_id, JSON.stringify(prev));
     });
     localStorage.setItem('prism_joined_' + STUDENT_ID, JSON.stringify(joined));
+    if (typeof prismCoversWarm === 'function') await prismCoversWarm(classesList.map(function (cls) { return cls.cover || ''; }));
     await Promise.all(classesList.map(function(cls) {
       return syncStudentClassContent(cls.id, { skipSubs: true });
     }));
@@ -344,11 +354,16 @@ function closeJoinClass() {
   }
 }
 
+var classPaintGen = 0;
 function renderClasses() {
   var joined  = getJoinedClasses();
   var entries = Object.values(joined);
   var area    = document.getElementById('classes-area');
   if (!area) return;
+  var gen = ++classPaintGen;
+  var covers = entries.map(function (entry) { return studentCardCover(entry.classId); });
+  var paint = function () {
+  if (gen !== classPaintGen || !area.isConnected) return;
   area.innerHTML = '';
   if (!entries.length) {
     var empty = document.createElement('div');
@@ -372,7 +387,7 @@ function renderClasses() {
     card.innerHTML = '<div class="gc-card-top"><div class="gc-card-title"></div></div>'
       + '<div class="gc-card-body"><div class="gc-meta"></div><button type="button" class="gc-del">Leave</button></div>';
     var top = card.querySelector('.gc-card-top');
-    var cover = classCovers[entry.classId] || '';
+    var cover = covers[entries.indexOf(entry)] || '';
     if (typeof prismBannerApply === 'function') prismBannerApply(top, { color: color, image: cover });
     else top.style.background = color;
     card.querySelector('.gc-card-title').textContent = entry.subject || 'Class';
@@ -391,6 +406,9 @@ function renderClasses() {
     });
     area.appendChild(card);
   });
+  };
+  if (typeof prismCoversWarm === 'function') prismCoversWarm(covers).then(paint);
+  else paint();
 }
 
 var __openClassGen = 0;

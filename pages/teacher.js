@@ -116,14 +116,20 @@ function saveCodeIndex(v) { localStorage.setItem('prism_join_codes', JSON.string
 /** Sync class list to localStorage so profile sidebar, quizmaker, and records see the same data as the API. */
 function persistTeacherClassesLocal() {
   if (!TEACHER_ID) return;
-  const slim = CLASSES.map(c => ({
-    id: c.id,
-    subject: c.subject,
-    color: c.color || '#7c3aed',
-    code: c.code,
-    teacher_id: c.teacher_id || TEACHER_ID,
-    student_count: parseInt(c.student_count, 10) || 0,
-  }));
+  const slim = CLASSES.map(c => {
+    var cover = (c.cover && String(c.cover).indexOf('data:image/') === 0) ? c.cover : '';
+    if (!cover && c.cover == null && c.has_cover && typeof prismCoverRecall === 'function') cover = prismCoverRecall(c.id);
+    if (typeof prismCoverRemember === 'function') prismCoverRemember(c.id, cover);
+    return {
+      id: c.id,
+      subject: c.subject,
+      color: c.color || '#7c3aed',
+      code: c.code,
+      teacher_id: c.teacher_id || TEACHER_ID,
+      student_count: parseInt(c.student_count, 10) || 0,
+      has_cover: !!cover,
+    };
+  });
   localStorage.setItem('prism_classes_' + TEACHER_ID, JSON.stringify(slim));
 }
 
@@ -210,21 +216,40 @@ window.addEventListener('DOMContentLoaded', async () => {
   const g = hour<12?'Good morning':hour<18?'Good afternoon':'Good evening';
   document.getElementById('teacher-greeting').textContent = `${g}, ${user.name}`;
   if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.teacher-hero'), 'greet');
-  paintTeacherClassesFromCache();
   await loadClasses();
 });
+
+var classPaintGen = 0;
+
+function teacherCardCover(cls) {
+  if (cls && cls.cover && String(cls.cover).indexOf('data:image/') === 0) return cls.cover;
+  return typeof prismCoverRecall === 'function' ? prismCoverRecall(cls && cls.id) : '';
+}
 
 function paintTeacherClassesFromCache() {
   if (CLASSES.length) return false;
   try {
     const cached = JSON.parse(localStorage.getItem('prism_classes_' + TEACHER_ID) || '[]');
     if (!cached.length) return false;
-    CLASSES = cached;
+    const needsPhoto = cached.some(function (cls) {
+      return cls.has_cover == null || (cls.has_cover && !teacherCardCover(cls));
+    });
+    if (needsPhoto) return false;
+    CLASSES = cached.map(function (cls) {
+      cls.cover = teacherCardCover(cls);
+      return cls;
+    });
     const savedTab = sessionStorage.getItem('prism_teacher_active_class_id');
     if (savedTab && CLASSES.find(c => c.id === savedTab)) activeClassId = savedTab;
     else activeClassId = CLASSES[0].id;
-    renderClassGrid();
-    if (typeof initSidebar === 'function') initSidebar('home');
+    const gen = ++classPaintGen;
+    const paint = function () {
+      if (gen !== classPaintGen) return;
+      renderClassGrid();
+      if (typeof initSidebar === 'function') initSidebar('home');
+    };
+    if (typeof prismCoversWarm === 'function') prismCoversWarm(CLASSES.map(function (cls) { return cls.cover; })).then(paint);
+    else paint();
     return true;
   } catch (e) {
     return false;
@@ -243,6 +268,8 @@ async function loadClasses() {
     CLASSES.forEach(cls => { if(cls.code) idx[cls.code] = { classId:cls.id, teacherId:cls.teacher_id||TEACHER_ID, subject:cls.subject }; });
     saveCodeIndex(idx);
     persistTeacherClassesLocal();
+    classPaintGen++;
+    if (typeof prismCoversWarm === 'function') await prismCoversWarm(CLASSES.map(function (cls) { return cls.cover; }));
   } catch(e) { console.error('loadClasses:', e); if (!CLASSES.length) CLASSES = []; }
 
   if (!CLASSES.length) {
@@ -351,6 +378,7 @@ function renderClassGrid() {
   }
   CLASSES.forEach(function (cls) {
     const color = /^#[0-9a-fA-F]{3,8}$/.test(String(cls.color || '')) ? cls.color : '#0d9488';
+    const cover = teacherCardCover(cls);
     const n = parseInt(cls.student_count, 10) || getStudents(cls.id).length || 0;
     const card = document.createElement('div');
     card.className = 'gc-card gc-card-edit';
@@ -360,7 +388,7 @@ function renderClassGrid() {
     card.querySelector('.gc-card-title').textContent = cls.subject || 'Subject';
     if (typeof prismBannerMount === 'function') {
       prismBannerMount(top, 'card-' + cls.id, {
-        saved: { color: color, image: cls.cover || '' },
+        saved: { color: color, image: cover },
         onSave: function (next) { return saveSubjectCard(cls, next); }
       });
       var custom = top.querySelector('.banner-custom');
