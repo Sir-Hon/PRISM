@@ -136,8 +136,14 @@ if ($method === 'GET' && $action === 'my_status') {
     if ($user['role'] !== 'student') fail('Forbidden', 403);
     // Same class list the student home already loads. Sheets are attached afterwards
     // so a records-table problem does not hide every subject.
+    $coverSql = '';
+    try {
+        if (prism_table_has_column($db, 'classes', 'cover')) $coverSql = ', c.cover';
+    } catch (Throwable $e) {
+        $coverSql = '';
+    }
     $stmt = $db->prepare(
-        'SELECT c.id, c.subject, c.code, c.color, u.name AS teacher_name
+        'SELECT c.id, c.subject, c.code, c.color' . $coverSql . ', u.name AS teacher_name
          FROM enrollments e
          JOIN classes c ON e.class_id = c.id
          JOIN users u ON c.teacher_id = u.id
@@ -147,11 +153,14 @@ if ($method === 'GET' && $action === 'my_status') {
     $stmt->execute([$user['id']]);
     $records = [];
     foreach ($stmt->fetchAll() as $row) {
+        $cover = isset($row['cover']) ? (string) $row['cover'] : '';
+        if (!preg_match('#^data:image/(jpeg|png|webp);base64,#', $cover)) $cover = '';
         $records[$row['id']] = [
             'class_id' => $row['id'],
             'subject' => $row['subject'],
             'code' => $row['code'],
             'color' => $row['color'],
+            'cover' => $cover,
             'teacher_name' => $row['teacher_name'],
             'attendance' => null,
             'assessment' => null,

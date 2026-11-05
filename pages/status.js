@@ -302,7 +302,8 @@ function renderStatusList() {
     return;
   }
   if (empty) empty.style.display = 'none';
-  list.innerHTML = shown.map(function (row) {
+  list.innerHTML = '';
+  shown.forEach(function (row) {
     var tally = row.attendance ? statusTally(row.attendance.marks) : null;
     var assess = row.assessment ? statusAssessment(row.assessment) : null;
     var avg = assess ? statusFmt(statusFinal(assess)) : '';
@@ -311,12 +312,27 @@ function renderStatusList() {
       ? statusChip(tally.P + ' present' + (tally.A ? ' · ' + tally.A + ' absent' : ''))
       : statusChip('No attendance yet', true);
     chips += avg ? statusChip('Final average ' + avg) : statusChip('No assessment yet', true);
-    return '<button type="button" class="status-card' + (row.class_id === statusSelected ? ' active' : '') + '" data-class="' + statusEsc(row.class_id) + '">' +
-      '<strong>' + statusEsc(row.subject || 'Untitled subject') + '</strong>' +
-      '<div class="meta">' + statusEsc(row.code || '') + (row.teacher_name ? ' · ' + statusEsc(row.teacher_name) : '') + '</div>' +
-      '<div class="chips">' + chips + '</div></button>';
-  }).join('');
-  list.querySelectorAll('.status-card').forEach(function (btn) {
+    var color = /^#[0-9a-fA-F]{3,8}$/.test(String(row.color || '')) ? row.color : '#7c3aed';
+    var cover = (row.cover && String(row.cover).indexOf('data:image/') === 0) ? row.cover : '';
+    if (!cover && typeof prismCoverRecall === 'function') cover = prismCoverRecall(row.class_id);
+    var card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'gc-card' + (row.class_id === statusSelected ? ' active' : '');
+    card.setAttribute('data-class', row.class_id);
+    card.style.setProperty('--card', color);
+    card.innerHTML = '<div class="gc-card-top"><div class="gc-card-title"></div></div>' +
+      '<div class="gc-card-body"><div class="gc-meta"></div><div class="chips">' + chips + '</div></div>';
+    card.querySelector('.gc-card-title').textContent = row.subject || 'Untitled subject';
+    var meta = [];
+    if (row.code) meta.push(row.code);
+    if (row.teacher_name) meta.push(row.teacher_name);
+    card.querySelector('.gc-meta').textContent = meta.join(' · ');
+    var top = card.querySelector('.gc-card-top');
+    if (typeof prismBannerApply === 'function') prismBannerApply(top, { color: color, image: cover });
+    else top.style.background = color;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.gc-card').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var id = btn.getAttribute('data-class') || '';
       if (statusSelected === id) {
@@ -502,8 +518,18 @@ async function loadStatus() {
   var empty = document.getElementById('status-empty');
   try {
     statusRecords = await PrismRecords.myStatus();
+    statusRecords.forEach(function (row) {
+      var cover = row.cover && String(row.cover).indexOf('data:image/') === 0 ? row.cover : '';
+      if (cover && typeof prismCoverRemember === 'function') prismCoverRemember(row.class_id, cover);
+      else if (typeof prismCoverRecall === 'function') row.cover = prismCoverRecall(row.class_id);
+    });
+    if (typeof prismCoversWarm === 'function') {
+      await prismCoversWarm(statusRecords.map(function (row) { return row.cover || ''; }));
+    }
   } catch (e) {
     statusRecords = [];
+    var list = document.getElementById('status-list');
+    if (list) list.innerHTML = '';
     if (empty) {
       empty.style.display = '';
       empty.textContent = (e && e.message) ? e.message : 'The records could not be loaded. Refresh the page and try again.';

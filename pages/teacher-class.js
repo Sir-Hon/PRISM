@@ -179,13 +179,21 @@ function applyClassAccent(cls) {
   document.documentElement.style.setProperty('--t-dark', color);
 }
 
+function revealTeacherClass() {
+  var pageWait = document.getElementById('tc-page-wait');
+  if (pageWait) pageWait.remove();
+  var content = document.getElementById('class-content');
+  if (content) content.hidden = false;
+}
+
 function paintTeacherClassShell(cls) {
   if (!cls) return;
   applyClassAccent(cls);
   const titleEl = document.getElementById('tc-subject-title');
   if (titleEl) {
-    titleEl.textContent = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || 'Subject');
+    titleEl.textContent = typeof prismTeacherClassLabel === 'function' ? prismTeacherClassLabel(cls) : (cls.subject || '');
   }
+  revealTeacherClass();
   ensureWorkspacePanel();
   loadWorkspaceSectionForClass(activeClassId);
   loadTeacherAssignmentViewFilter();
