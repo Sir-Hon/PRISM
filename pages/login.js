@@ -118,17 +118,12 @@ async function handleLogin() {
   btn.classList.add('loading');
   btn.textContent = 'Signing in…';
   try {
-    var data = await PrismAuth.login(id, pw, currentRole, email);
     var rememberBox = document.getElementById('remember-me');
     var keep = !!(rememberBox && rememberBox.checked);
+    var data = await PrismAuth.login(id, pw, currentRole, email, keep);
     if (typeof prismRememberChoose === 'function') prismRememberChoose(keep);
-    var dest = keep && typeof prismRememberTarget === 'function' ? prismRememberTarget() : '';
-    if (!dest) {
-      if (data.role === 'teacher') dest = 'teacher.html';
-      else if (data.role === 'admin') dest = 'admin.html';
-      else dest = 'index.html';
-    }
-    window.location.href = dest;
+    if (typeof prismMarkVisit === 'function') prismMarkVisit();
+    window.location.href = roleHome(data.role);
   } catch (e) {
     btn.classList.remove('loading');
     btn.textContent = 'Sign In';
@@ -156,7 +151,8 @@ async function bootLogin() {
       var data = await PrismAuth.checkSession();
       var role = data && data.user && data.user.role;
       if (data && data.loggedIn && role && role === currentRole) {
-        window.location.replace(prismRememberTarget() || roleHome(role));
+        if (typeof prismMarkVisit === 'function') prismMarkVisit();
+        window.location.replace(roleHome(role));
         return;
       }
     } catch (e2) { /* show the form */ }

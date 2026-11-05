@@ -57,11 +57,37 @@ function statusQuarter(q, tables) {
   var list = tables && tables.length ? tables : [
     { part: 'ww' }, { part: 'pt' }, { part: 'qz' }, { part: 'rec' }
   ];
-  var nums = list.map(function (table) {
-    return statusPart(q[table.part], q[table.part + 'Hps']);
-  }).filter(function (n) { return n != null && isFinite(n); });
-  if (!nums.length) return null;
-  return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+  var scored = [];
+  var anyWeight = false;
+  list.forEach(function (table) {
+    var weight = parseFloat(table && table.weight);
+    if (isFinite(weight) && weight > 0) anyWeight = true;
+    var pct = statusPart(q[table.part], q[table.part + 'Hps']);
+    if (pct == null || !isFinite(pct) || !(weight > 0)) return;
+    scored.push({ pct: pct, weight: weight });
+  });
+  if (!anyWeight) {
+    var plain = list.map(function (table) {
+      return statusPart(q[table.part], q[table.part + 'Hps']);
+    }).filter(function (n) { return n != null && isFinite(n); });
+    if (!plain.length) return null;
+    return plain.reduce(function (a, b) { return a + b; }, 0) / plain.length;
+  }
+  if (!scored.length) return null;
+  var weightSum = 0;
+  var weighted = 0;
+  scored.forEach(function (row) {
+    weightSum += row.weight;
+    weighted += row.pct * row.weight;
+  });
+  return weightSum > 0 ? weighted / weightSum : null;
+}
+
+function statusUnitEstimate(data) {
+  var grade = statusFinal(data);
+  var units = parseFloat(data && data.units);
+  if (grade == null || !(units > 0)) return null;
+  return (grade / 100) * units;
 }
 
 function statusQuarterLabel(i) {
@@ -76,7 +102,8 @@ function statusTables(saved) {
       var count = parseInt(table && table.count, 10);
       if (!(count >= 1)) count = 1;
       if (count > 20) count = 20;
-      return { title: String((table && table.title) || 'Table'), part: part, count: count };
+      var weight = table && table.weight != null ? String(table.weight).replace(/[^0-9.]/g, '') : '';
+      return { title: String((table && table.title) || 'Table'), part: part, count: count, weight: weight };
     });
   }
   return [
@@ -151,9 +178,11 @@ function statusAssessment(saved) {
     quarters: [statusBlankQuarter(tables), statusBlankQuarter(tables), statusBlankQuarter(tables), statusBlankQuarter(tables)],
     remarks: '',
     scheduleDays: { M: false, T: false, W: false, TH: false, F: false },
-    scheduleTime: ''
+    scheduleTime: '',
+    units: ''
   };
   if (!saved || typeof saved !== 'object') return data;
+  if (saved.units != null) data.units = String(saved.units).replace(/[^0-9.]/g, '').slice(0, 6);
   ['name', 'section', 'subject', 'tracker', 'year', 'remarks', 'scheduleTime'].forEach(function (key) {
     if (saved[key] != null) data[key] = String(saved[key]);
   });
@@ -358,9 +387,15 @@ function renderAssessmentPaper(row) {
       }).join('') +
       '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
       '<div class="sheet-block"><h3>Parent\'s / Guardian Signature</h3><div class="sign-row">' + signs + '</div></div>' +
+      '<div class="sheet-block"><h3>Grade weights</h3><div class="weight-list">' +
+        ((data.tables || []).map(function (table) {
+          return '<div class="weight-row"><span>' + statusEsc(table.title || 'Table') + '</span><strong>' + statusEsc(table.weight || '—') + '%</strong></div>';
+        }).join('') || '<p class="avg-note">No score tables.</p>') +
+        '</div><p class="avg-note">Units ' + statusEsc(data.units || '—') + '</p></div>' +
       '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs +
-        '<div class="avg-box"><span>Final Average</span><strong>' + statusEsc(statusFmt(statusFinal(data))) + '</strong></div></div>' +
-        '<p class="avg-note">Each quarter averages the score tables that have a highest possible score.</p></div>' +
+        '<div class="avg-box"><span>Final grade</span><strong>' + statusEsc(statusFmt(statusFinal(data))) + '</strong></div>' +
+        '<div class="avg-box"><span>Unit estimate</span><strong>' + statusEsc(statusFmt(statusUnitEstimate(data))) + '</strong></div></div>' +
+        '<p class="avg-note">Each quarter uses the percent of the score tables. The unit estimate is that final grade times the subject units.</p></div>' +
       '<div class="sheet-block"><h3>Exam Grade</h3><div class="avg-row">' + examsView + '</div></div>' +
       '<div class="sheet-block"><h3>Remarks</h3><div class="remarks-view">' + statusEsc(data.remarks || 'No remarks') + '</div></div>' +
       '<div class="sheet-block"><h3>Schedule</h3><div class="sched-days">' + days +

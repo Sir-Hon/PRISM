@@ -327,6 +327,16 @@
     .mat-thumb { width:40px; height:40px; object-fit:cover; border-radius:10px; border:1px solid #d1fae5; flex-shrink:0; background:#fff; }
 
     .sheet-bar { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .sheet-nav { width:36px; height:36px; border-radius:50%; border:1.5px solid var(--t-light, #ddd6fe); background:#fff; color:var(--t, #7c3aed); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; }
+    .sheet-nav:hover:not(:disabled) { background:var(--t, #7c3aed); color:#fff; }
+    .sheet-nav:disabled { opacity:.35; cursor:default; }
+    .people-block { margin-bottom:1.35rem; }
+    .people-block h2 { margin:0 0 .55rem; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#6b7280; }
+    .people-row { display:flex; align-items:center; gap:.75rem; background:#fff; border:1px solid color-mix(in srgb, var(--t, #7c3aed) 28%, #fff); border-radius:12px; padding:.7rem .9rem; margin-bottom:.45rem; }
+    .people-av { width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:.85rem; background:var(--t, #7c3aed); }
+    .people-main { min-width:0; }
+    .people-name { font-weight:700; color:#16132b; font-size:.92rem; }
+    .people-meta { font-size:.75rem; color:#6b7280; margin-top:.1rem; }
     .sheet-bar label { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:#9ca3af; }
     .sheet-bar select { border:1.5px solid #d1fae5; border-radius:10px; padding:.5rem .7rem; font-family:'DM Sans',sans-serif; font-size:.9rem; min-width:min(100%, 240px); background:#fff; color:#16132b; }
     .sheet-status { font-size:.78rem; color:#6b7280; }
@@ -413,6 +423,14 @@
     .avg-box { min-width:72px; border:1px solid #ead7f0; border-radius:8px; padding:.35rem .4rem; text-align:center; background:#fff; }
     .avg-box span { display:block; font-size:.62rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#9a6ea8; }
     .avg-box strong { font-size:.95rem; color:#1f1630; }
+    .weight-list { display:flex; flex-direction:column; gap:.4rem; padding:.65rem .65rem 0; }
+    .weight-row { display:flex; align-items:center; gap:.45rem; font-size:.82rem; font-weight:700; color:#1f1630; }
+    .weight-row span { flex:1; min-width:0; }
+    .weight-inp { width:4.2rem; border:1px solid #ead7f0; border-radius:8px; padding:.28rem .4rem; font-family:inherit; font-size:.85rem; color:#1f1630; background:#fff; text-align:right; }
+    .weight-row em { font-style:normal; color:#9a6ea8; font-size:.75rem; }
+    .weight-sum { margin:.45rem .65rem 0; font-size:.72rem; color:#8b7396; }
+    .units-field { display:flex; align-items:center; gap:.45rem; margin:.55rem .65rem .7rem; font-size:.82rem; font-weight:800; color:#6b3f86; }
+    .units-field .weight-inp { width:4.6rem; }
     .asgn-pair { display:grid; grid-template-columns:1fr 1fr; gap:.9rem; margin-bottom:.9rem; }
     @media(max-width:900px){ .sheet-grid { grid-template-columns:1fr; } .paper-head { grid-template-columns:1fr 1fr; } }
     @media(max-width:1023px){
@@ -445,6 +463,10 @@
     html[data-theme="dark"] .m-field label,
     html[data-theme="dark"] .qm-field label,
     html[data-theme="dark"] .sheet-bar label { color:#d1d5db; }
+    html[data-theme="dark"] .sheet-nav { background:#1b1730; color:var(--t-mid, #c4b5fd); border-color:#4c3d73; }
+    html[data-theme="dark"] .people-row { background:#221627; border-color:#3f2a44; }
+    html[data-theme="dark"] .people-name { color:#f3f4f6; }
+    html[data-theme="dark"] .people-meta, html[data-theme="dark"] .people-block h2 { color:#d1d5db; }
     html[data-theme="dark"] #mat-drop-label,
     html[data-theme="dark"] #asgn-drop-label { color:#d1d5db !important; }
     html[data-theme="dark"] #teacher-mat-filter-wrap { background:#1a1d2e !important; border-color:#2e3350 !important; }
@@ -497,9 +519,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=31"></script>
-<script src="script.js?v=18"></script>
-<script src="portal-sidebar.js?v=24"></script>
+<script src="api.js?v=34"></script>
+<script src="script.js?v=20"></script>
+<script src="portal-sidebar.js?v=25"></script>
 <div class="topbar tc-topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="tc-bar-class">
@@ -549,6 +571,7 @@
         <option value="classwork" selected>Classwork</option>
         <option value="quizzes">Quizzes</option>
         <option value="grades">Grades</option>
+        <option value="people">People</option>
         <option value="records">Records</option>
       </select>
       <div class="sub-tabs">
@@ -556,6 +579,7 @@
         <button type="button" class="sub-tab active" data-sub="classwork" onclick="switchSub('classwork',this)">Classwork</button>
         <button type="button" class="sub-tab" data-sub="quizzes" onclick="switchSub('quizzes',this)">Quizzes</button>
         <button type="button" class="sub-tab" data-sub="grades" onclick="switchSub('grades',this)">Grades</button>
+        <button type="button" class="sub-tab" data-sub="people" onclick="switchSub('people',this)">People</button>
         <button type="button" class="sub-tab" data-sub="records" onclick="switchSub('records',this)">Records</button>
       </div>
       <div class="sub-panel" id="sub-announcements">
@@ -715,10 +739,15 @@
           <div id="grade-detail"></div>
         </div>
       </div>
+      <div class="sub-panel" id="sub-people">
+        <div id="people-list"></div>
+      </div>
       <div class="sub-panel" id="sub-records">
         <div class="sheet-bar" id="sheet-bar">
+          <button type="button" class="sheet-nav" id="sheet-prev" onclick="stepSheetStudent(-1)" aria-label="Previous student" title="Previous student"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
           <label for="sheet-student">Student</label>
           <select id="sheet-student" onchange="onSheetStudentChange()"></select>
+          <button type="button" class="sheet-nav" id="sheet-next" onclick="stepSheetStudent(1)" aria-label="Next student" title="Next student"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
           <span class="sheet-status" id="sheet-status"></span>
         </div>
         <div class="sub-tabs" id="sheet-kind-tabs">
@@ -733,8 +762,8 @@
   </main>
 </div>
 
-<script src="pages/teacher-class.js?v=36"></script>
+<script src="pages/teacher-class.js?v=37"></script>
 <script src="pages/quizgrades.js?v=4"></script>
-<script src="pages/sheets.js?v=3"></script>
+<script src="pages/sheets.js?v=5"></script>
 </body>
 </html>

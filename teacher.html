@@ -201,8 +201,13 @@
     .gc-create-actions { display:flex; gap:.5rem; }
     .gc-grid { display:flex; flex-wrap:wrap; gap:1rem; }
     .gc-card { width:220px; max-width:100%; background:#fff; border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; text-align:left; padding:0; font-family:'DM Sans',sans-serif; }
+    .gc-card.gc-card-edit { overflow:visible; position:relative; }
+    .gc-card.gc-card-edit:has(.banner-pop) { z-index:30; }
     .gc-card:hover { box-shadow:0 1px 3px rgba(60,64,67,.3); }
-    .gc-card-top { height:78px; padding:.75rem .85rem; display:flex; align-items:flex-end; }
+    .gc-card-top { height:78px; padding:.75rem .85rem; display:flex; align-items:flex-end; position:relative; }
+    .gc-card.gc-card-edit .gc-card-top { overflow:hidden; border-radius:8px 8px 0 0; }
+    .gc-card .banner-custom { top:.4rem; right:.4rem; }
+    .gc-card .banner-custom-btn { padding:.22rem .5rem; font-size:.68rem; }
     .gc-card-title { color:#fff; font-size:.98rem; font-weight:700; line-height:1.25; }
     .gc-card-body { padding:.7rem .85rem .8rem; display:flex; align-items:center; justify-content:space-between; gap:.4rem; }
     .gc-meta { font-size:.75rem; color:#5f6368; }
@@ -213,9 +218,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=31"></script>
-<script src="script.js?v=18"></script>
-<script src="portal-sidebar.js?v=24"></script>
+<script src="api.js?v=34"></script>
+<script src="script.js?v=20"></script>
+<script src="portal-sidebar.js?v=25"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -266,6 +271,6 @@
   </main>
 </div>
 
-<script src="pages/teacher.js?v=17"></script>
+<script src="pages/teacher.js?v=18"></script>
 </body>
 </html>

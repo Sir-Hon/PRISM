@@ -76,7 +76,10 @@ if ($method === 'POST' && $action === 'login') {
     $_SESSION['role']    = $user['role'];
     $_SESSION['name']    = $user['name'];
     $_SESSION['section'] = $user['section'] ?? '';
+    $_SESSION['remember'] = !empty($b['remember']);
+    $_SESSION['remember_set'] = 1;
     unset($_SESSION['csrf_token']);
+    prism_commit_session_cookie(!empty($_SESSION['remember']));
     $csrf = prism_csrf_token();
 
     $payload = prism_user_client_payload($db, $user);

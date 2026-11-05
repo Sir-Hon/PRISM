@@ -32,6 +32,7 @@ CREATE TABLE IF NOT EXISTS classes (
   subject     VARCHAR(120) NOT NULL,
   code        VARCHAR(10)  NOT NULL UNIQUE,  -- join code e.g. "AB12CD"
   color       VARCHAR(10)  DEFAULT '#7c3aed',
+  cover       MEDIUMTEXT   NULL,
   created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (teacher_id) REFERENCES users(id) ON DELETE CASCADE
 );

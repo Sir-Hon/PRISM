@@ -400,6 +400,106 @@ function switchSub(name, btn) {
   if (name === 'quizzes') ensureClassQuizFrame();
   if (name === 'grades' && typeof QG_open === 'function') QG_open();
   if (name === 'records' && typeof renderActiveSheet === 'function') renderActiveSheet();
+  if (name === 'people') renderClassPeople();
+}
+
+function prismPeopleOrder(a, b) {
+  var byName = String((a && a.name) || '').localeCompare(String((b && b.name) || ''), undefined, { sensitivity: 'base' });
+  if (byName) return byName;
+  return String((a && a.id) || '').localeCompare(String((b && b.id) || ''));
+}
+
+function prismPeoplePhoto(raw) {
+  var s = String(raw || '').trim();
+  if (!s) return '';
+  if (/^data:image\//i.test(s)) return s;
+  if (/^https?:\/\//i.test(s)) return s;
+  if (s.charAt(0) === '/' || s.indexOf('uploads/') === 0) return s;
+  return '';
+}
+
+function prismPeopleRow(person, role) {
+  var row = document.createElement('div');
+  row.className = 'people-row';
+  var photo = prismPeoplePhoto(person && person.avatar);
+  if (photo) {
+    var img = document.createElement('img');
+    img.className = 'people-av';
+    img.alt = '';
+    img.src = photo;
+    row.appendChild(img);
+  } else {
+    var mark = document.createElement('span');
+    mark.className = 'people-av';
+    var name = String((person && person.name) || '?').trim();
+    mark.textContent = (name.charAt(0) || '?').toUpperCase();
+    row.appendChild(mark);
+  }
+  var main = document.createElement('div');
+  main.className = 'people-main';
+  var title = document.createElement('div');
+  title.className = 'people-name';
+  title.textContent = (person && person.name) || (role === 'teacher' ? 'Teacher' : 'Student');
+  main.appendChild(title);
+  var meta = document.createElement('div');
+  meta.className = 'people-meta';
+  meta.textContent = role === 'teacher' ? 'Teacher' : (person && person.section ? person.section : '');
+  if (meta.textContent) main.appendChild(meta);
+  row.appendChild(main);
+  return row;
+}
+
+function renderClassPeople() {
+  var host = document.getElementById('people-list');
+  if (!host || !activeClassId) return;
+  var classId = activeClassId;
+  host.innerHTML = '';
+  var wait = document.createElement('div');
+  wait.className = 'gc-empty';
+  wait.textContent = 'Loading people…';
+  host.appendChild(wait);
+  var task = (typeof PrismClasses !== 'undefined' && PrismClasses.getMembers)
+    ? PrismClasses.getMembers(classId)
+    : Promise.reject(new Error('missing'));
+  task.then(function (data) {
+    if (activeSub !== 'people' || String(activeClassId) !== String(classId)) return;
+    host.innerHTML = '';
+    var teacher = (data && data.teacher) || {};
+    if (!teacher.name) {
+      try { teacher.name = sessionStorage.getItem('prism_user_name') || 'Teacher'; } catch (e) { teacher.name = 'Teacher'; }
+    }
+    var teacherBlock = document.createElement('div');
+    teacherBlock.className = 'people-block';
+    var teacherHead = document.createElement('h2');
+    teacherHead.textContent = 'Teacher';
+    teacherBlock.appendChild(teacherHead);
+    teacherBlock.appendChild(prismPeopleRow(teacher, 'teacher'));
+    host.appendChild(teacherBlock);
+    var students = ((data && data.students) || []).slice().sort(prismPeopleOrder);
+    var studentBlock = document.createElement('div');
+    studentBlock.className = 'people-block';
+    var studentHead = document.createElement('h2');
+    studentHead.textContent = 'Students';
+    studentBlock.appendChild(studentHead);
+    if (!students.length) {
+      var empty = document.createElement('div');
+      empty.className = 'gc-empty';
+      empty.textContent = 'No students in this class yet.';
+      studentBlock.appendChild(empty);
+    } else {
+      students.forEach(function (student) {
+        studentBlock.appendChild(prismPeopleRow(student, 'student'));
+      });
+    }
+    host.appendChild(studentBlock);
+  }).catch(function () {
+    if (activeSub !== 'people' || String(activeClassId) !== String(classId)) return;
+    host.innerHTML = '';
+    var err = document.createElement('div');
+    err.className = 'gc-empty';
+    err.textContent = 'Could not load the class members.';
+    host.appendChild(err);
+  });
 }
 
 function ensureClassQuizFrame() {

@@ -326,6 +326,18 @@ function showEmptyState() {
   renderClassGrid();
 }
 
+function saveSubjectCard(cls, next) {
+  var color = (next && /^#[0-9a-fA-F]{6}$/.test(next.color || '')) ? next.color : (cls.color || '#7c3aed');
+  var cover = (next && next.image) || '';
+  return PrismClasses.style(cls.id, { color: color, cover: cover }).then(function (data) {
+    cls.color = (data && data.color) || color;
+    cls.cover = cover;
+    persistTeacherClassesLocal();
+    renderClassGrid();
+    if (typeof initSidebar === 'function') initSidebar('home');
+  });
+}
+
 function renderClassGrid() {
   const grid = document.getElementById('classes-grid');
   if (!grid) return;
@@ -341,10 +353,21 @@ function renderClassGrid() {
     const color = /^#[0-9a-fA-F]{3,8}$/.test(String(cls.color || '')) ? cls.color : '#0d9488';
     const n = parseInt(cls.student_count, 10) || getStudents(cls.id).length || 0;
     const card = document.createElement('div');
-    card.className = 'gc-card';
-    card.innerHTML = '<div class="gc-card-top" style="background:' + color + '"><div class="gc-card-title"></div></div>'
+    card.className = 'gc-card gc-card-edit';
+    card.innerHTML = '<div class="gc-card-top"><div class="gc-card-title"></div></div>'
       + '<div class="gc-card-body"><div class="gc-meta"></div><button type="button" class="gc-del">Delete</button></div>';
+    var top = card.querySelector('.gc-card-top');
     card.querySelector('.gc-card-title').textContent = cls.subject || 'Subject';
+    if (typeof prismBannerMount === 'function') {
+      prismBannerMount(top, 'card-' + cls.id, {
+        saved: { color: color, image: cls.cover || '' },
+        onSave: function (next) { return saveSubjectCard(cls, next); }
+      });
+      var custom = top.querySelector('.banner-custom');
+      if (custom) card.appendChild(custom);
+    } else {
+      top.style.background = color;
+    }
     card.querySelector('.gc-meta').textContent = (cls.code ? cls.code + ' · ' : '') + n + ' student' + (n === 1 ? '' : 's');
     card.addEventListener('click', function () {
       window.location.href = 'teacher-class.html?class=' + encodeURIComponent(cls.id);

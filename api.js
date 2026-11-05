@@ -71,54 +71,99 @@ function prismPortalSlug() {
 function prismPortalRole() {
   return PRISM_PORTAL_ROLES[prismPortalSlug()] || 'student';
 }
-var PRISM_RETURN_PAGES = {
-  student: ['index.html', 'calendar.html', 'notes.html', 'quizzes.html', 'profile.html', 'cor.html', 'status.html'],
-  teacher: ['teacher.html', 'teacher-class.html', 'quizmaker.html', 'records.html', 'grading.html', 'lesson.html', 'calendar.html', 'profile.html'],
-  admin: ['admin.html', 'manage.html', 'roster.html', 'cor.html', 'calendar.html', 'profile.html']
-};
 function prismRememberOn() {
   try { return localStorage.getItem('prism_remember') === '1'; } catch (e) { return false; }
 }
 function prismRememberChoose(on) {
   try {
     if (on) localStorage.setItem('prism_remember', '1');
-    else {
-      localStorage.removeItem('prism_remember');
-      localStorage.removeItem('prism_return');
-    }
+    else localStorage.removeItem('prism_remember');
+    localStorage.removeItem('prism_return');
   } catch (e) { /* ignore */ }
 }
 function prismRememberClear() {
   prismRememberChoose(false);
 }
-function prismRememberTarget() {
-  var raw = '';
-  try { raw = localStorage.getItem('prism_return') || ''; } catch (e) { return ''; }
-  var cut = raw.indexOf('?');
-  var page = (cut === -1 ? raw : raw.slice(0, cut)).split('/').pop();
-  var search = cut === -1 ? '' : raw.slice(cut);
-  if (!/^[a-z0-9-]+\.html$/i.test(page)) return '';
-  if (search && !/^\?[A-Za-z0-9_.%=&+-]*$/.test(search)) return '';
-  if (search.length > 300) return '';
+function prismRoleHomePage() {
   var role = prismPortalRole();
-  var allowed = PRISM_RETURN_PAGES[role] || [];
-  if (allowed.indexOf(page) === -1) return '';
-  return page + search;
+  if (role === 'teacher') return 'teacher.html';
+  if (role === 'admin') return 'admin.html';
+  return 'index.html';
 }
-function prismRememberSaveHere() {
+function prismRememberTarget() {
+  return '';
+}
+function prismRememberSaveHere() {}
+function prismNoteLeave() {
+  try { sessionStorage.setItem('prism_left_at', String(Date.now())); } catch (e) { /* ignore */ }
+  prismReleaseTab();
+}
+function prismTabId() {
   try {
-    if (localStorage.getItem('prism_remember') !== '1') return;
-    if (window.top !== window.self) return;
-  } catch (e) { return; }
-  var search = window.location.search || '';
-  if (search.indexOf('embed=1') !== -1) return;
-  var page = ((window.location.pathname || '').split('/').pop() || '').split('#')[0];
-  if (!/^[a-z0-9-]+\.html$/i.test(page)) return;
-  var role = prismPortalRole();
-  var allowed = PRISM_RETURN_PAGES[role] || [];
-  if (allowed.indexOf(page) === -1) return;
-  if (search && !/^\?[A-Za-z0-9_.%=&+-]*$/.test(search)) search = '';
-  try { localStorage.setItem('prism_return', page + search.slice(0, 300)); } catch (e2) { /* ignore */ }
+    var id = sessionStorage.getItem('prism_tab_id');
+    if (!id) {
+      id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      sessionStorage.setItem('prism_tab_id', id);
+    }
+    return id;
+  } catch (e) { return ''; }
+}
+function prismReadTabs() {
+  try {
+    var map = JSON.parse(localStorage.getItem('prism_open_tabs') || '{}');
+    return map && typeof map === 'object' ? map : {};
+  } catch (e) { return {}; }
+}
+function prismTouchTab() {
+  var id = prismTabId();
+  if (!id) return;
+  var map = prismReadTabs();
+  var now = Date.now();
+  Object.keys(map).forEach(function (key) {
+    if (now - (parseInt(map[key], 10) || 0) > 20000) delete map[key];
+  });
+  map[id] = now;
+  try { localStorage.setItem('prism_open_tabs', JSON.stringify(map)); } catch (e) { /* ignore */ }
+}
+function prismReleaseTab() {
+  var id = '';
+  try { id = sessionStorage.getItem('prism_tab_id') || ''; } catch (e) { return; }
+  if (!id) return;
+  var map = prismReadTabs();
+  delete map[id];
+  try { localStorage.setItem('prism_open_tabs', JSON.stringify(map)); } catch (e2) { /* ignore */ }
+}
+function prismAnotherTabOpen() {
+  var mine = '';
+  try { mine = sessionStorage.getItem('prism_tab_id') || ''; } catch (e) {}
+  var map = prismReadTabs();
+  var now = Date.now();
+  return Object.keys(map).some(function (key) {
+    return key !== mine && (now - (parseInt(map[key], 10) || 0)) < 20000;
+  });
+}
+function prismVisitIsLive() {
+  var on = false;
+  var left = 0;
+  try {
+    on = sessionStorage.getItem('prism_tab_on') === '1';
+    left = parseInt(sessionStorage.getItem('prism_left_at') || '0', 10) || 0;
+  } catch (e) { return false; }
+  if (!on) return false;
+  if (!left) return true;
+  return (Date.now() - left) < 60000;
+}
+function prismMarkVisit() {
+  try {
+    sessionStorage.setItem('prism_tab_on', '1');
+    sessionStorage.removeItem('prism_left_at');
+  } catch (e) { /* ignore */ }
+  prismTouchTab();
+  if (window.__prismLeaveWatch) return;
+  window.__prismLeaveWatch = true;
+  window.__prismTabPulse = setInterval(prismTouchTab, 8000);
+  window.addEventListener('pagehide', prismNoteLeave);
+  window.addEventListener('pageshow', prismTouchTab);
 }
 function prismStoreAdminAccess(data) {
   var role = data && data.role ? data.role : '';
@@ -707,8 +752,8 @@ function prismCacheUserProfile(user) {
 }
 
 const PrismAuth = {
-  async login(id, password, role, email) {
-    const data = await apiCall('auth', 'login', 'POST', { id, password, role, email: email || '' });
+  async login(id, password, role, email, remember) {
+    const data = await apiCall('auth', 'login', 'POST', { id, password, role, email: email || '', remember: !!remember });
     sessionStorage.setItem('prism_logged_in', 'true');
     sessionStorage.setItem('prism_user_id',   data.id);
     sessionStorage.setItem('prism_user_name', data.name);
@@ -831,6 +876,14 @@ const PrismClasses = {
   },
   async delete(class_id) {
     return await apiCall('classes', 'delete', 'DELETE', { class_id });
+  },
+  async style(class_id, look) {
+    look = look || {};
+    return await apiCall('classes', 'style', 'POST', {
+      class_id: class_id,
+      color: look.color || '',
+      cover: look.cover || '',
+    });
   },
 };
 
@@ -1305,18 +1358,39 @@ function prismBannerEncode(file, done) {
   reader.readAsDataURL(file);
 }
 
-function prismBannerOpen(wrap, el, scope) {
+function prismBannerOpen(wrap, el, scope, opts) {
   prismBannerClose();
-  var saved = prismBannerRead(scope) || { color: '', image: '' };
+  opts = opts || {};
+  var saved = opts.saved || prismBannerRead(scope) || { color: '', image: '' };
   var pop = document.createElement('div');
   pop.className = 'banner-pop';
   pop.addEventListener('click', function (ev) { ev.stopPropagation(); });
   var label = document.createElement('div');
   label.className = 'banner-pop-label';
-  label.textContent = 'Banner color';
+  label.textContent = opts.onSave ? 'Card color' : 'Banner color';
   pop.appendChild(label);
   var row = document.createElement('div');
   row.className = 'banner-swatches';
+  function prismBannerCommit(next) {
+    if (typeof opts.onSave === 'function') {
+      var note = pop.querySelector('.banner-pop-msg');
+      if (note) note.textContent = 'Saving…';
+      Promise.resolve(opts.onSave(next)).then(function () {
+        prismBannerClose();
+      }).catch(function (err) {
+        if (note) note.textContent = (err && err.message) ? err.message : 'Could not save that look.';
+      });
+      return;
+    }
+    if (!next || (!next.color && !next.image)) {
+      prismBannerWrite(scope, null);
+      prismBannerApply(el, null);
+    } else {
+      prismBannerWrite(scope, next);
+      prismBannerApply(el, next);
+    }
+    prismBannerClose();
+  }
   PRISM_BANNER_COLORS.forEach(function (hex) {
     var swatch = document.createElement('button');
     swatch.type = 'button';
@@ -1324,10 +1398,7 @@ function prismBannerOpen(wrap, el, scope) {
     swatch.style.background = hex;
     swatch.title = hex;
     swatch.addEventListener('click', function () {
-      var next = { color: hex, image: '' };
-      prismBannerWrite(scope, next);
-      prismBannerApply(el, next);
-      prismBannerClose();
+      prismBannerCommit({ color: hex, image: '' });
     });
     row.appendChild(swatch);
   });
@@ -1344,8 +1415,12 @@ function prismBannerOpen(wrap, el, scope) {
     var msg = pop.querySelector('.banner-pop-msg');
     prismBannerEncode(chosen, function (err, url) {
       if (err) { if (msg) msg.textContent = err.message; return; }
-      var prev = prismBannerRead(scope) || {};
-      var next = { color: prev.color || '#1e1b2e', image: url };
+      var prev = opts.saved || prismBannerRead(scope) || {};
+      var next = { color: prev.color || saved.color || '#1e1b2e', image: url };
+      if (typeof opts.onSave === 'function') {
+        prismBannerCommit(next);
+        return;
+      }
       try { prismBannerWrite(scope, next); }
       catch (e) { if (msg) msg.textContent = 'That photo is too large to save.'; return; }
       prismBannerApply(el, next);
@@ -1357,11 +1432,9 @@ function prismBannerOpen(wrap, el, scope) {
   var reset = document.createElement('button');
   reset.type = 'button';
   reset.className = 'banner-reset';
-  reset.textContent = 'Use default';
+  reset.textContent = opts.onSave ? 'Remove photo' : 'Use default';
   reset.addEventListener('click', function () {
-    prismBannerWrite(scope, null);
-    prismBannerApply(el, null);
-    prismBannerClose();
+    prismBannerCommit(null);
   });
   pop.appendChild(reset);
   var msg = document.createElement('div');
@@ -1372,9 +1445,11 @@ function prismBannerOpen(wrap, el, scope) {
   __prismBannerPop = pop;
 }
 
-function prismBannerMount(el, scope) {
+function prismBannerMount(el, scope, opts) {
   if (!el) return;
-  prismBannerApply(el, prismBannerRead(scope));
+  opts = opts || {};
+  if (opts.saved) prismBannerApply(el, opts.saved);
+  else prismBannerApply(el, prismBannerRead(scope));
   if (el.querySelector('.banner-custom')) return;
   var wrap = document.createElement('div');
   wrap.className = 'banner-custom';
@@ -1383,9 +1458,10 @@ function prismBannerMount(el, scope) {
   btn.className = 'banner-custom-btn';
   btn.textContent = 'Customize';
   btn.addEventListener('click', function (ev) {
+    ev.preventDefault();
     ev.stopPropagation();
     if (wrap.querySelector('.banner-pop')) prismBannerClose();
-    else prismBannerOpen(wrap, el, scope);
+    else prismBannerOpen(wrap, el, scope, opts);
   });
   wrap.appendChild(btn);
   el.appendChild(wrap);

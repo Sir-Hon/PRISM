@@ -479,6 +479,21 @@ function prism_logout_session(): void {
     session_destroy();
 }
 
+function prism_commit_session_cookie(bool $persist): void {
+    if (session_status() !== PHP_SESSION_ACTIVE || headers_sent()) {
+        return;
+    }
+    $params = session_get_cookie_params();
+    setcookie(session_name(), session_id(), [
+        'expires'  => $persist ? time() + SESSION_LIFETIME : 0,
+        'path'     => $params['path'] ?? '/',
+        'domain'   => $params['domain'] ?? '',
+        'secure'   => (bool) ($params['secure'] ?? false),
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+}
+
 // ── CORS + JSON headers ──
 function setHeaders() {
     header('Content-Type: application/json; charset=utf-8');
@@ -517,6 +532,8 @@ function startSession() {
         'samesite' => 'Lax',
     ]);
     session_start();
+    $persist = !empty($_SESSION['user_id']) && (empty($_SESSION['remember_set']) || !empty($_SESSION['remember']));
+    prism_commit_session_cookie($persist);
 }
 
 // ── Auth guard ──

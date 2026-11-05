@@ -7,12 +7,38 @@ $method = $_SERVER['REQUEST_METHOD'];
 $action = $_GET['action'] ?? '';
 $user   = requireAuth();
 $db     = getDB();
+prism_ensure_class_cover($db);
+
+function prism_ensure_class_cover(PDO $db): bool {
+    static $done = null;
+    if ($done !== null) return $done;
+    try {
+        if (!prism_table_has_column($db, 'classes', 'cover')) {
+            $db->exec('ALTER TABLE classes ADD COLUMN cover MEDIUMTEXT NULL');
+        }
+        $done = true;
+    } catch (Throwable $e) {
+        error_log('PRISM class cover: ' . $e->getMessage());
+        $done = false;
+    }
+    return $done;
+}
+
+function prism_class_hex(string $raw): string {
+    $raw = trim($raw);
+    if (preg_match('/^#[0-9a-fA-F]{6}$/', $raw)) return strtolower($raw);
+    if (preg_match('/^#([0-9a-fA-F])([0-9a-fA-F])([0-9a-fA-F])$/', $raw, $m)) {
+        return strtolower('#' . $m[1] . $m[1] . $m[2] . $m[2] . $m[3] . $m[3]);
+    }
+    return '';
+}
 
 // ── LIST MY CLASSES ────────────────────────────────────
 if ($method === 'GET' && $action === 'mine') {
     if ($user['role'] === 'teacher') {
+        $coverSql = prism_ensure_class_cover($db) ? ', c.cover' : '';
         $stmt = $db->prepare(
-            'SELECT c.id, c.teacher_id, c.subject, c.code, c.color, c.created_at,
+            'SELECT c.id, c.teacher_id, c.subject, c.code, c.color' . $coverSql . ', c.created_at,
                     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = c.id) AS student_count
              FROM classes c WHERE c.teacher_id = ? ORDER BY c.created_at DESC'
         );
@@ -53,6 +79,27 @@ if ($method === 'POST' && $action === 'create') {
        ->execute([$id, $user['id'], $subject, $code, $color]);
 
     ok(['id' => $id, 'code' => $code, 'subject' => $subject, 'color' => $color]);
+}
+
+// ── CARD LOOK (teacher) ────────────────────────────────
+if ($method === 'POST' && $action === 'style') {
+    if ($user['role'] !== 'teacher') fail('Forbidden', 403);
+    if (!prism_ensure_class_cover($db)) fail('Could not save the card look.', 500);
+    $b = getBody();
+    $class_id = trim((string) ($b['class_id'] ?? ''));
+    $color = prism_class_hex((string) ($b['color'] ?? ''));
+    $cover = $b['cover'] ?? '';
+    if ($class_id === '' || $color === '') fail('Choose a color for this subject.');
+    if (!is_string($cover)) fail('Use a JPG, PNG, or WebP photo.');
+    if ($cover !== '' && !preg_match('#^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=\r\n]+$#', $cover)) {
+        fail('Use a JPG, PNG, or WebP photo.');
+    }
+    if (strlen($cover) > 1200000) fail('That photo is too large to save.');
+    $chk = $db->prepare('SELECT id FROM classes WHERE id = ? AND teacher_id = ?');
+    $chk->execute([$class_id, $user['id']]);
+    if (!$chk->fetch()) fail('Not found or not yours', 404);
+    $db->prepare('UPDATE classes SET color = ?, cover = ? WHERE id = ?')->execute([$color, $cover === '' ? null : $cover, $class_id]);
+    ok(['color' => $color, 'has_cover' => $cover !== '']);
 }
 
 // ── JOIN CLASS (student) ───────────────────────────────

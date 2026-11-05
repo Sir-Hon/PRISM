@@ -51,6 +51,35 @@
     return;
   }
 
+  var embedded = false;
+  try { embedded = window.top !== window.self; } catch (e) { embedded = true; }
+  var homePage = typeof prismRoleHomePage === 'function' ? prismRoleHomePage() : 'index.html';
+  if (!embedded && typeof prismVisitIsLive === 'function' && !prismVisitIsLive() && !(typeof prismAnotherTabOpen === 'function' && prismAnotherTabOpen())) {
+    try {
+      sessionStorage.removeItem('prism_open_class');
+      sessionStorage.removeItem('prism_open_class_meta');
+      sessionStorage.removeItem('prism_teacher_active_class_id');
+    } catch (e2) { /* ignore */ }
+    if (typeof prismRememberOn === 'function' && prismRememberOn()) {
+      if (currentPage !== homePage) {
+        window.location.replace(homePage);
+        return;
+      }
+      if (window.location.search) {
+        try { history.replaceState(null, '', homePage); } catch (e3) { /* ignore */ }
+      }
+    } else {
+      var showLogin = function () { window.location.replace('login.html'); };
+      if (typeof PrismAuth !== 'undefined' && PrismAuth.logout) {
+        PrismAuth.logout().catch(showLogin);
+        return;
+      }
+      showLogin();
+      return;
+    }
+  }
+  if (typeof prismMarkVisit === 'function') prismMarkVisit();
+
   // Cover only the page body. The top bar and sidebar stay put.
   document.documentElement.classList.add('prism-loading');
 

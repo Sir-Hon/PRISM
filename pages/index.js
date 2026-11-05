@@ -10,6 +10,11 @@ var activeDetailId = null;
 var currentQuiz    = null;
 var userAnswers    = [];
 
+var classCovers = {};
+function rememberClassCover(id, cover) {
+  if (cover && String(cover).indexOf('data:image/') === 0) classCovers[id] = cover;
+  else delete classCovers[id];
+}
 function getJoinedClasses()   { return JSON.parse(localStorage.getItem('prism_joined_'+STUDENT_ID)||'{}'); }
 function saveJoinedClasses(v) { localStorage.setItem('prism_joined_'+STUDENT_ID, JSON.stringify(v)); }
 function getCodeIndex()       { return JSON.parse(localStorage.getItem('prism_join_codes')||'{}'); }
@@ -157,6 +162,7 @@ async function loadClassDataFromAPI() {
     }
     var joined = {};
     classesList.forEach(function(cls) {
+      rememberClassCover(cls.id, cls.cover || '');
       joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', code: cls.code || '', joinedAt: cls.joined_at || '' };
       var prev = {};
       try { prev = JSON.parse(localStorage.getItem('prism_profile_' + cls.teacher_id) || '{}'); } catch (e) { prev = {}; }
@@ -365,7 +371,10 @@ function renderClasses() {
     if (activeDetailId === entry.classId) card.style.boxShadow = '0 0 0 2px ' + color;
     card.innerHTML = '<div class="gc-card-top"><div class="gc-card-title"></div></div>'
       + '<div class="gc-card-body"><div class="gc-meta"></div><button type="button" class="gc-del">Leave</button></div>';
-    card.querySelector('.gc-card-top').style.background = color;
+    var top = card.querySelector('.gc-card-top');
+    var cover = classCovers[entry.classId] || '';
+    if (typeof prismBannerApply === 'function') prismBannerApply(top, { color: color, image: cover });
+    else top.style.background = color;
     card.querySelector('.gc-card-title').textContent = entry.subject || 'Class';
     var bits = [];
     var code = entry.code || (info && info.code) || '';
@@ -561,7 +570,11 @@ function classTeacherFallback(classId) {
 
 function renderPeopleHtml(data) {
   var teacher = (data && data.teacher) || { name: 'Teacher' };
-  var students = (data && data.students) || [];
+  var students = ((data && data.students) || []).slice().sort(function (a, b) {
+    var byName = String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+    if (byName) return byName;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
   var html = '<div class="people-block"><h2>Teacher</h2><div class="people-row">'
     + peopleAvatarHtml(teacher, 'teacher')
     + '<div class="people-main"><div class="people-name">' + prismEscHtml(teacher.name || 'Teacher') + '</div>'

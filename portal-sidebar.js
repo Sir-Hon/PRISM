@@ -240,7 +240,7 @@ function initSidebar(activePage) {
       } catch (e3) {
         teacherClasses = [];
       }
-      var tSig = teacherClasses.map(function (c) { return String(c.id) + '|' + String(c.subject || ''); }).join(',');
+      var tSig = teacherClasses.map(function (c) { return String(c.id) + '|' + String(c.subject || '') + '|' + String(c.color || ''); }).join(',');
       if (classCont.dataset.prismClassSig !== tSig) {
         classCont.dataset.prismClassSig = tSig;
         classCont.innerHTML = '';
@@ -273,7 +273,7 @@ function initSidebar(activePage) {
         joinedRaw = {};
       }
       var joinedList = Object.values(joinedRaw);
-      var sSig = joinedList.map(function (e) { return String(e.classId) + '|' + String(e.subject || ''); }).join(',');
+      var sSig = joinedList.map(function (e) { return String(e.classId) + '|' + String(e.subject || '') + '|' + String(e.color || ''); }).join(',');
       if (classCont.dataset.prismClassSig !== sSig) {
         classCont.dataset.prismClassSig = sSig;
         classCont.innerHTML = '';

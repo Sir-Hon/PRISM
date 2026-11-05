@@ -50,6 +50,28 @@ function sheetPartKey(part) {
   return String(part || '').replace(/[^a-z0-9_]/gi, '').slice(0, 24);
 }
 
+function splitWeights(count) {
+  var out = [];
+  if (!(count > 0)) return out;
+  var used = 0;
+  for (var i = 0; i < count; i++) {
+    var share = i === count - 1
+      ? Math.round((100 - used) * 10) / 10
+      : Math.floor((100 / count) * 10) / 10;
+    out.push(share);
+    used += share;
+  }
+  return out;
+}
+
+function sheetPercentText(raw) {
+  if (raw == null || raw === '') return '';
+  var n = parseFloat(raw);
+  if (!isFinite(n) || n < 0) return '';
+  if (n > 100) n = 100;
+  return String(Math.round(n * 10) / 10);
+}
+
 function normalizeSheetTable(raw, i) {
   var part = sheetPartKey(raw && raw.part) || ('t' + i);
   var count = parseInt(raw && raw.count, 10);
@@ -59,7 +81,8 @@ function normalizeSheetTable(raw, i) {
     id: sheetPartKey(raw && raw.id) || part,
     title: String((raw && raw.title) || 'Table').slice(0, 80),
     part: part,
-    count: count
+    count: count,
+    weight: sheetPercentText(raw && raw.weight)
   };
 }
 
@@ -130,6 +153,8 @@ function blankAttendance(student) {
 function blankAssessment(student) {
   var base = blankAttendance(student);
   var tables = defaultSheetTables();
+  var shares = splitWeights(tables.length);
+  tables.forEach(function (table, i) { table.weight = String(shares[i]); });
   return {
     name: base.name,
     section: base.section,
@@ -139,6 +164,7 @@ function blankAssessment(student) {
     tables: tables,
     quarters: [blankQuarterFor(tables), blankQuarterFor(tables), blankQuarterFor(tables), blankQuarterFor(tables)],
     remarks: '',
+    units: '',
     scheduleDays: { M: false, T: false, W: false, TH: false, F: false },
     scheduleTime: ''
   };
@@ -152,10 +178,48 @@ function selectedStudent() {
   return null;
 }
 
+function sheetRoster() {
+  var students = typeof getStudents === 'function' ? getStudents(activeClassId) : [];
+  return students.slice().sort(function (a, b) {
+    var byName = String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+    if (byName) return byName;
+    return String(a.id).localeCompare(String(b.id));
+  });
+}
+
+function updateSheetNav() {
+  var students = sheetRoster();
+  var idx = -1;
+  for (var i = 0; i < students.length; i++) {
+    if (String(students[i].id) === String(sheetStudentId)) { idx = i; break; }
+  }
+  var prev = document.getElementById('sheet-prev');
+  var next = document.getElementById('sheet-next');
+  if (prev) prev.disabled = !students.length || idx <= 0;
+  if (next) next.disabled = !students.length || idx === students.length - 1;
+}
+
+async function stepSheetStudent(dir) {
+  var students = sheetRoster();
+  if (!students.length) return;
+  var idx = -1;
+  for (var i = 0; i < students.length; i++) {
+    if (String(students[i].id) === String(sheetStudentId)) { idx = i; break; }
+  }
+  var nextIdx = idx < 0 ? (dir < 0 ? -1 : 0) : idx + dir;
+  if (nextIdx < 0 || nextIdx >= students.length) return;
+  await flushSave();
+  sheetStudentId = students[nextIdx].id;
+  var sel = document.getElementById('sheet-student');
+  if (sel) sel.value = sheetStudentId;
+  updateSheetNav();
+  await loadCurrentSheet();
+}
+
 function refreshSheetBar() {
   var sel = document.getElementById('sheet-student');
   if (!sel) return;
-  var students = typeof getStudents === 'function' ? getStudents(activeClassId) : [];
+  var students = sheetRoster();
   var prev = sheetStudentId || sel.value;
   sel.innerHTML = '';
   var placeholder = document.createElement('option');
@@ -171,6 +235,7 @@ function refreshSheetBar() {
   var keep = students.some(function (s) { return s.id === prev; });
   sheetStudentId = keep ? prev : '';
   sel.value = sheetStudentId;
+  updateSheetNav();
 }
 
 function sheetStatus(text) {
@@ -224,6 +289,11 @@ function applyAssessment(saved, student) {
     seen[table.part] = true;
     return true;
   });
+  if (base.tables.length && !base.tables.some(function (table) { return table.weight !== ''; })) {
+    var shares = splitWeights(base.tables.length);
+    base.tables.forEach(function (table, i) { table.weight = String(shares[i]); });
+  }
+  base.units = saved && saved.units != null ? String(saved.units).replace(/[^0-9.]/g, '').slice(0, 6) : '';
   var source = Array.isArray(saved.quarters) && saved.quarters.length ? saved.quarters.slice(0, 8) : [{}, {}, {}, {}];
   base.quarters = source.map(function (q) { return ensureQuarterShape(q || {}, base.tables); });
   if (!base.quarters.length) base.quarters = [ensureQuarterShape({}, base.tables)];
@@ -453,15 +523,54 @@ function partPct(scores, hps) {
   return (total / h) * 100;
 }
 
+function weightedQuarter(q, tables, pctOf) {
+  var scored = [];
+  var anyWeight = false;
+  (tables || []).forEach(function (table) {
+    var weight = parseFloat(table && table.weight);
+    if (isFinite(weight) && weight > 0) anyWeight = true;
+    var pct = pctOf(q[table.part], q[table.part + 'Hps']);
+    if (pct == null || !isFinite(pct) || !(weight > 0)) return;
+    scored.push({ pct: pct, weight: weight });
+  });
+  if (!anyWeight) {
+    var plain = (tables || []).map(function (table) {
+      return pctOf(q[table.part], q[table.part + 'Hps']);
+    }).filter(function (n) { return n != null && isFinite(n); });
+    if (!plain.length) return null;
+    return plain.reduce(function (a, b) { return a + b; }, 0) / plain.length;
+  }
+  if (!scored.length) return null;
+  var weightSum = 0;
+  var weighted = 0;
+  scored.forEach(function (row) {
+    weightSum += row.weight;
+    weighted += row.pct * row.weight;
+  });
+  return weightSum > 0 ? weighted / weightSum : null;
+}
+
 function quarterAverage(q) {
   var tables = assessmentData && assessmentData.tables && assessmentData.tables.length
     ? assessmentData.tables
     : defaultSheetTables();
-  var nums = tables.map(function (table) {
-    return partPct(q[table.part], q[table.part + 'Hps']);
-  }).filter(function (n) { return n != null && isFinite(n); });
-  if (!nums.length) return null;
-  return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+  return weightedQuarter(q, tables, partPct);
+}
+
+function weightTotal(tables) {
+  var total = 0;
+  (tables || []).forEach(function (table) {
+    var weight = parseFloat(table && table.weight);
+    if (isFinite(weight) && weight > 0) total += weight;
+  });
+  return total;
+}
+
+function unitEstimate(data) {
+  var grade = finalAverage(data);
+  var units = parseFloat(data && data.units);
+  if (grade == null || !(units > 0)) return null;
+  return (grade / 100) * units;
 }
 
 function finalAverage(data) {
@@ -567,7 +676,7 @@ function deleteAssessmentTable(part) {
 function addAssessmentTable() {
   if (!assessmentData || assessmentData.tables.length >= 8) return;
   var part = 't' + Date.now();
-  assessmentData.tables.push({ id: part, title: 'New table', part: part, count: 4 });
+  assessmentData.tables.push({ id: part, title: 'New table', part: part, count: 4, weight: '' });
   assessmentData.quarters.forEach(function (q) {
     q[part + 'Hps'] = '';
     q[part] = ['', '', '', ''];
@@ -595,6 +704,13 @@ function renderAssessment() {
   var avgs = data.quarters.map(function (q, qi) {
     return '<div class="avg-box"><span>' + quarterLabel(qi) + '</span><strong id="ga-' + qi + '">' + fmtNum(quarterAverage(q)) + '</strong></div>';
   }).join('');
+  var weightRows = (data.tables || []).map(function (table) {
+    var name = table.title || 'Table';
+    return '<label class="weight-row"><span data-weight-label="' + sheetEsc(table.part) + '">' + sheetEsc(name) + '</span>' +
+      '<input class="weight-inp" inputmode="decimal" data-weight="' + sheetEsc(table.part) + '" value="' + sheetEsc(table.weight || '') + '" aria-label="' + sheetEsc(name) + ' percent">' +
+      '<em>%</em></label>';
+  }).join('');
+  var listed = weightTotal(data.tables);
   var examGrades = data.quarters.map(function (q, qi) {
     return '<div class="avg-box"><span>' + quarterLabel(qi) + '</span><strong id="eg-' + qi + '">' + sheetEsc(q.exam) + '</strong></div>';
   }).join('');
@@ -608,7 +724,13 @@ function renderAssessment() {
         data.tables.map(function (table) { return componentTable(table); }).join('') +
         '<div class="sheet-block"><h3>Quarterly Examination</h3><div class="score-scroll"><table class="score-table">' + exams + '</table></div></div>' +
         '<div class="sheet-block"><h3>Parent\'s / Guardian Signature</h3><div style="display:flex;flex-wrap:wrap;gap:.5rem;padding:.65rem;">' + signs + '</div></div>' +
-        '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs + '<div class="avg-box"><span>Final Average</span><strong id="final-avg">' + fmtNum(finalAverage(data)) + '</strong></div></div><p style="margin:0;padding:0 .65rem .65rem;font-size:.72rem;color:#8b7396;">Each quarter averages the score tables that have a highest possible score.</p></div>' +
+        '<div class="sheet-block"><h3>Grade weights</h3><div class="weight-list">' + (weightRows || '<p class="weight-sum">Add a score table to give it a percent.</p>') + '</div>' +
+          '<p class="weight-sum" id="weight-sum">' + (listed ? 'These table weights total ' + sheetEsc(fmtNum(listed)) + '%.' : 'Enter a percent for each table. Only the tables on this card are included.') + '</p>' +
+          '<label class="units-field">Units <input class="weight-inp" id="sheet-units" inputmode="decimal" value="' + sheetEsc(data.units || '') + '" aria-label="Subject units"></label></div>' +
+        '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs +
+          '<div class="avg-box"><span>Final grade</span><strong id="final-avg">' + fmtNum(finalAverage(data)) + '</strong></div>' +
+          '<div class="avg-box"><span>Unit estimate</span><strong id="unit-estimate">' + fmtNum(unitEstimate(data)) + '</strong></div></div>' +
+          '<p style="margin:0;padding:0 .65rem .65rem;font-size:.72rem;color:#8b7396;">Each quarter uses the percent of the score tables that have a highest possible score. The unit estimate is that final grade times the subject units.</p></div>' +
         '<div class="sheet-block"><h3>Exam Grade</h3><div class="avg-row">' + examGrades + '</div></div>' +
         '<div class="sheet-block"><h3>Remarks</h3><textarea class="remarks-inp" id="sheet-remarks">' + sheetEsc(data.remarks) + '</textarea></div>' +
         '<div class="sheet-block"><h3>Schedule</h3><div class="sched-days">' + days +
@@ -638,6 +760,8 @@ function renderAssessment() {
     input.addEventListener('input', function () {
       var table = findSheetTable(input.getAttribute('data-table-title'));
       if (table) table.title = input.value.slice(0, 80);
+      var label = host.querySelector('[data-weight-label="' + input.getAttribute('data-table-title') + '"]');
+      if (label) label.textContent = input.value || 'Table';
       scheduleSave();
     });
   });
@@ -661,6 +785,24 @@ function renderAssessment() {
       paintAssessmentTotals();
       scheduleSave();
     });
+  });
+  host.querySelectorAll('[data-weight]').forEach(function (input) {
+    input.addEventListener('input', function () {
+      var table = findSheetTable(input.getAttribute('data-weight'));
+      var clean = input.value.replace(/[^0-9.]/g, '');
+      if (clean !== input.value) input.value = clean;
+      if (table) table.weight = clean;
+      paintAssessmentTotals();
+      scheduleSave();
+    });
+  });
+  var units = document.getElementById('sheet-units');
+  if (units) units.addEventListener('input', function () {
+    var clean = units.value.replace(/[^0-9.]/g, '');
+    if (clean !== units.value) units.value = clean;
+    data.units = clean;
+    paintAssessmentTotals();
+    scheduleSave();
   });
   var remarks = document.getElementById('sheet-remarks');
   if (remarks) remarks.addEventListener('input', function () { data.remarks = remarks.value; scheduleSave(); });
@@ -691,6 +833,15 @@ function paintAssessmentTotals() {
   });
   var fin = document.getElementById('final-avg');
   if (fin) fin.textContent = fmtNum(finalAverage(data));
+  var estimate = document.getElementById('unit-estimate');
+  if (estimate) estimate.textContent = fmtNum(unitEstimate(data));
+  var sumEl = document.getElementById('weight-sum');
+  if (sumEl) {
+    var listed = weightTotal(data.tables);
+    sumEl.textContent = listed
+      ? 'These table weights total ' + fmtNum(listed) + '%.'
+      : 'Enter a percent for each table. Only the tables on this card are included.';
+  }
 }
 
 function scheduleSave() {
