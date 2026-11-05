@@ -66,9 +66,12 @@
     .tf-btn.sel-true  { border-color:var(--t); background:var(--t-light); color:var(--t-dark); }
     .tf-btn.sel-false { border-color:#ef4444; background:#fee2e2; color:#991b1b; }
     .sa-ph { border:1.5px dashed var(--t-light); border-radius:8px; padding:.7rem 1rem; font-size:.85rem; color:#9ca3af; font-family:'DM Sans',sans-serif; background:var(--t-light); }
-    .qm-add-row { display:flex; gap:.6rem; align-items:center; }
-    .qm-add-row .add-q-btn { flex:0 0 auto; width:48px; height:48px; padding:0; border-radius:14px; }
+    .qm-add-row { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+    .qm-add-row .add-q-btn { flex:0 0 auto; width:auto; height:auto; min-height:48px; padding:.5rem .7rem; gap:.28rem; flex-direction:column; border-radius:14px; font-family:'DM Sans',sans-serif; font-size:.68rem; font-weight:800; line-height:1.15; }
     .add-q-btn { display:inline-flex; align-items:center; justify-content:center; width:48px; height:48px; padding:0; border:1.5px solid var(--t-light); border-radius:14px; background:#fff; color:var(--t); cursor:pointer; position:relative; }
+    .q-card:has(+ .q-next) { margin-bottom:.35rem; }
+    .q-next { display:flex; justify-content:flex-start; margin:.15rem 0 .9rem .2rem; }
+    .part-card > .q-next { margin:.35rem 0 .1rem; }
     .add-q-btn:hover { background:var(--t-light); border-color:var(--t); }
     .publish-btn { width:100%; padding:.8rem; background:linear-gradient(135deg,var(--t),var(--t-dark)); color:white; border:none; border-radius:12px; font-family:'DM Sans',sans-serif; font-size:.95rem; font-weight:700; cursor:pointer; transition:opacity .2s,transform .15s; margin-bottom:.6rem; }
     .publish-btn:hover { opacity:.9; transform:translateY(-1px); }
@@ -319,8 +322,8 @@
         </div>
         <div id="questions-list"></div>
         <div class="qm-add-row">
-          <button type="button" class="add-q-btn" onclick="addPart()" data-tip="Add a part" title="Add a part" aria-label="Add a part"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg></button>
-          <button type="button" class="add-q-btn" onclick="addQuestion()" data-tip="Add a question" title="Add a question" aria-label="Add a question"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></button>
+          <button type="button" class="add-q-btn" onclick="addPart()" data-tip="Add a part" title="Add a part" aria-label="Add a part"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg><span>Add a part</span></button>
+          <button type="button" class="add-q-btn" onclick="addQuestion()" data-tip="Add a question that does not belong to a part" title="Add a question that does not belong to a part" aria-label="Add a question that does not belong to a part"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><span>Question, no part</span></button>
         </div>
       </div>
       <div style="display:flex;flex-direction:column;gap:1.1rem;">
@@ -362,6 +365,6 @@
 <!-- Quiz Log Modal -->
 <div id="quiz-log-modal-wrap"></div>
 
-<script src="pages/quizmaker.js?v=29"></script>
+<script src="pages/quizmaker.js?v=30"></script>
 </body>
 </html>

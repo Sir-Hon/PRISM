@@ -266,6 +266,15 @@ function qmQuestionsInPart(partId) {
   }
   return out;
 }
+function qmIsLastInPart(id) {
+  var at = questions.findIndex(function (item) { return String(item.id) === String(id); });
+  if (at < 0 || questions[at].type === 'part' || questions[at].loose || !qmOwningPart(id)) return false;
+  for (var i = at + 1; i < questions.length; i++) {
+    if (questions[i].loose) continue;
+    return questions[i].type === 'part';
+  }
+  return true;
+}
 function qmNormalizePartTypes() {
   var part = null;
   questions.forEach(function (q, i) {
@@ -383,7 +392,7 @@ function qmPartCard(q, partNo) {
     + '<label class="part-field">Directions<textarea class="part-dir" placeholder="Write the directions for this part" oninput="updatePart(\''+q.id+'\',\'directions\',this.value)">'+esc(q.directions)+'</textarea></label>'
     + qmImagePreview(q)
     + boxBlock
-    + qmTipButton('part-add-q', 'Add a question in this part', qmIcon('plus'), ' onclick="addQuestion(null,\''+q.id+'\')"');
+    + (qmQuestionsInPart(q.id).length ? '' : '<div class="q-next">' + qmTipButton('part-add-q', 'Add a question in this part', qmIcon('plus'), ' onclick="addQuestion(null,\''+q.id+'\')"') + '</div>');
   return card;
 }
 function renderQMQuestions(){
@@ -417,6 +426,12 @@ function renderQMQuestions(){
       + '<div id="qo-'+q.id+'">'+renderOpts(q)+'</div>'
       + qmImagePreview(q);
     list.appendChild(card);
+    if (inPart && qmIsLastInPart(q.id)) {
+      var next = document.createElement('div');
+      next.className = 'q-next';
+      next.innerHTML = qmTipButton('part-add-q', 'Add the next question in this part', qmIcon('plus'), ' onclick="addQuestion(null,\''+q.id+'\')"');
+      list.appendChild(next);
+    }
   });
   qmBindTeacherMatches(list);
 }
