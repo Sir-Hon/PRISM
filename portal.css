@@ -1230,15 +1230,19 @@ html[data-theme="dark"] .prism-wait { color: #e5e7eb; }
 
 .banner-custom { position:absolute; top:.7rem; right:.75rem; z-index:6; }
 .banner-custom-btn {
+  width:34px;
+  height:34px;
+  padding:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   border:1px solid rgba(255,255,255,.5);
   background:rgba(0,0,0,.32);
   color:#fff;
-  -webkit-text-fill-color:#fff;
-  border-radius:999px;
-  padding:.32rem .75rem;
-  font:700 .75rem/1 'DM Sans',sans-serif;
+  border-radius:50%;
   cursor:pointer;
 }
+.banner-custom-btn svg { display:block; }
 .banner-custom-btn:hover { background:rgba(0,0,0,.5); }
 .student-hero.banner-open,
 .teacher-hero.banner-open,

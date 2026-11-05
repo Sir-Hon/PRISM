@@ -50,20 +50,6 @@ function sheetPartKey(part) {
   return String(part || '').replace(/[^a-z0-9_]/gi, '').slice(0, 24);
 }
 
-function splitWeights(count) {
-  var out = [];
-  if (!(count > 0)) return out;
-  var used = 0;
-  for (var i = 0; i < count; i++) {
-    var share = i === count - 1
-      ? Math.round((100 - used) * 10) / 10
-      : Math.floor((100 / count) * 10) / 10;
-    out.push(share);
-    used += share;
-  }
-  return out;
-}
-
 function sheetPercentText(raw) {
   if (raw == null || raw === '') return '';
   var n = parseFloat(raw);
@@ -87,7 +73,7 @@ function normalizeSheetTable(raw, i) {
 }
 
 function blankQuarterFor(tables) {
-  var q = { exam: '', signature: '' };
+  var q = { exam: '', examHps: '', signature: '' };
   (tables || defaultSheetTables()).forEach(function (table) {
     q[table.part + 'Hps'] = '';
     q[table.part] = padScores([], table.count);
@@ -98,6 +84,7 @@ function blankQuarterFor(tables) {
 function ensureQuarterShape(q, tables) {
   var out = {
     exam: q && q.exam != null ? String(q.exam) : '',
+    examHps: q && q.examHps != null ? String(q.examHps).replace(/[^0-9.]/g, '') : '',
     signature: q && q.signature != null ? String(q.signature) : ''
   };
   (tables || []).forEach(function (table) {
@@ -153,8 +140,6 @@ function blankAttendance(student) {
 function blankAssessment(student) {
   var base = blankAttendance(student);
   var tables = defaultSheetTables();
-  var shares = splitWeights(tables.length);
-  tables.forEach(function (table, i) { table.weight = String(shares[i]); });
   return {
     name: base.name,
     section: base.section,
@@ -165,6 +150,7 @@ function blankAssessment(student) {
     quarters: [blankQuarterFor(tables), blankQuarterFor(tables), blankQuarterFor(tables), blankQuarterFor(tables)],
     remarks: '',
     units: '',
+    examWeight: '',
     scheduleDays: { M: false, T: false, W: false, TH: false, F: false },
     scheduleTime: ''
   };
@@ -289,11 +275,8 @@ function applyAssessment(saved, student) {
     seen[table.part] = true;
     return true;
   });
-  if (base.tables.length && !base.tables.some(function (table) { return table.weight !== ''; })) {
-    var shares = splitWeights(base.tables.length);
-    base.tables.forEach(function (table, i) { table.weight = String(shares[i]); });
-  }
   base.units = saved && saved.units != null ? String(saved.units).replace(/[^0-9.]/g, '').slice(0, 6) : '';
+  base.examWeight = sheetPercentText(saved && saved.examWeight);
   var source = Array.isArray(saved.quarters) && saved.quarters.length ? saved.quarters.slice(0, 8) : [{}, {}, {}, {}];
   base.quarters = source.map(function (q) { return ensureQuarterShape(q || {}, base.tables); });
   if (!base.quarters.length) base.quarters = [ensureQuarterShape({}, base.tables)];
@@ -523,7 +506,15 @@ function partPct(scores, hps) {
   return (total / h) * 100;
 }
 
-function weightedQuarter(q, tables, pctOf) {
+function examPct(q) {
+  if (!q || q.exam === '' || q.exam == null) return null;
+  var score = parseFloat(q.exam);
+  var hps = parseFloat(q.examHps);
+  if (!isFinite(score) || !(hps > 0)) return null;
+  return (score / hps) * 100;
+}
+
+function weightedQuarter(q, tables, pctOf, examWeight) {
   var scored = [];
   var anyWeight = false;
   (tables || []).forEach(function (table) {
@@ -533,10 +524,15 @@ function weightedQuarter(q, tables, pctOf) {
     if (pct == null || !isFinite(pct) || !(weight > 0)) return;
     scored.push({ pct: pct, weight: weight });
   });
+  var examShare = parseFloat(examWeight);
+  if (isFinite(examShare) && examShare > 0) anyWeight = true;
+  var examPercent = examPct(q);
+  if (examPercent != null && examShare > 0) scored.push({ pct: examPercent, weight: examShare });
   if (!anyWeight) {
     var plain = (tables || []).map(function (table) {
       return pctOf(q[table.part], q[table.part + 'Hps']);
     }).filter(function (n) { return n != null && isFinite(n); });
+    if (examPercent != null) plain.push(examPercent);
     if (!plain.length) return null;
     return plain.reduce(function (a, b) { return a + b; }, 0) / plain.length;
   }
@@ -554,15 +550,17 @@ function quarterAverage(q) {
   var tables = assessmentData && assessmentData.tables && assessmentData.tables.length
     ? assessmentData.tables
     : defaultSheetTables();
-  return weightedQuarter(q, tables, partPct);
+  return weightedQuarter(q, tables, partPct, assessmentData && assessmentData.examWeight);
 }
 
-function weightTotal(tables) {
+function weightTotal(tables, examWeight) {
   var total = 0;
   (tables || []).forEach(function (table) {
     var weight = parseFloat(table && table.weight);
     if (isFinite(weight) && weight > 0) total += weight;
   });
+  var examShare = parseFloat(examWeight);
+  if (isFinite(examShare) && examShare > 0) total += examShare;
   return total;
 }
 
@@ -692,7 +690,7 @@ function renderAssessment() {
   var exams = '<tr>' + data.quarters.map(function (q, qi) {
     return '<th>' + quarterLabel(qi) + '</th>';
   }).join('') + '</tr><tr>' + data.quarters.map(function (q, qi) {
-    return '<td><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="exam" value="' + sheetEsc(q.exam) + '"></td>';
+    return '<td class="exam-pair"><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="exam" value="' + sheetEsc(q.exam) + '" aria-label="' + quarterLabel(qi) + ' exam score"><span class="exam-slash">/</span><input class="box-inp" inputmode="decimal" data-q="' + qi + '" data-part="examHps" value="' + sheetEsc(q.examHps) + '" aria-label="' + quarterLabel(qi) + ' exam out of"></td>';
   }).join('') + '</tr>';
   var signs = data.quarters.map(function (q, qi) {
     return '<div style="flex:1;min-width:140px;"><label style="display:block;font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9a6ea8;margin-bottom:.2rem;">' + quarterLabel(qi) + ' Quarter</label>' +
@@ -709,11 +707,11 @@ function renderAssessment() {
     return '<label class="weight-row"><span data-weight-label="' + sheetEsc(table.part) + '">' + sheetEsc(name) + '</span>' +
       '<input class="weight-inp" inputmode="decimal" data-weight="' + sheetEsc(table.part) + '" value="' + sheetEsc(table.weight || '') + '" aria-label="' + sheetEsc(name) + ' percent">' +
       '<em>%</em></label>';
-  }).join('');
-  var listed = weightTotal(data.tables);
-  var examGrades = data.quarters.map(function (q, qi) {
-    return '<div class="avg-box"><span>' + quarterLabel(qi) + '</span><strong id="eg-' + qi + '">' + sheetEsc(q.exam) + '</strong></div>';
-  }).join('');
+  }).join('') +
+    '<label class="weight-row"><span>Quarterly Examination</span>' +
+      '<input class="weight-inp" inputmode="decimal" data-exam-weight value="' + sheetEsc(data.examWeight || '') + '" aria-label="Quarterly Examination percent">' +
+      '<em>%</em></label>';
+  var listed = weightTotal(data.tables, data.examWeight);
   host.innerHTML =
     '<div class="paper">' +
       '<div class="paper-title">Learner\'s Individual Assessment Record</div>' +
@@ -730,8 +728,7 @@ function renderAssessment() {
         '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs +
           '<div class="avg-box"><span>Final grade</span><strong id="final-avg">' + fmtNum(finalAverage(data)) + '</strong></div>' +
           '<div class="avg-box"><span>Unit estimate</span><strong id="unit-estimate">' + fmtNum(unitEstimate(data)) + '</strong></div></div>' +
-          '<p style="margin:0;padding:0 .65rem .65rem;font-size:.72rem;color:#8b7396;">Each quarter uses the percent of the score tables that have a highest possible score. The unit estimate is that final grade times the subject units.</p></div>' +
-        '<div class="sheet-block"><h3>Exam Grade</h3><div class="avg-row">' + examGrades + '</div></div>' +
+          '<p style="margin:0;padding:0 .65rem .65rem;font-size:.72rem;color:#8b7396;">Each quarter uses the percent of the score tables and the exam score out of its highest possible score. The unit estimate is that final grade times the subject units.</p></div>' +
         '<div class="sheet-block"><h3>Remarks</h3><textarea class="remarks-inp" id="sheet-remarks">' + sheetEsc(data.remarks) + '</textarea></div>' +
         '<div class="sheet-block"><h3>Schedule</h3><div class="sched-days">' + days +
           '<label>Time <input type="text" id="sheet-time" value="' + sheetEsc(data.scheduleTime) + '" placeholder="e.g. 8:00–9:00"></label></div></div>' +
@@ -796,6 +793,14 @@ function renderAssessment() {
       scheduleSave();
     });
   });
+  var examWeight = host.querySelector('[data-exam-weight]');
+  if (examWeight) examWeight.addEventListener('input', function () {
+    var clean = examWeight.value.replace(/[^0-9.]/g, '');
+    if (clean !== examWeight.value) examWeight.value = clean;
+    data.examWeight = clean;
+    paintAssessmentTotals();
+    scheduleSave();
+  });
   var units = document.getElementById('sheet-units');
   if (units) units.addEventListener('input', function () {
     var clean = units.value.replace(/[^0-9.]/g, '');
@@ -827,9 +832,7 @@ function paintAssessmentTotals() {
   });
   data.quarters.forEach(function (q, qi) {
     var ga = document.getElementById('ga-' + qi);
-    var eg = document.getElementById('eg-' + qi);
     if (ga) ga.textContent = fmtNum(quarterAverage(q));
-    if (eg) eg.textContent = q.exam || '';
   });
   var fin = document.getElementById('final-avg');
   if (fin) fin.textContent = fmtNum(finalAverage(data));
@@ -837,7 +840,7 @@ function paintAssessmentTotals() {
   if (estimate) estimate.textContent = fmtNum(unitEstimate(data));
   var sumEl = document.getElementById('weight-sum');
   if (sumEl) {
-    var listed = weightTotal(data.tables);
+    var listed = weightTotal(data.tables, data.examWeight);
     sumEl.textContent = listed
       ? 'These table weights total ' + fmtNum(listed) + '%.'
       : 'Enter a percent for each table. Only the tables on this card are included.';

@@ -53,7 +53,15 @@ function statusPart(scores, hps) {
   return (total / h) * 100;
 }
 
-function statusQuarter(q, tables) {
+function statusExamPct(q) {
+  if (!q || q.exam === '' || q.exam == null) return null;
+  var score = parseFloat(q.exam);
+  var hps = parseFloat(q.examHps);
+  if (!isFinite(score) || !(hps > 0)) return null;
+  return (score / hps) * 100;
+}
+
+function statusQuarter(q, tables, examWeight) {
   var list = tables && tables.length ? tables : [
     { part: 'ww' }, { part: 'pt' }, { part: 'qz' }, { part: 'rec' }
   ];
@@ -66,10 +74,15 @@ function statusQuarter(q, tables) {
     if (pct == null || !isFinite(pct) || !(weight > 0)) return;
     scored.push({ pct: pct, weight: weight });
   });
+  var examShare = parseFloat(examWeight);
+  if (isFinite(examShare) && examShare > 0) anyWeight = true;
+  var examPercent = statusExamPct(q);
+  if (examPercent != null && examShare > 0) scored.push({ pct: examPercent, weight: examShare });
   if (!anyWeight) {
     var plain = list.map(function (table) {
       return statusPart(q[table.part], q[table.part + 'Hps']);
     }).filter(function (n) { return n != null && isFinite(n); });
+    if (examPercent != null) plain.push(examPercent);
     if (!plain.length) return null;
     return plain.reduce(function (a, b) { return a + b; }, 0) / plain.length;
   }
@@ -131,7 +144,7 @@ function statusAttendanceRows(saved, year) {
 }
 
 function statusFinal(data) {
-  var nums = data.quarters.map(function (q) { return statusQuarter(q, data.tables); }).filter(function (n) { return n != null; });
+  var nums = data.quarters.map(function (q) { return statusQuarter(q, data.tables, data.examWeight); }).filter(function (n) { return n != null; });
   if (!nums.length) return null;
   return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
 }
@@ -158,7 +171,7 @@ function statusWhen(value) {
 }
 
 function statusBlankQuarter(tables) {
-  var q = { exam: '', signature: '' };
+  var q = { exam: '', examHps: '', signature: '' };
   (tables || statusTables(null)).forEach(function (table) {
     q[table.part + 'Hps'] = '';
     q[table.part] = statusPad([], table.count);
@@ -179,10 +192,12 @@ function statusAssessment(saved) {
     remarks: '',
     scheduleDays: { M: false, T: false, W: false, TH: false, F: false },
     scheduleTime: '',
-    units: ''
+    units: '',
+    examWeight: ''
   };
   if (!saved || typeof saved !== 'object') return data;
   if (saved.units != null) data.units = String(saved.units).replace(/[^0-9.]/g, '').slice(0, 6);
+  if (saved.examWeight != null) data.examWeight = String(saved.examWeight).replace(/[^0-9.]/g, '').slice(0, 6);
   ['name', 'section', 'subject', 'tracker', 'year', 'remarks', 'scheduleTime'].forEach(function (key) {
     if (saved[key] != null) data[key] = String(saved[key]);
   });
@@ -191,7 +206,11 @@ function statusAssessment(saved) {
   var source = Array.isArray(saved.quarters) && saved.quarters.length ? saved.quarters.slice(0, 8) : null;
   if (source) {
     data.quarters = source.map(function (q) {
-      var shaped = { exam: q && q.exam != null ? String(q.exam) : '', signature: q && q.signature != null ? String(q.signature) : '' };
+      var shaped = {
+        exam: q && q.exam != null ? String(q.exam) : '',
+        examHps: q && q.examHps != null ? String(q.examHps).replace(/[^0-9.]/g, '') : '',
+        signature: q && q.signature != null ? String(q.signature) : ''
+      };
       tables.forEach(function (table) {
         shaped[table.part + 'Hps'] = q && q[table.part + 'Hps'] != null ? String(q[table.part + 'Hps']) : '';
         shaped[table.part] = statusPad(q && q[table.part], table.count);
@@ -360,7 +379,7 @@ function renderAssessmentPaper(row) {
   var exams = '<tr>' + data.quarters.map(function (q, qi) {
     return '<th>' + statusQuarterLabel(qi) + '</th>';
   }).join('') + '</tr><tr>' + data.quarters.map(function (q) {
-    return '<td>' + statusEsc(q.exam) + '</td>';
+    return '<td class="exam-pair">' + statusEsc(q.exam || '—') + ' / ' + statusEsc(q.examHps || '—') + '</td>';
   }).join('') + '</tr>';
   var signs = data.quarters.map(function (q, qi) {
     var label = statusQuarterLabel(qi);
@@ -370,10 +389,7 @@ function renderAssessmentPaper(row) {
     return '<span class="day-pill' + (data.scheduleDays[d] ? ' on' : '') + '">' + d + '</span>';
   }).join('');
   var avgs = data.quarters.map(function (q, qi) {
-    return '<div class="avg-box"><span>' + statusQuarterLabel(qi) + '</span><strong>' + statusEsc(statusFmt(statusQuarter(q, data.tables))) + '</strong></div>';
-  }).join('');
-  var examsView = data.quarters.map(function (q, qi) {
-    return '<div class="avg-box"><span>' + statusQuarterLabel(qi) + '</span><strong>' + statusEsc(q.exam) + '</strong></div>';
+    return '<div class="avg-box"><span>' + statusQuarterLabel(qi) + '</span><strong>' + statusEsc(statusFmt(statusQuarter(q, data.tables, data.examWeight))) + '</strong></div>';
   }).join('');
   var updated = statusWhen(row.assessment_updated);
   return '<div class="paper">' +
@@ -390,13 +406,13 @@ function renderAssessmentPaper(row) {
       '<div class="sheet-block"><h3>Grade weights</h3><div class="weight-list">' +
         ((data.tables || []).map(function (table) {
           return '<div class="weight-row"><span>' + statusEsc(table.title || 'Table') + '</span><strong>' + statusEsc(table.weight || '—') + '%</strong></div>';
-        }).join('') || '<p class="avg-note">No score tables.</p>') +
+        }).join('') +
+          '<div class="weight-row"><span>Quarterly Examination</span><strong>' + statusEsc(data.examWeight || '—') + '%</strong></div>') +
         '</div><p class="avg-note">Units ' + statusEsc(data.units || '—') + '</p></div>' +
       '<div class="sheet-block"><h3>General Average</h3><div class="avg-row">' + avgs +
         '<div class="avg-box"><span>Final grade</span><strong>' + statusEsc(statusFmt(statusFinal(data))) + '</strong></div>' +
         '<div class="avg-box"><span>Unit estimate</span><strong>' + statusEsc(statusFmt(statusUnitEstimate(data))) + '</strong></div></div>' +
-        '<p class="avg-note">Each quarter uses the percent of the score tables. The unit estimate is that final grade times the subject units.</p></div>' +
-      '<div class="sheet-block"><h3>Exam Grade</h3><div class="avg-row">' + examsView + '</div></div>' +
+        '<p class="avg-note">Each quarter uses the percent of the score tables and the exam score out of its highest possible score. The unit estimate is that final grade times the subject units.</p></div>' +
       '<div class="sheet-block"><h3>Remarks</h3><div class="remarks-view">' + statusEsc(data.remarks || 'No remarks') + '</div></div>' +
       '<div class="sheet-block"><h3>Schedule</h3><div class="sched-days">' + days +
         '<span class="sched-time">' + statusEsc(data.scheduleTime || 'No time set') + '</span></div></div>' +
