@@ -91,7 +91,13 @@ window.addEventListener('DOMContentLoaded', async () => {
   await renderTeachers();
   await renderStudents();
   setupAnnouncementFilters();
+  var annBox = document.getElementById('ann-text');
+  if (annBox) annBox.addEventListener('input', function () {
+    var note = document.getElementById('ann-sent');
+    if (note) note.hidden = true;
+  });
   await renderAnnouncements();
+  await renderAdminHomeAnnouncements();
 });
 
 /* ── STATS ── */
@@ -372,6 +378,25 @@ function syncAnnouncementFilters() {
   }
 }
 
+function audienceSentLabel() {
+  var who = (document.getElementById('ann-who') || {}).value || 'everyone';
+  var names = { everyone: 'Everyone', students: 'Students', teachers: 'Teachers', admins: 'Admins' };
+  var bits = [names[who] || 'Everyone'];
+  if (who === 'students' || who === 'teachers') {
+    var college = document.getElementById('ann-college').value;
+    if (college) bits.push(college);
+  }
+  if (who === 'students') {
+    var program = document.getElementById('ann-program').value;
+    var year = document.getElementById('ann-year').value;
+    var section = document.getElementById('ann-section').value;
+    if (program) bits.push(program);
+    if (year) bits.push('Year ' + year);
+    if (section) bits.push(section);
+  }
+  return bits.join(' · ');
+}
+
 function setupAnnouncementFilters() {
   var college = document.getElementById('ann-college');
   var program = document.getElementById('ann-program');
@@ -395,6 +420,7 @@ async function postAnnouncement() {
   const text = document.getElementById('ann-text').value.trim();
   if (!text) return;
   var who = document.getElementById('ann-who').value || 'everyone';
+  var sentTo = audienceSentLabel();
   var btn = document.querySelector('#ann-compose .a-btn');
   if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Posting…');
   try {
@@ -409,7 +435,15 @@ async function postAnnouncement() {
       author: sessionStorage.getItem('prism_user_name') || 'Admin'
     });
     document.getElementById('ann-text').value = '';
+    var show = document.getElementById('ann-show');
+    if (show) show.value = '';
+    var note = document.getElementById('ann-sent');
+    if (note) {
+      note.hidden = false;
+      note.textContent = 'Announcement sent to ' + sentTo + '.';
+    }
     await renderAnnouncements();
+    await renderAdminHomeAnnouncements();
   } catch(e) { alert(e.message || 'Failed to post announcement.'); }
   finally { if (typeof prismSetBusy === 'function') prismSetBusy(btn, false); }
 }
@@ -440,6 +474,22 @@ async function renderAnnouncements() {
       </div>`;
     }).join('');
   } catch(e) { console.error('renderAnnouncements:', e); }
+}
+
+async function renderAdminHomeAnnouncements() {
+  var feed = document.getElementById('admin-home-ann');
+  if (!feed) return;
+  try {
+    var anns = await PrismAdmin.getAnnouncements();
+    if (!anns.length) {
+      feed.innerHTML = '<p style="color:#9ca3af;font-size:.9rem;margin:0;">No announcements for you yet.</p>';
+      return;
+    }
+    feed.innerHTML = anns.slice(0, 5).map(function (a) {
+      var dl = a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+      return '<div class="ann-item"><div class="ann-avatar">' + escHtml((a.author || 'A').charAt(0).toUpperCase()) + '</div><div class="ann-body"><div class="ann-header"><span class="ann-author">' + escHtml(a.author || 'Admin') + '</span><span class="ann-date">' + escHtml(dl) + '</span><span class="ann-who">' + escHtml(a.audience_label || 'Everyone') + '</span></div><div class="ann-text">' + escHtml(a.text || '') + '</div></div></div>';
+    }).join('');
+  } catch (e) { /* the dashboard still opens */ }
 }
 
 function copyAdminUrl() {

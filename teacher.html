@@ -193,6 +193,9 @@
 
     .gc-head { display:flex; align-items:center; gap:.65rem; margin:0 0 1rem; }
     .gc-head h2 { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:700; color:#202124; margin:0; }
+    .portal-ann { margin-top:1.6rem; background:#fff; border:1px solid rgba(16,185,129,.16); border-radius:12px; padding:1rem 1.15rem 1.15rem; }
+    html[data-theme="dark"] .portal-ann { background:#1a1d2e; border-color:#2e3350; }
+    html[data-theme="dark"] .portal-ann .gc-head h2 { color:#f3f4f6; }
     .gc-plus { width:36px; height:36px; border-radius:50%; border:1.5px solid #dadce0; background:#fff; color:#059669; font-size:1.45rem; line-height:1; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; font-family:'DM Sans',sans-serif; }
     .gc-plus:hover { background:#ecfdf5; border-color:#10b981; }
     .gc-create { display:none; background:#fff; border:1px solid #e5e7eb; border-radius:12px; padding:1rem; margin-bottom:1rem; max-width:420px; }
@@ -269,9 +272,13 @@
       <div class="form-msg" id="cc-msg"></div>
     </div>
     <div id="classes-grid" class="gc-grid"></div>
+    <div class="portal-ann">
+      <div class="gc-head"><h2>Announcements</h2></div>
+      <div id="teacher-portal-ann-feed"></div>
+    </div>
   </main>
 </div>
 
-<script src="pages/teacher.js?v=20"></script>
+<script src="pages/teacher.js?v=21"></script>
 </body>
 </html>

@@ -141,6 +141,7 @@ window.addEventListener('DOMContentLoaded', async function() {
       if (!document.getElementById('class-view-overlay')) renderClasses();
       renderStats();
       renderActivity();
+      renderAnnouncements();
   tryOpenClassFromUrl();
   await Promise.all([
     (async function() {

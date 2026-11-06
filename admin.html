@@ -132,6 +132,9 @@
     .ann-filters select, .ann-show select { text-transform:none; letter-spacing:0; font-weight:600; font-size:.9rem; border:1.5px solid #fde68a; border-radius:10px; padding:.55rem .7rem; font-family:'DM Sans',sans-serif; background:#fef9e7; color:#16132b; }
     .ann-show { margin-bottom:.8rem; max-width:220px; }
     .ann-who { font-size:.75rem; font-weight:700; color:#92400e; }
+    .ann-sent { margin:.85rem 0 0; font-size:.92rem; font-weight:800; color:#047857; }
+    .portal-ann { margin-top:1.4rem; background:#fff; border:1px solid rgba(245,158,11,.16); border-radius:12px; padding:1rem 1.15rem 1.15rem; }
+    .portal-ann .gc-head { margin-bottom:.4rem; }
 
     /* announcement feed */
     .ann-item { display:flex; gap:.9rem; padding:1rem 0; border-bottom:1px solid #fef3c7; }
@@ -184,6 +187,8 @@
     html[data-theme="dark"] .ann-note, html[data-theme="dark"] .ann-filters label, html[data-theme="dark"] .ann-show { color:#d1d5db; }
     html[data-theme="dark"] .ann-filters select, html[data-theme="dark"] .ann-show select, html[data-theme="dark"] .compose-box { background:#24283d; color:#f3f4f6; border-color:#3d4468; }
     html[data-theme="dark"] .ann-who, html[data-theme="dark"] .ann-author, html[data-theme="dark"] .ann-text, html[data-theme="dark"] .a-card-title { color:#f3f4f6; }
+    html[data-theme="dark"] .ann-sent { color:#6ee7b7; }
+    html[data-theme="dark"] .portal-ann { background:#1a1d2e; border-color:#3d4468; }
   </style>
 </head>
 <body>
@@ -242,6 +247,10 @@
           <div class="gc-card-body"><div class="gc-meta">Passphrase and admins</div></div>
         </button>
       </div>
+      <div class="portal-ann">
+        <div class="gc-head"><h2>Announcements</h2></div>
+        <div id="admin-home-ann"></div>
+      </div>
     </div>
 
     <div id="admin-section" hidden>
@@ -284,7 +293,7 @@
     <div class="tab-panel" id="tab-announce">
       <div class="a-card" id="ann-compose">
         <div class="a-card-title">Portal announcement</div>
-        <p class="ann-note">Only an administrator allowed to post announcements can use this. The superadmin always can. Choose who should see it.</p>
+        <p class="ann-note">Only an administrator allowed to post announcements can use this. The superadmin always can. Students see it on Home, teachers on My Classes, and other admins on this dashboard.</p>
         <textarea class="compose-box" id="ann-text" placeholder="Write an announcement"></textarea>
         <div class="ann-filters">
           <label>Who
@@ -327,6 +336,7 @@
         <div class="compose-row">
           <button class="a-btn" type="button" onclick="postAnnouncement()">Post announcement</button>
         </div>
+        <p class="ann-sent" id="ann-sent" hidden></p>
       </div>
       <div class="a-card">
         <div class="a-card-title">Posted announcements</div>
@@ -371,6 +381,6 @@
   </div>
 </div>
 
-<script src="pages/admin.js?v=21"></script>
+<script src="pages/admin.js?v=22"></script>
 </body>
 </html>

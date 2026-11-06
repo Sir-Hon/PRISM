@@ -42,6 +42,9 @@
     .gc-del { border:none; background:none; color:#9ca3af; font-size:.72rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; padding:.2rem .35rem; border-radius:6px; }
     .gc-del:hover { color:#ef4444; background:#fee2e2; }
     .gc-empty { color:#5f6368; font-size:.92rem; padding:1.5rem 0; }
+    .portal-ann { margin-top:1.6rem; background:#fff; border:1px solid rgba(124,58,237,.12); border-radius:12px; padding:1rem 1.15rem 1.15rem; }
+    html[data-theme="dark"] .portal-ann { background:#1a1d2e; border-color:#2e3350; }
+    html[data-theme="dark"] .portal-ann .gc-head h2 { color:#f3f4f6; }
     @media(max-width:640px){ .gc-card{ width:100%; } }
 
     .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:0.85rem; margin-bottom:1.5rem; }
@@ -358,6 +361,10 @@
       <div class="join-msg" id="join-msg"></div>
     </div>
     <div id="classes-area" class="gc-grid"></div>
+    <div class="portal-ann">
+      <div class="gc-head"><h2>Announcements</h2></div>
+      <div id="ann-feed"></div>
+    </div>
 
   </main>
 </div>
@@ -365,6 +372,6 @@
 
 
 
-<script src="pages/index.js?v=32"></script>
+<script src="pages/index.js?v=33"></script>
 </body>
 </html>
