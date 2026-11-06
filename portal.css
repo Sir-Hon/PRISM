@@ -631,6 +631,40 @@ body.sidebar-open {
   .page-tabs { width: 100%; max-width: 100%; }
   .page-tab { padding: .55rem .85rem; }
   img, video, iframe, table { max-width: 100%; }
+
+  .student-hero,
+  .teacher-hero,
+  .admin-hero,
+  .class-view-banner {
+    padding: 1.05rem 1rem 1.15rem !important;
+    border-radius: 14px;
+    overflow: hidden !important;
+    min-height: 124px;
+  }
+  .student-hero.banner-open,
+  .teacher-hero.banner-open,
+  .admin-hero.banner-open,
+  .class-view-banner.banner-open {
+    overflow: visible !important;
+  }
+  .student-hero h1,
+  .teacher-hero h1,
+  .admin-hero h1,
+  .class-view-name {
+    font-size: 1.28rem !important;
+    line-height: 1.25;
+    padding-right: 2.6rem;
+  }
+  .student-hero p,
+  .teacher-hero p,
+  .admin-hero p {
+    font-size: .84rem;
+    line-height: 1.45;
+    padding-right: .4rem;
+  }
+  .gc-grid { gap: .8rem; }
+  .gc-card { width: 100%; }
+  .banner-pop { width: min(232px, calc(100vw - 2rem)); }
 }
 
 /* ── DARK MODE ── */

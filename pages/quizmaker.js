@@ -27,6 +27,29 @@ function mapApiQuizRowToLocal(q, classId) {
     questions: qs || [],
     target_section: ts,
     allowSkip: !!(+q.allow_skip || q.allowSkip),
+    instructions: q.instructions || '',
+    shuffle: (+q.shuffle || q.shuffle === 'yes') ? 'yes' : 'no',
+    reveal: q.reveal || 'submit',
+  };
+}
+function qmDraftPayload(d) {
+  return {
+    id: d.id,
+    class_id: d.classId || activeClassId,
+    target_section: d.target_section || '',
+    title: d.title,
+    type: d.type || 'quiz',
+    instructions: d.instructions || '',
+    time: d.time || 0,
+    due: d.due || '',
+    due_time: d.due_time || '',
+    attempts: parseInt(d.attempts, 10) || 1,
+    shuffle: d.shuffle === 'no' ? 'no' : 'yes',
+    reveal: d.reveal || 'submit',
+    allow_skip: d.allowSkip ? 1 : 0,
+    questions: d.questions || [],
+    totalPoints: d.totalPoints || 0,
+    published: false,
   };
 }
 /** Drop server-deleted quizzes from cache and merge API rows; keep local-only drafts. */
@@ -45,6 +68,10 @@ async function syncQuizzesFromApiForClass(classId) {
       return false;
     });
     saveQuizzes(otherClasses.concat(mapped).concat(keepLocal));
+    keepLocal.forEach(function (draft) {
+      if (!draft || !draft.title) return;
+      PrismQuizzes.save(qmDraftPayload(draft)).catch(function () {});
+    });
   } catch (e) {
     console.warn('syncQuizzesFromApiForClass', e);
   }
@@ -894,35 +921,32 @@ async function publishQuiz(){
   }catch(e){ showQMsg(e.message||'Publish failed.','err'); }
   finally { if(typeof prismSetBusy==='function') prismSetBusy(publishBtn,false); }
 }
-function saveDraft(){
+async function saveDraft(){
   const d=getQMData();if(!d.title){showQMsg('Enter a title.','err');return;}
+  if(!activeClassId){showQMsg('Select a class first.','err');return;}
+  if(editingQuizId) d.id=editingQuizId;
   d.published=false;
   d.target_section=qmGetTargetSectionForApi()||'';
-  const quizzes=getQuizzes();
-  if(editingQuizId){
-    const i=quizzes.findIndex(function(q){ return String(q.id)===String(editingQuizId); });
-    if(i>=0){
-      d.id=quizzes[i].id;
-      quizzes[i]=Object.assign({}, quizzes[i], d);
-      saveQuizzes(quizzes);
-      showQMsg('Draft updated.','ok');
-      syncDraftButton();
-      saveQmQuizViewFilter('__all__');
-      renderSavedQuizzes();
-      var savedList=document.getElementById('saved-quizzes');
-      if(savedList&&savedList.scrollIntoView) savedList.scrollIntoView({behavior:'smooth',block:'nearest'});
-      return;
-    }
+  var draftBtn=document.querySelector('.draft-btn');
+  if(typeof prismSetBusy==='function') prismSetBusy(draftBtn,true,'Saving…');
+  try{
+    const saved=await PrismQuizzes.save(qmDraftPayload(d));
+    d.id=saved.id||d.id;
+    editingQuizId=d.id;
+    const quizzes=getQuizzes().filter(function(q){ return String(q.id)!==String(d.id); });
+    quizzes.push(d);
+    saveQuizzes(quizzes);
+    showQMsg('Draft saved.','ok');
+    syncDraftButton();
+    saveQmQuizViewFilter('__all__');
+    renderSavedQuizzes();
+    var savedList=document.getElementById('saved-quizzes');
+    if(savedList&&savedList.scrollIntoView) savedList.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }catch(e){
+    showQMsg(e.message||'Could not save the draft.','err');
+  }finally{
+    if(typeof prismSetBusy==='function') prismSetBusy(draftBtn,false);
   }
-  quizzes.push(d);
-  editingQuizId=d.id;
-  saveQuizzes(quizzes);
-  showQMsg('Draft saved.','ok');
-  syncDraftButton();
-  saveQmQuizViewFilter('__all__');
-  renderSavedQuizzes();
-  var savedList=document.getElementById('saved-quizzes');
-  if(savedList&&savedList.scrollIntoView) savedList.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function syncDraftButton(){
   var btn=document.querySelector('.draft-btn');

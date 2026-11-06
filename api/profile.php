@@ -9,6 +9,70 @@ $action = $_GET['action'] ?? '';
 $user   = requireAuth();
 $db     = getDB();
 
+function prism_ensure_user_banners(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS user_banners (
+                user_id VARCHAR(50) NOT NULL,
+                scope VARCHAR(80) NOT NULL,
+                color VARCHAR(10) NOT NULL DEFAULT "",
+                image MEDIUMTEXT NULL,
+                PRIMARY KEY (user_id, scope)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+        );
+        $ready = true;
+    } catch (PDOException $e) {
+        error_log('PRISM banners: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
+function prism_banner_scope(string $scope): string {
+    $scope = preg_replace('/[^A-Za-z0-9_-]/', '', $scope);
+    if ($scope === '' || strlen($scope) > 80) fail('That banner could not be saved.');
+    return $scope;
+}
+
+if ($action === 'banner') {
+    if (!prism_ensure_user_banners($db)) ok(['banner' => null]);
+    $scope = prism_banner_scope((string) ($_GET['scope'] ?? 'greet'));
+    $stmt = $db->prepare('SELECT color, image FROM user_banners WHERE user_id = ? AND scope = ?');
+    $stmt->execute([$user['id'], $scope]);
+    $row = $stmt->fetch();
+    if (!$row) ok(['banner' => null]);
+    $color = preg_match('/^#[0-9a-fA-F]{6}$/', (string) $row['color']) ? $row['color'] : '';
+    $image = (string) ($row['image'] ?? '');
+    if (!preg_match('#^data:image/(jpeg|png|webp);base64,#', $image)) $image = '';
+    if ($color === '' && $image === '') ok(['banner' => null]);
+    ok(['banner' => ['color' => $color, 'image' => $image]]);
+}
+
+if ($method === 'POST' && $action === 'save_banner') {
+    if (!prism_ensure_user_banners($db)) fail('Could not save that banner.', 500);
+    $b = getBody();
+    $scope = prism_banner_scope((string) ($b['scope'] ?? 'greet'));
+    $color = (string) ($b['color'] ?? '');
+    $image = $b['image'] ?? '';
+    if (!preg_match('/^#[0-9a-fA-F]{6}$/', $color)) $color = '';
+    if (!is_string($image)) fail('Use a JPG, PNG, or WebP photo.');
+    if ($image !== '' && !preg_match('#^data:image/(jpeg|png|webp);base64,[A-Za-z0-9+/=\r\n]+$#', $image)) {
+        fail('Use a JPG, PNG, or WebP photo.');
+    }
+    if (strlen($image) > 1200000) fail('That photo is too large to save.');
+    if ($color === '' && $image === '') {
+        $db->prepare('DELETE FROM user_banners WHERE user_id = ? AND scope = ?')->execute([$user['id'], $scope]);
+        ok(['saved' => true]);
+    }
+    $db->prepare(
+        'INSERT INTO user_banners (user_id, scope, color, image) VALUES (?,?,?,?)
+         ON DUPLICATE KEY UPDATE color = VALUES(color), image = VALUES(image)'
+    )->execute([$user['id'], $scope, $color, $image === '' ? null : $image]);
+    ok(['saved' => true]);
+}
+
 // ══════════════════════════════════════════════════════
 //  PROFILE
 // ══════════════════════════════════════════════════════

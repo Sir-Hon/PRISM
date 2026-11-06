@@ -1024,6 +1024,16 @@ if (typeof window !== 'undefined') {
 // ══════════════════════════════════════════════════════
 //  QUIZZES
 // ══════════════════════════════════════════════════════
+const PrismNotebooks = {
+  async get() {
+    const data = await apiGet('notebooks', 'get');
+    return data.notebooks || [];
+  },
+  async save(notebooks) {
+    return await apiCall('notebooks', 'save', 'POST', { notebooks: notebooks || [] });
+  },
+};
+
 const PrismQuizzes = {
   async get(class_id) {
     const data = await apiGet('quizzes', 'get', { class_id });
@@ -1284,13 +1294,50 @@ function prismBannerRead(scope) {
   } catch (e) { return null; }
 }
 
-function prismBannerWrite(scope, data) {
+var __prismBannerServer = {};
+var __prismBannerGen = {};
+
+function prismBannerWrite(scope, data, skipServer) {
   var key = prismBannerKey(scope);
-  if (!data || (!data.color && !data.image)) {
-    localStorage.removeItem(key);
-    return;
-  }
-  localStorage.setItem(key, JSON.stringify({ color: data.color || '', image: data.image || '' }));
+  if (!skipServer) __prismBannerGen[scope] = (__prismBannerGen[scope] || 0) + 1;
+  try {
+    if (!data || (!data.color && !data.image)) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify({ color: data.color || '', image: data.image || '' }));
+  } catch (e) { /* this browser may refuse a large photo; the account copy still saves */ }
+  if (skipServer) return;
+  __prismBannerServer[scope] = data && (data.color || data.image) ? { color: data.color || '', image: data.image || '' } : null;
+  prismBannerServerPut(scope, data);
+}
+
+function prismBannerServerPut(scope, data) {
+  var color = data && data.color ? data.color : '';
+  var image = data && data.image ? data.image : '';
+  return apiCall('profile', 'save_banner', 'POST', { scope: scope, color: color, image: image }).catch(function () {
+    return null;
+  });
+}
+
+function prismBannerServerGet(scope) {
+  var cached = __prismBannerServer[scope];
+  if (cached && cached.__promise) return cached.__promise;
+  if (cached && cached.__pending !== true && (cached.color || cached.image)) return Promise.resolve(cached);
+  var gen = __prismBannerGen[scope] || 0;
+  var promise = apiGet('profile', 'banner', { scope: scope }).then(function (res) {
+    var banner = res && res.banner;
+    var saved = banner && (banner.color || banner.image) ? { color: banner.color || '', image: banner.image || '' } : null;
+    if ((__prismBannerGen[scope] || 0) !== gen) {
+      var newer = __prismBannerServer[scope];
+      return newer && (newer.color || newer.image) ? newer : saved;
+    }
+    __prismBannerServer[scope] = saved;
+    if (saved) prismBannerWrite(scope, saved, true);
+    return saved;
+  }).catch(function () {
+    if ((__prismBannerGen[scope] || 0) === gen) __prismBannerServer[scope] = null;
+    return null;
+  });
+  __prismBannerServer[scope] = { __pending: true, __promise: promise };
+  return promise;
 }
 
 function prismCoverKey(id) {
@@ -1345,6 +1392,7 @@ function prismBannerApply(el, saved) {
     el.style.backgroundImage = 'linear-gradient(180deg,rgba(0,0,0,.28),rgba(0,0,0,.45)),url("' + safe + '")';
     el.style.backgroundSize = 'cover';
     el.style.backgroundPosition = 'center';
+    el.style.backgroundRepeat = 'no-repeat';
     return;
   }
   el.style.background = color;
@@ -1415,13 +1463,8 @@ function prismBannerOpen(wrap, el, scope, opts) {
       });
       return;
     }
-    if (!next || (!next.color && !next.image)) {
-      prismBannerWrite(scope, null);
-      prismBannerApply(el, null);
-    } else {
-      prismBannerWrite(scope, next);
-      prismBannerApply(el, next);
-    }
+    prismBannerApply(el, next && (next.color || next.image) ? next : null);
+    prismBannerWrite(scope, next && (next.color || next.image) ? next : null);
     prismBannerClose();
   }
   PRISM_BANNER_COLORS.forEach(function (hex) {
@@ -1449,16 +1492,10 @@ function prismBannerOpen(wrap, el, scope, opts) {
     var msg = pop.querySelector('.banner-pop-msg');
     prismBannerEncode(chosen, function (err, url) {
       if (err) { if (msg) msg.textContent = err.message; return; }
-      var prev = opts.saved || prismBannerRead(scope) || {};
+      var prev = opts.saved || prismBannerRead(scope) || __prismBannerServer[scope] || {};
+      if (prev && prev.__pending) prev = {};
       var next = { color: prev.color || saved.color || '#1e1b2e', image: url };
-      if (typeof opts.onSave === 'function') {
-        prismBannerCommit(next);
-        return;
-      }
-      try { prismBannerWrite(scope, next); }
-      catch (e) { if (msg) msg.textContent = 'That photo is too large to save.'; return; }
-      prismBannerApply(el, next);
-      prismBannerClose();
+      prismBannerCommit(next);
     });
   });
   upload.appendChild(file);
@@ -1483,7 +1520,18 @@ function prismBannerMount(el, scope, opts) {
   if (!el) return;
   opts = opts || {};
   if (opts.saved) prismBannerApply(el, opts.saved);
-  else prismBannerApply(el, prismBannerRead(scope));
+  else {
+    var local = prismBannerRead(scope);
+    if (local) prismBannerApply(el, local);
+    prismBannerServerGet(scope).then(function (remote) {
+      if (!el.isConnected) return;
+      if (remote) {
+        prismBannerApply(el, remote);
+        return;
+      }
+      if (local) prismBannerServerPut(scope, local);
+    });
+  }
   if (el.querySelector('.banner-custom')) return;
   var wrap = document.createElement('div');
   wrap.className = 'banner-custom';

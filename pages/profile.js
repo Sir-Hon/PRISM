@@ -872,6 +872,15 @@ function renderQuickStats() {
     { icon:'', label:'Notebooks',       val: notes },
   ];
   renderStatCards(stats);
+  if (!window.__prismNotesCountSynced && typeof PrismNotebooks !== 'undefined') {
+    window.__prismNotesCountSynced = true;
+    PrismNotebooks.get().then(function (list) {
+      var count = Math.max(notes, (list || []).length);
+      if (count === notes) return;
+      stats[3].val = count;
+      renderStatCards(stats);
+    }).catch(function () {});
+  }
 }
 
 function renderStatCards(stats) {
