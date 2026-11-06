@@ -204,64 +204,16 @@
   <main class="main-content">
     <div class="page-header">
       <h1> Account Management</h1>
-      <p>Add administrators, give each one a CTU email, and choose which parts of the portal they can open. Teachers and students are created on the Roster.</p>
+      <p>Review every account, assign a CTU email, and remove a login. Students, teachers, and administrators are created on the Roster.</p>
     </div>
 
     <div class="page-tabs">
-      <button class="page-tab active" id="tab-btn-admins" onclick="switchTab('admins',this)"> Add Admin</button>
-      <button class="page-tab"        onclick="switchTab('users',this)"> All Users</button>
+      <button class="page-tab active" onclick="switchTab('users',this)"> All Users</button>
       <button class="page-tab"        onclick="switchTab('security',this)"> Admin Security</button>
     </div>
 
-    <!-- --- TAB: ADD ADMIN --- -->
-    <div class="tab-panel active" id="tab-admins">
-      <div class="create-card">
-        <div class="card-heading">New administrator</div>
-        <div class="card-sub">Only the superadmin can add another admin. Pick a type, then turn each feature on or off for that person. They sign in with their ID and CTU email.</div>
-        <div class="form-grid">
-          <div class="f"><label>First Name</label><input type="text" id="c-fname" placeholder="Elizabeth"/></div>
-          <div class="f"><label>Last Name</label><input type="text" id="c-lname" placeholder="Santos"/></div>
-          <div class="f full">
-            <label>ID / Username</label>
-            <input type="text" id="c-id" placeholder="e.g. admin002"/>
-            <div class="f-hint">Must be unique. admin001 is the superadmin and cannot be recreated.</div>
-          </div>
-          <div class="f full">
-            <label>CTU Email</label>
-            <input type="email" id="c-email" placeholder="name.surname@ctu.edu.ph" autocomplete="off"/>
-            <div class="f-hint">Required. This is the address they use to sign in.</div>
-          </div>
-          <div class="f full">
-            <label>Admin type</label>
-            <div class="type-pills" id="admin-type-pills"></div>
-          </div>
-          <div class="f full">
-            <label>Features this admin can open</label>
-            <div class="perm-grid" id="admin-perm-grid"></div>
-            <div class="f-hint">The dashboard stays available so they can sign in. Everything else follows these switches.</div>
-          </div>
-          <div class="f">
-            <label>Password</label>
-            <div class="pw-wrap">
-              <input type="password" id="c-pw" placeholder="At least 8 characters"/>
-              <button class="pw-tog" onclick="togglePw('c-pw',this)" type="button">Show</button>
-            </div>
-          </div>
-          <div class="f">
-            <label>Confirm password</label>
-            <div class="pw-wrap">
-              <input type="password" id="c-pw2" placeholder="Repeat the password"/>
-              <button class="pw-tog" onclick="togglePw('c-pw2',this)" type="button">Show</button>
-            </div>
-          </div>
-        </div>
-        <button class="create-btn" id="create-btn" onclick="handleCreate()">Add admin</button>
-        <div class="form-msg" id="create-msg"></div>
-      </div>
-    </div>
-
     <!-- --- TAB: ALL USERS --- -->
-    <div class="tab-panel" id="tab-users">
+    <div class="tab-panel active" id="tab-users">
       <div class="users-controls">
         <input class="search-input" id="search-input" placeholder="  Search by name or ID�" oninput="renderTable()"/>
         <div class="filter-btns">
@@ -289,7 +241,7 @@
         <!-- Passphrase card -->
         <div class="create-card" style="max-width:100%">
           <div class="card-heading"> Admin Registration Passphrase</div>
-          <div class="card-sub">The superadmin adds other administrators from Add Admin. Invite codes are no longer used.</div>
+          <div class="card-sub">The superadmin adds other administrators on the Roster. Invite codes are no longer used.</div>
 
           <div style="background:#fef9e7;border:1.5px solid #fde68a;border-radius:12px;padding:.9rem 1rem;margin-bottom:1.3rem;font-size:.8rem;color:#92400e;line-height:1.6;">
              Public signup with an invite code is closed. Teacher and student accounts are created on the Roster.
@@ -324,7 +276,7 @@
           <div class="form-msg" id="pp-msg"></div>
 
           <div class="card-note" style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;font-size:.82rem;line-height:1.55;">
-            New admins get their CTU email on Add Admin. You can update a student, teacher, or admin address from All Users. admin001 stays superadmin.access@ctu.edu.ph.
+            New admins get their CTU email on the Roster. You can update a student, teacher, or admin address from All Users. admin001 stays superadmin.access@ctu.edu.ph.
           </div>
         </div>
 
@@ -353,6 +305,6 @@
     <div id="email-msg" style="font-size:.82rem;margin-top:.6rem;min-height:1em;"></div>
   </div>
 </div>
-<script src="pages/manage.js?v=14"></script>
+<script src="pages/manage.js?v=15"></script>
 </body>
 </html>

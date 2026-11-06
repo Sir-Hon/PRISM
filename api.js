@@ -826,6 +826,18 @@ const PrismRoster = {
   async removeTeacher(id) {
     return await apiCall('roster', 'teacher_delete', 'POST', { id: id });
   },
+  async listAdmins(q, type, page) {
+    return await apiGet('roster', 'admin_list', { q: q || '', type: type || '', page: page || 1 });
+  },
+  async addAdmin(row) {
+    return await apiCall('roster', 'admin_add', 'POST', row);
+  },
+  async updateAdmin(row) {
+    return await apiCall('roster', 'admin_update', 'POST', row);
+  },
+  async removeAdmin(id) {
+    return await apiCall('roster', 'admin_delete', 'POST', { id: id });
+  },
   async preview(file) {
     const fd = new FormData();
     fd.append('file', file);

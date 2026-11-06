@@ -139,7 +139,7 @@ function renderAdminAccess() {
   ];
   panel.style.display = 'block';
   if (!admins.length) {
-    panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;">No other administrators yet. Add one from Manage Users and choose their features there. You can change those switches here later.</p>';
+    panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;">No other administrators yet. Add one on the Roster and choose their features there. You can change those switches here later.</p>';
     return;
   }
   panel.innerHTML = '<div class="a-card-title">Admin access</div><p style="color:#9ca3af;font-size:.9rem;margin-bottom:.8rem;">Choose what each administrator can open. The superadmin always has every feature.</p>' +

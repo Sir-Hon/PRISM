@@ -173,6 +173,13 @@ async function loadClassDataFromAPI() {
     classesList.forEach(function(cls) {
       rememberClassCover(cls.id, cls.cover || '');
       joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', code: cls.code || '', joinedAt: cls.joined_at || '', has_cover: !!(cls.cover && String(cls.cover).indexOf('data:image/') === 0) };
+      if (String(activeDetailId) === String(cls.id)) {
+        var openBanner = document.getElementById('class-view-banner');
+        var openCover = studentCardCover(cls.id);
+        if (openBanner && openCover && typeof prismBannerApply === 'function') {
+          prismBannerApply(openBanner, { color: cls.color || '#7c3aed', image: openCover });
+        }
+      }
       var prev = {};
       try { prev = JSON.parse(localStorage.getItem('prism_profile_' + cls.teacher_id) || '{}'); } catch (e) { prev = {}; }
       prev.name = cls.teacher_name || cls.teacher_id;
@@ -494,7 +501,13 @@ function paintClassOverlay(classId, teacherId, subject, color) {
     + '<button class="class-view-tab" data-tab="people">People</button>'
     + '</div>'
     + '<div class="class-view-body"><div class="class-view-content" id="class-panel-content"></div></div>';
-  if (typeof prismBannerMount === 'function') prismBannerMount(overlay.querySelector('#class-view-banner'), 'class-' + classId);
+  var classBanner = overlay.querySelector('#class-view-banner');
+  var classCover = studentCardCover(classId);
+  var classLook = { color: color, image: classCover || '' };
+  if (classCover && typeof prismBannerApply === 'function') prismBannerApply(classBanner, classLook);
+  if (typeof prismBannerMount === 'function') {
+    prismBannerMount(classBanner, 'class-' + classId, classCover ? { saved: classLook } : {});
+  }
   overlay.querySelectorAll('.class-view-tab').forEach(function(btn) {
     btn.addEventListener('click', function() {
       overlay.querySelectorAll('.class-view-tab').forEach(function(t){ t.classList.remove('active'); });
@@ -980,6 +993,15 @@ async function submitStudentAssignment(classId, asgnId) {
   }
 }
 
+function postVisibleToThisStudent(p) {
+  var me = String(sessionStorage.getItem('prism_user_id') || '');
+  var who = String(p && (p.target_student || '') || '').trim();
+  if (who && who !== me) return false;
+  var aimed = String(p && p.target_section || '').trim();
+  var mine = String(sessionStorage.getItem('prism_section') || '').trim();
+  if (aimed && mine && aimed !== mine) return false;
+  return true;
+}
 function postsNewestFirstStudent(arr) {
   return arr.slice().sort(function(a, b) {
     var ta = new Date(a.created_at || a.date || 0).getTime();
@@ -1067,13 +1089,14 @@ function studentAssignmentStreamHtml(classId, a) {
 
 /** Stream tab: posts newest-first; quiz posts match quiz row by id or title; material posts get View/Download. */
 function buildStreamPanel(classId) {
-  var posts = postsNewestFirstStudent(getPosts().filter(function(p){ return postBelongsToStudentClass(p, classId); }));
+  var posts = postsNewestFirstStudent(getPosts().filter(function(p){ return postBelongsToStudentClass(p, classId) && postVisibleToThisStudent(p); }));
   var scores = getScores();
   var allQuizzes = getTeacherQuizzes().filter(function(q){ return String(q.classId || q.class_id) === String(classId) && q.published; });
   var focusId = window.__streamFocusAsgn ? String(window.__streamFocusAsgn) : '';
   var seenFocus = false;
   var html = posts.map(function(p) {
     var dl = new Date(p.date || p.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+    if (String(p.target_student || '').trim()) dl += ' · For you';
     // For quiz-type posts, find matching quiz and render a Take Quiz button
     var quizActionHtml = '';
     if (p.type === 'quiz') {
@@ -1528,7 +1551,7 @@ function renderActivity() {
   var classIds = Object.keys(joined).map(function(id) { return String(id); });
   var posts    = postsNewestFirstStudent(getPosts().filter(function(p) {
     var pc = String(p.classId != null ? p.classId : (p.class_id != null ? p.class_id : ''));
-    return classIds.indexOf(pc) !== -1;
+    return classIds.indexOf(pc) !== -1 && postVisibleToThisStudent(p);
   }));
   var feed     = document.getElementById('activity-feed');
   if (!feed) return;

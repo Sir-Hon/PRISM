@@ -12,63 +12,6 @@ let myId = '';
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
-  var ADMIN_TYPES = [
-    { id: 'security', label: 'Security', perms: ['security'] },
-    { id: 'users', label: 'User management', perms: ['users'] },
-    { id: 'roster', label: 'Roster', perms: ['roster'] },
-    { id: 'cor', label: 'COR', perms: ['cor'] },
-    { id: 'calendar', label: 'Calendar', perms: ['calendar'] },
-    { id: 'announcements', label: 'Announcements', perms: ['announcements'] }
-  ];
-  var ADMIN_FEATURES = [
-    ['users', 'User management'],
-    ['roster', 'Roster'],
-    ['cor', 'COR'],
-    ['calendar', 'Calendar'],
-    ['security', 'Security'],
-    ['announcements', 'Announcements']
-  ];
-  var selectedAdminType = 'security';
-
-  function isSuperadmin() {
-    return sessionStorage.getItem('prism_superadmin') === '1' || String(myId).toLowerCase() === 'admin001';
-  }
-
-  function renderAdminTypePicker() {
-    var pills = document.getElementById('admin-type-pills');
-    var grid = document.getElementById('admin-perm-grid');
-    if (!pills || !grid) return;
-    pills.innerHTML = ADMIN_TYPES.map(function (type) {
-      return '<button type="button" class="type-pill' + (type.id === selectedAdminType ? ' selected' : '') + '" data-type="' + type.id + '">' + escHtml(type.label) + '</button>';
-    }).join('');
-    pills.querySelectorAll('.type-pill').forEach(function (btn) {
-      btn.onclick = function () { selectAdminType(btn.getAttribute('data-type')); };
-    });
-    grid.innerHTML = ADMIN_FEATURES.map(function (item) {
-      return '<label><input type="checkbox" data-perm="' + item[0] + '"> ' + escHtml(item[1]) + '</label>';
-    }).join('');
-    selectAdminType(selectedAdminType);
-  }
-
-  function selectAdminType(id) {
-    selectedAdminType = id || 'security';
-    var type = ADMIN_TYPES.filter(function (item) { return item.id === selectedAdminType; })[0] || ADMIN_TYPES[0];
-    document.querySelectorAll('.type-pill').forEach(function (btn) {
-      btn.classList.toggle('selected', btn.getAttribute('data-type') === type.id);
-    });
-    document.querySelectorAll('#admin-perm-grid input[data-perm]').forEach(function (box) {
-      box.checked = type.perms.indexOf(box.getAttribute('data-perm')) !== -1;
-    });
-  }
-
-  function chosenAdminPerms() {
-    var permissions = { dashboard: true };
-    document.querySelectorAll('#admin-perm-grid input[data-perm]').forEach(function (box) {
-      permissions[box.getAttribute('data-perm')] = !!box.checked;
-    });
-    return permissions;
-  }
-
   window.addEventListener('DOMContentLoaded', async () => {
     if (window.__prismManageSession) await window.__prismManageSession;
     try {
@@ -76,14 +19,6 @@ let myId = '';
     } catch (e) { /* the guard redirects when the session is missing */ }
     myId = sessionStorage.getItem('prism_user_id') || '';
     if (typeof initSidebar === 'function') initSidebar('manage');
-    var addBtn = document.getElementById('tab-btn-admins');
-    if (!isSuperadmin()) {
-      if (addBtn) addBtn.style.display = 'none';
-      var usersBtn = document.querySelector('.page-tab[onclick*="users"]');
-      if (usersBtn) switchTab('users', usersBtn);
-    } else {
-      renderAdminTypePicker();
-    }
     await loadUsers();
     renderPassphraseStatus();
   });
@@ -110,63 +45,6 @@ let myId = '';
     btn.classList.add('active');
     if (name === 'users') renderTable();
     if (name === 'security') { renderPassphraseStatus(); renderAuditLog(); }
-  }
-
-  async function handleCreate() {
-    if (!isSuperadmin()) { showFormMsg('Only the superadmin can add administrators.', 'error'); return; }
-    const fn   = document.getElementById('c-fname').value.trim();
-    const ln   = document.getElementById('c-lname').value.trim();
-    const id   = document.getElementById('c-id').value.trim();
-    const email = document.getElementById('c-email').value.trim().toLowerCase();
-    const pw   = document.getElementById('c-pw').value;
-    const pw2  = document.getElementById('c-pw2').value;
-    const type = ADMIN_TYPES.filter(function (item) { return item.id === selectedAdminType; })[0] || ADMIN_TYPES[0];
-
-    if (!fn || !ln) { showFormMsg('Please enter first and last name.', 'error'); return; }
-    if (!id || id.length < 4) { showFormMsg('Enter an ID of at least 4 characters.', 'error'); return; }
-    if (id.toLowerCase() === 'admin001') { showFormMsg('admin001 is reserved for the superadmin.', 'error'); return; }
-    if (typeof prismIsCtuEmail !== 'function' || !prismIsCtuEmail(email)) {
-      showFormMsg('Enter a CTU email (@ctu.edu.ph).', 'error'); return;
-    }
-    if (!pw || pw.length < 8 || !/[A-Za-z]/.test(pw) || !/[0-9]/.test(pw)) {
-      showFormMsg('Password must be at least 8 characters and include a letter and a number.', 'error'); return;
-    }
-    if (pw !== pw2) { showFormMsg('Passwords do not match.', 'error'); return; }
-
-    const btn = document.getElementById('create-btn');
-    if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Adding…');
-    else { btn.disabled = true; btn.textContent = 'Adding…'; }
-
-    try {
-      await apiCall('auth', 'register_admin', 'POST', {
-        id: id,
-        password: pw,
-        confirm_password: pw2,
-        name: fn + ' ' + ln,
-        role: 'admin',
-        section: type.label,
-        email: email,
-        permissions: chosenAdminPerms()
-      });
-      showFormMsg(fn + ' was added as the ' + type.label + ' admin.', 'success');
-      ['c-fname', 'c-lname', 'c-id', 'c-email', 'c-pw', 'c-pw2'].forEach(function (field) {
-        document.getElementById(field).value = '';
-      });
-      selectAdminType('security');
-      await loadUsers();
-    } catch(e) {
-      showFormMsg(e.message || 'Failed to add that admin.', 'error');
-    } finally {
-      if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
-      else { btn.disabled = false; btn.textContent = 'Add admin'; }
-    }
-  }
-
-  function showFormMsg(msg, type) {
-    const el = document.getElementById('create-msg');
-    el.textContent = msg;
-    el.className = 'form-msg ' + type;
-    setTimeout(() => { el.textContent = ''; }, 4000);
   }
 
   // ── RENDER USERS TABLE (from API data) ──

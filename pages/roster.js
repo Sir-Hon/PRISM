@@ -1,14 +1,35 @@
-/** Admin roster: students by college, program, year, and section, plus teachers. */
+/** Admin roster: students, teachers, and administrators. */
 (function () {
   var page = 1;
   var pages = 1;
   var teacherPage = 1;
   var teacherPages = 1;
+  var adminPage = 1;
+  var adminPages = 1;
   var lastFile = null;
   var editingStudent = '';
   var editingTeacher = '';
+  var editingAdmin = '';
+  var selectedAdminType = 'Security';
   var studentHint = 'The password is saved encrypted. After you leave this form it is shown only as a mask, so share it with the student before you go back.';
   var teacherHint = 'The password is saved encrypted and is not shown again after you leave this form.';
+  var adminHint = 'Only the superadmin can add another administrator. admin001 stays the superadmin. The password is saved encrypted and is not shown again after you leave this form.';
+  var adminTypes = [
+    { id: 'Security', perms: ['security'] },
+    { id: 'User management', perms: ['users'] },
+    { id: 'Roster', perms: ['roster'] },
+    { id: 'COR', perms: ['cor'] },
+    { id: 'Calendar', perms: ['calendar'] },
+    { id: 'Announcements', perms: ['announcements'] }
+  ];
+  var adminFeatures = [
+    ['users', 'Manage users'],
+    ['roster', 'Roster'],
+    ['cor', 'COR'],
+    ['calendar', 'Calendar'],
+    ['security', 'Security'],
+    ['announcements', 'Announcements']
+  ];
   var catalog = { colleges: {}, years: ['1', '2', '3', '4'], sections: ['A', 'B', 'C', 'D', 'E', 'F'] };
   var collegeNames = { CoED: 'College of Education', CoTE: 'College of Technology' };
 
@@ -178,6 +199,104 @@
     }
   }
 
+  function isSuperadmin() {
+    return sessionStorage.getItem('prism_superadmin') === '1';
+  }
+
+  function renderAdminChoices() {
+    var pills = document.getElementById('m-types');
+    var grid = document.getElementById('m-perms');
+    pills.textContent = '';
+    grid.textContent = '';
+    adminTypes.forEach(function (type) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'type-pill' + (type.id === selectedAdminType ? ' selected' : '');
+      btn.setAttribute('data-type', type.id);
+      btn.textContent = type.id;
+      btn.addEventListener('click', function () { selectAdminType(type.id); });
+      pills.appendChild(btn);
+    });
+    adminFeatures.forEach(function (item) {
+      var label = document.createElement('label');
+      var box = document.createElement('input');
+      box.type = 'checkbox';
+      box.setAttribute('data-perm', item[0]);
+      var name = document.createElement('span');
+      name.textContent = item[1];
+      label.appendChild(box);
+      label.appendChild(name);
+      grid.appendChild(label);
+    });
+    fillSelect(document.getElementById('af-type'), adminTypes.map(function (item) { return item.id; }), 'All types');
+    selectAdminType(selectedAdminType);
+  }
+
+  function selectAdminType(label) {
+    selectedAdminType = adminTypes.some(function (item) { return item.id === label; }) ? label : 'Security';
+    document.querySelectorAll('#m-types .type-pill').forEach(function (btn) {
+      btn.classList.toggle('selected', btn.getAttribute('data-type') === selectedAdminType);
+    });
+    applyAdminType(selectedAdminType);
+  }
+
+  function setAdminPerms(keys) {
+    document.querySelectorAll('#m-perms input[data-perm]').forEach(function (box) {
+      box.checked = keys.indexOf(box.getAttribute('data-perm')) !== -1;
+    });
+  }
+
+  function chosenAdminPerms() {
+    var permissions = { dashboard: true };
+    document.querySelectorAll('#m-perms input[data-perm]').forEach(function (box) {
+      permissions[box.getAttribute('data-perm')] = !!box.checked;
+    });
+    return permissions;
+  }
+
+  function applyAdminType(label) {
+    var found = adminTypes.filter(function (item) { return item.id === label; })[0];
+    if (found) setAdminPerms(found.perms);
+  }
+
+  async function loadAdmins() {
+    if (!isSuperadmin()) return;
+    showError('');
+    var data = await PrismRoster.listAdmins(
+      document.getElementById('aq').value.trim(),
+      document.getElementById('af-type').value,
+      adminPage
+    );
+    adminPages = data.pages || 1;
+    adminPage = data.page || 1;
+    document.getElementById('admin-page-label').textContent = 'Page ' + adminPage + ' of ' + adminPages;
+    var body = document.getElementById('admin-body');
+    var me = String(sessionStorage.getItem('prism_user_id') || '');
+    body.textContent = '';
+    (data.rows || []).forEach(function (row) {
+      var tr = document.createElement('tr');
+      tr.appendChild(cell(row.id));
+      tr.appendChild(cell((row.first_name || '') + ' ' + (row.last_name || '')));
+      tr.appendChild(cell(row.email));
+      tr.appendChild(cell(row.type || ''));
+      tr.appendChild(cell(row.features || ''));
+      tr.appendChild(passwordCell());
+      var actions = document.createElement('td');
+      actions.className = 'row-actions';
+      if (!row.superadmin) {
+        actions.appendChild(actionButton('Edit', function () { beginEditAdmin(row); }));
+        if (String(row.id) !== me) {
+          actions.appendChild(actionButton('Delete', function () { removeAdmin(row.id); }));
+        }
+      }
+      tr.appendChild(actions);
+      body.appendChild(tr);
+    });
+    if (!(data.rows || []).length) {
+      body.appendChild(emptyRow('No administrators in this category.', 7));
+    }
+  }
+
   async function removeStudent(id) {
     if (!window.confirm('Remove this student and their login?')) return;
     try { await PrismRoster.remove(id); await load(); } catch (e) { showError(e.message); }
@@ -186,6 +305,11 @@
   async function removeTeacher(id) {
     if (!window.confirm('Remove this teacher and their login?')) return;
     try { await PrismRoster.removeTeacher(id); await loadTeachers(); } catch (e) { showError(e.message); }
+  }
+
+  async function removeAdmin(id) {
+    if (!window.confirm('Remove this administrator and their login?')) return;
+    try { await PrismRoster.removeAdmin(id); await loadAdmins(); } catch (e) { showError(e.message); }
   }
 
   function renderPreview(rows) {
@@ -209,10 +333,13 @@
   }
 
   function showView(which) {
+    if (which === 'admins' && !isSuperadmin()) which = 'students';
     document.getElementById('student-view').style.display = which === 'students' ? '' : 'none';
     document.getElementById('teacher-view').style.display = which === 'teachers' ? '' : 'none';
+    document.getElementById('admin-view').style.display = which === 'admins' ? '' : 'none';
     document.getElementById('tab-students').classList.toggle('active', which === 'students');
     document.getElementById('tab-teachers').classList.toggle('active', which === 'teachers');
+    document.getElementById('tab-admins').classList.toggle('active', which === 'admins');
   }
 
   function wireToggle(inputId, buttonId) {
@@ -229,11 +356,16 @@
     showView('teachers');
     loadTeachers().catch(function (e) { showError(e.message); });
   });
+  document.getElementById('tab-admins').addEventListener('click', function () {
+    showView('admins');
+    loadAdmins().catch(function (e) { showError(e.message); });
+  });
 
   function openForm(which) {
     document.getElementById('roster-home').style.display = 'none';
     document.getElementById('add-panel').style.display = which === 'student' ? 'block' : 'none';
     document.getElementById('teacher-panel').style.display = which === 'teacher' ? 'block' : 'none';
+    document.getElementById('admin-panel').style.display = which === 'admin' ? 'block' : 'none';
     showError('');
   }
 
@@ -262,6 +394,18 @@
       document.getElementById(id).value = '';
     });
     document.getElementById('t-college').value = '';
+  }
+
+  function resetAdminForm() {
+    editingAdmin = '';
+    document.getElementById('admin-title').textContent = 'Add admin';
+    document.getElementById('btn-add-admin').textContent = 'Create admin account';
+    document.getElementById('m-hint').textContent = adminHint;
+    document.getElementById('m-id').readOnly = false;
+    ['m-id', 'm-email', 'm-first', 'm-last', 'm-pw', 'm-pw2'].forEach(function (id) {
+      document.getElementById(id).value = '';
+    });
+    selectAdminType('Security');
   }
 
   function placeStudent(row) {
@@ -308,11 +452,35 @@
     openForm('teacher');
   }
 
+  function beginEditAdmin(row) {
+    resetAdminForm();
+    editingAdmin = row.id;
+    document.getElementById('admin-title').textContent = 'Edit admin';
+    document.getElementById('btn-add-admin').textContent = 'Save changes';
+    document.getElementById('m-hint').textContent = 'Leave the password blank to keep the current one. A new password is saved encrypted and is not shown again.';
+    document.getElementById('m-id').value = row.id || '';
+    document.getElementById('m-id').readOnly = true;
+    document.getElementById('m-email').value = row.email || '';
+    document.getElementById('m-first').value = row.first_name || '';
+    document.getElementById('m-last').value = row.last_name || '';
+    var type = row.type && adminTypes.some(function (item) { return item.id === row.type; }) ? row.type : 'Security';
+    selectAdminType(type);
+    var on = [];
+    Object.keys(row.permissions || {}).forEach(function (key) {
+      if (row.permissions[key]) on.push(key);
+    });
+    setAdminPerms(on);
+    showView('admins');
+    openForm('admin');
+  }
+
   function closeForm() {
     resetStudentForm();
     resetTeacherForm();
+    resetAdminForm();
     document.getElementById('add-panel').style.display = 'none';
     document.getElementById('teacher-panel').style.display = 'none';
+    document.getElementById('admin-panel').style.display = 'none';
     document.getElementById('roster-home').style.display = '';
   }
 
@@ -324,8 +492,19 @@
     resetTeacherForm();
     openForm('teacher');
   });
+  document.getElementById('btn-show-admin').addEventListener('click', function () {
+    if (!isSuperadmin()) return;
+    resetAdminForm();
+    openForm('admin');
+  });
   document.getElementById('btn-back-add').addEventListener('click', closeForm);
   document.getElementById('btn-back-teacher').addEventListener('click', closeForm);
+  document.getElementById('btn-back-admin').addEventListener('click', function () {
+    var wasEditing = editingAdmin;
+    closeForm();
+    showView('admins');
+    if (wasEditing) loadAdmins().catch(function (e) { showError(e.message); });
+  });
 
   document.getElementById('a-college').addEventListener('change', function () {
     fillSelect(document.getElementById('a-program'), programsFor(this.value), this.value ? 'Choose' : 'Choose a college first');
@@ -344,6 +523,10 @@
   document.getElementById('tf-college').addEventListener('change', function () {
     teacherPage = 1;
     loadTeachers().catch(function (e) { showError(e.message); });
+  });
+  document.getElementById('af-type').addEventListener('change', function () {
+    adminPage = 1;
+    loadAdmins().catch(function (e) { showError(e.message); });
   });
 
   document.getElementById('a-id').addEventListener('input', function () {
@@ -420,6 +603,41 @@
     }
   });
 
+  function adminPayload() {
+    return {
+      id: editingAdmin || document.getElementById('m-id').value.trim(),
+      email: document.getElementById('m-email').value.trim(),
+      first_name: document.getElementById('m-first').value.trim(),
+      last_name: document.getElementById('m-last').value.trim(),
+      type: selectedAdminType,
+      permissions: chosenAdminPerms(),
+      password: document.getElementById('m-pw').value,
+      confirm_password: document.getElementById('m-pw2').value
+    };
+  }
+
+  document.getElementById('btn-add-admin').addEventListener('click', async function () {
+    if (!isSuperadmin()) return;
+    showError('');
+    var editing = editingAdmin;
+    var btn = document.getElementById('btn-add-admin');
+    var ok = false;
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, editing ? 'Saving…' : 'Creating…');
+    try {
+      if (editing) await PrismRoster.updateAdmin(adminPayload());
+      else await PrismRoster.addAdmin(adminPayload());
+      closeForm();
+      showView('admins');
+      if (!editing) adminPage = 1;
+      await loadAdmins();
+      ok = true;
+    } catch (e) { showError(e.message); }
+    finally {
+      if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+      if (ok) btn.textContent = 'Create admin account';
+    }
+  });
+
   document.getElementById('csv-file').addEventListener('change', async function () {
     var file = this.files && this.files[0];
     if (!file) return;
@@ -474,9 +692,26 @@
   document.getElementById('btn-tnext').addEventListener('click', function () {
     if (teacherPage < teacherPages) { teacherPage++; loadTeachers().catch(function (e) { showError(e.message); }); }
   });
+  document.getElementById('btn-admin-search').addEventListener('click', function () {
+    adminPage = 1;
+    loadAdmins().catch(function (e) { showError(e.message); });
+  });
+  document.getElementById('aq').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') {
+      adminPage = 1;
+      loadAdmins().catch(function (err) { showError(err.message); });
+    }
+  });
+  document.getElementById('btn-aprev').addEventListener('click', function () {
+    if (adminPage > 1) { adminPage--; loadAdmins().catch(function (e) { showError(e.message); }); }
+  });
+  document.getElementById('btn-anext').addEventListener('click', function () {
+    if (adminPage < adminPages) { adminPage++; loadAdmins().catch(function (e) { showError(e.message); }); }
+  });
 
   wireToggle('a-pw', 'a-pw-toggle');
   wireToggle('t-pw', 't-pw-toggle');
+  wireToggle('m-pw', 'm-pw-toggle');
 
   document.addEventListener('DOMContentLoaded', function () {
     var open = '';
@@ -488,10 +723,16 @@
       applyCatalog();
     });
     var listReady = load();
+    renderAdminChoices();
+    if (!isSuperadmin()) document.getElementById('tab-admins').style.display = 'none';
     Promise.all([catalogReady, listReady]).then(function () {
       if (open === 'teacher') {
         showView('teachers');
         openForm('teacher');
+      } else if (open === 'admin' && isSuperadmin()) {
+        showView('admins');
+        resetAdminForm();
+        openForm('admin');
       } else if (open === 'student') {
         openForm('student');
       }

@@ -1,5 +1,6 @@
 var QG_quizzes = [];
 var QG_scores = [];
+var QG_log = [];
 var QG_openStudent = '';
 
 function QG_esc(s) {
@@ -118,28 +119,82 @@ async function QG_loadScores() {
     host.innerHTML = '<p class="qg-empty">Could not load scores.</p>';
     return;
   }
+  try {
+    var log = await PrismQuizzes.getLog(sel.value);
+    QG_log = Array.isArray(log) ? log : [];
+  } catch (e2) {
+    QG_log = [];
+  }
   QG_renderList();
+}
+
+function QG_leaveEvents(studentId) {
+  return (QG_log || []).filter(function (e) {
+    return String(e.student_id) === String(studentId) && (e.type === 'tab-switch' || e.type === 'abandon');
+  });
+}
+function QG_leaveLabel(events) {
+  var tabs = events.filter(function (e) { return e.type === 'tab-switch'; }).length;
+  var left = events.filter(function (e) { return e.type === 'abandon'; }).length;
+  var parts = [];
+  if (tabs) parts.push(tabs === 1 ? 'Switched tabs once' : 'Switched tabs ' + tabs + ' times');
+  if (left) parts.push(left === 1 ? 'Tried to leave' : 'Tried to leave ' + left + ' times');
+  return parts.join(' · ');
+}
+function QG_leaveHtml(studentId) {
+  var events = QG_leaveEvents(studentId);
+  if (!events.length) return '';
+  var lines = events.map(function (e) {
+    var when = e.logged_at || e.time || '';
+    var shown = when ? new Date(String(when).replace(' ', 'T')).toLocaleString() : '';
+    var what = e.type === 'abandon' ? 'Tried to leave' : 'Switched tabs';
+    return '<p><b>' + QG_esc(what) + '</b>' + (shown ? ' · ' + QG_esc(shown) : '') + (e.detail ? ' · ' + QG_esc(e.detail) : '') + '</p>';
+  }).join('');
+  return '<div class="qg-flags"><h4>' + QG_esc(QG_leaveLabel(events)) + '</h4>' + lines + '</div>';
+}
+function QG_people() {
+  var order = [];
+  var byId = {};
+  (QG_scores || []).forEach(function (row) {
+    var id = String(row.student_id);
+    if (byId[id]) return;
+    byId[id] = { id: id, name: row.student_name || row.student_id, score: row };
+    order.push(id);
+  });
+  (QG_log || []).forEach(function (e) {
+    if (e.type !== 'tab-switch' && e.type !== 'abandon') return;
+    var id = String(e.student_id || '');
+    if (!id || byId[id]) return;
+    byId[id] = { id: id, name: e.student_name || id, score: null };
+    order.push(id);
+  });
+  return order.map(function (id) { return byId[id]; });
 }
 
 function QG_renderList() {
   var host = document.getElementById('grade-list');
   var quiz = QG_quizzes.find(function (q) { return String(q.id) === String(document.getElementById('grade-quiz-select').value); });
   var filter = (document.getElementById('grade-student-filter').value || '').trim().toLowerCase();
-  var rows = QG_scores.filter(function (row) {
-    var name = String(row.student_name || row.student_id || '').toLowerCase();
+  var people = QG_people().filter(function (person) {
+    var name = String(person.name || '').toLowerCase();
     return !filter || name.indexOf(filter) !== -1;
   });
-  if (!rows.length) {
-    host.innerHTML = '<p class="qg-empty">' + (QG_scores.length ? 'No student matches that filter.' : 'No submissions for this quiz yet.') + '</p>';
+  if (!people.length) {
+    host.innerHTML = '<p class="qg-empty">' + (QG_people().length ? 'No student matches that filter.' : 'No submissions for this quiz yet.') + '</p>';
     return;
   }
   var total = quiz ? (parseInt(quiz.total_points, 10) || 0) : 0;
-  host.innerHTML = rows.map(function (row) {
-    var when = row.taken_at ? new Date(String(row.taken_at).replace(' ', 'T')).toLocaleString() : '';
-    var open = String(QG_openStudent) === String(row.student_id);
-    return '<button type="button" class="qg-student' + (open ? ' is-open' : '') + '" data-student="' + QG_esc(row.student_id) + '" aria-expanded="' + (open ? 'true' : 'false') + '">'
-      + '<span><b>' + QG_esc(row.student_name || row.student_id) + '</b><small>' + QG_esc(when) + '</small></span>'
-      + '<strong>' + QG_esc(row.score) + ' / ' + total + '</strong></button>';
+  host.innerHTML = people.map(function (person) {
+    var row = person.score;
+    var when = row && row.taken_at ? new Date(String(row.taken_at).replace(' ', 'T')).toLocaleString() : '';
+    var flag = QG_leaveLabel(QG_leaveEvents(person.id));
+    var whenHtml = QG_esc(when);
+    if (flag) whenHtml += (when ? ' · ' : '') + '<span class="qg-flag">' + QG_esc(flag) + '</span>';
+    var open = String(QG_openStudent) === String(person.id);
+    var scoreText = row ? (QG_esc(row.score) + ' / ' + total) : 'No score';
+    return '<button type="button" class="qg-student' + (open ? ' is-open' : '') + (flag ? ' has-flag' : '') + '" data-student="' + QG_esc(person.id) + '" aria-expanded="' + (open ? 'true' : 'false') + '">'
+      + '<span><b>' + QG_esc(person.name) + '</b><small>' + whenHtml + '</small></span>'
+      + '<strong>' + scoreText + '</strong></button>';
   }).join('');
   host.querySelectorAll('.qg-student').forEach(function (btn) {
     btn.onclick = function () {
@@ -247,10 +302,18 @@ function QG_closeStudent() {
 }
 function QG_showStudent(studentId) {
   var quiz = QG_quizzes.find(function (q) { return String(q.id) === String(document.getElementById('grade-quiz-select').value); });
-  var row = QG_scores.find(function (r) { return String(r.student_id) === String(studentId); });
+  var person = QG_people().find(function (p) { return String(p.id) === String(studentId); });
+  var row = person && person.score;
   var detail = document.getElementById('grade-detail');
-  if (!quiz || !row || !detail) return;
+  if (!quiz || !person || !detail) return;
   QG_openStudent = studentId;
+  if (!row) {
+    detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(person.name) + '</h3></div>'
+      + QG_leaveHtml(studentId)
+      + '<p class="qg-empty">No submission yet.</p>';
+    QG_markOpenStudent();
+    return;
+  }
   var questions = QG_questions(quiz);
   var answers = QG_parseList(row.answers);
   var saved = QG_parseList(row.item_scores);
@@ -272,6 +335,7 @@ function QG_showStudent(studentId) {
   }).join('');
   detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(row.student_name || studentId) + '</h3>'
     + '<button type="button" class="t-btn" id="qg-save">Save scores</button></div>'
+    + QG_leaveHtml(studentId)
     + (blocks || '<p class="qg-empty">This quiz has no questions to review.</p>')
     + '<p class="qg-note" id="qg-note"></p>';
   var save = document.getElementById('qg-save');

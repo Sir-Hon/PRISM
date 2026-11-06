@@ -12,19 +12,41 @@ $db     = getDB();
 //  POSTS (stream)
 // ══════════════════════════════════════════════════════
 
+function prism_ensure_post_target_student(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        if (!prism_table_has_column($db, 'posts', 'target_student')) {
+            $db->exec('ALTER TABLE posts ADD COLUMN target_student VARCHAR(50) NULL DEFAULT NULL');
+        }
+        $ready = prism_table_has_column($db, 'posts', 'target_student');
+    } catch (Throwable $e) {
+        error_log('PRISM post target student: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
 if ($action === 'get_posts') {
     $class_id = $_GET['class_id'] ?? '';
     prism_assert_class_access($db, $user, $class_id);
+    prism_ensure_post_target_student($db);
     $stuSec = prism_student_section_for_filter($db, $user);
-    if ($stuSec !== null && prism_table_has_column($db, 'posts', 'target_section')) {
-        $stmt = $db->prepare(
-            'SELECT * FROM posts WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
-        );
-        $stmt->execute([$class_id, $stuSec]);
-    } else {
-        $stmt = $db->prepare('SELECT * FROM posts WHERE class_id = ? ORDER BY created_at DESC');
-        $stmt->execute([$class_id]);
+    $hasSec = prism_table_has_column($db, 'posts', 'target_section');
+    $hasStu = prism_table_has_column($db, 'posts', 'target_student');
+    $sql = 'SELECT * FROM posts WHERE class_id = ?';
+    $params = [$class_id];
+    if ($stuSec !== null && $hasSec) {
+        $sql .= ' AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?)';
+        $params[] = $stuSec;
     }
+    if ($stuSec !== null && $hasStu) {
+        $sql .= ' AND (target_student IS NULL OR TRIM(target_student) = \'\' OR target_student = ?)';
+        $params[] = $user['id'];
+    }
+    $sql .= ' ORDER BY created_at DESC';
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
     ok(['posts' => $stmt->fetchAll()]);
 }
 
@@ -34,9 +56,25 @@ if ($action === 'add_post') {
     prism_assert_teacher_owns_class($db, $user['id'], (string) ($b['class_id'] ?? ''));
     $id = uniqid('post_');
     $ts = prism_target_section_from_body($b);
+    $targetStudent = trim((string) ($b['target_student'] ?? ''));
+    if ($targetStudent !== '') {
+        $en = $db->prepare('SELECT 1 FROM enrollments WHERE class_id = ? AND student_id = ?');
+        $en->execute([$b['class_id'], $targetStudent]);
+        if (!$en->fetch()) fail('That student is not in this class');
+        if (!prism_ensure_post_target_student($db)) fail('Could not save a student announcement', 500);
+    } else {
+        $targetStudent = '';
+        prism_ensure_post_target_student($db);
+    }
+    $hasStu = prism_table_has_column($db, 'posts', 'target_student');
     if (prism_table_has_column($db, 'posts', 'target_section')) {
-        $db->prepare('INSERT INTO posts (id, class_id, teacher_id, target_section, type, body, attachment, quiz_id, author) VALUES (?,?,?,?,?,?,?,?,?)')
-           ->execute([$id, $b['class_id'], $user['id'], $ts, $b['type'], $b['body'], $b['attachment']??null, $b['quiz_id']??null, $b['author']??$user['name']]);
+        if ($hasStu) {
+            $db->prepare('INSERT INTO posts (id, class_id, teacher_id, target_section, target_student, type, body, attachment, quiz_id, author) VALUES (?,?,?,?,?,?,?,?,?,?)')
+               ->execute([$id, $b['class_id'], $user['id'], $ts, $targetStudent !== '' ? $targetStudent : null, $b['type'], $b['body'], $b['attachment']??null, $b['quiz_id']??null, $b['author']??$user['name']]);
+        } else {
+            $db->prepare('INSERT INTO posts (id, class_id, teacher_id, target_section, type, body, attachment, quiz_id, author) VALUES (?,?,?,?,?,?,?,?,?)')
+               ->execute([$id, $b['class_id'], $user['id'], $ts, $b['type'], $b['body'], $b['attachment']??null, $b['quiz_id']??null, $b['author']??$user['name']]);
+        }
     } else {
         $db->prepare('INSERT INTO posts (id, class_id, teacher_id, type, body, attachment, quiz_id, author) VALUES (?,?,?,?,?,?,?,?)')
            ->execute([$id, $b['class_id'], $user['id'], $b['type'], $b['body'], $b['attachment']??null, $b['quiz_id']??null, $b['author']??$user['name']]);

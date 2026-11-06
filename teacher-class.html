@@ -495,6 +495,10 @@
     .qg-filters select, .qg-filters input { text-transform:none; letter-spacing:0; font-weight:600; font-size:.9rem; border:1.5px solid #d1fae5; border-radius:10px; padding:.55rem .7rem; font-family:'DM Sans',sans-serif; }
     .qg-student { width:100%; display:flex; justify-content:space-between; align-items:center; gap:1rem; text-align:left; background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:.75rem .9rem; margin-bottom:.5rem; cursor:pointer; font-family:'DM Sans',sans-serif; color:#16132b; }
     .qg-student small { display:block; color:#6b7280; font-weight:600; }
+    .qg-flag { color:#b91c1c; font-weight:800; }
+    .qg-flags { border:1px solid #fecaca; background:#fef2f2; border-radius:12px; padding:.7rem .85rem; margin:0 0 .7rem; }
+    .qg-flags h4 { margin:0 0 .35rem; font-size:.78rem; letter-spacing:.04em; text-transform:uppercase; color:#b91c1c; }
+    .qg-flags p { margin:.15rem 0; font-size:.84rem; }
     .qg-student strong { color:#5b21b6; }
     .qg-student.is-open { border-color:#7c3aed; box-shadow:inset 0 0 0 1px #7c3aed; }
     .qg-empty, .qg-note { color:#6b7280; font-size:.88rem; }
@@ -517,6 +521,8 @@
     html[data-theme="dark"] .qg-student { background:#1e2438; border-color:#3d4468; color:#f8fafc; }
     html[data-theme="dark"] .qg-student.is-open { border-color:#c4b5fd; box-shadow:inset 0 0 0 1px #c4b5fd; }
     html[data-theme="dark"] .qg-student small, html[data-theme="dark"] .qg-empty, html[data-theme="dark"] .qg-note, html[data-theme="dark"] .qg-key { color:#d1d5db; }
+    html[data-theme="dark"] .qg-flag, html[data-theme="dark"] .qg-flags h4 { color:#fecaca; }
+    html[data-theme="dark"] .qg-flags { background:#3b1212; border-color:#7f1d1d; color:#fecaca; }
     html[data-theme="dark"] .qg-student strong, html[data-theme="dark"] .qg-student b { color:#f8fafc; }
     html[data-theme="dark"] .qg-item { background:#1e2438; border-color:#3d4468; color:#f8fafc; }
     html[data-theme="dark"] .qg-item h4, html[data-theme="dark"] .qg-item p, html[data-theme="dark"] .qg-detail-head h3 { color:#f8fafc; }
@@ -605,10 +611,16 @@
       <div class="sub-panel" id="sub-announcements">
         <div class="t-card" style="margin-bottom:1.2rem;">
           <div class="t-card-title">Announcements</div>
-          <textarea class="composer" id="stream-text" placeholder="Write an announcement for this class�"></textarea>
-          <div class="composer-row" style="justify-content:flex-end;margin-top:.75rem;">
+          <textarea class="composer" id="stream-text" placeholder="Write an announcement for this class"></textarea>
+          <div class="composer-row" style="justify-content:space-between;margin-top:.75rem;">
+            <label class="cw-filter">To
+              <select id="ann-to" aria-label="Announce to"></select>
+            </label>
             <button class="t-btn" type="button" onclick="postSubjectAnnouncement()">Post announcement</button>
           </div>
+          <label class="cw-filter" style="margin-top:.85rem;">Show
+            <select id="ann-filter" aria-label="Filter announcements" onchange="renderSubjectAnnouncements()"></select>
+          </label>
         </div>
         <div id="stream-feed"></div>
       </div>
@@ -782,8 +794,8 @@
   </main>
 </div>
 
-<script src="pages/teacher-class.js?v=39"></script>
-<script src="pages/quizgrades.js?v=4"></script>
+<script src="pages/teacher-class.js?v=41"></script>
+<script src="pages/quizgrades.js?v=5"></script>
 <script src="pages/sheets.js?v=12"></script>
 </body>
 </html>

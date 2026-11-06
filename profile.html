@@ -31,7 +31,10 @@
  background-image: repeating-linear-gradient(60deg,
  rgba(255,255,255,.04) 0, rgba(255,255,255,.04) 2px,
  transparent 2px, transparent 28px);
+ pointer-events: none;
  }
+ .profile-hero.banner-open { overflow: visible; z-index: 40; }
+ .profile-hero[style*="background-image"]::before { opacity: 0; }
 
  .profile-hero-inner {
  position: relative; z-index: 1;
@@ -70,7 +73,7 @@
  #avatar-upload { display: none; }
 
  /* Profile info */
- .profile-info { flex: 1; min-width: 200px; }
+ .profile-info { flex: 1; min-width: 200px; padding-right: 8.5rem; }
 
  .profile-name {
  font-family: 'DM Sans', sans-serif;
@@ -108,7 +111,7 @@
 
  /* Edit profile btn */
  .edit-profile-btn {
- position: absolute; top: 1.5rem; right: 1.8rem; z-index: 2;
+ position: absolute; top: 1.15rem; right: 4.4rem; z-index: 2;
  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
  color: white; padding: .5rem 1.2rem; border-radius: 20px;
  font-size: .88rem; font-weight: 600; cursor: pointer;
@@ -130,6 +133,7 @@
  @media(max-width:640px) {
  .profile-hero { padding: 1.25rem 1.05rem 1.1rem; border-radius: 16px; }
  .edit-profile-btn { position: static; margin-bottom: 0.9rem; }
+ .profile-info { padding-right: 2.8rem; }
  .profile-hero-inner { gap: 0.9rem; }
  .profile-avatar { width: 84px; height: 84px; font-size: 2rem; }
  .profile-name { font-size: 1.45rem; }
@@ -396,7 +400,7 @@
 
  <!-- HERO -->
  <div class="profile-hero" id="profile-hero">
- <button class="edit-profile-btn" onclick="openEditModal()"> Edit Profile</button>
+ <button type="button" class="edit-profile-btn" id="add-bio-btn" onclick="openEditModal()">Add bio</button>
  <div class="profile-hero-inner">
 
  <div class="profile-avatar-wrap">
@@ -534,9 +538,7 @@
 <!-- EDIT PROFILE MODAL -->
 <div class="edit-overlay" id="edit-overlay">
  <div class="edit-modal">
- <h3> Edit Profile</h3>
- <div class="edit-field"><label>Display Name</label><input type="text" id="edit-name" placeholder="Your full name"/></div>
- <div class="edit-field"><label>Section / Program</label><input type="text" id="edit-section" placeholder="e.g. BSIT 1-A"/></div>
+ <h3 id="bio-modal-title">Add bio</h3>
  <div class="edit-field"><label>About Me / Bio</label><textarea id="edit-bio" placeholder="Write a short bio about yourself"></textarea></div>
  <div class="edit-actions">
  <button class="edit-btn cancel" onclick="closeEditModal()">Cancel</button>
@@ -545,6 +547,6 @@
  </div>
 </div>
 
-<script src="pages/profile.js?v=17"></script>
+<script src="pages/profile.js?v=19"></script>
 </body>
 </html>

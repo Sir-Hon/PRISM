@@ -64,7 +64,13 @@
     .row-actions { display:flex; gap:.45rem; flex-wrap:wrap; white-space:nowrap; }
     .fields input[readonly] { background:#f6f3ea; color:#6b7280; }
     .hint { color:#6b7280; font-size:.88rem; margin:.7rem 0 0; line-height:1.5; }
-    #preview-wrap, #add-panel, #teacher-panel { display:none; }
+    .type-pills { display:flex; flex-wrap:wrap; gap:.45rem; }
+    .type-pill { padding:.48rem .9rem; border-radius:999px; border:1.5px solid #fde68a; background:#fffbeb; color:#92400e; font-size:.84rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; }
+    .type-pill.selected { border-color:#d97706; background:#f59e0b; color:#1c1300; }
+    .perm-grid { display:grid; grid-template-columns:1fr 1fr; gap:.7rem 1.4rem; margin-top:.35rem; }
+    .fields .perm-grid label { display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:.55rem; margin:0; font-size:.92rem; font-weight:600; color:#374151; text-transform:none; letter-spacing:0; }
+    .fields .perm-grid input[type="checkbox"] { width:1.05rem; height:1.05rem; min-width:1.05rem; margin:0; padding:0; border-radius:4px; flex:0 0 auto; accent-color:#d97706; }
+    #preview-wrap, #add-panel, #teacher-panel, #admin-panel { display:none; }
     .form-card { padding:1.7rem 1.8rem; }
     @media (max-width:900px) {
       .fields { grid-template-columns:1fr; }
@@ -101,11 +107,15 @@
     html[data-theme="dark"] .page-tab.active { background:#f59e0b; color:#1c1300; }
     html[data-theme="dark"] .gc-plus { color:#fcd34d; }
     html[data-theme="dark"] .hint { color:#d1d5db !important; }
+    html[data-theme="dark"] .fields .perm-grid label { color:#f3f4f6; }
+    html[data-theme="dark"] .type-pill { background:#24283d; border-color:#3d4468; color:#f3f4f6; }
+    html[data-theme="dark"] .type-pill.selected { background:#3b2a08; border-color:#f59e0b; color:#fde68a; }
+    html[data-theme="dark"] .fields .perm-grid input[type="checkbox"] { width:1.05rem !important; height:1.05rem !important; min-width:1.05rem !important; padding:0 !important; border-radius:4px !important; background:#24283d !important; }
     html[data-theme="dark"] .fields input[readonly] { background:#1a1d2e !important; color:#9ca3af !important; }
   </style>
 </head>
 <body>
-<script src="api.js?v=39"></script>
+<script src="api.js?v=40"></script>
 <script src="script.js?v=20"></script>
 <script src="portal-sidebar.js?v=25"></script>
 <div class="topbar">
@@ -133,12 +143,13 @@
       <div class="admin-hero">
         <div class="admin-hero-label">Admin</div>
         <h1>Roster</h1>
-        <p>Create student and teacher accounts here. They sign in with the password you set. Saved passwords stay encrypted.</p>
+        <p>Create student, teacher, and administrator accounts here. They sign in with the password you set. Saved passwords stay encrypted.</p>
       </div>
 
       <div class="page-tabs">
         <button type="button" class="page-tab active" id="tab-students">Students</button>
         <button type="button" class="page-tab" id="tab-teachers">Teachers</button>
+        <button type="button" class="page-tab" id="tab-admins">Admins</button>
       </div>
 
       <div id="student-view">
@@ -212,6 +223,33 @@
           </div>
         </div>
       </div>
+
+      <div id="admin-view" style="display:none;">
+        <div class="gc-head">
+          <h2>Admins</h2>
+          <button class="gc-plus" type="button" id="btn-show-admin" title="Add admin" aria-label="Add admin">+</button>
+        </div>
+        <div class="roster-panel">
+          <div class="search-bar">
+            <input id="aq" placeholder="Search ID, name, or email" aria-label="Search administrators"/>
+            <button class="btn btn-ghost" type="button" id="btn-admin-search">Search</button>
+          </div>
+          <div class="filter-row">
+            <div class="filter-field"><label for="af-type">Type</label><select id="af-type"><option value="">All types</option></select></div>
+          </div>
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Type</th><th>Features</th><th>Password</th><th></th></tr></thead>
+              <tbody id="admin-body"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <button class="btn btn-ghost" type="button" id="btn-aprev">Previous</button>
+            <span id="admin-page-label"></span>
+            <button class="btn btn-ghost" type="button" id="btn-anext">Next</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="msg error" id="page-error" style="display:none;"></div>
@@ -256,8 +294,34 @@
       <p class="hint" id="t-hint">The password is saved encrypted and is not shown again after you leave this form.</p>
       <div style="margin-top:1.1rem;"><button class="btn btn-primary" type="button" id="btn-add-teacher">Create teacher account</button></div>
     </div>
+
+    <div class="roster-panel form-card" id="admin-panel">
+      <div class="gc-head">
+        <button class="gc-back on-card" type="button" id="btn-back-admin" title="Back to roster" aria-label="Back to roster">&larr;</button>
+        <h2 id="admin-title">Add admin</h2>
+      </div>
+      <div class="fields">
+        <div><label for="m-id">Admin ID</label><input id="m-id" placeholder="e.g. admin002"/></div>
+        <div><label for="m-email">CTU email</label><input id="m-email" type="email" placeholder="name.surname@ctu.edu.ph"/></div>
+        <div><label for="m-first">First name</label><input id="m-first"/></div>
+        <div><label for="m-last">Last name</label><input id="m-last"/></div>
+        <div class="wide">
+          <label>Admin type</label>
+          <div class="type-pills" id="m-types"></div>
+        </div>
+        <div class="wide">
+          <label>Features this admin can open</label>
+          <div class="perm-grid" id="m-perms"></div>
+          <p class="hint" style="margin-top:.55rem;">The dashboard stays available so they can sign in. Everything else follows these switches.</p>
+        </div>
+        <div><label for="m-pw">Password</label><div class="pw-wrap"><input id="m-pw" type="password" autocomplete="new-password"/><button class="btn btn-ghost" type="button" id="m-pw-toggle">Show</button></div></div>
+        <div><label for="m-pw2">Confirm password</label><input id="m-pw2" type="password" autocomplete="new-password"/></div>
+      </div>
+      <p class="hint" id="m-hint">Only the superadmin can add another administrator. admin001 stays the superadmin. The password is saved encrypted and is not shown again after you leave this form.</p>
+      <div style="margin-top:1.1rem;"><button class="btn btn-primary" type="button" id="btn-add-admin">Create admin account</button></div>
+    </div>
   </main>
 </div>
-<script src="pages/roster.js?v=8"></script>
+<script src="pages/roster.js?v=10"></script>
 </body>
 </html>

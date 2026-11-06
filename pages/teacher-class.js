@@ -335,7 +335,9 @@ function renderWorkspaceSectionPills() {
       activeWorkspaceSection = btn.getAttribute('data-sec') || '__all__';
       try { sessionStorage.setItem('prism_teacher_workspace_section_' + activeClassId, activeWorkspaceSection); } catch (e) {}
       renderWorkspaceSectionPills();
+      fillAnnouncementAudience();
       renderMaterials(); renderAssignments();
+      renderSubjectAnnouncements();
     };
   });
   fillAsgnSide();
@@ -389,6 +391,7 @@ function renderWorkspacePage() {
   renderAssignments();
   loadWorkspaceSectionForClass(activeClassId);
   renderWorkspaceSectionPills();
+  fillAnnouncementAudience();
   const codeEl = document.getElementById('tc-code-text');
   if (codeEl) codeEl.textContent = cls.code || '\u2014';
   const copyBtn = document.getElementById('tc-copy-btn');
@@ -519,7 +522,7 @@ function renderClassPeople() {
 function ensureClassQuizFrame() {
   var frame = document.getElementById('class-quiz-frame');
   if (!frame || !activeClassId) return;
-  var next = 'quizmaker.html?embed=1&v=9&class=' + encodeURIComponent(activeClassId);
+  var next = 'quizmaker.html?embed=1&v=10&class=' + encodeURIComponent(activeClassId);
   if (frame.dataset.src !== next) {
     frame.dataset.src = next;
     frame.src = next;
@@ -551,10 +554,66 @@ function showSheetKind(kind, btn) {
   if (typeof loadCurrentSheet === 'function') loadCurrentSheet();
 }
 
+function announcementStudents() {
+  var list = getStudents(activeClassId) || [];
+  if (activeWorkspaceSection && activeWorkspaceSection !== '__all__') {
+    list = list.filter(function (s) { return String(s.section || '').trim() === activeWorkspaceSection; });
+  }
+  return list.slice().sort(function (a, b) {
+    return String(a.name || a.id || '').localeCompare(String(b.name || b.id || ''), undefined, { sensitivity: 'base' });
+  });
+}
+function fillAnnouncementAudience() {
+  var students = announcementStudents();
+  var to = document.getElementById('ann-to');
+  var show = document.getElementById('ann-filter');
+  if (to) {
+    var keepTo = to.value || '';
+    to.innerHTML = '';
+    var everyone = document.createElement('option');
+    everyone.value = '';
+    everyone.textContent = 'Everyone';
+    to.appendChild(everyone);
+    students.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = String(s.id);
+      var sec = String(s.section || '').trim();
+      o.textContent = (s.name || s.id) + (sec ? ' · ' + sec : '');
+      to.appendChild(o);
+    });
+    to.value = students.some(function (s) { return String(s.id) === keepTo; }) ? keepTo : '';
+  }
+  if (show) {
+    var keepShow = show.value || '__all__';
+    show.innerHTML = '';
+    [['__all__', 'All'], ['__class__', 'Whole class']].forEach(function (pair) {
+      var o = document.createElement('option');
+      o.value = pair[0];
+      o.textContent = pair[1];
+      show.appendChild(o);
+    });
+    students.forEach(function (s) {
+      var o = document.createElement('option');
+      o.value = String(s.id);
+      o.textContent = s.name || s.id;
+      show.appendChild(o);
+    });
+    var showOk = keepShow === '__all__' || keepShow === '__class__' || students.some(function (s) { return String(s.id) === keepShow; });
+    show.value = showOk ? keepShow : '__all__';
+  }
+}
+function announcementAudienceName(post) {
+  var who = String(post && (post.target_student || '') || '').trim();
+  if (!who) return '';
+  var stud = (getStudents(activeClassId) || []).find(function (s) { return String(s.id) === who; });
+  return stud && stud.name ? stud.name : who;
+}
 async function postSubjectAnnouncement() {
   const box = document.getElementById('stream-text');
   const text = box ? box.value.trim() : '';
   if (!text || !activeClassId) return;
+  var to = document.getElementById('ann-to');
+  var studentId = to && to.value ? String(to.value) : '';
   try {
     await PrismPosts.add({
       class_id: activeClassId,
@@ -564,18 +623,30 @@ async function postSubjectAnnouncement() {
       attachment: null,
       author: sessionStorage.getItem('prism_user_name') || 'Teacher',
       target_section: getWorkspaceTargetSectionForApi(),
+      target_student: studentId,
     });
     box.value = '';
     await refreshClassData(activeClassId);
+    fillAnnouncementAudience();
     renderSubjectAnnouncements();
   } catch (e) { alert(e.message || 'Failed to post.'); }
 }
 
+function announcementMatchesShowFilter(post) {
+  if (!itemMatchesWorkspaceSectionFilter(post)) return false;
+  var show = document.getElementById('ann-filter');
+  var mode = show && show.value ? show.value : '__all__';
+  var who = String(post.target_student || '').trim();
+  if (mode === '__all__') return true;
+  if (mode === '__class__') return !who;
+  return who === mode;
+}
 function renderSubjectAnnouncements() {
   const feed = document.getElementById('stream-feed');
   if (!feed) return;
+  if (!document.getElementById('ann-to') || !document.getElementById('ann-to').options.length) fillAnnouncementAudience();
   const posts = (getPosts() || []).filter(function (p) {
-    return (p.class_id === activeClassId || p.classId === activeClassId) && itemMatchesWorkspaceSectionFilter(p);
+    return (p.class_id === activeClassId || p.classId === activeClassId) && announcementMatchesShowFilter(p);
   }).sort(function (a, b) {
     return new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0);
   });
@@ -591,7 +662,8 @@ function renderSubjectAnnouncements() {
     div.innerHTML = '<div class="post-header"><div class="post-avatar"></div><div class="post-meta"><div class="post-author"></div><div class="post-date"></div></div><span class="post-badge ' + teacherEsc(p.type || 'announcement') + '"></span></div><div class="post-body"></div>';
     div.querySelector('.post-avatar').textContent = String(p.author || 'T').charAt(0);
     div.querySelector('.post-author').textContent = p.author || 'Teacher';
-    div.querySelector('.post-date').textContent = dl;
+    var audience = announcementAudienceName(p);
+    div.querySelector('.post-date').textContent = audience ? (dl + ' · To ' + audience) : dl;
     div.querySelector('.post-badge').textContent = p.type || 'announcement';
     div.querySelector('.post-body').textContent = p.body || '';
     feed.appendChild(div);

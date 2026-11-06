@@ -227,9 +227,11 @@ function renderHero(profile) {
  document.getElementById('display-role').textContent = profile.role;
  document.getElementById('display-section').textContent= profile.section;
 
- if (profile.bio) {
- document.getElementById('display-bio').textContent = profile.bio;
- }
+ var bioEl = document.getElementById('display-bio');
+ if (bioEl) bioEl.textContent = profile.bio || '';
+ var bioBtn = document.getElementById('add-bio-btn');
+ if (bioBtn) bioBtn.textContent = profile.bio ? 'Edit bio' : 'Add bio';
+ if (typeof prismBannerMount === 'function') prismBannerMount(document.getElementById('profile-hero'), 'greet');
 
  // Standing based on role
   var standingEl = document.getElementById('display-standing');
@@ -985,10 +987,8 @@ function handleAvatarUpload(event) {
 // 
 function openEditModal() {
  const saved = loadProfile();
- const userId = sessionStorage.getItem('prism_user_id') || '';
- const userName = sessionStorage.getItem('prism_user_name') || userId || 'Student';
- document.getElementById('edit-name').value = saved.name || userName;
- document.getElementById('edit-section').value = saved.section || 'BSIT 1-A';
+ var title = document.getElementById('bio-modal-title');
+ if (title) title.textContent = saved.bio ? 'Edit bio' : 'Add bio';
  document.getElementById('edit-bio').value = saved.bio || '';
  document.getElementById('edit-overlay').classList.add('active');
 }
@@ -998,44 +998,24 @@ function closeEditModal() {
 }
 
 async function saveProfile() {
- const name    = document.getElementById('edit-name').value.trim();
- const section = document.getElementById('edit-section').value.trim();
- const bio     = document.getElementById('edit-bio').value.trim();
-
- if (!name) { alert('Name cannot be empty.'); return; }
+ const bio = document.getElementById('edit-bio').value.trim();
+ const saved = loadProfile();
+ const name = saved.name || sessionStorage.getItem('prism_user_name') || '';
+ const section = saved.section || sessionStorage.getItem('prism_section') || '';
+ if (!name) { alert('This account has no name yet. Ask an admin to set it.'); return; }
 
  try {
-   await PrismProfile.save({ name, section, email: '', bio });
+   await PrismProfile.save({ name: name, section: section, email: '', bio: bio });
  } catch(e) { console.warn('API save failed, saving locally only:', e.message); }
 
- // Update local cache and sessionStorage
- const saved = loadProfile();
- saved.name = name; saved.section = section; saved.email = ''; saved.bio = bio;
- saved.since = saved.since || new Date().toLocaleDateString('en-US',{year:'numeric',month:'long'});
+ saved.bio = bio;
  saveProfileData(saved);
- sessionStorage.setItem('prism_user_name', name);
- sessionStorage.setItem('prism_section', section);
-
- // Sync name into class rosters
- const role   = sessionStorage.getItem('prism_role') || 'student';
- const userId = sessionStorage.getItem('prism_user_id') || '';
- if (role === 'student' && userId) {
-   const joined = JSON.parse(localStorage.getItem('prism_joined_' + userId) || '{}');
-   Object.keys(joined).forEach(function(classId) {
-     const roster = JSON.parse(localStorage.getItem('prism_students_' + classId) || '[]');
-     let changed = false;
-     roster.forEach(function(s) {
-       if (s.id === userId) { s.name = name; s.section = section || s.section; changed = true; }
-     });
-     if (changed) localStorage.setItem('prism_students_' + classId, JSON.stringify(roster));
-   });
- }
-
  closeEditModal();
- const profile = { ...saved, id: userId, role };
+ const role = sessionStorage.getItem('prism_role') || 'student';
+ const userId = sessionStorage.getItem('prism_user_id') || '';
+ const profile = Object.assign({}, saved, { id: userId, role: role });
  renderHero(profile);
  renderInfoCard(profile);
- initSidebar('home');
 }
 
 document.getElementById('edit-overlay').addEventListener('click', function(e) {

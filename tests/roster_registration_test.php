@@ -156,6 +156,8 @@ check(http_status($base . '?action=list') === 403, 'roster list requires admin')
 check(http_status($base . '?action=teacher_list') === 403, 'teacher roster requires admin');
 check(http_status($base . '?action=add', 'POST', '{}') === 403, 'roster add requires admin');
 check(http_status($base . '?action=teacher_add', 'POST', '{}') === 403, 'teacher add requires admin');
+check(http_status($base . '?action=admin_list') === 403, 'admin roster requires the superadmin');
+check(http_status($base . '?action=admin_add', 'POST', '{}') === 403, 'admin add requires the superadmin');
 check(http_status('http://localhost:8765/api/auth.php?action=register', 'POST', '{}') === 403, 'student registration endpoint is closed');
 
 $db->prepare("DELETE FROM registration_audit_log WHERE roster_id_number IN ($marks)")->execute($ids);

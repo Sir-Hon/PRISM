@@ -954,8 +954,7 @@ function syncDraftButton(){
 }
 function openDraft(id){
   var quiz=getQuizzes().find(function(q){ return String(q.id)===String(id); });
-  if(!quiz) return;
-  if(quiz.published){ viewQuizLog(quiz.id); return; }
+  if(!quiz || quiz.published) return;
   editingQuizId=quiz.id;
   document.getElementById('qm-title').value=quiz.title||'';
   document.getElementById('qm-instructions').value=quiz.instructions||'';
@@ -1066,21 +1065,15 @@ function renderSavedQuizzes(){
     return;
   }
   list.innerHTML=displayQuizzes.slice().reverse().map(q=>{
-    const logKey='prism_quiz_log_'+q.classId+'_'+q.id;
-    const log=JSON.parse(localStorage.getItem(logKey)||'[]');
-    const alerts=log.filter(e=>e.type==='tab-switch'||e.type==='abandon').length;
-    const alertBadge=alerts?`<span style="background:#fee2e2;color:#dc2626;font-size:.68rem;font-weight:700;padding:2px 7px;border-radius:20px;margin-left:.4rem;"> ${alerts}</span>`:'';
     var secLab = (q.target_section && String(q.target_section).trim()) ? ' · <span style="color:#059669;font-weight:700;">'+String(q.target_section).trim()+'</span>' : '';
     var qid = "'" + String(q.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
     return `<div class="saved-q-item">
       <div class="sq-top">
       <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
-        <div class="sq-copy"><div class="sq-title">${q.title}${alertBadge}</div><div class="sq-meta">${(q.questions||[]).filter(function(item){ return item.type!=='part'; }).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
+        <div class="sq-copy"><div class="sq-title">${q.title}</div><div class="sq-meta">${(q.questions||[]).filter(function(item){ return item.type!=='part'; }).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
       </div>
       <div class="sq-actions">
-        ${q.published
-          ? `<button type="button" class="sq-log-btn" onclick="viewQuizLog(${qid})" title="Activity log">Log</button>`
-          : `<button type="button" class="sq-log-btn" onclick="openDraft(${qid})" title="Open this draft">Edit</button>`}
+        ${q.published ? '' : `<button type="button" class="sq-log-btn" onclick="openDraft(${qid})" title="Open this draft">Edit</button>`}
         <button type="button" class="sq-del-btn" onclick="deleteQuiz(${qid})" title="Remove this quiz">Delete</button>
       </div>
     </div>`;
@@ -1130,57 +1123,6 @@ async function viewQuizGrades(quizId){
   sheet.innerHTML='<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;"><div><h3>Grades</h3><div class="sub">'+String(quiz.title||'Quiz').replace(/</g,'&lt;')+'</div></div><button type="button" id="grades-close" aria-label="Close" style="width:32px;height:32px;border-radius:50%;border:none;background:#f0ecff;cursor:pointer;font-weight:800;">&times;</button></div>'+rows;
   var closeBtn=document.getElementById('grades-close');
   if(closeBtn) closeBtn.onclick=function(){modal.remove();};
-}
-
-function qmModalOffset(){
-  var top = 16;
-  try {
-    if (window.parent !== window && window.frameElement) {
-      var frameTop = window.frameElement.getBoundingClientRect().top;
-      if (frameTop < 0) top = Math.max(16, Math.round(-frameTop + 16));
-    }
-  } catch (e) {}
-  return top;
-}
-function qmEsc(s){
-  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-async function viewQuizLog(quizId){
-  var quiz = getQuizzes().find(function(q){ return String(q.id) === String(quizId); });
-  if (quiz && !quiz.published) { openDraft(quiz.id); return; }
-  var existing = document.getElementById('quiz-log-modal');
-  if (existing) existing.remove();
-  var modal = document.createElement('div');
-  modal.id = 'quiz-log-modal';
-  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:1rem;overflow:auto;';
-  var title = quiz && quiz.title ? quiz.title : 'Quiz';
-  modal.innerHTML = '<div class="grade-sheet" style="margin-top:' + qmModalOffset() + 'px"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;"><div><h3>Activity log</h3><div class="sub">' + qmEsc(title) + '</div></div><button type="button" id="log-close-btn" aria-label="Close" style="width:32px;height:32px;border-radius:50%;border:none;background:#f0ecff;cursor:pointer;font-weight:800;">\u00d7</button></div><p class="sub">Loading activity\u2026</p></div>';
-  document.body.appendChild(modal);
-  modal.addEventListener('click', function(e){ if (e.target === modal) modal.remove(); });
-  var closeBtn = document.getElementById('log-close-btn');
-  if (closeBtn) closeBtn.onclick = function(){ modal.remove(); };
-  var sheet = modal.querySelector('.grade-sheet');
-  var log = [];
-  var error = '';
-  try {
-    log = await PrismQuizzes.getLog(quizId);
-    if (!Array.isArray(log)) log = [];
-  } catch (e) {
-    error = (e && e.message) ? e.message : 'Could not load the activity log.';
-  }
-  var typeLabels = { start: 'Start', submit: 'Submit', 'tab-switch': 'Tab', abandon: 'Left' };
-  var rows = error
-    ? '<p class="sub">' + qmEsc(error) + '</p>'
-    : (log.length ? log.map(function(entry){
-        var when = entry.logged_at || entry.time || '';
-        var shown = when ? new Date(String(when).replace(' ', 'T')).toLocaleString() : '';
-        var who = entry.student_name || entry.student || entry.student_id || 'Student';
-        return '<div class="grade-row"><div><b>' + qmEsc(who) + '</b><div class="sub">' + qmEsc(typeLabels[entry.type] || entry.type || 'Activity') + ' \u00b7 ' + qmEsc(entry.detail || '') + '</div><div class="sub">' + qmEsc(shown) + '</div></div></div>';
-      }).join('') : '<p class="sub">No activity yet. Starts, submits, and tab switches show up here after a student takes this quiz.</p>');
-  if (!sheet) return;
-  sheet.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;margin-bottom:.8rem;"><div><h3>Activity log</h3><div class="sub">' + qmEsc(title) + '</div></div><button type="button" id="log-close-btn" aria-label="Close" style="width:32px;height:32px;border-radius:50%;border:none;background:#f0ecff;cursor:pointer;font-weight:800;">\u00d7</button></div>' + rows;
-  var closeAgain = document.getElementById('log-close-btn');
-  if (closeAgain) closeAgain.onclick = function(){ modal.remove(); };
 }
 
 function qmFitEmbed() {

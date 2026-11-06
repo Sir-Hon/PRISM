@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS posts (
   attachment  VARCHAR(500) DEFAULT NULL,
   quiz_id     VARCHAR(50)  DEFAULT NULL,
   author      VARCHAR(120) DEFAULT 'Teacher',
+  target_student VARCHAR(50) DEFAULT NULL,
   created_at  DATETIME     DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (class_id)   REFERENCES classes(id) ON DELETE CASCADE
 );

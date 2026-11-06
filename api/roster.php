@@ -74,6 +74,44 @@ if ($method === 'POST' && $action === 'teacher_delete') {
     ok($result);
 }
 
+if ($method === 'GET' && $action === 'admin_list') {
+    $denied = prism_admin_roster_denied($admin);
+    if ($denied) {
+        fail($denied['error'], (int) $denied['status']);
+    }
+    ok(prism_admin_roster_list(
+        $db,
+        trim((string) ($_GET['q'] ?? '')),
+        (string) ($_GET['type'] ?? ''),
+        (int) ($_GET['page'] ?? 1),
+        20
+    ));
+}
+
+if ($method === 'POST' && $action === 'admin_add') {
+    $result = prism_admin_roster_add($db, $admin, getBody());
+    if (empty($result['ok'])) {
+        fail($result['error'], (int) ($result['status'] ?? 400));
+    }
+    ok($result);
+}
+
+if ($method === 'POST' && $action === 'admin_update') {
+    $result = prism_admin_roster_update($db, $admin, getBody());
+    if (empty($result['ok'])) {
+        fail($result['error'], (int) ($result['status'] ?? 400));
+    }
+    ok($result);
+}
+
+if ($method === 'POST' && $action === 'admin_delete') {
+    $result = prism_admin_roster_delete($db, $admin, (string) (getBody()['id'] ?? ''));
+    if (empty($result['ok'])) {
+        fail($result['error'], (int) ($result['status'] ?? 400));
+    }
+    ok($result);
+}
+
 if ($method === 'POST' && $action === 'add') {
     $result = prism_roster_add($db, $admin, getBody(), $ip);
     if (empty($result['ok'])) {

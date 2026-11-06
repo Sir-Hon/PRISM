@@ -1159,3 +1159,255 @@ function prism_teacher_delete(PDO $db, string $id): array {
     }
     return ['ok' => true];
 }
+
+function prism_admin_roster_denied(array $admin): ?array {
+    if (!prism_is_superadmin_id((string) ($admin['id'] ?? ''))) {
+        return ['ok' => false, 'status' => 403, 'error' => 'Only the superadmin can manage administrators.'];
+    }
+    return null;
+}
+
+function prism_split_person_name(string $name): array {
+    $name = trim(preg_replace('/\s+/', ' ', $name) ?? '');
+    if ($name === '') {
+        return ['', ''];
+    }
+    $parts = explode(' ', $name, 2);
+    return [$parts[0], $parts[1] ?? ''];
+}
+
+function prism_normalize_admin_input(array $b): array {
+    $first = trim((string) ($b['first_name'] ?? ''));
+    $last = trim((string) ($b['last_name'] ?? ''));
+    if ($first === '' && $last === '') {
+        [$first, $last] = prism_split_person_name((string) ($b['name'] ?? ''));
+    }
+    $incoming = is_array($b['permissions'] ?? null) ? $b['permissions'] : [];
+    $perms = [];
+    foreach (array_keys(prism_admin_catalog()) as $key) {
+        $perms[$key] = !empty($incoming[$key]);
+    }
+    $perms['dashboard'] = true;
+    return [
+        'id' => trim((string) ($b['id'] ?? '')),
+        'email' => prism_normalize_ctu_email($b['email'] ?? ''),
+        'first_name' => $first,
+        'last_name' => $last,
+        'type' => trim((string) ($b['type'] ?? $b['section'] ?? '')),
+        'permissions' => $perms,
+        'password' => (string) ($b['password'] ?? ''),
+        'confirm' => (string) ($b['confirm_password'] ?? $b['password2'] ?? ''),
+    ];
+}
+
+function prism_admin_field_error(array $in, bool $requirePassword = true): ?string {
+    if (prism_is_superadmin_id($in['id'])) {
+        return 'That ID is reserved for the superadmin.';
+    }
+    if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{3,49}$/', $in['id'])) {
+        return 'Admin ID must be 4 to 50 letters, numbers, dots, or hyphens.';
+    }
+    if (!prism_is_ctu_email($in['email'])) {
+        return 'Email must be a CTU address ending in @ctu.edu.ph.';
+    }
+    if ($in['first_name'] === '' || $in['last_name'] === '') {
+        return 'First and last name are required.';
+    }
+    if (!isset(prism_admin_types()[$in['type']])) {
+        return 'Choose an admin type.';
+    }
+    if (!$requirePassword && $in['password'] === '' && $in['confirm'] === '') {
+        return null;
+    }
+    return prism_password_format_error($in['password'], $in['confirm']);
+}
+
+function prism_admin_email_taken(PDO $db, string $email, string $exceptId = ''): bool {
+    $user = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ? AND email IS NOT NULL AND email <> \'\'');
+    $user->execute([$email, $exceptId]);
+    if ($user->fetch()) {
+        return true;
+    }
+    $student = $db->prepare('SELECT id_number FROM student_roster WHERE email = ? AND id_number <> ?');
+    $student->execute([$email, $exceptId]);
+    if ($student->fetch()) {
+        return true;
+    }
+    $teacher = $db->prepare('SELECT id FROM teacher_roster WHERE email = ? AND id <> ?');
+    $teacher->execute([$email, $exceptId]);
+    return (bool) $teacher->fetch();
+}
+
+function prism_admin_roster_public(array $row): array {
+    [$first, $last] = prism_split_person_name((string) ($row['name'] ?? ''));
+    $super = prism_is_superadmin_id((string) ($row['id'] ?? ''));
+    $catalog = prism_admin_catalog();
+    $raw = $row['admin_perms'] ?? null;
+    $decoded = is_string($raw) ? json_decode($raw, true) : null;
+    $perms = [];
+    foreach (array_keys($catalog) as $key) {
+        if ($super || $raw === null || $raw === '' || !is_array($decoded)) {
+            $perms[$key] = true;
+        } else {
+            $perms[$key] = !empty($decoded[$key]);
+        }
+    }
+    $perms['dashboard'] = true;
+    $features = [];
+    foreach ($catalog as $key => $label) {
+        if ($key !== 'dashboard' && !empty($perms[$key])) {
+            $features[] = $label;
+        }
+    }
+    return [
+        'id' => (string) $row['id'],
+        'first_name' => $first,
+        'last_name' => $last,
+        'email' => (string) ($row['email'] ?? ''),
+        'type' => $super ? 'Superadmin' : (string) ($row['section'] ?? ''),
+        'permissions' => $perms,
+        'features' => $super ? 'All features' : (implode(', ', $features) ?: 'Dashboard only'),
+        'superadmin' => $super,
+    ];
+}
+
+function prism_admin_roster_list(PDO $db, string $q, string $type, int $page, int $perPage): array {
+    prism_ensure_admin_perms($db);
+    prism_ensure_superadmin_email($db);
+    $page = max(1, $page);
+    $perPage = min(50, max(1, $perPage));
+    $where = " WHERE role = 'admin'";
+    $params = [];
+    $type = trim($type);
+    if ($type !== '' && isset(prism_admin_types()[$type])) {
+        $where .= ' AND section = ? AND LOWER(id) <> ?';
+        $params[] = $type;
+        $params[] = 'admin001';
+    }
+    if ($q !== '') {
+        $where .= " AND (id LIKE ? OR name LIKE ? OR email LIKE ? OR section LIKE ? ESCAPE '\\\\')";
+        $like = '%' . str_replace(['%', '_'], ['\\%', '\\_'], $q) . '%';
+        $params = array_merge($params, [$like, $like, $like, $like]);
+    }
+    $count = $db->prepare('SELECT COUNT(*) FROM users' . $where);
+    $count->execute($params);
+    $total = (int) $count->fetchColumn();
+    $sql = 'SELECT id, name, email, section, admin_perms FROM users'
+        . $where . ' ORDER BY name, id LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);
+    $stmt = $db->prepare($sql);
+    $stmt->execute($params);
+    $rows = [];
+    foreach ($stmt->fetchAll() as $row) {
+        $rows[] = prism_admin_roster_public($row);
+    }
+    return ['rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => max(1, (int) ceil($total / $perPage)), 'per_page' => $perPage];
+}
+
+function prism_admin_roster_add(PDO $db, array $admin, array $body): array {
+    $denied = prism_admin_roster_denied($admin);
+    if ($denied) {
+        return $denied;
+    }
+    prism_ensure_admin_perms($db);
+    prism_ensure_student_roster($db);
+    $in = prism_normalize_admin_input($body);
+    $err = prism_admin_field_error($in);
+    if ($err !== null) {
+        return ['ok' => false, 'status' => 400, 'error' => $err];
+    }
+    $idTaken = $db->prepare('SELECT id FROM users WHERE LOWER(id) = LOWER(?)');
+    $idTaken->execute([$in['id']]);
+    if ($idTaken->fetch()) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That ID is already in use.'];
+    }
+    if (prism_admin_email_taken($db, $in['email'])) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That CTU email is already used on another account.'];
+    }
+    try {
+        $name = trim($in['first_name'] . ' ' . $in['last_name']);
+        $db->prepare('INSERT INTO users (id, `password`, role, name, section, email, email_verified_at, admin_perms) VALUES (?,?,?,?,?,?,?,?)')
+            ->execute([
+                $in['id'],
+                prism_hash_secret($in['password']),
+                'admin',
+                $name,
+                $in['type'],
+                $in['email'],
+                date('Y-m-d H:i:s'),
+                json_encode($in['permissions']),
+            ]);
+    } catch (Throwable $e) {
+        error_log('PRISM admin roster add: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That administrator could not be saved. Check the ID and email, then try again.'];
+    }
+    return ['ok' => true, 'id' => $in['id'], 'email' => $in['email']];
+}
+
+function prism_admin_roster_update(PDO $db, array $admin, array $body): array {
+    $denied = prism_admin_roster_denied($admin);
+    if ($denied) {
+        return $denied;
+    }
+    prism_ensure_admin_perms($db);
+    prism_ensure_student_roster($db);
+    $in = prism_normalize_admin_input($body);
+    if (prism_is_superadmin_id($in['id'])) {
+        return ['ok' => false, 'status' => 400, 'error' => 'The superadmin account stays as it is.'];
+    }
+    $err = prism_admin_field_error($in, false);
+    if ($err !== null) {
+        return ['ok' => false, 'status' => 400, 'error' => $err];
+    }
+    $existing = $db->prepare('SELECT id FROM users WHERE id = ? AND role = ?');
+    $existing->execute([$in['id'], 'admin']);
+    if (!$existing->fetch()) {
+        return ['ok' => false, 'status' => 404, 'error' => 'That administrator was not found on the roster.'];
+    }
+    if (prism_admin_email_taken($db, $in['email'], $in['id'])) {
+        return ['ok' => false, 'status' => 400, 'error' => 'That CTU email is already used on another account.'];
+    }
+    $name = trim($in['first_name'] . ' ' . $in['last_name']);
+    try {
+        $db->beginTransaction();
+        $db->prepare('UPDATE users SET name = ?, section = ?, email = ?, admin_perms = ? WHERE id = ? AND role = ?')
+            ->execute([$name, $in['type'], $in['email'], json_encode($in['permissions']), $in['id'], 'admin']);
+        if ($in['password'] !== '') {
+            $db->prepare('UPDATE users SET `password` = ? WHERE id = ? AND role = ?')
+                ->execute([prism_hash_secret($in['password']), $in['id'], 'admin']);
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        error_log('PRISM admin roster update: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That administrator could not be updated. Check the email, then try again.'];
+    }
+    return ['ok' => true, 'id' => $in['id'], 'email' => $in['email']];
+}
+
+function prism_admin_roster_delete(PDO $db, array $admin, string $id): array {
+    $denied = prism_admin_roster_denied($admin);
+    if ($denied) {
+        return $denied;
+    }
+    $id = trim($id);
+    if ($id === '' || strcasecmp($id, (string) ($admin['id'] ?? '')) === 0) {
+        return ['ok' => false, 'status' => 400, 'error' => 'You cannot remove your own account.'];
+    }
+    if (prism_is_superadmin_id($id)) {
+        return ['ok' => false, 'status' => 400, 'error' => 'The superadmin account cannot be removed.'];
+    }
+    $stmt = $db->prepare('SELECT id FROM users WHERE id = ? AND role = ?');
+    $stmt->execute([$id, 'admin']);
+    if (!$stmt->fetch()) {
+        return ['ok' => false, 'status' => 404, 'error' => 'That administrator was not found on the roster.'];
+    }
+    try {
+        $db->prepare('DELETE FROM users WHERE id = ? AND role = ?')->execute([$id, 'admin']);
+    } catch (Throwable $e) {
+        error_log('PRISM admin roster delete: ' . $e->getMessage());
+        return ['ok' => false, 'status' => 400, 'error' => 'That administrator could not be removed because other records still depend on the account.'];
+    }
+    return ['ok' => true];
+}
