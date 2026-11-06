@@ -224,11 +224,16 @@ CREATE TABLE IF NOT EXISTS invite_codes (
 
 -- ── ADMIN ANNOUNCEMENTS ────────────────────────────────
 CREATE TABLE IF NOT EXISTS announcements (
-  id         INT          AUTO_INCREMENT PRIMARY KEY,
-  author     VARCHAR(120) NOT NULL,
-  text       TEXT         NOT NULL,
-  type       ENUM('portal','alert','info') DEFAULT 'portal',
-  created_at DATETIME     DEFAULT CURRENT_TIMESTAMP
+  id             INT          AUTO_INCREMENT PRIMARY KEY,
+  author         VARCHAR(120) NOT NULL,
+  text           TEXT         NOT NULL,
+  type           ENUM('portal','alert','info') DEFAULT 'portal',
+  audience       VARCHAR(20)  NOT NULL DEFAULT 'everyone',
+  college        VARCHAR(40)  NOT NULL DEFAULT '',
+  program        VARCHAR(80)  NOT NULL DEFAULT '',
+  year_level     VARCHAR(8)   NOT NULL DEFAULT '',
+  section_letter VARCHAR(8)   NOT NULL DEFAULT '',
+  created_at     DATETIME     DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ── ORG MEMBERSHIPS ────────────────────────────────────

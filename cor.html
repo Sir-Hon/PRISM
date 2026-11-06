@@ -24,6 +24,17 @@
     .cor-field { display:flex; flex-direction:column; gap:.28rem; }
     .cor-field.full { grid-column:1 / -1; }
     .cor-pick-filters { display:flex; flex-wrap:wrap; gap:.55rem; margin-top:.55rem; }
+    .cor-modes { display:flex; flex-wrap:wrap; gap:.4rem; }
+    .cor-mode { border:1.5px solid #e4dffa; background:#fff; color:#6b7280; border-radius:999px; padding:.42rem .85rem; font-family:'DM Sans',sans-serif; font-size:.82rem; font-weight:700; cursor:pointer; }
+    .cor-mode.active { background:#7c3aed; color:#fff; border-color:#7c3aed; }
+    .cor-people { max-height:240px; overflow:auto; border:1px solid #e4dffa; border-radius:12px; margin-top:.55rem; }
+    .cor-person { display:flex; align-items:center; gap:.7rem; padding:.5rem .75rem; border-bottom:1px solid #f3f0ff; }
+    .cor-person:last-child { border-bottom:none; }
+    .cor-person b { display:block; font-size:.88rem; color:#16132b; }
+    .cor-person small { color:#9ca3af; font-size:.75rem; }
+    .cor-person label { display:flex; align-items:center; gap:.35rem; margin:0 0 0 auto; font-size:.72rem; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#9ca3af; white-space:nowrap; }
+    .cor-match { display:block; width:100%; text-align:left; border:none; border-bottom:1px solid #f3f0ff; background:transparent; padding:.5rem .75rem; cursor:pointer; font-family:'DM Sans',sans-serif; color:#16132b; }
+    .cor-match.active, .cor-match:hover { background:rgba(124,58,237,.1); }
     .cor-filter-row { display:flex; flex-wrap:wrap; gap:.55rem; margin:0 0 .9rem; }
     .cor-filter-row select, .cor-filter-row input { flex:1 1 180px; min-width:0; border:1.5px solid #e4dffa; border-radius:10px; padding:.55rem .7rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#16132b; background:#fff; }
     .cor-year-head { margin:.9rem 0 .15rem; font-size:.75rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6d28d9; }
@@ -76,6 +87,12 @@
     html[data-theme="dark"] .sub-table th { color:#c4c8d4; }
     html[data-theme="dark"] .sent-row { color:#f3f4f6; border-bottom-color:#2e3350; }
     html[data-theme="dark"] .cor-btn.ghost { background:#24283d; color:#e9d5ff; border-color:#3d4468; }
+    html[data-theme="dark"] .cor-mode { background:#24283d; color:#e5e7eb; border-color:#3d4468; }
+    html[data-theme="dark"] .cor-mode.active { background:#7c3aed; color:#fff; border-color:#7c3aed; }
+    html[data-theme="dark"] .cor-people { border-color:#3d4468; background:#1a1d2e; }
+    html[data-theme="dark"] .cor-person { border-bottom-color:#2e3350; }
+    html[data-theme="dark"] .cor-person b, html[data-theme="dark"] .cor-match { color:#f3f4f6; }
+    html[data-theme="dark"] .cor-match:hover, html[data-theme="dark"] .cor-match.active { background:#2a2440; }
     html[data-theme="dark"] .cor-doc,
     html[data-theme="dark"] .cor-doc h1,
     html[data-theme="dark"] .cor-doc th,
@@ -134,11 +151,12 @@
         </div>
       </div>
       <div id="cor-admin" style="display:none;">
-        <p class="cor-lead">Send a certificate to one student. The academic year groups it with the other certificates for that year. Sending the same year and semester again replaces that copy.</p>
+        <p class="cor-lead">Send one certificate to a whole section, or to one student. Everyone in the section gets the same subjects. Each certificate keeps that student's own name and ID. Irregular students are left out of the section batch.</p>
         <div class="cor-card" id="cor-form"></div>
         <p class="cor-msg" id="cor-msg"></p>
         <div class="cor-actions">
-          <button class="cor-btn" type="button" onclick="sendCor()">Send to student</button>
+          <button class="cor-btn" type="button" id="cor-send-btn" onclick="sendCor()">Send certificates</button>
+          <button class="cor-btn ghost" type="button" id="cor-send-irregular" style="display:none;" onclick="sendIrregular()">Send this copy to irregular students</button>
           <button class="cor-btn ghost" type="button" onclick="previewAdminCor()">Preview</button>
         </div>
         <div class="cor-card" id="cor-sent-card">
@@ -155,6 +173,6 @@
     </div>
   </main>
 </div>
-<script src="pages/cor.js?v=7"></script>
+<script src="pages/cor.js?v=8"></script>
 </body>
 </html>

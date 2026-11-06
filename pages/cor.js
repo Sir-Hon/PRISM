@@ -17,6 +17,11 @@ var corCatalogPromise = null;
 var corCatalogGen = 0;
 var adminStudents = [];
 var lastAutoName = '';
+var lastAutoProgram = '';
+var lastAutoBlock = '';
+var sendMode = 'section';
+var selectedStudentId = '';
+var irregularIds = {};
 var COR_COLLEGES = {
   CoED: ['BEEd', 'BSEd-Mathematics', 'BTLEd-HE'],
   CoTE: ['BSFI', 'BSIE', 'BSIT', 'BSHM', 'BIT-ELEC', 'BIT-COMPTECH', 'BIT-AUTO']
@@ -294,18 +299,25 @@ function initCorAdmin() {
   form.innerHTML =
     '<div class="cor-grid">' +
       '<div class="cor-field full">' +
-        '<label for="cor-student-search">Student</label>' +
-        '<input id="cor-student-search" type="text" placeholder="Search name or ID">' +
-        '<div class="cor-pick-filters">' +
+        '<label>Send to</label>' +
+        '<div class="cor-modes">' +
+          '<button type="button" class="cor-mode active" id="cor-mode-section">Section</button>' +
+          '<button type="button" class="cor-mode" id="cor-mode-student">One student</button>' +
+        '</div>' +
+        '<div class="cor-pick-filters" id="cor-section-filters">' +
           '<select id="cor-f-college" aria-label="College"><option value="">All colleges</option></select>' +
           '<select id="cor-f-program" aria-label="Program"><option value="">All programs</option></select>' +
           '<select id="cor-f-year" aria-label="Year"><option value="">All years</option></select>' +
           '<select id="cor-f-section" aria-label="Section"><option value="">All sections</option></select>' +
         '</div>' +
-        '<select id="cor-student-pick" size="6" aria-label="Matching students"></select>' +
+        '<div id="cor-one-student" style="display:none;">' +
+          '<input id="cor-student-search" type="text" placeholder="Search a name or ID" style="margin-top:.55rem;">' +
+          '<div class="cor-people" id="cor-student-matches" style="display:none;"></div>' +
+        '</div>' +
         '<p class="cor-pick-count" id="cor-pick-count"></p>' +
+        '<div class="cor-people" id="cor-section-people" style="display:none;"></div>' +
       '</div>' +
-      '<div class="cor-field"><label>Name on certificate</label><input id="cor-name"></div>' +
+      '<div class="cor-field" id="cor-name-wrap"><label>Name on certificate</label><input id="cor-name"></div>' +
       '<div class="cor-field"><label for="cor-year">Academic year</label><input id="cor-year" value="2026-2027" placeholder="2026-2027"></div>' +
       '<div class="cor-field"><label>Semester</label><select id="cor-sem"><option>1st Semester</option><option>2nd Semester</option><option>Summer</option></select></div>' +
       '<div class="cor-field"><label>Program</label><input id="cor-program" placeholder="BSIT 3"></div>' +
@@ -323,19 +335,20 @@ function initCorAdmin() {
     document.getElementById('cor-subject-body').appendChild(subjectRow());
   });
   fillCorFilters();
-  document.getElementById('cor-student-pick').addEventListener('change', applySelectedStudent);
-  document.getElementById('cor-student-search').addEventListener('input', renderStudentPick);
+  document.getElementById('cor-mode-section').addEventListener('click', function () { setSendMode('section'); });
+  document.getElementById('cor-mode-student').addEventListener('click', function () { setSendMode('student'); });
+  document.getElementById('cor-student-search').addEventListener('input', renderSendTo);
   document.getElementById('cor-f-college').addEventListener('change', function () {
     fillCorPrograms(this.value);
-    renderStudentPick();
+    renderSendTo();
   });
   ['cor-f-program', 'cor-f-year', 'cor-f-section'].forEach(function (id) {
-    document.getElementById(id).addEventListener('change', renderStudentPick);
+    document.getElementById(id).addEventListener('change', renderSendTo);
   });
   PrismAdmin.getAllUsers().then(function (users) {
     adminStudents = (users || []).filter(function (u) { return u.role === 'student'; });
     adminStudents.forEach(function (s) { s._place = corPlacement(s); });
-    renderStudentPick();
+    setSendMode('section');
   }).catch(function (e) {
     setCorMsg(e.message || 'Could not load students', true);
   });
@@ -398,51 +411,159 @@ function corPlacement(student) {
   return { college: college, program: program, year: match[2], section: match[3] };
 }
 
-function renderStudentPick() {
-  var sel = document.getElementById('cor-student-pick');
-  var current = sel.value;
-  var query = document.getElementById('cor-student-search').value.trim().toLowerCase();
+function setSendMode(mode) {
+  sendMode = mode === 'student' ? 'student' : 'section';
+  document.getElementById('cor-mode-section').classList.toggle('active', sendMode === 'section');
+  document.getElementById('cor-mode-student').classList.toggle('active', sendMode === 'student');
+  document.getElementById('cor-section-filters').style.display = sendMode === 'section' ? '' : 'none';
+  document.getElementById('cor-one-student').style.display = sendMode === 'student' ? '' : 'none';
+  document.getElementById('cor-name-wrap').style.display = sendMode === 'student' ? '' : 'none';
+  var irregularBtn = document.getElementById('cor-send-irregular');
+  if (irregularBtn && sendMode !== 'section') irregularBtn.style.display = 'none';
+  var btn = document.getElementById('cor-send-btn');
+  if (btn && btn.getAttribute('data-prism-busy') !== '1') btn.textContent = sendMode === 'section' ? 'Send to section' : 'Send to student';
+  renderSendTo();
+}
+
+function filteredStudents() {
   var college = document.getElementById('cor-f-college').value;
   var program = document.getElementById('cor-f-program').value;
   var year = document.getElementById('cor-f-year').value;
   var section = document.getElementById('cor-f-section').value;
-  sel.textContent = '';
-  var placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = adminStudents.length ? 'Choose a student' : 'No students yet';
-  sel.appendChild(placeholder);
-  var shown = 0;
-  adminStudents.forEach(function (student) {
+  return adminStudents.filter(function (student) {
     var place = student._place || corPlacement(student);
-    if (college && place.college !== college) return;
-    if (program && place.program !== program) return;
-    if (year && place.year !== year) return;
-    if (section && place.section !== section) return;
-    var hay = ((student.name || '') + ' ' + student.id + ' ' + (student.email || '')).toLowerCase();
-    if (query && hay.indexOf(query) === -1) return;
-    var opt = document.createElement('option');
-    opt.value = student.id;
-    var placeText = [place.program, place.year && place.section ? place.year + '-' + place.section : ''].filter(Boolean).join(' ');
-    opt.textContent = (student.name || student.id) + ' · ' + student.id + (placeText ? ' · ' + placeText : '');
-    sel.appendChild(opt);
-    shown++;
+    if (college && place.college !== college) return false;
+    if (program && place.program !== program) return false;
+    if (year && place.year !== year) return false;
+    if (section && place.section !== section) return false;
+    return true;
   });
-  if (current && [].some.call(sel.options, function (opt) { return opt.value === current; })) sel.value = current;
-  var count = document.getElementById('cor-pick-count');
-  if (count) count.textContent = shown + (shown === 1 ? ' student' : ' students');
 }
 
-function applySelectedStudent() {
-  var sel = document.getElementById('cor-student-pick');
-  var student = adminStudents.filter(function (s) { return s.id === sel.value; })[0];
+function sectionReady() {
+  return !!(document.getElementById('cor-f-program').value && document.getElementById('cor-f-year').value && document.getElementById('cor-f-section').value);
+}
+
+function applySectionDefaults() {
+  if (!sectionReady()) return;
+  var program = document.getElementById('cor-f-program').value;
+  var year = document.getElementById('cor-f-year').value;
+  var section = document.getElementById('cor-f-section').value;
+  var programText = program + ' ' + year;
+  var blockText = program + ' ' + year + '-' + section;
+  var programEl = document.getElementById('cor-program');
+  var blockEl = document.getElementById('cor-block');
+  if (!programEl.value || programEl.value === lastAutoProgram) {
+    programEl.value = programText;
+    lastAutoProgram = programText;
+  }
+  if (!blockEl.value || blockEl.value === lastAutoBlock) {
+    blockEl.value = blockText;
+    lastAutoBlock = blockText;
+  }
+}
+
+function renderSendTo() {
+  var count = document.getElementById('cor-pick-count');
+  var people = document.getElementById('cor-section-people');
+  var matches = document.getElementById('cor-student-matches');
+  if (sendMode === 'student') {
+    people.style.display = 'none';
+    var query = document.getElementById('cor-student-search').value.trim().toLowerCase();
+    matches.textContent = '';
+    if (!query) {
+      matches.style.display = 'none';
+      var chosen = adminStudents.filter(function (s) { return s.id === selectedStudentId; })[0];
+      count.textContent = chosen ? (corOfficialName(chosen.name || '') + ' · ' + chosen.id) : 'Search for one student.';
+      return;
+    }
+    var hits = adminStudents.filter(function (student) {
+      var hay = ((student.name || '') + ' ' + student.id).toLowerCase();
+      return hay.indexOf(query) !== -1;
+    }).slice(0, 8);
+    matches.style.display = hits.length ? 'block' : 'none';
+    hits.forEach(function (student) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cor-match' + (student.id === selectedStudentId ? ' active' : '');
+      var place = student._place || corPlacement(student);
+      var sec = place.program && place.year && place.section ? (place.program + ' ' + place.year + '-' + place.section) : (student.section || '');
+      btn.textContent = corOfficialName(student.name || student.id) + ' · ' + student.id + (sec ? ' · ' + sec : '');
+      btn.addEventListener('click', function () { chooseOneStudent(student.id); });
+      matches.appendChild(btn);
+    });
+    count.textContent = hits.length ? 'Pick a student from the matches.' : 'No student matches that search.';
+    return;
+  }
+  matches.style.display = 'none';
+  applySectionDefaults();
+  if (!sectionReady()) {
+    people.style.display = 'none';
+    people.textContent = '';
+    count.textContent = 'Choose a program, year, and section. Everyone in that section gets the same subjects.';
+    return;
+  }
+  var rows = filteredStudents();
+  var regular = rows.filter(function (s) { return !irregularIds[s.id]; });
+  var leftOut = rows.length - regular.length;
+  people.style.display = rows.length ? 'block' : 'none';
+  people.textContent = '';
+  rows.forEach(function (student) {
+    var row = document.createElement('div');
+    row.className = 'cor-person';
+    var text = document.createElement('div');
+    var name = document.createElement('b');
+    name.textContent = corOfficialName(student.name || student.id);
+    var id = document.createElement('small');
+    id.textContent = student.id;
+    text.appendChild(name);
+    text.appendChild(id);
+    var label = document.createElement('label');
+    var box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = !!irregularIds[student.id];
+    box.addEventListener('change', function () {
+      if (box.checked) irregularIds[student.id] = true;
+      else delete irregularIds[student.id];
+      renderSendTo();
+    });
+    label.appendChild(box);
+    label.appendChild(document.createTextNode(' Irregular'));
+    row.appendChild(text);
+    row.appendChild(label);
+    people.appendChild(row);
+  });
+  var group = document.getElementById('cor-f-program').value + ' ' + document.getElementById('cor-f-year').value + '-' + document.getElementById('cor-f-section').value;
+  if (!rows.length) count.textContent = 'No students are in ' + group + '.';
+  else count.textContent = regular.length + ' student' + (regular.length === 1 ? '' : 's') + ' in ' + group + ' will get this certificate.' + (leftOut ? ' ' + leftOut + ' irregular ' + (leftOut === 1 ? 'student is' : 'students are') + ' left out.' : '');
+  var irregularBtn = document.getElementById('cor-send-irregular');
+  if (irregularBtn) irregularBtn.style.display = sendMode === 'section' && leftOut ? '' : 'none';
+}
+
+function chooseOneStudent(id) {
+  selectedStudentId = id;
+  var student = adminStudents.filter(function (s) { return s.id === id; })[0];
   if (!student) return;
   var name = document.getElementById('cor-name');
-  if (!name.value || name.value === lastAutoName) {
-    name.value = corOfficialName(student.name || '');
-    lastAutoName = name.value;
+  name.value = corOfficialName(student.name || '');
+  lastAutoName = name.value;
+  var place = student._place || corPlacement(student);
+  if (place.program && place.year) {
+    var programEl = document.getElementById('cor-program');
+    var blockEl = document.getElementById('cor-block');
+    var programText = place.program + ' ' + place.year;
+    var blockText = place.section ? (programText + '-' + place.section) : programText;
+    if (!programEl.value || programEl.value === lastAutoProgram) {
+      programEl.value = programText;
+      lastAutoProgram = programText;
+    }
+    if (!blockEl.value || blockEl.value === lastAutoBlock) {
+      blockEl.value = blockText;
+      lastAutoBlock = blockText;
+    }
   }
-  var block = document.getElementById('cor-block');
-  if (block && !block.value && student.section) block.value = student.section;
+  document.getElementById('cor-student-search').value = '';
+  renderSendTo();
 }
 
 function readSubjects() {
@@ -466,11 +587,18 @@ function readFees() {
   return fees;
 }
 
+function recipients() {
+  if (sendMode === 'student') return selectedStudentId ? [selectedStudentId] : [];
+  if (!sectionReady()) return [];
+  return filteredStudents().filter(function (s) { return !irregularIds[s.id]; }).map(function (s) { return s.id; });
+}
+
 function collectCor() {
-  var sel = document.getElementById('cor-student-pick');
+  var ids = recipients();
   return {
-    student_id: sel ? sel.value : '',
-    student_name: document.getElementById('cor-name').value.trim(),
+    student_id: ids.length === 1 ? ids[0] : '',
+    student_ids: ids,
+    student_name: sendMode === 'student' ? document.getElementById('cor-name').value.trim() : '',
     school_year: document.getElementById('cor-year').value.trim(),
     semester: document.getElementById('cor-sem').value,
     program: document.getElementById('cor-program').value.trim(),
@@ -498,7 +626,16 @@ function previewPayload(body) {
 }
 
 function previewAdminCor() {
-  document.getElementById('cor-print').innerHTML = corDocument(previewPayload(collectCor()));
+  var body = collectCor();
+  var payload = previewPayload(body);
+  if (sendMode === 'section' && body.student_ids && body.student_ids.length) {
+    var sample = adminStudents.filter(function (s) { return s.id === body.student_ids[0]; })[0];
+    if (sample) {
+      payload.studentName = corOfficialName(sample.name || '');
+      payload.studentId = sample.id;
+    }
+  }
+  document.getElementById('cor-print').innerHTML = corDocument(payload);
 }
 
 function setCorMsg(text, isError) {
@@ -507,14 +644,39 @@ function setCorMsg(text, isError) {
   el.className = 'cor-msg' + (text ? (isError ? ' err' : ' ok') : '');
 }
 
+async function sendIrregular() {
+  if (!sectionReady()) {
+    setCorMsg('Choose a program, year, and section first.', true);
+    return;
+  }
+  var ids = filteredStudents().filter(function (s) { return irregularIds[s.id]; }).map(function (s) { return s.id; });
+  if (!ids.length) {
+    setCorMsg('Mark the irregular students in this section first.', true);
+    return;
+  }
+  var body = collectCor();
+  body.student_ids = ids;
+  body.student_id = ids.length === 1 ? ids[0] : '';
+  body.student_name = '';
+  await deliverCor(body, document.getElementById('cor-send-irregular'));
+}
+
 async function sendCor() {
   var body = collectCor();
-  var sendBtn = document.querySelector('button[onclick="sendCor()"]');
+  if (!body.student_ids.length) {
+    setCorMsg(sendMode === 'section' ? 'Choose a program, year, and section that still has students to send to.' : 'Search for a student first.', true);
+    return;
+  }
+  await deliverCor(body, document.getElementById('cor-send-btn'));
+}
+
+async function deliverCor(body, sendBtn) {
   if (typeof prismSetBusy === 'function') prismSetBusy(sendBtn, true, 'Sending…');
   setCorMsg('Sending…', false);
   try {
     var res = await PrismRecords.sendCor(body);
-    setCorMsg('Sent ' + (res.label || 'certificate') + '.', false);
+    var n = res && res.count ? res.count : (body.student_ids || []).length;
+    setCorMsg('Sent ' + (res.label || 'certificate') + ' to ' + n + (n === 1 ? ' student.' : ' students.'), false);
     previewAdminCor();
     invalidateCorCatalog();
     loadSentCors();
@@ -587,9 +749,8 @@ async function editSentCor(id) {
   fillCorPrograms('');
   document.getElementById('cor-f-year').value = '';
   document.getElementById('cor-f-section').value = '';
-  renderStudentPick();
-  var sel = document.getElementById('cor-student-pick');
-  if (sel) sel.value = cor.student_id;
+  selectedStudentId = cor.student_id || '';
+  setSendMode('student');
   lastAutoName = p.studentName || '';
   document.getElementById('cor-name').value = p.studentName || '';
   document.getElementById('cor-year').value = p.schoolYear || cor.school_year || '';

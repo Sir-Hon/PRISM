@@ -418,9 +418,6 @@ function prismOpenClassFromLocation() {
   if (document.getElementById('class-view-overlay')) return;
   var classId = '';
   try { classId = new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { classId = ''; }
-  if (!classId) {
-    try { classId = sessionStorage.getItem('prism_open_class') || ''; } catch (e2) { classId = ''; }
-  }
   if (!classId) return;
   var meta = prismReadOpenClassMeta(classId);
   var teacherId = meta ? meta.teacherId : '';

@@ -277,18 +277,45 @@ if ($method === 'GET' && $action === 'cor') {
     ]);
 }
 
+function prism_cor_official_name(string $name): string {
+    $raw = trim((string) (preg_replace('/\s+/', ' ', $name) ?? ''));
+    if ($raw === '') return '';
+    if (strpos($raw, ',') !== false) return strtoupper($raw);
+    $parts = explode(' ', $raw);
+    if (count($parts) < 2) return strtoupper($raw);
+    $last = array_pop($parts);
+    return strtoupper($last . ', ' . implode(' ', $parts));
+}
+
 if ($method === 'POST' && $action === 'send_cor') {
     if ($user['role'] !== 'admin') fail('Forbidden', 403);
     $b = getBody();
-    $studentId = trim($b['student_id'] ?? '');
+    $ids = [];
+    if (is_array($b['student_ids'] ?? null)) {
+        foreach ($b['student_ids'] as $rawId) {
+            $rawId = trim((string) $rawId);
+            if ($rawId !== '' && !in_array($rawId, $ids, true)) $ids[] = $rawId;
+        }
+    }
+    if (!$ids) {
+        $single = trim((string) ($b['student_id'] ?? ''));
+        if ($single !== '') $ids[] = $single;
+    }
+    if (!$ids) fail('Choose who should receive this certificate');
+    if (count($ids) > 80) fail('Send to 80 students at a time. Narrow the section and send again.');
     $schoolYear = trim($b['school_year'] ?? '');
     $semester = trim($b['semester'] ?? '');
     if (!preg_match('/^\d{4}-\d{4}$/', $schoolYear)) fail('Enter a school year like 2026-2027');
     if (!in_array($semester, $semesters, true)) fail('Choose a semester');
     $stu = $db->prepare('SELECT id, name, role FROM users WHERE id = ?');
-    $stu->execute([$studentId]);
-    $student = $stu->fetch();
-    if (!$student || $student['role'] !== 'student') fail('Choose a student');
+    $students = [];
+    foreach ($ids as $studentId) {
+        $stu->execute([$studentId]);
+        $student = $stu->fetch();
+        if (!$student || $student['role'] !== 'student') fail('One of those students is not on the roster');
+        $students[] = $student;
+    }
+    $customName = count($students) === 1 ? prism_clean_text($b['student_name'] ?? '', 120) : '';
 
     $subjects = [];
     foreach (($b['subjects'] ?? []) as $row) {
@@ -318,9 +345,7 @@ if ($method === 'POST' && $action === 'send_cor') {
     }
 
     $label = 'AY ' . $schoolYear . ' (' . $semester . ')';
-    $payload = [
-        'studentId' => $student['id'],
-        'studentName' => prism_clean_text($b['student_name'] ?? $student['name'], 120),
+    $shared = [
         'program' => prism_clean_text($b['program'] ?? '', 80),
         'block' => prism_clean_text($b['block'] ?? '', 80),
         'registrar' => prism_clean_text($b['registrar'] ?? '', 120),
@@ -330,20 +355,29 @@ if ($method === 'POST' && $action === 'send_cor') {
         'subjects' => $subjects,
         'fees' => $fees,
     ];
-    if ($payload['studentName'] === '') $payload['studentName'] = $student['name'];
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
-    if ($json === false) fail('Could not save the certificate');
-
     $stmt = $db->prepare(
         'INSERT INTO student_cors (student_id, school_year, semester, label, payload, sent_by)
          VALUES (?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE label = VALUES(label), payload = VALUES(payload), sent_by = VALUES(sent_by), sent_at = CURRENT_TIMESTAMP'
     );
-    $stmt->execute([$studentId, $schoolYear, $semester, $label, $json, $user['id']]);
-    $idStmt = $db->prepare('SELECT id FROM student_cors WHERE student_id = ? AND school_year = ? AND semester = ?');
-    $idStmt->execute([$studentId, $schoolYear, $semester]);
-    $saved = $idStmt->fetch();
-    ok(['id' => (int) ($saved['id'] ?? 0), 'label' => $label]);
+    $db->beginTransaction();
+    try {
+        foreach ($students as $student) {
+            $payload = $shared;
+            $payload['studentId'] = $student['id'];
+            $payload['studentName'] = $customName !== '' ? $customName : prism_cor_official_name((string) $student['name']);
+            if ($payload['studentName'] === '') $payload['studentName'] = $student['name'];
+            $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
+            if ($json === false) throw new RuntimeException('encode');
+            $stmt->execute([$student['id'], $schoolYear, $semester, $label, $json, $user['id']]);
+        }
+        $db->commit();
+    } catch (Throwable $e) {
+        if ($db->inTransaction()) $db->rollBack();
+        error_log('PRISM send cor: ' . $e->getMessage());
+        fail('Could not save the certificate');
+    }
+    ok(['count' => count($students), 'label' => $label]);
 }
 
 fail('Unknown action', 404);

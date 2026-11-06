@@ -90,6 +90,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   await renderStats();
   await renderTeachers();
   await renderStudents();
+  setupAnnouncementFilters();
   await renderAnnouncements();
 });
 
@@ -311,35 +312,130 @@ if (emailOverlay) emailOverlay.addEventListener('click', function (e) { if (e.ta
 
 
 /* ── ANNOUNCEMENTS ── */
+var ANN_COLLEGES = {
+  CoED: ['BEEd', 'BSEd-Mathematics', 'BTLEd-HE'],
+  CoTE: ['BSFI', 'BSIE', 'BSIT', 'BSHM', 'BIT-ELEC', 'BIT-COMPTECH', 'BIT-AUTO']
+};
+var ANN_COLLEGE_NAMES = { CoED: 'College of Education', CoTE: 'College of Technology' };
+
+function fillAnnSelect(select, values, placeholder, labeler) {
+  if (!select) return;
+  var current = select.value;
+  select.textContent = '';
+  var first = document.createElement('option');
+  first.value = '';
+  first.textContent = placeholder;
+  select.appendChild(first);
+  values.forEach(function (value) {
+    var opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = labeler ? labeler(value) : value;
+    select.appendChild(opt);
+  });
+  if (current && values.indexOf(current) !== -1) select.value = current;
+}
+
+function annPrograms(college) {
+  if (college && ANN_COLLEGES[college]) return ANN_COLLEGES[college].slice();
+  var all = [];
+  Object.keys(ANN_COLLEGES).forEach(function (key) {
+    ANN_COLLEGES[key].forEach(function (program) {
+      if (all.indexOf(program) === -1) all.push(program);
+    });
+  });
+  return all;
+}
+
+function syncAnnouncementFilters() {
+  var who = (document.getElementById('ann-who') || {}).value || 'everyone';
+  var students = who === 'students';
+  var placed = students || who === 'teachers';
+  var collegeWrap = document.getElementById('ann-college-wrap');
+  var programWrap = document.getElementById('ann-program-wrap');
+  var yearWrap = document.getElementById('ann-year-wrap');
+  var sectionWrap = document.getElementById('ann-section-wrap');
+  if (collegeWrap) collegeWrap.style.display = placed ? '' : 'none';
+  if (programWrap) programWrap.style.display = students ? '' : 'none';
+  if (yearWrap) yearWrap.style.display = students ? '' : 'none';
+  if (sectionWrap) sectionWrap.style.display = students ? '' : 'none';
+  if (!students) {
+    var program = document.getElementById('ann-program');
+    var year = document.getElementById('ann-year');
+    var section = document.getElementById('ann-section');
+    if (program) program.value = '';
+    if (year) year.value = '';
+    if (section) section.value = '';
+  }
+  if (!placed) {
+    var college = document.getElementById('ann-college');
+    if (college) college.value = '';
+  }
+}
+
+function setupAnnouncementFilters() {
+  var college = document.getElementById('ann-college');
+  var program = document.getElementById('ann-program');
+  var who = document.getElementById('ann-who');
+  if (!who || !college || !program) return;
+  fillAnnSelect(college, Object.keys(ANN_COLLEGES), 'All colleges', function (code) {
+    return code + ' — ' + (ANN_COLLEGE_NAMES[code] || code);
+  });
+  fillAnnSelect(program, annPrograms(''), 'All programs');
+  college.addEventListener('change', function () {
+    fillAnnSelect(program, annPrograms(college.value), 'All programs');
+  });
+  who.addEventListener('change', syncAnnouncementFilters);
+  syncAnnouncementFilters();
+  var compose = document.getElementById('ann-compose');
+  if (compose && typeof prismAdminCan === 'function' && !prismAdminCan('announcements')) compose.hidden = true;
+}
+
 async function postAnnouncement() {
+  if (typeof prismAdminCan === 'function' && !prismAdminCan('announcements')) return;
   const text = document.getElementById('ann-text').value.trim();
   if (!text) return;
+  var who = document.getElementById('ann-who').value || 'everyone';
+  var btn = document.querySelector('#ann-compose .a-btn');
+  if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Posting…');
   try {
     await PrismAdmin.addAnnouncement({
-      text, type: document.getElementById('ann-type').value,
-      author: sessionStorage.getItem('prism_user_name')||'Admin'
+      text: text,
+      type: document.getElementById('ann-type').value,
+      audience: who,
+      college: document.getElementById('ann-college').value,
+      program: who === 'students' ? document.getElementById('ann-program').value : '',
+      year: who === 'students' ? document.getElementById('ann-year').value : '',
+      section: who === 'students' ? document.getElementById('ann-section').value : '',
+      author: sessionStorage.getItem('prism_user_name') || 'Admin'
     });
     document.getElementById('ann-text').value = '';
     await renderAnnouncements();
   } catch(e) { alert(e.message || 'Failed to post announcement.'); }
+  finally { if (typeof prismSetBusy === 'function') prismSetBusy(btn, false); }
 }
 
 async function renderAnnouncements() {
   const feed = document.getElementById('ann-feed');
+  if (!feed) return;
+  if (typeof prismAdminCan === 'function' && !prismAdminCan('announcements')) return;
   try {
-    const anns = await PrismAdmin.getAnnouncements();
-    if (!anns.length) { feed.innerHTML='<p style="color:#9ca3af;font-size:.9rem;text-align:center;padding:1rem 0;">No announcements yet.</p>'; return; }
-    feed.innerHTML = anns.map(a => {
+    const anns = await PrismAdmin.getAnnouncements({ manage: true });
+    var show = (document.getElementById('ann-show') || {}).value || '';
+    var rows = anns.filter(function (a) { return !show || (a.audience || 'everyone') === show; });
+    if (!rows.length) { feed.innerHTML='<p style="color:#9ca3af;font-size:.9rem;text-align:center;padding:1rem 0;">No announcements yet.</p>'; return; }
+    feed.innerHTML = rows.map(a => {
       const dl = new Date(a.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'2-digit',minute:'2-digit'});
+      const kind = a.type === 'alert' ? 'Alert' : a.type === 'info' ? 'Info' : 'General';
       return `<div class="ann-item">
-        <div class="ann-avatar">${(a.author||'A').charAt(0).toUpperCase()}</div>
+        <div class="ann-avatar">${escHtml((a.author||'A').charAt(0).toUpperCase())}</div>
         <div class="ann-body">
           <div class="ann-header">
-            <span class="ann-author">${a.author||'Admin'}</span>
-            <span class="ann-date">${dl}</span>
-            <span class="ann-type-badge ${a.type}">${a.type==='portal'?' General':a.type==='alert'?' Alert':'ℹ Info'}</span>
+            <span class="ann-author">${escHtml(a.author||'Admin')}</span>
+            <span class="ann-date">${escHtml(dl)}</span>
+            <span class="ann-type-badge ${escHtml(a.type||'portal')}">${escHtml(kind)}</span>
+            <span class="ann-who">${escHtml(a.audience_label || 'Everyone')}</span>
           </div>
-          <div class="ann-text">${a.text}</div>
+          <div class="ann-text">${escHtml(a.text||'')}</div>
         </div>
       </div>`;
     }).join('');

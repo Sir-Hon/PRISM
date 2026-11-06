@@ -119,6 +119,16 @@
 document.addEventListener('click', function (e) {
   var link = e.target && e.target.closest ? e.target.closest('a.sidebar-link, a.topbar-logo, a.topbar-avatar') : null;
   if (!link) return;
+  var page = String(link.getAttribute('data-page') || '').toLowerCase();
+  var file = String(link.getAttribute('href') || '').split('?')[0].split('#')[0].split('/').pop().toLowerCase();
+  var overlay = document.getElementById('class-view-overlay');
+  var goingHome = page === 'home' || file === 'index.html' || file === 'teacher.html' || file === 'admin.html';
+  if (overlay && goingHome && typeof closeClassView === 'function') {
+    e.preventDefault();
+    closeClassView();
+    document.documentElement.classList.remove('prism-loading');
+    return;
+  }
   document.documentElement.classList.add('prism-loading');
 }, true);
 

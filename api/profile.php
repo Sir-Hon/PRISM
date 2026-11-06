@@ -272,9 +272,98 @@ if ($method === 'POST' && $action === 'set_user_email') {
     ok(['id' => $targetId, 'email' => $email]);
 }
 
+function prism_ensure_announcement_audience(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        $cols = [
+            'audience' => "VARCHAR(20) NOT NULL DEFAULT 'everyone'",
+            'college' => "VARCHAR(40) NOT NULL DEFAULT ''",
+            'program' => "VARCHAR(80) NOT NULL DEFAULT ''",
+            'year_level' => "VARCHAR(8) NOT NULL DEFAULT ''",
+            'section_letter' => "VARCHAR(8) NOT NULL DEFAULT ''",
+        ];
+        foreach ($cols as $name => $def) {
+            if (!prism_table_has_column($db, 'announcements', $name)) {
+                $db->exec('ALTER TABLE announcements ADD COLUMN ' . $name . ' ' . $def);
+            }
+        }
+        $ready = prism_table_has_column($db, 'announcements', 'audience');
+    } catch (Throwable $e) {
+        error_log('PRISM announcement audience: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
+function prism_announcement_audience_label(array $row): string {
+    $who = (string) ($row['audience'] ?? 'everyone');
+    if ($who === '' || $who === 'everyone') return 'Everyone';
+    $names = ['students' => 'Students', 'teachers' => 'Teachers', 'admins' => 'Admins'];
+    $bits = [$names[$who] ?? 'Everyone'];
+    foreach (['college', 'program', 'year_level', 'section_letter'] as $key) {
+        $value = trim((string) ($row[$key] ?? ''));
+        if ($value !== '') $bits[] = $key === 'year_level' ? ('Year ' . $value) : $value;
+    }
+    return implode(' · ', $bits);
+}
+
+function prism_announcement_for_viewer(array $row, array $user, PDO $db): bool {
+    $who = (string) ($row['audience'] ?? 'everyone');
+    if ($who === '' || $who === 'everyone') return true;
+    $role = (string) ($user['role'] ?? '');
+    if ($who === 'admins') return $role === 'admin';
+    if ($who === 'teachers') {
+        if ($role !== 'teacher') return false;
+        $college = trim((string) ($row['college'] ?? ''));
+        if ($college === '') return true;
+        prism_ensure_student_roster($db);
+        $lookup = $db->prepare('SELECT college FROM teacher_roster WHERE id = ?');
+        $lookup->execute([(string) ($user['id'] ?? '')]);
+        return (string) $lookup->fetchColumn() === $college;
+    }
+    if ($who !== 'students' || $role !== 'student') return false;
+    $section = trim((string) ($user['section'] ?? ''));
+    if (!preg_match('/^(.+) ([1-4])-([A-F])$/', $section, $match)) {
+        return trim((string) ($row['college'] ?? '')) === ''
+            && trim((string) ($row['program'] ?? '')) === ''
+            && trim((string) ($row['year_level'] ?? '')) === ''
+            && trim((string) ($row['section_letter'] ?? '')) === '';
+    }
+    $program = $match[1];
+    $year = $match[2];
+    $letter = $match[3];
+    $college = prism_college_for_program($program);
+    $wantCollege = trim((string) ($row['college'] ?? ''));
+    $wantProgram = trim((string) ($row['program'] ?? ''));
+    $wantYear = trim((string) ($row['year_level'] ?? ''));
+    $wantSection = trim((string) ($row['section_letter'] ?? ''));
+    if ($wantCollege !== '' && $wantCollege !== $college) return false;
+    if ($wantProgram !== '' && $wantProgram !== $program) return false;
+    if ($wantYear !== '' && $wantYear !== $year) return false;
+    if ($wantSection !== '' && strcasecmp($wantSection, $letter) !== 0) return false;
+    return true;
+}
+
 if ($action === 'get_announcements') {
-    $stmt = $db->query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 20');
-    ok(['announcements' => $stmt->fetchAll()]);
+    $manage = (($_GET['manage'] ?? '') === '1') && (($user['role'] ?? '') === 'admin');
+    if ($manage) prism_require_admin_perm($db, $user, 'announcements');
+    $hasAudience = prism_ensure_announcement_audience($db);
+    $stmt = $db->query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 40');
+    $rows = [];
+    foreach ($stmt->fetchAll() as $row) {
+        if (!$hasAudience) {
+            $row['audience'] = 'everyone';
+            $row['college'] = '';
+            $row['program'] = '';
+            $row['year_level'] = '';
+            $row['section_letter'] = '';
+        }
+        if (!$manage && !prism_announcement_for_viewer($row, $user, $db)) continue;
+        $row['audience_label'] = prism_announcement_audience_label($row);
+        $rows[] = $row;
+    }
+    ok(['announcements' => $rows]);
 }
 
 if ($method === 'POST' && $action === 'set_admin_perms') {
@@ -301,8 +390,41 @@ if ($method === 'POST' && $action === 'set_admin_perms') {
 if ($method === 'POST' && $action === 'add_announcement') {
     requireAuth(['admin']);
     prism_require_admin_perm($db, $user, 'announcements');
+    if (!prism_ensure_announcement_audience($db)) fail('Could not save that announcement', 500);
     $b = getBody();
-    $db->prepare('INSERT INTO announcements (author, text, type) VALUES (?,?,?)')->execute([$b['author']??$user['name'], $b['text'], $b['type']??'portal']);
+    $text = trim((string) ($b['text'] ?? ''));
+    if ($text === '') fail('Write an announcement first');
+    if (strlen($text) > 4000) fail('That announcement is too long');
+    $type = (string) ($b['type'] ?? 'portal');
+    if (!in_array($type, ['portal', 'alert', 'info'], true)) $type = 'portal';
+    $who = (string) ($b['audience'] ?? 'everyone');
+    if (!in_array($who, ['everyone', 'students', 'teachers', 'admins'], true)) fail('Choose who should see this');
+    $colleges = prism_ctu_programs_by_college();
+    $college = trim((string) ($b['college'] ?? ''));
+    $program = trim((string) ($b['program'] ?? ''));
+    $year = trim((string) ($b['year'] ?? ''));
+    $section = strtoupper(trim((string) ($b['section'] ?? '')));
+    if (!in_array($who, ['students', 'teachers'], true)) {
+        $college = '';
+        $program = '';
+        $year = '';
+        $section = '';
+    }
+    if ($who !== 'students') {
+        $program = '';
+        $year = '';
+        $section = '';
+    }
+    if ($college !== '' && !isset($colleges[$college])) fail('Choose a college');
+    if ($program !== '') {
+        $programCollege = prism_college_for_program($program);
+        if ($programCollege === '' || ($college !== '' && $programCollege !== $college)) fail('Choose a program in that college');
+        if ($college === '') $college = $programCollege;
+    }
+    if ($year !== '' && !in_array($year, ['1', '2', '3', '4'], true)) fail('Choose a year');
+    if ($section !== '' && !in_array($section, ['A', 'B', 'C', 'D', 'E', 'F'], true)) fail('Choose a section');
+    $db->prepare('INSERT INTO announcements (author, text, type, audience, college, program, year_level, section_letter) VALUES (?,?,?,?,?,?,?,?)')
+        ->execute([$b['author'] ?? $user['name'], $text, $type, $who, $college, $program, $year, $section]);
     ok();
 }
 

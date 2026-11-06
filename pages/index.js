@@ -421,10 +421,7 @@ function renderClasses() {
 var __openClassGen = 0;
 
 function wantedClassId() {
-  var fromUrl = '';
-  try { fromUrl = new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { fromUrl = ''; }
-  if (fromUrl) return fromUrl;
-  try { return sessionStorage.getItem('prism_open_class') || ''; } catch (e2) { return ''; }
+  try { return new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { return ''; }
 }
 
 function findJoinedClass(want) {
@@ -532,6 +529,10 @@ async function openClassDetail(classId, teacherId, subject, color) {
   activeDetailId = classId;
   if (typeof markSidebarClassActive === 'function') markSidebarClassActive(classId);
   paintClassOverlay(classId, teacherId, subject, color || '#7c3aed');
+  try {
+    var openNow = new URLSearchParams(window.location.search).get('class') || '';
+    if (String(openNow) !== classId) history.pushState({ prismClass: classId }, '', 'index.html?class=' + encodeURIComponent(classId));
+  } catch (histErr) { /* the class view still opens */ }
   var gen = ++__openClassGen;
   try {
     await syncStudentClassContent(classId);
@@ -551,7 +552,7 @@ function shadeColor(hex, amt) {
   } catch(e) { return hex; }
 }
 
-function closeClassView() {
+function closeClassView(fromPop) {
   window.__streamFocusAsgn = '';
   closeStudentAssignmentModal();
   var overlay = document.getElementById('class-view-overlay');
@@ -559,9 +560,29 @@ function closeClassView() {
   document.body.style.overflow = '';
   activeDetailId = null;
   __openClassGen++;
+  try {
+    sessionStorage.removeItem('prism_open_class');
+    sessionStorage.removeItem('prism_open_class_meta');
+  } catch (e) { /* ignore */ }
+  if (!fromPop) {
+    try {
+      if (new URLSearchParams(window.location.search).get('class')) history.replaceState(null, '', 'index.html');
+    } catch (histErr) { /* the class view is already closed */ }
+  }
   if (typeof markSidebarClassActive === 'function') markSidebarClassActive('');
   renderClasses();
 }
+
+window.addEventListener('popstate', function () {
+  var id = '';
+  try { id = new URLSearchParams(window.location.search).get('class') || ''; } catch (e) { id = ''; }
+  if (!id) {
+    if (document.getElementById('class-view-overlay')) closeClassView(true);
+    return;
+  }
+  if (String(activeDetailId) === String(id)) return;
+  tryOpenClassFromUrl();
+});
 
 function buildPanel(tab, classId) {
   if (tab === 'stream') return buildStreamPanel(classId);
@@ -1538,10 +1559,11 @@ async function renderAnnouncements() {
     var dl = rawDate ? new Date(rawDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
     var t = a.type || 'portal';
     var pill = '<span style="font-size:.68rem;font-weight:700;padding:2px 8px;border-radius:20px;margin-left:.4rem;' + (typeCls[t] || typeCls.portal) + '">' + (typeIco[t] || '') + '</span>';
+    var who = a.audience && a.audience !== 'everyone' ? (' · ' + String(a.audience_label || '').replace(/</g, '')) : '';
     var text = String(a.text == null ? '' : a.text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
     return '<div style="display:flex;gap:.8rem;padding:.8rem 0;border-bottom:1px solid #f5f3ff;">'
       + '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#f59e0b,#d97706);color:white;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem;flex-shrink:0;">' + String(a.author || 'A').charAt(0) + '</div>'
-      + '<div><div class="ann-author" style="font-size:.88rem;font-weight:700;">' + String(a.author || 'Admin').replace(/</g, '&lt;') + pill + ' <span style="font-size:.74rem;color:#9ca3af;">' + dl + '</span></div>'
+      + '<div><div class="ann-author" style="font-size:.88rem;font-weight:700;">' + String(a.author || 'Admin').replace(/</g, '&lt;') + pill + ' <span style="font-size:.74rem;color:#9ca3af;">' + dl + who.replace(/</g, '&lt;') + '</span></div>'
       + '<div class="ann-text" style="font-size:.88rem;line-height:1.65;margin-top:.25rem;">' + text + '</div></div></div>';
   }).join('');
 }

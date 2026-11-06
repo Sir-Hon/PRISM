@@ -1214,8 +1214,9 @@ const PrismAdmin = {
   async setUserEmail(id, email) {
     return await apiCall('profile', 'set_user_email', 'POST', { id, email });
   },
-  async getAnnouncements() {
-    const data = await apiGet('profile', 'get_announcements');
+  async getAnnouncements(opts) {
+    opts = opts || {};
+    const data = await apiGet('profile', 'get_announcements', opts.manage ? { manage: '1' } : {});
     return data.announcements || [];
   },
   async setAdminPerms(id, permissions) {

@@ -126,7 +126,12 @@
     .compose-box { border:1.5px solid #fde68a; border-radius:12px; padding:1rem; background:#fef9e7; width:100%; font-family:'DM Sans',sans-serif; font-size:.95rem; color:#16132b; outline:none; resize:vertical; min-height:90px; transition:border-color .2s; }
     .compose-box:focus { border-color:var(--a); background:#fff; }
     .compose-row { display:flex; gap:.7rem; margin-top:.8rem; flex-wrap:wrap; align-items:center; }
-    .compose-type { border:1.5px solid #fde68a; border-radius:9px; padding:.45rem .75rem; font-family:'DM Sans',sans-serif; font-size:.85rem; color:#374151; outline:none; background:#fff; }
+    .ann-note { font-size:.86rem; color:#6b7280; margin:-.4rem 0 .9rem; line-height:1.5; }
+    .ann-filters { display:flex; flex-wrap:wrap; gap:.75rem 1rem; margin-top:.9rem; }
+    .ann-filters label, .ann-show { display:flex; flex-direction:column; gap:.3rem; font-size:.72rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#9ca3af; min-width:min(100%, 160px); }
+    .ann-filters select, .ann-show select { text-transform:none; letter-spacing:0; font-weight:600; font-size:.9rem; border:1.5px solid #fde68a; border-radius:10px; padding:.55rem .7rem; font-family:'DM Sans',sans-serif; background:#fef9e7; color:#16132b; }
+    .ann-show { margin-bottom:.8rem; max-width:220px; }
+    .ann-who { font-size:.75rem; font-weight:700; color:#92400e; }
 
     /* announcement feed */
     .ann-item { display:flex; gap:.9rem; padding:1rem 0; border-bottom:1px solid #fef3c7; }
@@ -176,12 +181,15 @@
     html[data-theme="dark"] .m-btn.primary { color:#1c1300 !important; }
     html[data-theme="dark"] .a-btn.outline { color:#fcd34d !important; border-color:#f59e0b !important; }
     html[data-theme="dark"] .m-btn.ghost { background:#2a3148 !important; color:#f3f4f6 !important; }
+    html[data-theme="dark"] .ann-note, html[data-theme="dark"] .ann-filters label, html[data-theme="dark"] .ann-show { color:#d1d5db; }
+    html[data-theme="dark"] .ann-filters select, html[data-theme="dark"] .ann-show select, html[data-theme="dark"] .compose-box { background:#24283d; color:#f3f4f6; border-color:#3d4468; }
+    html[data-theme="dark"] .ann-who, html[data-theme="dark"] .ann-author, html[data-theme="dark"] .ann-text, html[data-theme="dark"] .a-card-title { color:#f3f4f6; }
   </style>
 </head>
 <body>
-<script src="api.js?v=39"></script>
-<script src="script.js?v=20"></script>
-<script src="portal-sidebar.js?v=25"></script>
+<script src="api.js?v=41"></script>
+<script src="script.js?v=21"></script>
+<script src="portal-sidebar.js?v=26"></script>
 <div class="topbar">
   <a class="topbar-logo" href="admin.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -227,7 +235,7 @@
         </button>
         <button type="button" class="gc-card" onclick="openAdminCard('announce')">
           <div class="gc-card-top" style="background:#9a3412"><div class="gc-card-title">Announcements</div></div>
-          <div class="gc-card-body"><div class="gc-meta">Portal-wide posts</div></div>
+          <div class="gc-card-body"><div class="gc-meta">Post to a group</div></div>
         </button>
         <button type="button" class="gc-card" onclick="openAdminCard('security')">
           <div class="gc-card-top" style="background:#b45309"><div class="gc-card-title">Security</div></div>
@@ -274,20 +282,63 @@
 
     <!-- --- ANNOUNCEMENTS --- -->
     <div class="tab-panel" id="tab-announce">
-      <div class="a-card">
-        <div class="a-card-title"> Post Portal-Wide Announcement</div>
-        <textarea class="compose-box" id="ann-text" placeholder="Write an announcement visible to all users�"></textarea>
+      <div class="a-card" id="ann-compose">
+        <div class="a-card-title">Portal announcement</div>
+        <p class="ann-note">Only an administrator allowed to post announcements can use this. The superadmin always can. Choose who should see it.</p>
+        <textarea class="compose-box" id="ann-text" placeholder="Write an announcement"></textarea>
+        <div class="ann-filters">
+          <label>Who
+            <select id="ann-who">
+              <option value="everyone">Everyone</option>
+              <option value="students">Students</option>
+              <option value="teachers">Teachers</option>
+              <option value="admins">Admins</option>
+            </select>
+          </label>
+          <label id="ann-college-wrap" style="display:none;">College
+            <select id="ann-college"><option value="">All colleges</option></select>
+          </label>
+          <label id="ann-program-wrap" style="display:none;">Program
+            <select id="ann-program"><option value="">All programs</option></select>
+          </label>
+          <label id="ann-year-wrap" style="display:none;">Year
+            <select id="ann-year">
+              <option value="">All years</option>
+              <option value="1">Year 1</option>
+              <option value="2">Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+            </select>
+          </label>
+          <label id="ann-section-wrap" style="display:none;">Section
+            <select id="ann-section">
+              <option value="">All sections</option>
+              <option>A</option><option>B</option><option>C</option><option>D</option><option>E</option><option>F</option>
+            </select>
+          </label>
+          <label>Kind
+            <select id="ann-type">
+              <option value="portal">General</option>
+              <option value="alert">Alert</option>
+              <option value="info">Info</option>
+            </select>
+          </label>
+        </div>
         <div class="compose-row">
-          <select class="compose-type" id="ann-type">
-            <option value="portal">General</option>
-            <option value="alert">Alert</option>
-            <option value="info">Info</option>
-          </select>
-          <button class="a-btn" onclick="postAnnouncement()">Post</button>
+          <button class="a-btn" type="button" onclick="postAnnouncement()">Post announcement</button>
         </div>
       </div>
       <div class="a-card">
-        <div class="a-card-title"> Posted Announcements</div>
+        <div class="a-card-title">Posted announcements</div>
+        <label class="ann-show">Show
+          <select id="ann-show" onchange="renderAnnouncements()">
+            <option value="">All</option>
+            <option value="everyone">Everyone</option>
+            <option value="students">Students</option>
+            <option value="teachers">Teachers</option>
+            <option value="admins">Admins</option>
+          </select>
+        </label>
         <div id="ann-feed"><p style="color:#9ca3af;font-size:.9rem;text-align:center;padding:1rem 0;">No announcements yet.</p></div>
       </div>
     </div>
@@ -320,6 +371,6 @@
   </div>
 </div>
 
-<script src="pages/admin.js?v=20"></script>
+<script src="pages/admin.js?v=21"></script>
 </body>
 </html>
