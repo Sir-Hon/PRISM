@@ -131,8 +131,122 @@ function prismBindLogoutButtons() {
   });
 }
 
+function prismAnnSeenKey() {
+  var uid = '';
+  try { uid = sessionStorage.getItem('prism_user_id') || ''; } catch (e) { uid = ''; }
+  return 'prism_ann_seen_' + (uid || 'local');
+}
+
+function prismAnnId(row) {
+  if (row && row.id != null && String(row.id) !== '') return String(row.id);
+  return String((row && (row.created_at || row.date)) || '') + '|' + String((row && row.text) || '').slice(0, 48);
+}
+
+function prismAnnSeen() {
+  try {
+    var raw = JSON.parse(localStorage.getItem(prismAnnSeenKey()) || '[]');
+    return Array.isArray(raw) ? raw.map(String) : [];
+  } catch (e) { return []; }
+}
+
+function prismAnnMarkSeen(rows) {
+  var ids = (rows || []).map(prismAnnId);
+  try { localStorage.setItem(prismAnnSeenKey(), JSON.stringify(ids.slice(0, 80))); } catch (e) { /* ignore */ }
+  prismAnnPaintCount(rows);
+}
+
+function prismAnnPaintCount(rows) {
+  var badge = document.querySelector('#prism-ann-btn .topbar-ann-count');
+  if (!badge) return;
+  var seen = prismAnnSeen();
+  var unread = (rows || []).filter(function (row) { return seen.indexOf(prismAnnId(row)) === -1; }).length;
+  if (!unread) { badge.hidden = true; badge.textContent = ''; return; }
+  badge.hidden = false;
+  badge.textContent = unread > 9 ? '9+' : String(unread);
+}
+
+function prismAnnFill(list, rows) {
+  if (!rows.length) {
+    list.innerHTML = '<div class="topbar-ann-empty">No announcements yet.</div>';
+    return;
+  }
+  var kinds = { alert: 'Alert', info: 'Info', portal: 'General' };
+  list.innerHTML = rows.map(function (row) {
+    var when = row.created_at || row.date;
+    var date = when ? new Date(when).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+    var who = row.audience && row.audience !== 'everyone' ? (' · ' + (row.audience_label || '')) : '';
+    var kind = kinds[row.type] || 'General';
+    return '<div class="topbar-ann-item"><div style="font-weight:800;">' + prismSidebarEsc(row.author || 'Admin')
+      + '<span class="topbar-ann-pill">' + prismSidebarEsc(kind) + '</span></div>'
+      + '<div class="topbar-ann-meta">' + prismSidebarEsc(date + who) + '</div>'
+      + '<div class="topbar-ann-text">' + prismSidebarEsc(row.text || '') + '</div></div>';
+  }).join('');
+}
+
+function prismOpenAnnouncements(btn) {
+  var panel = document.getElementById('prism-ann-panel');
+  var list = document.getElementById('prism-ann-list');
+  if (!panel || !list) return;
+  panel.hidden = false;
+  var rect = btn.getBoundingClientRect();
+  var width = Math.min(380, window.innerWidth - 16);
+  panel.style.width = width + 'px';
+  panel.style.top = (rect.bottom + 8) + 'px';
+  panel.style.left = Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8)) + 'px';
+  list.innerHTML = '<div class="topbar-ann-empty">Loading…</div>';
+  var load = (typeof PrismAdmin !== 'undefined' && PrismAdmin.getAnnouncements)
+    ? PrismAdmin.getAnnouncements()
+    : Promise.resolve([]);
+  Promise.resolve(load).then(function (rows) {
+    rows = rows || [];
+    prismAnnFill(list, rows);
+    prismAnnMarkSeen(rows);
+  }).catch(function () {
+    list.innerHTML = '<div class="topbar-ann-empty">Announcements could not be loaded.</div>';
+  });
+}
+
+function prismEnsureAnnouncements() {
+  var right = document.querySelector('.topbar-right');
+  if (!right || document.getElementById('prism-ann-btn')) return;
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.id = 'prism-ann-btn';
+  btn.className = 'topbar-ann-btn';
+  btn.title = 'Announcements';
+  btn.setAttribute('aria-label', 'Announcements');
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="topbar-ann-count" hidden></span>';
+  var theme = document.getElementById('prism-theme-toggle');
+  if (theme && theme.parentNode === right) right.insertBefore(btn, theme);
+  else right.appendChild(btn);
+  var panel = document.createElement('div');
+  panel.id = 'prism-ann-panel';
+  panel.className = 'topbar-ann-panel';
+  panel.hidden = true;
+  panel.innerHTML = '<div class="topbar-ann-head">Announcements</div><div id="prism-ann-list"></div>';
+  document.body.appendChild(panel);
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (panel.hidden) prismOpenAnnouncements(btn);
+    else panel.hidden = true;
+  });
+  document.addEventListener('click', function (e) {
+    if (panel.hidden) return;
+    if (panel.contains(e.target) || btn.contains(e.target)) return;
+    panel.hidden = true;
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') panel.hidden = true;
+  });
+  if (typeof PrismAdmin !== 'undefined' && PrismAdmin.getAnnouncements) {
+    PrismAdmin.getAnnouncements().then(function (rows) { prismAnnPaintCount(rows || []); }).catch(function () {});
+  }
+}
+
 function initSidebar(activePage) {
   prismEnsureThemeToggle();
+  prismEnsureAnnouncements();
   var uid = sessionStorage.getItem('prism_user_id') || '';
   var profile = {};
   try {

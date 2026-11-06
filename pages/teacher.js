@@ -218,7 +218,6 @@ window.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('teacher-greeting').textContent = `${g}, ${user.name}`;
   if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.teacher-hero'), 'greet');
   await loadClasses();
-  renderTeacherPortalAnnouncements();
 });
 
 var classPaintGen = 0;

@@ -97,7 +97,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (note) note.hidden = true;
   });
   await renderAnnouncements();
-  await renderAdminHomeAnnouncements();
 });
 
 /* ── STATS ── */
@@ -443,7 +442,11 @@ async function postAnnouncement() {
       note.textContent = 'Announcement sent to ' + sentTo + '.';
     }
     await renderAnnouncements();
-    await renderAdminHomeAnnouncements();
+    if (typeof PrismAdmin !== 'undefined' && PrismAdmin.getAnnouncements) {
+      PrismAdmin.getAnnouncements().then(function (rows) {
+        if (typeof prismAnnPaintCount === 'function') prismAnnPaintCount(rows || []);
+      }).catch(function () {});
+    }
   } catch(e) { alert(e.message || 'Failed to post announcement.'); }
   finally { if (typeof prismSetBusy === 'function') prismSetBusy(btn, false); }
 }
@@ -474,22 +477,6 @@ async function renderAnnouncements() {
       </div>`;
     }).join('');
   } catch(e) { console.error('renderAnnouncements:', e); }
-}
-
-async function renderAdminHomeAnnouncements() {
-  var feed = document.getElementById('admin-home-ann');
-  if (!feed) return;
-  try {
-    var anns = await PrismAdmin.getAnnouncements();
-    if (!anns.length) {
-      feed.innerHTML = '<p style="color:#9ca3af;font-size:.9rem;margin:0;">No announcements for you yet.</p>';
-      return;
-    }
-    feed.innerHTML = anns.slice(0, 5).map(function (a) {
-      var dl = a.created_at ? new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
-      return '<div class="ann-item"><div class="ann-avatar">' + escHtml((a.author || 'A').charAt(0).toUpperCase()) + '</div><div class="ann-body"><div class="ann-header"><span class="ann-author">' + escHtml(a.author || 'Admin') + '</span><span class="ann-date">' + escHtml(dl) + '</span><span class="ann-who">' + escHtml(a.audience_label || 'Everyone') + '</span></div><div class="ann-text">' + escHtml(a.text || '') + '</div></div></div>';
-    }).join('');
-  } catch (e) { /* the dashboard still opens */ }
 }
 
 function copyAdminUrl() {

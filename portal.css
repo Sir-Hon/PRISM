@@ -157,6 +157,71 @@ nav { display: none !important; }
   border-color: var(--prism-mid);
 }
 
+.topbar-ann-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  position: relative;
+}
+.topbar-ann-btn:hover { background: var(--prism-light); border-color: var(--prism-mid); color: var(--prism); }
+.topbar-ann-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-size: .65rem;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+.topbar-ann-panel {
+  position: fixed;
+  z-index: 420;
+  width: min(380px, calc(100vw - 16px));
+  max-height: min(70vh, 520px);
+  overflow: auto;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .16);
+  padding: .85rem .95rem 1rem;
+}
+.topbar-ann-head {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: .35rem;
+}
+.topbar-ann-empty { color: var(--text-muted); font-size: .88rem; padding: .8rem 0; }
+.topbar-ann-item { padding: .75rem 0; border-top: 1px solid var(--border); }
+.topbar-ann-meta { font-size: .75rem; color: var(--text-muted); margin-top: .15rem; }
+.topbar-ann-text { font-size: .9rem; line-height: 1.55; margin-top: .3rem; white-space: pre-wrap; }
+.topbar-ann-pill {
+  display: inline-block;
+  margin-left: .35rem;
+  font-size: .68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+}
+
 /* ── APP LAYOUT ── */
 .app-layout {
   display: flex;
@@ -770,10 +835,14 @@ html[data-theme="dark"] .class-view-banner .class-view-back:hover {
   -webkit-text-fill-color: #fff;
 }
 
-html[data-theme="dark"] .topbar-theme-btn {
+html[data-theme="dark"] .topbar-theme-btn,
+html[data-theme="dark"] .topbar-ann-btn {
   background: #2e1065;
   border-color: #4c1d95;
+  color: #f5f3ff;
 }
+html[data-theme="dark"] .topbar-ann-panel { box-shadow: 0 16px 40px rgba(0,0,0,.45); }
+html[data-theme="dark"] .topbar-ann-pill { background: #3b2d16; color: #fcd34d; }
 
 html[data-theme="dark"] table,
 html[data-theme="dark"] th,

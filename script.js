@@ -69,6 +69,7 @@
         try { history.replaceState(null, '', homePage); } catch (e3) { /* ignore */ }
       }
     } else {
+      document.documentElement.classList.add('prism-gate');
       var showLogin = function () { window.location.replace('login.html'); };
       if (typeof PrismAuth !== 'undefined' && PrismAuth.logout) {
         PrismAuth.logout().catch(showLogin);
@@ -97,6 +98,7 @@
       return;
     }
     document.documentElement.classList.remove('prism-loading');
+    document.documentElement.classList.remove('prism-gate');
     if (typeof prismRememberSaveHere === 'function') prismRememberSaveHere();
   }
 
@@ -113,6 +115,7 @@
     return;
   }
   document.documentElement.classList.remove('prism-loading');
+  document.documentElement.classList.remove('prism-gate');
   if (typeof prismRememberSaveHere === 'function') prismRememberSaveHere();
 })();
 

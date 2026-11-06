@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
   <meta charset="UTF-8"/>
+  <script>(function(){var dark=false,hold=true;try{dark=localStorage.getItem('prism_theme')==='dark';}catch(e){}try{var on=sessionStorage.getItem('prism_tab_on')==='1';var left=parseInt(sessionStorage.getItem('prism_left_at')||'0',10)||0;var live=on&&(!left||(Date.now()-left)<60000);var remember=localStorage.getItem('prism_remember')==='1';if(live||remember)hold=false;}catch(e2){}if(dark)document.documentElement.setAttribute('data-theme','dark');if(hold)document.documentElement.classList.add('prism-gate');})();</script>
+  <style>html.prism-gate{background:#f4f2fb}html[data-theme="dark"].prism-gate{background:#0c0e16}html.prism-gate body{display:none !important}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM — Student Dashboard</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=29"/>
+  <link rel="stylesheet" href="portal.css?v=30"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
@@ -42,9 +45,6 @@
     .gc-del { border:none; background:none; color:#9ca3af; font-size:.72rem; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; padding:.2rem .35rem; border-radius:6px; }
     .gc-del:hover { color:#ef4444; background:#fee2e2; }
     .gc-empty { color:#5f6368; font-size:.92rem; padding:1.5rem 0; }
-    .portal-ann { margin-top:1.6rem; background:#fff; border:1px solid rgba(124,58,237,.12); border-radius:12px; padding:1rem 1.15rem 1.15rem; }
-    html[data-theme="dark"] .portal-ann { background:#1a1d2e; border-color:#2e3350; }
-    html[data-theme="dark"] .portal-ann .gc-head h2 { color:#f3f4f6; }
     @media(max-width:640px){ .gc-card{ width:100%; } }
 
     .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:0.85rem; margin-bottom:1.5rem; }
@@ -313,8 +313,8 @@
 </head>
 <body>
 <script src="api.js?v=41"></script>
-<script src="script.js?v=21"></script>
-<script src="portal-sidebar.js?v=26"></script>
+<script src="script.js?v=22"></script>
+<script src="portal-sidebar.js?v=27"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -361,10 +361,6 @@
       <div class="join-msg" id="join-msg"></div>
     </div>
     <div id="classes-area" class="gc-grid"></div>
-    <div class="portal-ann">
-      <div class="gc-head"><h2>Announcements</h2></div>
-      <div id="ann-feed"></div>
-    </div>
 
   </main>
 </div>
@@ -372,6 +368,6 @@
 
 
 
-<script src="pages/index.js?v=33"></script>
+<script src="pages/index.js?v=34"></script>
 </body>
 </html>
