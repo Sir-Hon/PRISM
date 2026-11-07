@@ -1,6 +1,7 @@
 <?php
 // api/profile.php — User profile, events, admin tools
 require_once 'config.php';
+require_once 'security_lib.php';
 require_once 'roster_lib.php';
 setHeaders();
 
@@ -154,6 +155,7 @@ if ($action === 'get_events') {
 }
 
 if ($method === 'POST' && $action === 'save_event') {
+    if (($user['role'] ?? '') === 'admin') prism_require_fine($db, $user, 'calendar.edit');
     $b  = getBody();
     $id = $b['id'] ?? uniqid('ev_');
     $db->prepare(
@@ -170,6 +172,7 @@ if ($method === 'POST' && $action === 'save_event') {
 }
 
 if ($method === 'DELETE' && $action === 'delete_event') {
+    if (($user['role'] ?? '') === 'admin') prism_require_fine($db, $user, 'calendar.edit');
     $b = getBody();
     $db->prepare('DELETE FROM events WHERE id = ? AND user_id = ?')->execute([$b['id'], $user['id']]);
     ok();
@@ -207,6 +210,12 @@ if ($method === 'POST' && $action === 'delete_user') {
     prism_require_admin_perm($db, $user, 'users');
     $b = getBody();
     $del_id = trim($b['id'] ?? '');
+    $who = $db->prepare('SELECT role FROM users WHERE id = ?');
+    $who->execute([$del_id]);
+    $whoRole = (string) $who->fetchColumn();
+    if ($whoRole === 'student') prism_require_fine($db, $user, 'students.delete');
+    elseif ($whoRole === 'teacher') prism_require_fine($db, $user, 'teachers.delete');
+    elseif ($whoRole === 'admin' && !prism_is_superadmin_id((string) $user['id'])) fail('Only the superadmin can remove an administrator', 403);
     if ($del_id === '' || $del_id === $user['id']) fail('Cannot delete yourself');
     if (prism_is_superadmin_id($del_id)) fail('The superadmin account cannot be deleted');
     prism_ensure_student_roster($db);
@@ -245,6 +254,9 @@ if ($method === 'POST' && $action === 'set_user_email') {
     $row = $lookup->fetch();
     if (!$row) fail('Account not found', 404);
     if (!in_array($row['role'], ['student', 'teacher', 'admin'], true)) fail('CTU email cannot be set on this account');
+    if ($row['role'] === 'student') prism_require_fine($db, $user, 'students.edit');
+    elseif ($row['role'] === 'teacher') prism_require_fine($db, $user, 'teachers.edit');
+    elseif ($row['role'] === 'admin' && !prism_is_superadmin_id((string) $user['id'])) fail('Only the superadmin can change an administrator email', 403);
     if (prism_is_superadmin_id($targetId)) fail('The superadmin email stays ' . prism_superadmin_email());
     prism_ensure_student_roster($db);
     $taken = $db->prepare('SELECT id FROM users WHERE LOWER(email) = ? AND id <> ?');
@@ -347,7 +359,10 @@ function prism_announcement_for_viewer(array $row, array $user, PDO $db): bool {
 
 if ($action === 'get_announcements') {
     $manage = (($_GET['manage'] ?? '') === '1') && (($user['role'] ?? '') === 'admin');
-    if ($manage) prism_require_admin_perm($db, $user, 'announcements');
+    if ($manage) {
+        prism_require_admin_perm($db, $user, 'announcements');
+        prism_require_fine($db, $user, 'announcements.view');
+    }
     $hasAudience = prism_ensure_announcement_audience($db);
     $stmt = $db->query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 40');
     $rows = [];
@@ -382,14 +397,17 @@ if ($method === 'POST' && $action === 'set_admin_perms') {
         $perms[$key] = !empty($incoming[$key]);
     }
     $perms['dashboard'] = true;
+    $packed = prism_pack_access($db, 'custom', prism_fine_from_coarse($perms));
     prism_ensure_admin_perms($db);
-    $db->prepare('UPDATE users SET admin_perms = ? WHERE id = ?')->execute([json_encode($perms), $target]);
-    ok(['id' => $target, 'permissions' => $perms]);
+    $db->prepare('UPDATE users SET admin_perms = ? WHERE id = ?')->execute([json_encode($packed), $target]);
+    prism_security_log($db, (string) $user['id'], 'permissions-updated', 'Updated portal access for ' . $target);
+    ok(['id' => $target, 'permissions' => prism_admin_permissions($db, $target)]);
 }
 
 if ($method === 'POST' && $action === 'add_announcement') {
     requireAuth(['admin']);
     prism_require_admin_perm($db, $user, 'announcements');
+    prism_require_fine($db, $user, 'announcements.create');
     if (!prism_ensure_announcement_audience($db)) fail('Could not save that announcement', 500);
     $b = getBody();
     $text = trim((string) ($b['text'] ?? ''));

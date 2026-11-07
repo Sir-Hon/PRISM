@@ -248,6 +248,10 @@ function prism_superadmin_email(): string {
 
 function prism_admin_types(): array {
     return [
+        'Administrator' => ['users', 'roster', 'cor', 'calendar', 'security', 'announcements'],
+        'Academic Admin' => ['users', 'calendar', 'announcements'],
+        'Records Admin' => ['users', 'roster', 'cor'],
+        'Support Admin' => ['users'],
         'Security' => ['security'],
         'User management' => ['users'],
         'Roster' => ['roster'],
@@ -288,6 +292,12 @@ function prism_ensure_admin_perms(PDO $db): void {
 function prism_admin_permissions(PDO $db, string $id): array {
     $keys = array_keys(prism_admin_catalog());
     $all = array_fill_keys($keys, true);
+    if (!function_exists('prism_empty_fine')) {
+        require_once __DIR__ . '/security_lib.php';
+    }
+    foreach (prism_empty_fine(true) as $key => $on) {
+        $all[$key] = $on;
+    }
     if (prism_is_superadmin_id($id)) {
         return $all;
     }
@@ -302,11 +312,12 @@ function prism_admin_permissions(PDO $db, string $id): array {
     if (!is_array($decoded)) {
         return $all;
     }
-    $out = [];
-    foreach ($keys as $key) {
-        $out[$key] = !empty($decoded[$key]);
-    }
+    $fine = prism_effective_fine($db, $decoded);
+    $out = prism_coarse_from_fine($fine);
     $out['dashboard'] = true;
+    foreach ($fine as $key => $on) {
+        $out[$key] = (bool) $on;
+    }
     return $out;
 }
 

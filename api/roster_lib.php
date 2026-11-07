@@ -1188,6 +1188,28 @@ function prism_normalize_admin_input(array $b): array {
         $perms[$key] = !empty($incoming[$key]);
     }
     $perms['dashboard'] = true;
+    if (function_exists('prism_pack_access')) {
+        $typeName = trim((string) ($b['type'] ?? $b['section'] ?? ''));
+        $roleId = prism_role_id_for_type($typeName);
+        $builtin = prism_builtin_roles();
+        $template = $builtin[$roleId]['fine'] ?? null;
+        $defaults = prism_admin_types()[$typeName] ?? [];
+        $same = $template !== null;
+        if ($same) {
+            foreach (array_keys(prism_admin_catalog()) as $key) {
+                if ($key === 'dashboard') {
+                    continue;
+                }
+                $wanted = in_array($key, $defaults, true);
+                if (!empty($perms[$key]) !== $wanted) {
+                    $same = false;
+                    break;
+                }
+            }
+        }
+        $fine = $same ? $template : prism_fine_from_coarse($perms);
+        $perms = prism_pack_access(getDB(), $same ? $roleId : 'custom', $fine);
+    }
     return [
         'id' => trim((string) ($b['id'] ?? '')),
         'email' => prism_normalize_ctu_email($b['email'] ?? ''),

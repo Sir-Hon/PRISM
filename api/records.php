@@ -289,6 +289,8 @@ function prism_cor_official_name(string $name): string {
 
 if ($method === 'POST' && $action === 'send_cor') {
     if ($user['role'] !== 'admin') fail('Forbidden', 403);
+    require_once __DIR__ . '/security_lib.php';
+    prism_require_fine($db, $user, 'cor.send');
     $b = getBody();
     $ids = [];
     if (is_array($b['student_ids'] ?? null)) {

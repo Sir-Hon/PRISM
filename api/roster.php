@@ -1,5 +1,6 @@
 <?php
 require_once 'config.php';
+require_once 'security_lib.php';
 require_once 'roster_lib.php';
 setHeaders();
 startSession();
@@ -51,6 +52,7 @@ if ($method === 'GET' && $action === 'teacher_list') {
 }
 
 if ($method === 'POST' && $action === 'teacher_add') {
+    prism_require_fine($db, $admin, 'teachers.create');
     $result = prism_teacher_add($db, $admin, getBody());
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
@@ -59,6 +61,7 @@ if ($method === 'POST' && $action === 'teacher_add') {
 }
 
 if ($method === 'POST' && $action === 'teacher_update') {
+    prism_require_fine($db, $admin, 'teachers.edit');
     $result = prism_teacher_update($db, getBody());
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
@@ -67,6 +70,7 @@ if ($method === 'POST' && $action === 'teacher_update') {
 }
 
 if ($method === 'POST' && $action === 'teacher_delete') {
+    prism_require_fine($db, $admin, 'teachers.delete');
     $result = prism_teacher_delete($db, (string) (getBody()['id'] ?? ''));
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
@@ -113,6 +117,7 @@ if ($method === 'POST' && $action === 'admin_delete') {
 }
 
 if ($method === 'POST' && $action === 'add') {
+    prism_require_fine($db, $admin, 'students.create');
     $result = prism_roster_add($db, $admin, getBody(), $ip);
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
@@ -121,6 +126,7 @@ if ($method === 'POST' && $action === 'add') {
 }
 
 if ($method === 'POST' && $action === 'update') {
+    prism_require_fine($db, $admin, 'students.edit');
     $result = prism_roster_update($db, $admin, getBody(), $ip);
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
@@ -142,6 +148,7 @@ if ($method === 'POST' && $action === 'preview') {
 }
 
 if ($method === 'POST' && $action === 'import') {
+    prism_require_fine($db, $admin, 'students.create');
     $upload = prism_read_csv_upload($_FILES);
     if (empty($upload['ok'])) {
         fail($upload['error'], 400);
@@ -155,6 +162,7 @@ if ($method === 'POST' && $action === 'import') {
 }
 
 if ($method === 'POST' && $action === 'regenerate') {
+    prism_require_fine($db, $admin, 'students.edit');
     $result = prism_roster_regenerate($db, $admin, (string) (getBody()['id_number'] ?? ''), $ip);
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
@@ -163,6 +171,7 @@ if ($method === 'POST' && $action === 'regenerate') {
 }
 
 if ($method === 'POST' && $action === 'revoke') {
+    prism_require_fine($db, $admin, 'students.edit');
     $result = prism_roster_revoke($db, $admin, (string) (getBody()['id_number'] ?? ''), $ip);
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));
@@ -171,6 +180,7 @@ if ($method === 'POST' && $action === 'revoke') {
 }
 
 if ($method === 'POST' && $action === 'delete') {
+    prism_require_fine($db, $admin, 'students.delete');
     $result = prism_roster_delete($db, $admin, (string) (getBody()['id_number'] ?? ''), $ip);
     if (empty($result['ok'])) {
         fail($result['error'], (int) ($result['status'] ?? 400));

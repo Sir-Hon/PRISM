@@ -1,6 +1,7 @@
 <?php
 // api/auth.php — Login, logout, register, session check
 require_once 'config.php';
+require_once 'security_lib.php';
 require_once 'roster_lib.php';
 setHeaders();
 startSession();
@@ -29,11 +30,16 @@ if ($method === 'POST' && $action === 'login') {
     }
 
     $db   = getDB();
+    $locked = prism_login_locked_message($db, $role, $id);
+    if ($locked) fail($locked, 423);
     $stmt = $db->prepare('SELECT id, password, role, name, section, email FROM users WHERE LOWER(id) = LOWER(?) AND role = ?');
     $stmt->execute([$id, $role]);
     $user = $stmt->fetch();
 
-    if (!$user) fail('Incorrect credentials', 401);
+    if (!$user) {
+        prism_login_note_failure($db, $role, $id);
+        fail('Incorrect credentials', 401);
+    }
 
     $hash = $user['password'];
     $valid = false;
@@ -46,7 +52,10 @@ if ($method === 'POST' && $action === 'login') {
         $db->prepare('UPDATE users SET `password` = ? WHERE id = ?')->execute([$newHash, $user['id']]);
     }
 
-    if (!$valid) fail('Incorrect credentials', 401);
+    if (!$valid) {
+        prism_login_note_failure($db, $role, $id);
+        fail('Incorrect credentials', 401);
+    }
 
     if ($role === 'student' && prism_student_needs_email_verify($db, (string) $user['id'])) {
         fail('Check your CTU email for a verification link before signing in.');
@@ -67,6 +76,7 @@ if ($method === 'POST' && $action === 'login') {
             fail('An administrator has not assigned a CTU email to this account yet.');
         }
         if (!prism_is_ctu_email($email) || $storedEmail !== $email) {
+            prism_login_note_failure($db, $role, $id);
             fail('Incorrect credentials', 401);
         }
     }
@@ -82,6 +92,7 @@ if ($method === 'POST' && $action === 'login') {
     prism_commit_session_cookie(!empty($_SESSION['remember']));
     $csrf = prism_csrf_token();
 
+    prism_login_note_success($db, $role, (string) $user['id']);
     $payload = prism_user_client_payload($db, $user);
     $payload['csrf_token'] = $csrf;
     ok($payload);

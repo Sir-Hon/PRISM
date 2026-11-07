@@ -15,6 +15,10 @@
   var teacherHint = 'The password is saved encrypted and is not shown again after you leave this form.';
   var adminHint = 'Only the superadmin can add another administrator. admin001 stays the superadmin. The password is saved encrypted and is not shown again after you leave this form.';
   var adminTypes = [
+    { id: 'Administrator', perms: ['users', 'roster', 'cor', 'calendar', 'security', 'announcements'] },
+    { id: 'Academic Admin', perms: ['users', 'calendar', 'announcements'] },
+    { id: 'Records Admin', perms: ['users', 'roster', 'cor'] },
+    { id: 'Support Admin', perms: ['users'] },
     { id: 'Security', perms: ['security'] },
     { id: 'User management', perms: ['users'] },
     { id: 'Roster', perms: ['roster'] },

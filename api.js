@@ -183,9 +183,19 @@ function prismAdminCan(perm) {
   var role = sessionStorage.getItem('prism_role') || '';
   if (role !== 'admin') return true;
   if (sessionStorage.getItem('prism_superadmin') === '1') return true;
+  var gates = {
+    'students.view': 'users', 'students.create': 'roster', 'students.edit': 'roster', 'students.delete': 'users',
+    'teachers.view': 'users', 'teachers.create': 'roster', 'teachers.edit': 'roster', 'teachers.delete': 'users',
+    'announcements.view': 'announcements', 'announcements.create': 'announcements',
+    'cor.view': 'cor', 'cor.send': 'cor',
+    'calendar.view': 'calendar', 'calendar.edit': 'calendar',
+    'security.view': 'security', 'security.logs': 'security', 'security.settings': 'security'
+  };
   try {
     var perms = JSON.parse(sessionStorage.getItem('prism_admin_perms') || '{}');
     if (!perms || !Object.keys(perms).length) return true;
+    if (Object.prototype.hasOwnProperty.call(perms, perm)) return !!perms[perm];
+    if (gates[perm]) return !!perms[gates[perm]];
     return !!perms[perm];
   } catch (e) {
     return true;
@@ -1227,6 +1237,28 @@ const PrismAdmin = {
   },
   async addAnnouncement(ann) {
     return await apiCall('profile', 'add_announcement', 'POST', ann);
+  },
+};
+
+const PrismSecurity = {
+  async bootstrap() {
+    return await apiGet('security', 'bootstrap');
+  },
+  async log() {
+    const data = await apiGet('security', 'log');
+    return data.rows || [];
+  },
+  async saveAccess(body) {
+    return await apiCall('security', 'save_access', 'POST', body);
+  },
+  async saveRole(body) {
+    return await apiCall('security', 'save_role', 'POST', body);
+  },
+  async deleteRole(id) {
+    return await apiCall('security', 'delete_role', 'POST', { id });
+  },
+  async savePolicy(body) {
+    return await apiCall('security', 'save_policy', 'POST', body);
   },
 };
 

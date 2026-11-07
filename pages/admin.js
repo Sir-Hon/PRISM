@@ -222,8 +222,8 @@ async function renderTeachers() {
       <td style="font-size:.82rem;">${emailCell(t.email)}</td>
       <td><span class="badge badge-active">Active</span></td>
       <td>
-        <button class="icon-btn" onclick="openEmailModal('${escJs(t.id)}','${escJs(t.name)}','${escJs(t.email||'')}')">Email</button>
-        <button class="icon-btn red" onclick="deleteAccount('${escJs(t.id)}')">Delete</button>
+        ${typeof prismAdminCan !== 'function' || prismAdminCan('teachers.edit') ? `<button class="icon-btn" onclick="openEmailModal('${escJs(t.id)}','${escJs(t.name)}','${escJs(t.email||'')}')">Email</button>` : ''}
+        ${typeof prismAdminCan !== 'function' || prismAdminCan('teachers.delete') ? `<button class="icon-btn red" onclick="deleteAccount('${escJs(t.id)}')">Delete</button>` : ''}
       </td>
     </tr>`).join('');
   } catch(e) {
@@ -253,8 +253,8 @@ async function renderStudents() {
       <td style="color:#9ca3af;">${escHtml(s.section)}</td>
       <td style="font-size:.82rem;">${emailCell(s.email)}</td>
       <td>
-        <button class="icon-btn" onclick="openEmailModal('${escJs(s.id)}','${escJs(s.name)}','${escJs(s.email||'')}')">Email</button>
-        <button class="icon-btn red" onclick="deleteAccount('${escJs(s.id)}')">Delete</button>
+        ${typeof prismAdminCan !== 'function' || prismAdminCan('students.edit') ? `<button class="icon-btn" onclick="openEmailModal('${escJs(s.id)}','${escJs(s.name)}','${escJs(s.email||'')}')">Email</button>` : ''}
+        ${typeof prismAdminCan !== 'function' || prismAdminCan('students.delete') ? `<button class="icon-btn red" onclick="deleteAccount('${escJs(s.id)}')">Delete</button>` : ''}
       </td>
     </tr>`).join('');
   } catch(e) {
