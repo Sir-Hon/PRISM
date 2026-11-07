@@ -649,9 +649,24 @@ if ($action === 'delete_assignment') {
 //  SUBMISSIONS
 // ══════════════════════════════════════════════════════
 
+function prism_submission_score_ready(PDO $db): bool {
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    if (!prism_table_has_column($db, 'submissions', 'score')) {
+        try {
+            $db->exec('ALTER TABLE submissions ADD COLUMN score INT NULL DEFAULT NULL');
+        } catch (Throwable $e) {
+            error_log('PRISM submission score: ' . $e->getMessage());
+        }
+    }
+    $ready = prism_table_has_column($db, 'submissions', 'score');
+    return $ready;
+}
+
 if ($action === 'get_submissions') {
     // Teacher: get all submissions for an assignment
     requireAuth(['teacher']);
+    prism_submission_score_ready($db);
     $asgn_id = $_GET['assignment_id'] ?? '';
     $chk = $db->prepare(
         'SELECT a.id FROM assignments a JOIN classes c ON a.class_id = c.id WHERE a.id = ? AND c.teacher_id = ?'
@@ -674,6 +689,35 @@ if ($action === 'get_submissions') {
     }
     unset($r);
     ok(['submissions' => $rows]);
+}
+
+if ($method === 'POST' && $action === 'grade_submission') {
+    requireAuth(['teacher']);
+    if (!prism_submission_score_ready($db)) fail('Could not store the score', 500);
+    $b = getBody();
+    $asgnId = trim((string) ($b['assignment_id'] ?? ''));
+    $studentId = trim((string) ($b['student_id'] ?? ''));
+    if ($asgnId === '' || $studentId === '') fail('Choose a submission');
+    if (!is_numeric($b['score'] ?? null)) fail('Enter the points');
+    $chk = $db->prepare(
+        'SELECT a.points FROM assignments a JOIN classes c ON a.class_id = c.id WHERE a.id = ? AND c.teacher_id = ?'
+    );
+    $chk->execute([$asgnId, $user['id']]);
+    $assignment = $chk->fetch();
+    if (!$assignment) fail('Assignment not found', 404);
+    $score = (int) $b['score'];
+    if ($score < 0) $score = 0;
+    $max = (int) ($assignment['points'] ?? 0);
+    if ($max > 0 && $score > $max) $score = $max;
+    if ($score > 100000) $score = 100000;
+    $upd = $db->prepare('UPDATE submissions SET score = ? WHERE assignment_id = ? AND student_id = ?');
+    $upd->execute([$score, $asgnId, $studentId]);
+    if ($upd->rowCount() < 1) {
+        $exists = $db->prepare('SELECT 1 FROM submissions WHERE assignment_id = ? AND student_id = ?');
+        $exists->execute([$asgnId, $studentId]);
+        if (!$exists->fetch()) fail('That student has not submitted this assignment', 404);
+    }
+    ok(['score' => $score]);
 }
 
 if ($action === 'get_my_submission') {

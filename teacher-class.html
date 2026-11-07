@@ -547,7 +547,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=44"></script>
+<script src="api.js?v=45"></script>
 <script src="script.js?v=23"></script>
 <script src="portal-sidebar.js?v=28"></script>
 <div class="topbar tc-topbar">
@@ -760,10 +760,18 @@
       </div>
       <div class="sub-panel" id="sub-grades">
         <div class="t-card">
-          <div class="t-card-title">Quiz grades</div>
-          <p class="qg-empty" style="margin-top:0;">Choose a quiz, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.</p>
+          <div class="t-card-title" id="grade-title">Quiz grades</div>
+          <p class="qg-empty" id="grade-lead" style="margin-top:0;">Choose a quiz, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.</p>
           <div class="qg-filters">
-            <label>Quiz
+            <label>Category
+              <select id="grade-category" onchange="QG_open()">
+                <option value="quiz">Quizzes</option>
+                <option value="exam">Exams</option>
+                <option value="activity">Activities</option>
+                <option value="assignment">Assignments</option>
+              </select>
+            </label>
+            <label><span id="grade-item-label">Quiz</span>
               <select id="grade-quiz-select" onchange="QG_loadScores()"></select>
             </label>
             <label>Student
@@ -798,7 +806,7 @@
 </div>
 
 <script src="pages/teacher-class.js?v=41"></script>
-<script src="pages/quizgrades.js?v=5"></script>
+<script src="pages/quizgrades.js?v=6"></script>
 <script src="pages/sheets.js?v=12"></script>
 </body>
 </html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><title>Grades check</title></head>
+<body>
+  <div id="grade-title"></div>
+  <p id="grade-lead"></p>
+  <label>Category
+    <select id="grade-category" onchange="QG_open()">
+      <option value="quiz">Quizzes</option>
+      <option value="exam">Exams</option>
+      <option value="activity">Activities</option>
+      <option value="assignment">Assignments</option>
+    </select>
+  </label>
+  <span id="grade-item-label"></span>
+  <select id="grade-quiz-select" onchange="QG_loadScores()"></select>
+  <input id="grade-student-filter" oninput="QG_renderList()">
+  <div id="grade-list"></div>
+  <div id="grade-detail"></div>
+  <script>
+    var activeClassId = 'class-1';
+    var PrismQuizzes = {
+      get: function () {
+        return Promise.resolve([
+          { id: 'q1', title: 'Quiz One', type: 'quiz', published: 1, total_points: 10, target_section: 'A', questions: [{ type: 'mc', question: 'Two plus two', points: 10, options: [{ text: '4', correct: true }] }] },
+          { id: 'q2', title: 'Draft quiz', type: 'quiz', published: 0, total_points: 5, questions: [] },
+          { id: 'e1', title: 'Midterm', type: 'exam', published: 1, total_points: 50, questions: [] },
+          { id: 'a1', title: 'Seatwork', type: 'activity', published: 1, total_points: 5, questions: [] }
+        ]);
+      },
+      getScores: function () {
+        return Promise.resolve([{ student_id: '1', student_name: 'Ana Cruz', score: 8, taken_at: '2026-11-07 10:00:00', answers: '[0]' }]);
+      },
+      getLog: function () { return Promise.resolve([]); }
+    };
+    var PrismAssignments = {
+      get: function () {
+        return Promise.resolve([
+          { id: 'as1', title: 'Essay', type: 'written', points: 20 },
+          { id: 'as2', title: 'Robot', type: 'project', points: 30, target_section: 'B' }
+        ]);
+      }
+    };
+    var PrismSubmissions = {
+      getAll: function (id) {
+        if (id === 'as2') return Promise.resolve([]);
+        return Promise.resolve([{ student_id: '2', student_name: 'Luis Reyes', score: null, submitted_at: '2026-11-07 11:00:00', note: 'Finished the essay', link_url: 'https://example.com/essay', file_name: 'essay.docx' }]);
+      }
+    };
+  </script>
+  <script src="pages/quizgrades.js?v=6"></script>
+  <script>QG_open();</script>
+</body>
+</html>

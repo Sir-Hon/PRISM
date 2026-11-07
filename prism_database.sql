@@ -115,6 +115,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   file_path    VARCHAR(500) DEFAULT NULL,
   mime_type    VARCHAR(100) DEFAULT NULL,
   attachments_json LONGTEXT DEFAULT NULL,
+  score        INT          DEFAULT NULL,
   submitted_at DATETIME     DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY unique_submission (assignment_id, student_id),
   FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE,

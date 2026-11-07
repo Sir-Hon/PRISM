@@ -1,7 +1,74 @@
 var QG_quizzes = [];
+var QG_assignments = [];
 var QG_scores = [];
 var QG_log = [];
 var QG_openStudent = '';
+var QG_presetUsed = false;
+
+function QG_category() {
+  var el = document.getElementById('grade-category');
+  var value = el ? el.value : 'quiz';
+  if (value === 'exam' || value === 'activity' || value === 'assignment') return value;
+  return 'quiz';
+}
+function QG_isAssignment() {
+  return QG_category() === 'assignment';
+}
+function QG_quizKind(quiz) {
+  var type = String(quiz && quiz.type || 'quiz').toLowerCase();
+  if (type === 'exam' || type === 'activity') return type;
+  return 'quiz';
+}
+function QG_hasScore(row) {
+  return !!(row && row.score !== null && row.score !== undefined && row.score !== '');
+}
+function QG_currentQuiz() {
+  var sel = document.getElementById('grade-quiz-select');
+  return QG_quizzes.find(function (q) { return String(q.id) === String(sel && sel.value); });
+}
+function QG_currentAssignment() {
+  var sel = document.getElementById('grade-quiz-select');
+  return QG_assignments.find(function (item) { return String(item.id) === String(sel && sel.value); });
+}
+function QG_labels() {
+  var cat = QG_category();
+  var title = document.getElementById('grade-title');
+  var lead = document.getElementById('grade-lead');
+  var item = document.getElementById('grade-item-label');
+  var heads = { quiz: 'Quiz grades', exam: 'Exam grades', activity: 'Activity grades', assignment: 'Assignment grades' };
+  var leads = {
+    quiz: 'Choose a quiz, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.',
+    exam: 'Choose an exam, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.',
+    activity: 'Choose an activity, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.',
+    assignment: 'Choose an assignment, then open a submission to give it a score.'
+  };
+  var items = { quiz: 'Quiz', exam: 'Exam', activity: 'Activity', assignment: 'Assignment' };
+  if (title) title.textContent = heads[cat];
+  if (lead) lead.textContent = leads[cat];
+  if (item) item.textContent = items[cat];
+}
+function QG_fillSelect(rows, emptyText, labeler) {
+  var sel = document.getElementById('grade-quiz-select');
+  if (!sel) return;
+  var current = sel.value;
+  var onchange = sel.onchange;
+  sel.onchange = null;
+  sel.innerHTML = '';
+  if (!rows.length) {
+    var empty = document.createElement('option');
+    empty.value = '';
+    empty.textContent = emptyText;
+    sel.appendChild(empty);
+  }
+  rows.forEach(function (row) {
+    var opt = document.createElement('option');
+    opt.value = row.id;
+    opt.textContent = labeler(row);
+    sel.appendChild(opt);
+  });
+  sel.onchange = onchange;
+  if (current && rows.some(function (row) { return String(row.id) === String(current); })) sel.value = current;
+}
 
 function QG_esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -71,32 +138,57 @@ function QG_answerText(q, ans) {
 async function QG_open() {
   var host = document.getElementById('grade-list');
   if (!host || !activeClassId) return;
-  host.innerHTML = '<p class="qg-empty">Loading quizzes…</p>';
-  try {
-    QG_quizzes = await PrismQuizzes.get(activeClassId);
-  } catch (e) {
-    host.innerHTML = '<p class="qg-empty">Could not load quizzes.</p>';
+  QG_labels();
+  var cat = QG_category();
+  host.innerHTML = '<p class="qg-empty">Loading ' + (cat === 'assignment' ? 'assignments' : cat === 'exam' ? 'exams' : cat === 'activity' ? 'activities' : 'quizzes') + '…</p>';
+  if (cat === 'assignment') {
+    try {
+      QG_assignments = await PrismAssignments.get(activeClassId);
+    } catch (e) {
+      host.innerHTML = '<p class="qg-empty">Could not load assignments.</p>';
+      return;
+    }
+    QG_assignments = QG_assignments || [];
+    var typeNames = { written: 'Written', project: 'Project', lab: 'Lab', oral: 'Oral' };
+    QG_fillSelect(QG_assignments, 'No assignments yet', function (item) {
+      var kind = typeNames[item.type] ? typeNames[item.type] + ' · ' : '';
+      var section = item.target_section ? ' · ' + item.target_section : '';
+      return kind + (item.title || 'Assignment') + section;
+    });
+    await QG_loadScores();
     return;
   }
-  QG_quizzes = (QG_quizzes || []).filter(function (q) { return String(q.published) === '1' || q.published === 1 || q.published === true; });
-  var sel = document.getElementById('grade-quiz-select');
-  if (!sel) return;
-  var current = sel.value;
-  var onchange = sel.onchange;
-  sel.onchange = null;
-  sel.innerHTML = QG_quizzes.length ? '' : '<option value="">No published quizzes yet</option>';
-  QG_quizzes.forEach(function (q) {
-    var opt = document.createElement('option');
-    opt.value = q.id;
+  var all = [];
+  try {
+    all = await PrismQuizzes.get(activeClassId);
+  } catch (e2) {
+    host.innerHTML = '<p class="qg-empty">Could not load ' + (cat === 'exam' ? 'exams' : cat === 'activity' ? 'activities' : 'quizzes') + '.</p>';
+    return;
+  }
+  all = (all || []).filter(function (q) { return String(q.published) === '1' || q.published === 1 || q.published === true; });
+  if (!QG_presetUsed) {
+    QG_presetUsed = true;
+    var preset = '';
+    try { preset = new URLSearchParams(location.search).get('quiz') || ''; } catch (e3) { preset = ''; }
+    var presetQuiz = preset && all.find(function (q) { return String(q.id) === String(preset); });
+    var presetCat = presetQuiz ? QG_quizKind(presetQuiz) : '';
+    var category = document.getElementById('grade-category');
+    if (presetCat && category && category.value !== presetCat) {
+      category.value = presetCat;
+      QG_labels();
+      cat = presetCat;
+    }
+  }
+  QG_quizzes = all.filter(function (q) { return QG_quizKind(q) === cat; });
+  var empty = { quiz: 'No published quizzes yet', exam: 'No published exams yet', activity: 'No published activities yet' };
+  QG_fillSelect(QG_quizzes, empty[cat] || 'Nothing in this category yet', function (q) {
     var section = q.target_section ? ' · ' + q.target_section : '';
-    opt.textContent = (q.title || 'Quiz') + section;
-    sel.appendChild(opt);
+    return (q.title || 'Untitled') + section;
   });
-  sel.onchange = onchange;
-  if (current && QG_quizzes.some(function (q) { return String(q.id) === String(current); })) sel.value = current;
-  var preset = '';
-  try { preset = new URLSearchParams(location.search).get('quiz') || ''; } catch (e2) { preset = ''; }
-  if (preset && QG_quizzes.some(function (q) { return String(q.id) === String(preset); })) sel.value = preset;
+  var sel = document.getElementById('grade-quiz-select');
+  var presetId = '';
+  try { presetId = new URLSearchParams(location.search).get('quiz') || ''; } catch (e4) { presetId = ''; }
+  if (sel && presetId && QG_quizzes.some(function (q) { return String(q.id) === String(presetId); })) sel.value = presetId;
   await QG_loadScores();
 }
 
@@ -108,10 +200,35 @@ async function QG_loadScores() {
   if (detail) detail.innerHTML = '';
   QG_openStudent = '';
   if (!sel.value) {
-    host.innerHTML = '<p class="qg-empty">Publish a quiz in the Quizzes tab, then choose it here.</p>';
+    var waiting = QG_isAssignment()
+      ? 'Create an assignment in Classwork, then choose it here.'
+      : 'Publish one in the Quizzes tab, then choose it here.';
+    host.innerHTML = '<p class="qg-empty">' + waiting + '</p>';
     return;
   }
   host.innerHTML = '<p class="qg-empty">Loading scores…</p>';
+  if (QG_isAssignment()) {
+    try {
+      var submissions = await PrismSubmissions.getAll(sel.value);
+      QG_scores = (Array.isArray(submissions) ? submissions : []).map(function (row) {
+        return {
+          student_id: row.student_id,
+          student_name: row.student_name,
+          score: row.score,
+          taken_at: row.submitted_at,
+          note: row.note || '',
+          link_url: row.link_url || '',
+          file_name: row.file_name || ''
+        };
+      });
+    } catch (e) {
+      host.innerHTML = '<p class="qg-empty">Could not load submissions.</p>';
+      return;
+    }
+    QG_log = [];
+    QG_renderList();
+    return;
+  }
   try {
     var rows = await PrismQuizzes.getScores(sel.value);
     QG_scores = Array.isArray(rows) ? rows : [];
@@ -173,17 +290,19 @@ function QG_people() {
 
 function QG_renderList() {
   var host = document.getElementById('grade-list');
-  var quiz = QG_quizzes.find(function (q) { return String(q.id) === String(document.getElementById('grade-quiz-select').value); });
+  var quiz = QG_isAssignment() ? null : QG_currentQuiz();
+  var assignment = QG_isAssignment() ? QG_currentAssignment() : null;
   var filter = (document.getElementById('grade-student-filter').value || '').trim().toLowerCase();
   var people = QG_people().filter(function (person) {
     var name = String(person.name || '').toLowerCase();
     return !filter || name.indexOf(filter) !== -1;
   });
   if (!people.length) {
-    host.innerHTML = '<p class="qg-empty">' + (QG_people().length ? 'No student matches that filter.' : 'No submissions for this quiz yet.') + '</p>';
+    var noun = QG_isAssignment() ? 'assignment' : (QG_category() === 'exam' ? 'exam' : QG_category() === 'activity' ? 'activity' : 'quiz');
+    host.innerHTML = '<p class="qg-empty">' + (QG_people().length ? 'No student matches that filter.' : 'No submissions for this ' + noun + ' yet.') + '</p>';
     return;
   }
-  var total = quiz ? (parseInt(quiz.total_points, 10) || 0) : 0;
+  var total = assignment ? (parseInt(assignment.points || assignment.pts, 10) || 0) : (quiz ? (parseInt(quiz.total_points, 10) || 0) : 0);
   host.innerHTML = people.map(function (person) {
     var row = person.score;
     var when = row && row.taken_at ? new Date(String(row.taken_at).replace(' ', 'T')).toLocaleString() : '';
@@ -191,7 +310,9 @@ function QG_renderList() {
     var whenHtml = QG_esc(when);
     if (flag) whenHtml += (when ? ' · ' : '') + '<span class="qg-flag">' + QG_esc(flag) + '</span>';
     var open = String(QG_openStudent) === String(person.id);
-    var scoreText = row ? (QG_esc(row.score) + ' / ' + total) : 'No score';
+    var scoreText = 'No score';
+    if (row && QG_isAssignment()) scoreText = QG_hasScore(row) ? (QG_esc(row.score) + (total ? ' / ' + total : '')) : 'Not graded';
+    else if (row) scoreText = QG_esc(row.score) + ' / ' + total;
     return '<button type="button" class="qg-student' + (open ? ' is-open' : '') + (flag ? ' has-flag' : '') + '" data-student="' + QG_esc(person.id) + '" aria-expanded="' + (open ? 'true' : 'false') + '">'
       + '<span><b>' + QG_esc(person.name) + '</b><small>' + whenHtml + '</small></span>'
       + '<strong>' + scoreText + '</strong></button>';
@@ -301,7 +422,11 @@ function QG_closeStudent() {
   QG_markOpenStudent();
 }
 function QG_showStudent(studentId) {
-  var quiz = QG_quizzes.find(function (q) { return String(q.id) === String(document.getElementById('grade-quiz-select').value); });
+  if (QG_isAssignment()) {
+    QG_showAssignment(studentId);
+    return;
+  }
+  var quiz = QG_currentQuiz();
   var person = QG_people().find(function (p) { return String(p.id) === String(studentId); });
   var row = person && person.score;
   var detail = document.getElementById('grade-detail');
@@ -342,6 +467,60 @@ function QG_showStudent(studentId) {
   if (save) save.onclick = function () { QG_save(studentId, questions.length); };
   QG_markOpenStudent();
   requestAnimationFrame(QG_drawMatchBoards);
+}
+
+function QG_safeLink(url) {
+  var raw = String(url || '').trim();
+  if (typeof prismNormalizeHttpUrl === 'function') return prismNormalizeHttpUrl(raw) || '';
+  return /^https?:\/\//i.test(raw) ? raw : '';
+}
+function QG_showAssignment(studentId) {
+  var assignment = QG_currentAssignment();
+  var person = QG_people().find(function (p) { return String(p.id) === String(studentId); });
+  var row = person && person.score;
+  var detail = document.getElementById('grade-detail');
+  if (!assignment || !person || !detail) return;
+  QG_openStudent = studentId;
+  if (!row) {
+    detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(person.name) + '</h3></div><p class="qg-empty">No submission yet.</p>';
+    QG_markOpenStudent();
+    return;
+  }
+  var total = parseInt(assignment.points || assignment.pts, 10) || 0;
+  var href = QG_safeLink(row.link_url);
+  var bits = '';
+  if (row.note) bits += '<p>' + QG_esc(row.note) + '</p>';
+  if (href) bits += '<p><a href="' + QG_esc(href) + '" target="_blank" rel="noopener">Open the submitted link</a></p>';
+  if (row.file_name) bits += '<p>File: ' + QG_esc(row.file_name) + '</p>';
+  detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(row.student_name || studentId) + '</h3>'
+    + '<button type="button" class="t-btn" id="qg-save">Save score</button></div>'
+    + (bits || '<p class="qg-note">No note or file was attached.</p>')
+    + '<label>Points <input type="number" min="0"' + (total ? ' max="' + total + '"' : '') + ' id="qg-asgn-score" value="' + (QG_hasScore(row) ? QG_esc(row.score) : '') + '">' + (total ? ' / ' + total : '') + '</label>'
+    + '<p class="qg-note" id="qg-note"></p>';
+  var save = document.getElementById('qg-save');
+  if (save) save.onclick = function () { QG_saveAssignment(studentId); };
+  QG_markOpenStudent();
+}
+async function QG_saveAssignment(studentId) {
+  var note = document.getElementById('qg-note');
+  var input = document.getElementById('qg-asgn-score');
+  var max = input ? parseInt(input.max, 10) : 0;
+  var n = input ? parseInt(input.value, 10) : NaN;
+  if (isNaN(n) || n < 0) n = 0;
+  if (max && n > max) n = max;
+  var btn = document.getElementById('qg-save');
+  if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Saving…');
+  try {
+    var sel = document.getElementById('grade-quiz-select');
+    await PrismSubmissions.grade(sel.value, studentId, n);
+    await QG_loadScores();
+    QG_showAssignment(studentId);
+    var done = document.getElementById('qg-note');
+    if (done) done.textContent = 'Saved. Score is now ' + n + '.';
+  } catch (e) {
+    if (note) note.textContent = (e && e.message) ? e.message : 'Could not save the score.';
+    if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
+  }
 }
 
 async function QG_save(studentId, count) {

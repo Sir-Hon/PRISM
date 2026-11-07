@@ -1022,6 +1022,13 @@ const PrismSubmissions = {
     const data = await apiGet('content', 'get_my_submissions', { class_id });
     return data.submissions || [];
   },
+  async grade(assignment_id, student_id, score) {
+    return await apiCall('content', 'grade_submission', 'POST', {
+      assignment_id: assignment_id,
+      student_id: student_id,
+      score: score
+    });
+  },
   async submit(submission) {
     const files = submission && Array.isArray(submission.files)
       ? submission.files.filter(function (f) { return f instanceof File; })
