@@ -121,12 +121,12 @@ function persistTeacherClassesLocal() {
     if (!cover && c.cover == null && c.has_cover && typeof prismCoverRecall === 'function') cover = prismCoverRecall(c.id);
     if (typeof prismCoverRemember === 'function') prismCoverRemember(c.id, cover);
     return {
-      id: c.id,
-      subject: c.subject,
-      color: c.color || '#7c3aed',
-      code: c.code,
-      teacher_id: c.teacher_id || TEACHER_ID,
-      student_count: parseInt(c.student_count, 10) || 0,
+    id: c.id,
+    subject: c.subject,
+    color: c.color || '#7c3aed',
+    code: c.code,
+    teacher_id: c.teacher_id || TEACHER_ID,
+    student_count: parseInt(c.student_count, 10) || 0,
       has_cover: !!cover,
     };
   });
