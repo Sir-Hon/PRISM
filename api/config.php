@@ -229,7 +229,7 @@ function prism_session_cookie_name(): string {
 function prism_admin_catalog(): array {
     return [
         'dashboard' => 'Dashboard',
-        'users' => 'Manage users',
+        'users' => 'Teachers and students',
         'roster' => 'Roster',
         'cor' => 'Certificates of registration',
         'calendar' => 'Calendar',

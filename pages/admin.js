@@ -136,7 +136,7 @@ function renderAdminAccess() {
   }
   var admins = (adminUsersCache || []).filter(function (u) { return userRole(u) === 'admin' && !u.superadmin; });
   var catalog = [
-    ['users', 'Manage users'],
+    ['users', 'Teachers and students'],
     ['roster', 'Roster'],
     ['cor', 'COR'],
     ['calendar', 'Calendar'],

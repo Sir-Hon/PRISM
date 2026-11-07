@@ -88,7 +88,7 @@
     if (!user) return;
     var adminPerm = {
       'admin.html': 'dashboard',
-      'manage.html': 'users',
+      'manage.html': 'security',
       'roster.html': 'roster',
       'cor.html': 'cor',
       'calendar.html': 'calendar',

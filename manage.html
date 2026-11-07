@@ -6,7 +6,7 @@
   <script>(function(){var dark=false,hold=true;try{dark=localStorage.getItem('prism_theme')==='dark';}catch(e){}try{var on=sessionStorage.getItem('prism_tab_on')==='1';var left=parseInt(sessionStorage.getItem('prism_left_at')||'0',10)||0;var live=on&&(!left||(Date.now()-left)<60000);var remember=localStorage.getItem('prism_remember')==='1';if(live||remember)hold=false;}catch(e2){}if(dark)document.documentElement.setAttribute('data-theme','dark');if(hold)document.documentElement.classList.add('prism-gate');})();</script>
   <style>html.prism-gate{background:#f4f2fb}html[data-theme="dark"].prism-gate{background:#0c0e16}html.prism-gate body{display:none !important}</style>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>PRISM � Account Management</title>
+  <title>PRISM — Security</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
   <link rel="stylesheet" href="portal.css?v=30"/>
   <script src="portal-mobile.js?v=4" defer></script>
@@ -181,8 +181,8 @@
 </head>
 <body>
 <script src="api.js?v=42"></script>
-<script src="script.js?v=22"></script>
-<script src="portal-sidebar.js?v=27"></script>
+<script src="script.js?v=23"></script>
+<script src="portal-sidebar.js?v=28"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <span class="admin-badge"> Admin Panel</span>
@@ -206,45 +206,17 @@
 
   <main class="main-content">
     <div class="page-header">
-      <h1> Account Management</h1>
-      <p>Review every account, assign a CTU email, and remove a login. Students, teachers, and administrators are created on the Roster.</p>
+      <h1>Security</h1>
+      <p>Set the admin passphrase and review registration attempts. Students, teachers, and administrators are created on the Roster.</p>
     </div>
 
-    <div class="page-tabs">
-      <button class="page-tab active" onclick="switchTab('users',this)"> All Users</button>
-      <button class="page-tab"        onclick="switchTab('security',this)"> Admin Security</button>
-    </div>
-
-    <!-- --- TAB: ALL USERS --- -->
-    <div class="tab-panel active" id="tab-users">
-      <div class="users-controls">
-        <input class="search-input" id="search-input" placeholder="  Search by name or ID�" oninput="renderTable()"/>
-        <div class="filter-btns">
-          <button class="filter-btn active-all" data-filter="all"     onclick="setFilter('all',this)">All</button>
-          <button class="filter-btn"            data-filter="student" onclick="setFilter('student',this)">Students</button>
-          <button class="filter-btn"            data-filter="teacher" onclick="setFilter('teacher',this)">Teachers</button>
-          <button class="filter-btn"            data-filter="admin"   onclick="setFilter('admin',this)">Admins</button>
-        </div>
-        <span class="total-badge" id="total-badge">0 users</span>
-      </div>
-      <div class="users-table-wrap">
-        <div class="prism-table-scroll">
-        <table>
-          <thead><tr><th>Name</th><th>ID</th><th>Role</th><th>Type</th><th>CTU Email</th><th>Action</th></tr></thead>
-          <tbody id="users-tbody"></tbody>
-        </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- --- TAB: ADMIN SECURITY --- -->
-    <div class="tab-panel" id="tab-security">
+    <div id="tab-security">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:900px;" class="security-grid">
 
         <!-- Passphrase card -->
         <div class="create-card" style="max-width:100%">
           <div class="card-heading"> Admin Registration Passphrase</div>
-          <div class="card-sub">The superadmin adds other administrators on the Roster. Invite codes are no longer used.</div>
+          <div class="card-sub">The superadmin adds other administrators on the Roster. This passphrase stays on this browser.</div>
 
           <div style="background:#fef9e7;border:1.5px solid #fde68a;border-radius:12px;padding:.9rem 1rem;margin-bottom:1.3rem;font-size:.8rem;color:#92400e;line-height:1.6;">
              Public signup with an invite code is closed. Teacher and student accounts are created on the Roster.
@@ -279,7 +251,7 @@
           <div class="form-msg" id="pp-msg"></div>
 
           <div class="card-note" style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;font-size:.82rem;line-height:1.55;">
-            New admins get their CTU email on the Roster. You can update a student, teacher, or admin address from All Users. admin001 stays superadmin.access@ctu.edu.ph.
+            New admins get their CTU email on the Roster. admin001 stays superadmin.access@ctu.edu.ph.
           </div>
         </div>
 
@@ -296,18 +268,6 @@
   </main>
 </div>
 
-<div class="m-overlay" id="email-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:600;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;padding:1.4rem 1.3rem;width:min(420px,92vw);">
-    <h3 style="font-family:'DM Sans',sans-serif;margin-bottom:.35rem;">Assign CTU email</h3>
-    <p id="email-who" style="font-size:.88rem;color:#6b7280;margin-bottom:.9rem;"></p>
-    <input id="email-input" type="email" placeholder="name.surname@ctu.edu.ph" autocomplete="off" style="width:100%;border:1.5px solid #e4dffa;border-radius:10px;padding:.65rem .85rem;font-family:'DM Sans',sans-serif;"/>
-    <div style="display:flex;gap:.6rem;margin-top:1rem;">
-      <button type="button" onclick="closeEmailModal()" style="flex:1;padding:.65rem;border:none;border-radius:10px;background:#f0ecff;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">Cancel</button>
-      <button type="button" onclick="saveUserEmail()" style="flex:1;padding:.65rem;border:none;border-radius:10px;background:#7c3aed;color:#fff;font-weight:700;cursor:pointer;font-family:'DM Sans',sans-serif;">Save email</button>
-    </div>
-    <div id="email-msg" style="font-size:.82rem;margin-top:.6rem;min-height:1em;"></div>
-  </div>
-</div>
-<script src="pages/manage.js?v=15"></script>
+<script src="pages/manage.js?v=16"></script>
 </body>
 </html>

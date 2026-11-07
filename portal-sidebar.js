@@ -17,6 +17,7 @@ function prismNavIcon(name) {
     grading: '<svg ' + common + '><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
     plan: '<svg ' + common + '><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8M8 11h8M8 15h5"/></svg>',
     users: '<svg ' + common + '><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="3.5"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    security: '<svg ' + common + '><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>',
     dashboard: '<svg ' + common + '><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>',
   };
   return map[name] || '';
@@ -38,7 +39,7 @@ var ROLE_NAV = {
   ],
   admin: [
     { page: 'home', href: 'admin.html', icon: 'dashboard', label: 'Dashboard', perm: 'dashboard' },
-    { page: 'manage', href: 'manage.html', icon: 'users', label: 'Manage Users', perm: 'users' },
+    { page: 'manage', href: 'manage.html', icon: 'security', label: 'Security', perm: 'security' },
     { page: 'roster', href: 'roster.html', icon: 'records', label: 'Roster', perm: 'roster' },
     { page: 'cor', href: 'cor.html', icon: 'cor', label: 'COR', perm: 'cor' },
     { page: 'calendar', href: 'calendar.html', icon: 'calendar', label: 'Calendar', perm: 'calendar' },

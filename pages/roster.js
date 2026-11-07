@@ -23,7 +23,7 @@
     { id: 'Announcements', perms: ['announcements'] }
   ];
   var adminFeatures = [
-    ['users', 'Manage users'],
+    ['users', 'Teachers and students'],
     ['roster', 'Roster'],
     ['cor', 'COR'],
     ['calendar', 'Calendar'],
