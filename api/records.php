@@ -12,16 +12,16 @@ if (($user['role'] ?? '') === 'admin') {
 }
 
 function prism_records_schema_flag(): string {
-    return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-records-schema-v1-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
+    return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-records-schema-v2-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
 }
 
-function prism_sheet_tables($db) {
+function prism_sheet_tables($db, $force = false) {
     static $done = false;
-    if ($done) {
+    if ($done && !$force) {
         return;
     }
     $flag = prism_records_schema_flag();
-    if (is_file($flag)) {
+    if (!$force && is_file($flag)) {
         $done = true;
         return;
     }
@@ -46,8 +46,15 @@ function prism_sheet_tables($db) {
             sent_by VARCHAR(50) NOT NULL,
             sent_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             UNIQUE KEY uniq_student_term (student_id, school_year, semester)
-        )'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
     );
+    // An older table can use a different collation than users.id. The list joins those
+    // columns, and MySQL then aborts the whole request.
+    try {
+        $db->exec('ALTER TABLE student_cors CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci');
+    } catch (PDOException $e) {
+        error_log('student_cors charset: ' . $e->getMessage());
+    }
     @file_put_contents(prism_records_schema_flag(), '1');
     $done = true;
 }
@@ -231,22 +238,34 @@ if ($method === 'GET' && $action === 'cors') {
         $yearParams[] = $user['id'];
     }
     $yearSql .= ' ORDER BY school_year DESC';
-    $yearStmt = $db->prepare($yearSql);
-    $yearStmt->execute($yearParams);
-    $years = [];
-    foreach ($yearStmt->fetchAll() as $yearRow) {
-        $years[] = $yearRow['school_year'];
-    }
 
     $sql = 'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at, u.name AS student_name
             FROM student_cors c
-            JOIN users u ON u.id = c.student_id'
+            JOIN users u ON u.id COLLATE utf8mb4_unicode_ci = c.student_id COLLATE utf8mb4_unicode_ci'
         . $where
         . ' ORDER BY c.school_year DESC, c.semester ASC, u.name ASC
             LIMIT 1000';
-    $stmt = $db->prepare($sql);
-    $stmt->execute($params);
-    $cors = $stmt->fetchAll();
+    try {
+        try {
+            $yearStmt = $db->prepare($yearSql);
+            $yearStmt->execute($yearParams);
+        } catch (PDOException $e) {
+            if (stripos($e->getMessage(), 'student_cors') === false) throw $e;
+            prism_sheet_tables($db, true);
+            $yearStmt = $db->prepare($yearSql);
+            $yearStmt->execute($yearParams);
+        }
+        $years = [];
+        foreach ($yearStmt->fetchAll() as $yearRow) {
+            $years[] = $yearRow['school_year'];
+        }
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        $cors = $stmt->fetchAll();
+    } catch (PDOException $e) {
+        error_log('PRISM cors: ' . $e->getMessage());
+        fail('Certificates could not be loaded. Please try again.', 500);
+    }
     ok(['cors' => $cors, 'years' => $years, 'capped' => count($cors) >= 1000]);
 }
 
