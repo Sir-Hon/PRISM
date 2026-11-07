@@ -225,8 +225,11 @@ function prismCsrfHeaders() {
 
 function prismFriendlyApiParseError(text) {
   const t = (text || '').trim();
-  if (t.startsWith('<') || t.includes('<!DOCTYPE')) {
-    return 'Server returned a web page instead of data. Wait a few seconds and refresh — the live site may still be starting.';
+  if (/content-length|post_max_size|upload_max_filesize|exceeds the limit|allowed memory size/i.test(t)) {
+    return 'That file is too large for the server. Keep it under 15 MB, or paste a link instead.';
+  }
+  if (t.startsWith('<') || t.includes('<!DOCTYPE') || t.includes('<b>')) {
+    return 'The server could not accept that. If a file was attached, use one under 15 MB or paste a link, then try again.';
   }
   return t ? t.slice(0, 200) : 'Invalid response from server';
 }

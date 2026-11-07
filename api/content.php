@@ -193,6 +193,9 @@ function prism_read_multipart_file($key) {
     if ($err === UPLOAD_ERR_NO_FILE) {
         return null;
     }
+    if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
+        fail('That file is too large for the server. Keep it under 15 MB, or paste a link instead.', 400);
+    }
     if ($err !== UPLOAD_ERR_OK) {
         fail('File upload failed. Try a smaller file or a link instead.', 400);
     }
@@ -296,6 +299,9 @@ function prism_read_multipart_files($key) {
         $err = $f['error'][$i] ?? UPLOAD_ERR_NO_FILE;
         if ($err === UPLOAD_ERR_NO_FILE) {
             continue;
+        }
+        if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
+            fail('That file is too large for the server. Keep it under 15 MB, or paste a link instead.', 400);
         }
         if ($err !== UPLOAD_ERR_OK) {
             fail('File upload failed. Try a smaller file or a link instead.', 400);

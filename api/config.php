@@ -80,6 +80,31 @@ function fail($msg, $code = 400) {
     prism_exit_json($out, $code);
 }
 
+function prism_ini_bytes($value): int {
+    $value = trim((string) $value);
+    if ($value === '') {
+        return 0;
+    }
+    $unit = strtolower(substr($value, -1));
+    $number = (float) $value;
+    if ($unit === 'g') {
+        return (int) round($number * 1073741824);
+    }
+    if ($unit === 'm') {
+        return (int) round($number * 1048576);
+    }
+    if ($unit === 'k') {
+        return (int) round($number * 1024);
+    }
+    return (int) round($number);
+}
+
+$prismPostLength = (int) ($_SERVER['CONTENT_LENGTH'] ?? 0);
+$prismPostMax = prism_ini_bytes((string) ini_get('post_max_size'));
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && $prismPostLength > 0 && $prismPostMax > 0 && $prismPostLength > $prismPostMax) {
+    fail('That file is too large for the server. Keep it under 15 MB, or paste a link instead.', 413);
+}
+
 set_exception_handler(function (Throwable $e) {
     error_log('PRISM: ' . $e->getMessage());
     fail('Something went wrong. Please try again.', 500);
