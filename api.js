@@ -1148,6 +1148,9 @@ const PrismRecords = {
   async sendCor(body) {
     return await apiCall('records', 'send_cor', 'POST', body);
   },
+  async deleteCor(id) {
+    return await apiCall('records', 'delete_cor', 'POST', { id: id });
+  },
 };
 
 const PrismLessons = {

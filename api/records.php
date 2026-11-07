@@ -239,11 +239,13 @@ if ($method === 'GET' && $action === 'cors') {
     }
     $yearSql .= ' ORDER BY school_year DESC';
 
-    $sql = 'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at, u.name AS student_name
+    $sql = 'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at, u.name AS student_name,
+                   JSON_UNQUOTE(JSON_EXTRACT(c.payload, \'$.program\')) AS program,
+                   JSON_UNQUOTE(JSON_EXTRACT(c.payload, \'$.block\')) AS block
             FROM student_cors c
             JOIN users u ON u.id COLLATE utf8mb4_unicode_ci = c.student_id COLLATE utf8mb4_unicode_ci'
         . $where
-        . ' ORDER BY c.school_year DESC, c.semester ASC, u.name ASC
+        . ' ORDER BY c.school_year DESC, c.sent_at DESC, u.name ASC
             LIMIT 1000';
     try {
         try {
@@ -399,6 +401,19 @@ if ($method === 'POST' && $action === 'send_cor') {
         fail('Could not save the certificate');
     }
     ok(['count' => count($students), 'label' => $label]);
+}
+
+if ($method === 'POST' && $action === 'delete_cor') {
+    if ($user['role'] !== 'admin') fail('Forbidden', 403);
+    require_once __DIR__ . '/security_lib.php';
+    prism_require_fine($db, $user, 'cor.send');
+    $b = getBody();
+    $id = (int) ($b['id'] ?? 0);
+    if ($id <= 0) fail('Missing certificate');
+    $stmt = $db->prepare('DELETE FROM student_cors WHERE id = ?');
+    $stmt->execute([$id]);
+    if ($stmt->rowCount() < 1) fail('Certificate not found', 404);
+    ok(['deleted' => $id]);
 }
 
 fail('Unknown action', 404);

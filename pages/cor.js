@@ -174,7 +174,7 @@ function matchingCors(year, sem, query) {
     if (year && item.school_year !== year) return false;
     if (sem && item.semester !== sem) return false;
     if (!q) return true;
-    var hay = ((item.student_name || '') + ' ' + (item.student_id || '') + ' ' + (item.label || '')).toLowerCase();
+    var hay = ((item.student_name || '') + ' ' + (item.student_id || '') + ' ' + (item.label || '') + ' ' + (item.program || '') + ' ' + (item.block || '')).toLowerCase();
     return hay.indexOf(q) !== -1;
   });
 }
@@ -817,6 +817,7 @@ function loadSentCors() {
       return;
     }
     var lastYear = null;
+    var canChange = typeof prismAdminCan !== 'function' || prismAdminCan('cor.send');
     list.forEach(function (item) {
       if (item.school_year !== lastYear) {
         lastYear = item.school_year;
@@ -825,19 +826,30 @@ function loadSentCors() {
         head.textContent = 'AY ' + (item.school_year || '');
         host.appendChild(head);
       }
-      var row = document.createElement('button');
-      row.type = 'button';
+      var row = document.createElement('div');
       row.className = 'sent-row';
-      row.style.width = '100%';
-      row.style.background = 'none';
-      row.style.border = 'none';
-      row.style.cursor = 'pointer';
-      row.style.fontFamily = 'inherit';
-      row.style.color = 'inherit';
-      row.style.textAlign = 'left';
-      var detail = [item.semester, item.student_id].filter(Boolean).join(' · ');
-      row.innerHTML = '<strong>' + corEsc(item.student_name || item.student_id) + '</strong><span>' + corEsc(detail) + '</span>';
-      row.addEventListener('click', function () { editSentCor(item.id); });
+      var main = document.createElement('div');
+      main.className = 'sent-main';
+      var detail = [item.semester, item.student_id, item.program, item.block, item.sent_at ? ('Sent ' + item.sent_at) : ''].filter(Boolean).join(' · ');
+      main.innerHTML = '<strong>' + corEsc(item.student_name || item.student_id) + '</strong><span>' + corEsc(detail) + '</span>';
+      row.appendChild(main);
+      if (canChange) {
+        var actions = document.createElement('div');
+        actions.className = 'sent-actions';
+        var edit = document.createElement('button');
+        edit.type = 'button';
+        edit.className = 'cor-btn ghost';
+        edit.textContent = 'Edit';
+        edit.addEventListener('click', function () { editSentCor(item.id); });
+        var remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'cor-btn ghost danger';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', function () { deleteSentCor(item, remove); });
+        actions.appendChild(edit);
+        actions.appendChild(remove);
+        row.appendChild(actions);
+      }
       host.appendChild(row);
     });
   }).catch(function () {});
@@ -867,4 +879,23 @@ async function editSentCor(id) {
   });
   document.getElementById('cor-print').innerHTML = corDocument(p);
   setCorMsg('Loaded ' + (cor.label || 'certificate') + '. Send again to update it.', false);
+  var form = document.getElementById('cor-form');
+  if (form && form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function deleteSentCor(item, button) {
+  var name = item.student_name || item.student_id || 'this student';
+  var when = [item.semester, item.school_year].filter(Boolean).join(' ');
+  if (!window.confirm('Delete the certificate for ' + name + (when ? ' (' + when + ')' : '') + '?')) return;
+  if (typeof prismSetBusy === 'function') prismSetBusy(button, true, 'Deleting…');
+  try {
+    await PrismRecords.deleteCor(item.id);
+    invalidateCorCatalog();
+    loadSentCors();
+    setCorMsg('Deleted the certificate for ' + name + '.', false);
+  } catch (e) {
+    setCorMsg(e.message || 'Could not delete the certificate', true);
+  } finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(button, false);
+  }
 }
