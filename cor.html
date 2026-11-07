@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Certificate of Registration</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=30"/>
+  <link rel="stylesheet" href="portal.css?v=31"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     .cor-wrap { max-width: 980px; }
@@ -82,10 +82,18 @@
     html[data-theme="dark"] .cor-lead { color:#d1d5db !important; }
     html[data-theme="dark"] .cor-filter-row select,
     html[data-theme="dark"] .cor-filter-row input { background:#24283d !important; color:#f3f4f6 !important; border-color:#3d4468 !important; -webkit-text-fill-color:#f3f4f6; }
-    html[data-theme="dark"] .cor-year-head { color:#e9d5ff !important; }
-    html[data-theme="dark"] .cor-empty { color:#d1d5db !important; }
+    html[data-theme="dark"] .cor-year-head { color:#e9d5ff !important; -webkit-text-fill-color:#e9d5ff; }
+    html[data-theme="dark"] .cor-empty { color:#d1d5db !important; -webkit-text-fill-color:#d1d5db; }
     html[data-theme="dark"] .cor-card h2,
-    html[data-theme="dark"] .cor-choice strong { color:#f3f4f6; }
+    html[data-theme="dark"] .cor-choice strong,
+    html[data-theme="dark"] .sent-row strong,
+    html[data-theme="dark"] .cor-person b,
+    html[data-theme="dark"] .cor-match { color:#f3f4f6 !important; -webkit-text-fill-color:#f3f4f6; }
+    html[data-theme="dark"] .cor-choice span,
+    html[data-theme="dark"] .sent-row span,
+    html[data-theme="dark"] .cor-pick-count,
+    html[data-theme="dark"] .cor-person small,
+    html[data-theme="dark"] .cor-person label { color:#d1d5db !important; -webkit-text-fill-color:#d1d5db; }
     html[data-theme="dark"] .cor-field label,
     html[data-theme="dark"] .sub-table th { color:#c4c8d4; }
     html[data-theme="dark"] .sent-row { color:#f3f4f6; border-bottom-color:#2e3350; }
@@ -176,6 +184,6 @@
     </div>
   </main>
 </div>
-<script src="pages/cor.js?v=8"></script>
+<script src="pages/cor.js?v=9"></script>
 </body>
 </html>

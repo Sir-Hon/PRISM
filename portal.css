@@ -1137,16 +1137,12 @@ html[data-theme="dark"] .note-list-item.active {
   background: #2a3148 !important;
 }
 html[data-theme="dark"] .quiz-card,
-html[data-theme="dark"] .qz-modal,
-html[data-theme="dark"] .cor-card {
+html[data-theme="dark"] .qz-modal {
   color: #16132b;
 }
 html[data-theme="dark"] .quiz-card .quiz-title,
 html[data-theme="dark"] .qz-modal h2,
-html[data-theme="dark"] .qz-question,
-html[data-theme="dark"] .cor-card h2,
-html[data-theme="dark"] .cor-card strong,
-html[data-theme="dark"] .cor-choice strong {
+html[data-theme="dark"] .qz-question {
   color: #16132b !important;
   -webkit-text-fill-color: #16132b;
 }
@@ -1161,8 +1157,7 @@ html[data-theme="dark"] .qz-choice.wrong .qz-choice-letter {
 }
 html[data-theme="dark"] .quiz-card,
 html[data-theme="dark"] .qz-modal,
-html[data-theme="dark"] .qz-modal-header,
-html[data-theme="dark"] .cor-card {
+html[data-theme="dark"] .qz-modal-header {
   background-color: #fff;
 }
 html[data-theme="dark"] .cal-cell.today .cell-num {
