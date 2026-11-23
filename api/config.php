@@ -162,7 +162,7 @@ function getDB() {
             $pdo->exec("SET SESSION sql_mode = REPLACE(@@SESSION.sql_mode, 'ANSI_QUOTES', '')");
         } catch (PDOException $e) {
             error_log('PRISM DB connection failed: ' . $e->getMessage());
-            fail('Database connection failed', 500);
+            fail('Database connection failed. The portal could not open MySQL, so the password was not checked.', 500);
         }
     }
     return $pdo;

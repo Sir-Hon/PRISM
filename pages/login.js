@@ -127,6 +127,11 @@ async function handleLogin() {
   } catch (e) {
     btn.classList.remove('loading');
     btn.textContent = 'Sign In';
+    var raw = (e && e.message) ? String(e.message) : '';
+    if (/database connection|could not reach the login service|something went wrong/i.test(raw)) {
+      showError('The portal cannot reach its database, so this sign-in was not checked. Wait a moment and try again. If it stays this way, wake the database on Render and confirm DB_HOST, DB_NAME, DB_USER, and DB_PASS on the web service.');
+      return;
+    }
     attempts++;
     var left = MAX_ATTEMPTS - attempts;
     if (left <= 0) {
