@@ -707,7 +707,12 @@ async function deletePost(id) {
 function downloadMaterial(id) {
   const items = getMaterials()[activeClassId] || [];
   const it = items.find(x => x.id === id);
-  if (!it || !it.file_data) return;
+  if (!it) return;
+  if (typeof prismOpenMaterialUrl === 'function' && (it.file_path || it.file_data)) {
+    prismOpenMaterialUrl(it.file_path || it.file_data, it.mime_type || '', it.file_name || it.title || 'file');
+    return;
+  }
+  if (!it.file_data) return;
   const a = document.createElement('a');
   a.href = it.file_data;
   a.download = it.file_name || it.title;

@@ -23,7 +23,8 @@ function prism_fine_catalog(): array {
         'calendar.edit' => ['group' => 'Calendar', 'label' => 'Add and change events', 'gate' => 'calendar'],
         'security.view' => ['group' => 'Security', 'label' => 'Open security', 'gate' => 'security'],
         'security.logs' => ['group' => 'Security', 'label' => 'View the security log', 'gate' => 'security'],
-        'security.settings' => ['group' => 'Security', 'label' => 'Change the passphrase and sign-in lock', 'gate' => 'security'],
+        'security.settings' => ['group' => 'Security', 'label' => 'Change the sign-in lock', 'gate' => 'security'],
+        'accounts.passwords' => ['group' => 'Accounts', 'label' => 'View and edit saved passwords', 'gate' => 'passwords'],
     ];
 }
 

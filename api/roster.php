@@ -28,7 +28,8 @@ if ($method === 'GET' && $action === 'list') {
     $q = trim((string) ($_GET['q'] ?? ''));
     $status = strtolower(trim((string) ($_GET['status'] ?? '')));
     $page = (int) ($_GET['page'] ?? 1);
-    ok(prism_roster_list(
+    $see = prism_roster_can_see_passwords($db, $admin);
+    $listed = prism_roster_list(
         $db,
         $q,
         $status,
@@ -37,18 +38,25 @@ if ($method === 'GET' && $action === 'list') {
         (string) ($_GET['college'] ?? ''),
         (string) ($_GET['program'] ?? ''),
         (string) ($_GET['year'] ?? ''),
-        (string) ($_GET['section'] ?? '')
-    ));
+        (string) ($_GET['section'] ?? ''),
+        $see
+    );
+    $listed['can_view_passwords'] = $see;
+    ok($listed);
 }
 
 if ($method === 'GET' && $action === 'teacher_list') {
-    ok(prism_teacher_list(
+    $see = prism_roster_can_see_passwords($db, $admin);
+    $listed = prism_teacher_list(
         $db,
         trim((string) ($_GET['q'] ?? '')),
         (string) ($_GET['college'] ?? ''),
         (int) ($_GET['page'] ?? 1),
-        20
-    ));
+        20,
+        $see
+    );
+    $listed['can_view_passwords'] = $see;
+    ok($listed);
 }
 
 if ($method === 'POST' && $action === 'teacher_add') {
@@ -83,13 +91,16 @@ if ($method === 'GET' && $action === 'admin_list') {
     if ($denied) {
         fail($denied['error'], (int) $denied['status']);
     }
-    ok(prism_admin_roster_list(
+    $listed = prism_admin_roster_list(
         $db,
         trim((string) ($_GET['q'] ?? '')),
         (string) ($_GET['type'] ?? ''),
         (int) ($_GET['page'] ?? 1),
-        20
-    ));
+        20,
+        true
+    );
+    $listed['can_view_passwords'] = true;
+    ok($listed);
 }
 
 if ($method === 'POST' && $action === 'admin_add') {

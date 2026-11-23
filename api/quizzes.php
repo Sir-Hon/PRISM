@@ -211,12 +211,26 @@ if ($action === 'get_scores') {
 // ── GET ALL SCORES FOR STUDENT ─────────────────────────
 if ($action === 'get_my_scores') {
     if ($user['role'] !== 'student') fail('Forbidden', 403);
-    $stmt = $db->prepare('SELECT quiz_id, score, taken_at FROM quiz_scores WHERE student_id = ?');
+    $hasItems = prism_quiz_item_scores_ready($db);
+    $stmt = $db->prepare($hasItems
+        ? 'SELECT quiz_id, score, item_scores FROM quiz_scores WHERE student_id = ?'
+        : 'SELECT quiz_id, score FROM quiz_scores WHERE student_id = ?');
     $stmt->execute([$user['id']]);
     $rows = $stmt->fetchAll();
     $map = [];
-    foreach ($rows as $r) $map[$r['quiz_id']] = intval($r['score']);
-    ok(['scores' => $map]);
+    $detail = [];
+    foreach ($rows as $r) {
+        $map[$r['quiz_id']] = intval($r['score']);
+        $items = [];
+        if (!empty($r['item_scores'])) {
+            $decoded = json_decode((string) $r['item_scores'], true);
+            if (is_array($decoded)) {
+                $items = $decoded;
+            }
+        }
+        $detail[$r['quiz_id']] = ['score' => intval($r['score']), 'item_scores' => $items];
+    }
+    ok(['scores' => $map, 'detail' => $detail]);
 }
 
 // ── SUBMIT QUIZ SCORE ──────────────────────────────────

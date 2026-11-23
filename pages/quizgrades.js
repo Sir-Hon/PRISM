@@ -491,7 +491,26 @@ function QG_showAssignment(studentId) {
   var bits = '';
   if (row.note) bits += '<p>' + QG_esc(row.note) + '</p>';
   if (href) bits += '<p><a href="' + QG_esc(href) + '" target="_blank" rel="noopener">Open the submitted link</a></p>';
-  if (row.file_name) bits += '<p>File: ' + QG_esc(row.file_name) + '</p>';
+  var files = [];
+  try {
+    var rawFiles = row.attachments_json;
+    var parsedFiles = typeof rawFiles === 'string' ? JSON.parse(rawFiles || '[]') : rawFiles;
+    if (Array.isArray(parsedFiles)) {
+      parsedFiles.forEach(function (file) {
+        if (file && file.path) files.push(file);
+      });
+    }
+  } catch (eFiles) { files = []; }
+  if (!files.length && row.file_path) files.push({ path: row.file_path, mime: row.mime_type || '', name: row.file_name || 'File' });
+  if (files.length) {
+    bits += '<div class="qg-files">' + files.map(function (file) {
+      return '<button type="button" class="t-btn qg-file" data-path="' + QG_esc(file.path) + '" data-mime="' + QG_esc(file.mime || '') + '" data-name="' + QG_esc(file.name || 'File') + '">View ' + QG_esc(file.name || 'file') + '</button>';
+    }).join(' ') + '</div>';
+  } else if (row.file_data) {
+    bits += '<p><button type="button" class="t-btn" id="qg-legacy-file">View ' + QG_esc(row.file_name || 'file') + '</button></p>';
+  } else if (row.file_name) {
+    bits += '<p>File: ' + QG_esc(row.file_name) + '</p>';
+  }
   detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(row.student_name || studentId) + '</h3>'
     + '<button type="button" class="t-btn" id="qg-save">Save score</button></div>'
     + (bits || '<p class="qg-note">No note or file was attached.</p>')
@@ -499,6 +518,17 @@ function QG_showAssignment(studentId) {
     + '<p class="qg-note" id="qg-note"></p>';
   var save = document.getElementById('qg-save');
   if (save) save.onclick = function () { QG_saveAssignment(studentId); };
+  detail.querySelectorAll('.qg-file').forEach(function (btn) {
+    btn.onclick = function () {
+      if (typeof prismOpenMaterialUrl === 'function') prismOpenMaterialUrl(btn.getAttribute('data-path'), btn.getAttribute('data-mime'), btn.getAttribute('data-name'));
+    };
+  });
+  var legacy = document.getElementById('qg-legacy-file');
+  if (legacy && row.file_data) {
+    legacy.onclick = function () {
+      if (typeof prismOpenMaterialUrl === 'function') prismOpenMaterialUrl(row.file_data, row.mime_type || '', row.file_name || 'submission');
+    };
+  }
   QG_markOpenStudent();
 }
 async function QG_saveAssignment(studentId) {

@@ -149,6 +149,9 @@ function prism_ensure_student_roster(PDO $db): void {
     }
     $flag = prism_roster_schema_flag();
     if (is_file($flag)) {
+        prism_ensure_roster_column($db, 'student_roster', 'login_secret', 'VARCHAR(255) NULL DEFAULT NULL');
+        prism_ensure_roster_column($db, 'teacher_roster', 'login_secret', 'VARCHAR(255) NULL DEFAULT NULL');
+        prism_ensure_user_column($db, 'login_secret', 'VARCHAR(255) NULL DEFAULT NULL');
         $done = true;
         return;
     }
@@ -236,6 +239,9 @@ function prism_ensure_student_roster(PDO $db): void {
     );
     prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_user', 'FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE');
     prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_created_by', 'FOREIGN KEY (created_by_admin_id) REFERENCES users(id) ON DELETE SET NULL');
+    prism_ensure_roster_column($db, 'student_roster', 'login_secret', 'VARCHAR(255) NULL DEFAULT NULL');
+    prism_ensure_roster_column($db, 'teacher_roster', 'login_secret', 'VARCHAR(255) NULL DEFAULT NULL');
+    prism_ensure_user_column($db, 'login_secret', 'VARCHAR(255) NULL DEFAULT NULL');
     @file_put_contents($flag, '1');
     $done = true;
 }
@@ -507,7 +513,29 @@ function prism_current_admin(): ?array {
     ];
 }
 
-function prism_roster_public_row(array $row): array {
+function prism_roster_can_see_passwords(PDO $db, array $admin): bool {
+    if (prism_is_superadmin_id((string) ($admin['id'] ?? ''))) {
+        return true;
+    }
+    $perms = prism_admin_permissions($db, (string) ($admin['id'] ?? ''));
+    return !empty($perms['accounts.passwords']);
+}
+
+function prism_store_login_secret(PDO $db, string $table, string $idColumn, string $id, string $plain): void {
+    if ($plain === '' || $id === '') {
+        return;
+    }
+    if (!in_array($table, ['student_roster', 'teacher_roster', 'users'], true)) {
+        return;
+    }
+    if (!in_array($idColumn, ['id_number', 'id'], true)) {
+        return;
+    }
+    prism_ensure_student_roster($db);
+    $db->prepare('UPDATE `' . $table . '` SET login_secret = ? WHERE `' . $idColumn . '` = ?')->execute([$plain, $id]);
+}
+
+function prism_roster_public_row(array $row, bool $withSecret = false): array {
     $year = '';
     $section = strtoupper((string) ($row['section_letter'] ?? ''));
     if (preg_match('/^([1-4])-([A-F])$/', strtoupper((string) ($row['year_level'] ?? '')), $m)) {
@@ -516,7 +544,7 @@ function prism_roster_public_row(array $row): array {
             $section = $m[2];
         }
     }
-    return [
+    $out = [
         'id_number' => $row['id_number'],
         'email' => $row['email'],
         'first_name' => $row['first_name'],
@@ -533,9 +561,13 @@ function prism_roster_public_row(array $row): array {
         'revoked_at' => $row['revoked_at'] ?? null,
         'created_at' => $row['created_at'] ?? null,
     ];
+    if ($withSecret) {
+        $out['login_secret'] = (string) ($row['login_secret'] ?? '');
+    }
+    return $out;
 }
 
-function prism_roster_list(PDO $db, string $q, string $status, int $page, int $perPage, string $college = '', string $program = '', string $year = '', string $section = ''): array {
+function prism_roster_list(PDO $db, string $q, string $status, int $page, int $perPage, string $college = '', string $program = '', string $year = '', string $section = '', bool $withSecret = false): array {
     prism_ensure_student_roster($db);
     $page = max(1, $page);
     $perPage = min(50, max(1, $perPage));
@@ -578,13 +610,14 @@ function prism_roster_list(PDO $db, string $q, string $status, int $page, int $p
     $count = $db->prepare('SELECT COUNT(*) FROM student_roster' . $where);
     $count->execute($params);
     $total = (int) $count->fetchColumn();
-    $sql = 'SELECT id_number, email, first_name, last_name, college, course, year_level, section_letter, expires_at, claimed_at, revoked_at, created_at FROM student_roster'
+    $secretCol = $withSecret ? ', login_secret' : '';
+    $sql = 'SELECT id_number, email, first_name, last_name, college, course, year_level, section_letter, expires_at, claimed_at, revoked_at, created_at' . $secretCol . ' FROM student_roster'
         . $where . ' ORDER BY college, course, year_level, section_letter, last_name, first_name LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $rows = [];
     foreach ($stmt->fetchAll() as $row) {
-        $rows[] = prism_roster_public_row($row);
+        $rows[] = prism_roster_public_row($row, $withSecret);
     }
     $pages = max(1, (int) ceil($total / $perPage));
     return ['rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages, 'per_page' => $perPage];
@@ -601,6 +634,7 @@ function prism_insert_student_account(PDO $db, array $admin, array $in): void {
         ]);
     $db->prepare('INSERT INTO users (id, `password`, role, name, section, email, id_number, email_verified_at) VALUES (?,?,?,?,?,?,?,?)')
         ->execute([$in['id_number'], prism_hash_secret($in['password']), 'student', $name, $section, $in['email'], $in['id_number'], $verifiedAt]);
+    prism_store_login_secret($db, 'student_roster', 'id_number', $in['id_number'], $in['password']);
     $db->prepare('UPDATE student_roster SET claimed_by_user_id = ? WHERE id_number = ?')
         ->execute([$in['id_number'], $in['id_number']]);
     if (prism_email_verify_enabled()) {
@@ -679,6 +713,7 @@ function prism_roster_update(PDO $db, array $admin, array $body, string $ip): ar
         if ($in['password'] !== '') {
             $db->prepare('UPDATE users SET `password` = ? WHERE id = ? AND role = ?')
                 ->execute([prism_hash_secret($in['password']), $in['id_number'], 'student']);
+            prism_store_login_secret($db, 'student_roster', 'id_number', $in['id_number'], $in['password']);
         }
         prism_roster_audit($db, $admin['id'], $in['id_number'], 'roster_updated', $ip);
         $db->commit();
@@ -1050,6 +1085,7 @@ function prism_teacher_add(PDO $db, array $admin, array $body): array {
             ->execute([$in['id'], prism_hash_secret($in['password']), 'teacher', $name, $in['department'], $in['email'], $verifiedAt]);
         $db->prepare('INSERT INTO teacher_roster (id, email, first_name, last_name, college, department, subjects, created_by_admin_id) VALUES (?,?,?,?,?,?,?,?)')
             ->execute([$in['id'], $in['email'], $in['first_name'], $in['last_name'], $in['college'], $in['department'], $in['subjects'], $admin['id']]);
+        prism_store_login_secret($db, 'teacher_roster', 'id', $in['id'], $in['password']);
         $db->commit();
     } catch (Throwable $e) {
         if ($db->inTransaction()) {
@@ -1098,6 +1134,7 @@ function prism_teacher_update(PDO $db, array $body): array {
         if ($in['password'] !== '') {
             $db->prepare('UPDATE users SET `password` = ? WHERE id = ? AND role = ?')
                 ->execute([prism_hash_secret($in['password']), $in['id'], 'teacher']);
+            prism_store_login_secret($db, 'teacher_roster', 'id', $in['id'], $in['password']);
         }
         $db->commit();
     } catch (Throwable $e) {
@@ -1110,7 +1147,7 @@ function prism_teacher_update(PDO $db, array $body): array {
     return ['ok' => true, 'id' => $in['id'], 'email' => $in['email']];
 }
 
-function prism_teacher_list(PDO $db, string $q, string $college, int $page, int $perPage): array {
+function prism_teacher_list(PDO $db, string $q, string $college, int $page, int $perPage, bool $withSecret = false): array {
     prism_ensure_student_roster($db);
     $page = max(1, $page);
     $perPage = min(50, max(1, $perPage));
@@ -1129,7 +1166,8 @@ function prism_teacher_list(PDO $db, string $q, string $college, int $page, int 
     $count = $db->prepare('SELECT COUNT(*) FROM teacher_roster' . $where);
     $count->execute($params);
     $total = (int) $count->fetchColumn();
-    $sql = 'SELECT id, email, first_name, last_name, college, department, subjects, created_at FROM teacher_roster'
+    $secretCol = $withSecret ? ', login_secret' : '';
+    $sql = 'SELECT id, email, first_name, last_name, college, department, subjects, created_at' . $secretCol . ' FROM teacher_roster'
         . $where . ' ORDER BY college, department, last_name, first_name LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
@@ -1260,7 +1298,7 @@ function prism_admin_email_taken(PDO $db, string $email, string $exceptId = ''):
     return (bool) $teacher->fetch();
 }
 
-function prism_admin_roster_public(array $row): array {
+function prism_admin_roster_public(array $row, bool $withSecret = false): array {
     [$first, $last] = prism_split_person_name((string) ($row['name'] ?? ''));
     $super = prism_is_superadmin_id((string) ($row['id'] ?? ''));
     $catalog = prism_admin_catalog();
@@ -1281,7 +1319,7 @@ function prism_admin_roster_public(array $row): array {
             $features[] = $label;
         }
     }
-    return [
+    $out = [
         'id' => (string) $row['id'],
         'first_name' => $first,
         'last_name' => $last,
@@ -1291,9 +1329,13 @@ function prism_admin_roster_public(array $row): array {
         'features' => $super ? 'All features' : (implode(', ', $features) ?: 'Dashboard only'),
         'superadmin' => $super,
     ];
+    if ($withSecret) {
+        $out['login_secret'] = (string) ($row['login_secret'] ?? '');
+    }
+    return $out;
 }
 
-function prism_admin_roster_list(PDO $db, string $q, string $type, int $page, int $perPage): array {
+function prism_admin_roster_list(PDO $db, string $q, string $type, int $page, int $perPage, bool $withSecret = false): array {
     prism_ensure_admin_perms($db);
     prism_ensure_superadmin_email($db);
     $page = max(1, $page);
@@ -1314,13 +1356,14 @@ function prism_admin_roster_list(PDO $db, string $q, string $type, int $page, in
     $count = $db->prepare('SELECT COUNT(*) FROM users' . $where);
     $count->execute($params);
     $total = (int) $count->fetchColumn();
-    $sql = 'SELECT id, name, email, section, admin_perms FROM users'
+    $secretCol = $withSecret ? ', login_secret' : '';
+    $sql = 'SELECT id, name, email, section, admin_perms' . $secretCol . ' FROM users'
         . $where . ' ORDER BY name, id LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $rows = [];
     foreach ($stmt->fetchAll() as $row) {
-        $rows[] = prism_admin_roster_public($row);
+        $rows[] = prism_admin_roster_public($row, $withSecret);
     }
     return ['rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => max(1, (int) ceil($total / $perPage)), 'per_page' => $perPage];
 }
@@ -1358,6 +1401,7 @@ function prism_admin_roster_add(PDO $db, array $admin, array $body): array {
                 date('Y-m-d H:i:s'),
                 json_encode($in['permissions']),
             ]);
+        prism_store_login_secret($db, 'users', 'id', $in['id'], $in['password']);
     } catch (Throwable $e) {
         error_log('PRISM admin roster add: ' . $e->getMessage());
         return ['ok' => false, 'status' => 400, 'error' => 'That administrator could not be saved. Check the ID and email, then try again.'];
@@ -1396,6 +1440,7 @@ function prism_admin_roster_update(PDO $db, array $admin, array $body): array {
         if ($in['password'] !== '') {
             $db->prepare('UPDATE users SET `password` = ? WHERE id = ? AND role = ?')
                 ->execute([prism_hash_secret($in['password']), $in['id'], 'admin']);
+            prism_store_login_secret($db, 'users', 'id', $in['id'], $in['password']);
         }
         $db->commit();
     } catch (Throwable $e) {

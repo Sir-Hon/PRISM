@@ -160,8 +160,50 @@ window.addEventListener('DOMContentLoaded', async function() {
 });
 
 /** After login: pull enrollments, then for each class fetch posts/materials/assignments/quizzes and merge into the same LS keys the legacy UI expects. */
+async function loadStudentQuizzesOnce() {
+  if (typeof PrismQuizzes === 'undefined' || !PrismQuizzes.getMine) return;
+  try {
+    var mine = await PrismQuizzes.getMine();
+    var allQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
+    var keep = allQz.filter(function (q) {
+      return !mine.some(function (row) { return String(row.id) === String(q.id); });
+    });
+    (mine || []).forEach(function (q) {
+      var qs = q.questions;
+      if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
+      keep.push({
+        id: q.id,
+        classId: q.class_id || q.classId,
+        teacherId: q.teacher_id,
+        title: q.title,
+        type: q.type || 'quiz',
+        published: !!+q.published,
+        due: q.due_date || q.due || '',
+        due_time: q.due_time || '',
+        time: parseInt(q.time_limit, 10) || 0,
+        attempts: parseInt(q.attempts, 10) || 1,
+        totalPoints: parseInt(q.total_points, 10) || 0,
+        questions: qs || [],
+        allowSkip: !!(+q.allow_skip || q.allowSkip),
+      });
+    });
+    localStorage.setItem('prism_teacher_quizzes', JSON.stringify(keep));
+    if (PrismQuizzes.getMyScores) {
+      var apiScores = await PrismQuizzes.getMyScores();
+      var scores = getScores();
+      Object.keys(apiScores || {}).forEach(function (id) { scores[id] = apiScores[id]; });
+      saveScores(scores);
+    }
+  } catch (e) { console.warn('loadStudentQuizzesOnce:', e); }
+}
+
 async function loadClassDataFromAPI() {
   try {
+    var dashAt = 0;
+    try { dashAt = Number(sessionStorage.getItem('prism_dash_at_' + STUDENT_ID) || 0); } catch (e0) { dashAt = 0; }
+    if (dashAt && Date.now() - dashAt < 45000 && localStorage.getItem('prism_joined_' + STUDENT_ID)) {
+      return;
+    }
     var classesList = typeof PrismClasses !== 'undefined'
       ? await PrismClasses.getMyClasses()
       : ((await fetch(API_BASE + '/classes.php?action=mine', { credentials: 'include' }).then(function(r){ return r.json(); })).classes || []);
@@ -186,10 +228,17 @@ async function loadClassDataFromAPI() {
       localStorage.setItem('prism_profile_' + cls.teacher_id, JSON.stringify(prev));
     });
     localStorage.setItem('prism_joined_' + STUDENT_ID, JSON.stringify(joined));
-    if (typeof prismCoversWarm === 'function') await prismCoversWarm(classesList.map(function (cls) { return cls.cover || ''; }));
-    await Promise.all(classesList.map(function(cls) {
-      return syncStudentClassContent(cls.id, { skipSubs: true });
-    }));
+    var coverJob = (typeof prismCoversWarm === 'function')
+      ? prismCoversWarm(classesList.map(function (cls) { return cls.cover || ''; }))
+      : Promise.resolve();
+    await Promise.all([
+      coverJob,
+      Promise.all(classesList.map(function(cls) {
+        return syncStudentClassContent(cls.id, { skipSubs: true, skipQuiz: true });
+      })),
+      loadStudentQuizzesOnce()
+    ]);
+    try { sessionStorage.setItem('prism_dash_at_' + STUDENT_ID, String(Date.now())); } catch (e1) {}
   } catch(e) { console.warn('loadClassDataFromAPI failed:', e); }
 }
 
@@ -206,7 +255,9 @@ async function syncStudentClassContent(classId, opts) {
       (typeof PrismPosts !== 'undefined' && PrismPosts.get) ? PrismPosts.get(cid) : Promise.reject(new Error('no posts api')),
       (typeof PrismMaterials !== 'undefined' && PrismMaterials.get) ? PrismMaterials.get(cid) : Promise.reject(new Error('no materials api')),
       (typeof PrismAssignments !== 'undefined' && PrismAssignments.get) ? PrismAssignments.get(cid) : Promise.reject(new Error('no assignments api')),
-      (typeof apiGet === 'function') ? apiGet('quizzes', 'get', { class_id: cid }) : Promise.reject(new Error('no quizzes api')),
+      (opts && opts.skipQuiz)
+        ? Promise.resolve({ quizzes: null })
+        : ((typeof apiGet === 'function') ? apiGet('quizzes', 'get', { class_id: cid }) : Promise.reject(new Error('no quizzes api'))),
     ]);
     if (packed[0].status === 'fulfilled') postsList = packed[0].value || [];
     else console.warn('sync posts:', packed[0].reason);
@@ -214,7 +265,9 @@ async function syncStudentClassContent(classId, opts) {
     else console.warn('sync materials:', packed[1].reason);
     if (packed[2].status === 'fulfilled') asgnList = packed[2].value || [];
     else console.warn('sync assignments:', packed[2].reason);
-    if (packed[3].status === 'fulfilled') {
+    if (opts && opts.skipQuiz) {
+      qzList = null;
+    } else if (packed[3].status === 'fulfilled') {
       var qzRes = packed[3].value || {};
       qzList = qzRes.quizzes || [];
     } else console.warn('sync quizzes:', packed[3].reason);
@@ -734,15 +787,10 @@ function streamMaterialActionsStudent(classId, p) {
   var row = 'margin-top:.8rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;';
   var bits = '';
   if (mat && mat.file_path) {
-    var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
-    var absP = studentFileUrl(mat.file_path);
-    bits += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(prev?' View':' Open')+'</button>';
-    bits += '<a href="'+prismEscAttr(absP)+'" download="'+prismEscAttr(mat.file_name||'file')+'" style="'+btn+'background:#ede9fe;color:#5b21b6;"> Save</a>';
+    bits += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">View</button>';
   }
   if (mat && mat.file_data && !mat.file_path) {
-    var p2 = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(mat.mime_type, mat.file_name);
-    bits += '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">'+(p2?' View':' Open')+'</button>';
-    bits += '<button type="button" onclick="downloadStudentMaterial(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:#ede9fe;color:#5b21b6;border:none;cursor:pointer;"> Save</button>';
+    bits += '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">View</button>';
   }
   var hrefM = '';
   if (mat && mat.url) {
@@ -759,20 +807,16 @@ function streamMaterialActionsStudent(classId, p) {
 }
 
 function downloadStudentMaterial(classId, id) {
-  var items = listForClass(getMaterials(), classId);
-  var it = items.find(function(x) { return x.id === id; });
-  if (!it || !it.file_data) return;
-  var a = document.createElement('a');
-  a.href = it.file_data;
-  a.download = it.file_name || it.title || 'download';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
+  previewStudentMaterialBlob(classId, id);
 }
 function previewStudentMaterialBlob(classId, id) {
   var items = listForClass(getMaterials(), classId);
   var it = items.find(function(x) { return x.id === id; });
   if (!it || !it.file_data) return;
+  if (typeof prismOpenMaterialUrl === 'function') {
+    prismOpenMaterialUrl(it.file_data, it.mime_type || '', it.file_name || it.title || 'file');
+    return;
+  }
   var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
   if (!prev) { downloadStudentMaterial(classId, id); return; }
   // data: URL → Blob → object URL so preview MIME matches (revoked after a few minutes)
@@ -912,14 +956,13 @@ function studentSubmissionFilesHtml(sub) {
     fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div>' + thumb
       + '<div class="gc-attach-body"><div class="gc-attach-name">' + prismEscHtml(name) + '</div>'
       + extraPreview
-      + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open" ' + oj + '>Open</button>'
-      + '<a class="gc-attach-dl" href="' + prismEscAttr(studentAbsUploadUrl(path)) + '" download="' + prismEscAttr(name) + '">Download</a></div></div></div>');
+      + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open" ' + oj + '>View</button></div></div></div>');
   });
   if (sub.file_data && !items.length) {
     var fn = prismEscHtml(sub.file_name || 'Submitted file');
     fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc"></div>'
       + '<div class="gc-attach-body"><div class="gc-attach-name">' + fn + '</div>'
-      + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open student-sub-dl-btn">Download</button></div></div></div>');
+      + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open student-sub-dl-btn">View</button></div></div></div>');
   } else if (inlineCount > 0 && !items.length && !sub.file_data) {
     parsed.forEach(function(a) {
       if (a && a.inline) {
@@ -1058,7 +1101,7 @@ function studentWorkState(a, sub) {
   return { key: 'due', label: dueLine ? ('Due ' + dueLine) : 'Due', rank: 1 };
 }
 
-function studentAssignmentStreamHtml(classId, a) {
+function studentAssignmentStreamHtml(classId, a, startOpen) {
   var sid = asgnDomId(a.id);
   var sub = getSubmissionMap(classId)[String(a.id)];
   var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
@@ -1069,9 +1112,13 @@ function studentAssignmentStreamHtml(classId, a) {
   var metaBits = [];
   if (a.pts) metaBits.push(a.pts + ' points');
   metaBits.push(dueLine ? ('Due ' + dueLine) : 'No due date');
+  if (sub && sub.score != null && sub.score !== '') metaBits.push('Score ' + sub.score + (a.pts ? (' / ' + a.pts) : ''));
   if (state.key !== 'due') metaBits.push(state.label);
-  var html = '<div class="mat-title">' + prismEscHtml(a.title || 'Assignment') + '</div>'
-    + '<div class="mat-meta" style="margin:.2rem 0 .7rem;">' + prismEscHtml(metaBits.join(' · ')) + '</div>';
+  var html = '<details class="student-mat-acc"' + (startOpen ? ' open' : '') + '>'
+    + '<summary><div class="mat-icon-box" style="background:#fce7f3;">ASG</div>'
+    + '<div class="mat-info"><div class="mat-title">' + prismEscHtml(a.title || 'Assignment') + '</div>'
+    + '<div class="mat-meta">' + prismEscHtml(metaBits.join(' · ')) + '</div></div></summary>'
+    + '<div class="student-mat-body">';
   if (instructions) {
     html += '<div class="student-mat-note">' + (typeof prismLinkifyHtml === 'function' ? prismLinkifyHtml(instructions) : prismEscHtml(instructions)) + '</div>';
   }
@@ -1093,19 +1140,21 @@ function studentAssignmentStreamHtml(classId, a) {
     html += '<div style="font-size:.82rem;color:#991b1b;margin-top:.75rem;">This work is missing. Contact your teacher if you need to turn it in late.</div>';
   } else if (!overdue) {
     var pickOnchange = 'onStudentAsgnFilesChosen(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ',this)';
-    html += '<div style="margin-top:.85rem;padding-top:.75rem;border-top:1px solid #fce7f3;">'
-      + '<div style="font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#9d174d;margin-bottom:.4rem;">Turn in</div>'
-      + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…" style="width:100%;min-height:90px;border:1.5px solid #fce7f3;border-radius:10px;padding:.65rem .85rem;font-size:.88rem;font-family:inherit;resize:vertical;box-sizing:border-box;">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
-      + '<div class="prism-file-zone" style="margin-top:.65rem;" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
-      + '<div><div class="pf-title">Attach a file</div>'
-      + '<div class="pf-hint">PDF, image, video, or PowerPoint.</div>'
-      + '<div id="asgn-file-chosen-' + sid + '" class="pf-chips" style="display:none;"></div></div></div>'
+    html += '<div class="asgn-turnin">'
+      + '<div class="asgn-turnin-title">Your work</div>'
+      + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
+      + '<div class="asgn-tools">'
+      + '<button type="button" class="asgn-tool" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
+      + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 11.6l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.5-8.5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-2.8-2.8l7.8-7.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Attach</button>'
+      + '</div>'
+      + '<div id="asgn-file-chosen-' + sid + '" class="pf-chips" style="display:none;"></div>'
       + '<input type="file" id="asgn-file-' + sid + '" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange=\'' + pickOnchange + '\'/>'
-      + '<input type="url" id="asgn-link-' + sid + '" placeholder="Or paste a link" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '" style="width:100%;margin-top:.5rem;border:1.5px solid #fce7f3;border-radius:10px;padding:.5rem .85rem;font-size:.85rem;box-sizing:border-box;"/>'
-      + '<button type="button" id="asgn-submit-' + sid + '" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\' style="margin-top:.85rem;padding:.58rem 1.2rem;background:#7c3aed;color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.88rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Submit work</button>'
+      + '<label class="asgn-link-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2.8-2.8a5 5 0 0 0-7.1-7.1L11 4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 11a5 5 0 0 0-7.1-.1L4.1 13.7a5 5 0 0 0 7.1 7.1L13 19.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+      + '<input type="url" id="asgn-link-' + sid + '" placeholder="Paste a link" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '"/></label>'
+      + '<button type="button" class="asgn-send" id="asgn-submit-' + sid + '" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\'>Turn in</button>'
       + '</div>';
   }
-  return html;
+  return html + '</div></details>';
 }
 
 /** Stream tab: posts newest-first; quiz posts match quiz row by id or title; material posts get View/Download. */
@@ -1171,7 +1220,7 @@ function buildStreamPanel(classId) {
       + (p.type === 'material'
         ? materialCardHtml
         : (streamAsgn
-          ? studentAssignmentStreamHtml(classId, streamAsgn)
+          ? studentAssignmentStreamHtml(classId, streamAsgn, focused)
           : '<div class="post-body">'+(typeof prismLinkifyHtml==='function'?prismLinkifyHtml(p.body||''):prismEscHtml(p.body||''))+'</div>'))
       + quizActionHtml
       + '</div>';
@@ -1184,7 +1233,7 @@ function buildStreamPanel(classId) {
     });
     if (focusedRow) {
       html = '<div class="stream-post stream-post-focus" id="stream-asgn-' + asgnDomId(focusedRow.id) + '">'
-        + studentAssignmentStreamHtml(classId, focusedRow)
+        + studentAssignmentStreamHtml(classId, focusedRow, true)
         + '</div>' + html;
     }
   }
@@ -1274,7 +1323,6 @@ async function openStudentAssignmentModal(classId, asgnId) {
   }
   var attachPath = String(a.attach_file_path || '').trim();
   if (attachPath) {
-    var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(a.attach_mime, a.attach_file_name);
     var attachKind = typeof prismMaterialKind === 'function' ? prismMaterialKind(a.attach_mime, a.attach_file_name, 'file') : '';
     var absAttach = studentAbsUploadUrl(attachPath);
     if (attachKind === 'image' || studentIsImageMime(a.attach_mime, a.attach_file_name)) {
@@ -1283,8 +1331,7 @@ async function openStudentAssignmentModal(classId, asgnId) {
       teacherRefInner += '<video src="' + prismEscAttr(absAttach) + '" controls style="width:100%;max-height:240px;border-radius:10px;margin-top:.5rem;background:#0f172a;"></video>';
     }
     teacherRefInner += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.5rem 0 0;align-items:center;"><span style="font-size:.75rem;color:#64748b;font-weight:600;">Teacher file</span>'
-      + '<button type="button" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(attachPath) + ',' + JSON.stringify(a.attach_mime || '') + ',' + JSON.stringify(a.attach_file_name || '') + ')\' style="padding:.35rem .8rem;border-radius:9px;background:#7c3aed;color:#fff;font-size:.76rem;font-weight:700;border:none;cursor:pointer;">' + (prev ? ' View' : ' Open') + '</button>'
-      + '<a href="' + prismEscAttr(absAttach) + '" download="' + prismEscAttr(a.attach_file_name || 'file') + '" style="padding:.35rem .8rem;border-radius:9px;background:#ede9fe;color:#5b21b6;font-size:.76rem;font-weight:700;text-decoration:none;"> Save</a></div>';
+      + '<button type="button" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(attachPath) + ',' + JSON.stringify(a.attach_mime || '') + ',' + JSON.stringify(a.attach_file_name || '') + ')\' style="padding:.35rem .8rem;border-radius:9px;background:#7c3aed;color:#fff;font-size:.76rem;font-weight:700;border:none;cursor:pointer;">View</button></div>';
   }
   var teacherRef = '';
   if (teacherRefInner) {
@@ -1339,12 +1386,7 @@ async function openStudentAssignmentModal(classId, asgnId) {
   if (hasSub && sub.file_data) {
     overlay.querySelectorAll('.student-sub-dl-btn').forEach(function(dlBtn) {
       dlBtn.onclick = function() {
-        var ax = document.createElement('a');
-        ax.href = sub.file_data;
-        ax.download = sub.file_name || 'submission';
-        document.body.appendChild(ax);
-        ax.click();
-        document.body.removeChild(ax);
+        if (typeof prismOpenMaterialUrl === 'function') prismOpenMaterialUrl(sub.file_data, sub.mime_type || '', sub.file_name || 'submission');
       };
     });
   }

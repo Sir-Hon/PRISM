@@ -732,6 +732,65 @@ function QUIZ_tryFinish() {
   QUIZ_showMissing = false;
   QUIZ_finish();
 }
+function QUIZ_reviewBlock(quiz, answers, itemScores) {
+  var html = '<div style="text-align:left;margin:1rem auto 1.2rem;max-width:640px;">';
+  (quiz.questions || []).forEach(function (q, i) {
+    if (!q || q.type === 'part') return;
+    var ans = answers ? answers[i] : null;
+    var pts = parseInt(q.points, 10) || 1;
+    var teacherPts = itemScores && itemScores[i] != null && itemScores[i] !== '' ? itemScores[i] : null;
+    var line = '';
+    var color = '#047857';
+    if (q.type === 'sa' || q.type === 'essay') {
+      line = teacherPts != null ? ('Teacher score: ' + teacherPts + ' / ' + pts) : 'For review';
+      color = teacherPts != null ? '#047857' : '#b45309';
+    } else {
+      var graded = QUIZ_gradeOne(q, ans);
+      var correct = graded.auto > 0 && graded.earned >= graded.auto;
+      line = correct ? 'Correct' : 'Incorrect';
+      color = correct ? '#047857' : '#b91c1c';
+      if (teacherPts != null) line += ' · ' + teacherPts + ' / ' + pts;
+    }
+    var yours = '';
+    if (ans != null && ans !== '' && typeof ans !== 'object') yours = String(ans);
+    else if (Array.isArray(ans)) yours = ans.join(', ');
+    html += '<div style="border:1px solid #e4dffa;border-radius:10px;padding:.65rem .8rem;margin-bottom:.45rem;background:#fff;">'
+      + '<div style="font-weight:700;">' + (i + 1) + '. ' + QUIZ_esc(q.question || q.q || 'Question') + '</div>'
+      + (yours ? '<div style="font-size:.82rem;color:#4b5563;margin-top:.2rem;">Your answer: ' + QUIZ_esc(yours) + '</div>' : '')
+      + '<div style="font-size:.78rem;font-weight:800;margin-top:.25rem;color:' + color + ';">' + QUIZ_esc(line) + '</div>'
+      + '</div>';
+  });
+  return html + '</div>';
+}
+function QUIZ_savedReview(quiz) {
+  var uid = sessionStorage.getItem('prism_user_id') || 'student';
+  var answers = null;
+  var items = null;
+  try { answers = JSON.parse(localStorage.getItem('prism_quiz_review_' + uid + '_' + quiz.id) || 'null'); } catch (e) { answers = null; }
+  try {
+    var detail = JSON.parse(localStorage.getItem('prism_quiz_teacher_detail') || '{}');
+    var row = detail[quiz.id] || detail[String(quiz.id)];
+    if (row && row.item_scores) items = row.item_scores;
+  } catch (e2) { items = null; }
+  if (!answers && !items) return '<p style="color:#6b7280;">Your answer sheet was saved on the device where you took this quiz. The score your teacher saved is shown above.</p>';
+  return QUIZ_reviewBlock(quiz, answers || [], items);
+}
+function QUIZ_showSavedReview(qid) {
+  var quiz = getAllTeacherQuizzes().filter(function (q) { return String(q.id) === String(qid); })[0];
+  if (!quiz) return;
+  var scores = QUIZ_getScores();
+  var score = scores[quiz.id] != null ? scores[quiz.id] : scores[String(quiz.id)];
+  var box = document.getElementById('shared-qz-overlay');
+  var inner = document.getElementById('shared-qz-inner');
+  if (!box || !inner) return;
+  box.style.display = 'flex';
+  inner.innerHTML = '<div style="text-align:center;padding:1.6rem 1.2rem 2rem;">'
+    + '<div style="font-size:1.2rem;font-weight:800;margin-bottom:.3rem;">' + QUIZ_esc(quiz.title || 'Quiz') + '</div>'
+    + '<div style="color:#6d28d9;font-weight:800;margin-bottom:.6rem;">Score: ' + QUIZ_esc(score == null ? '—' : score) + ' / ' + QUIZ_esc(quiz.totalPoints || 0) + '</div>'
+    + QUIZ_savedReview(quiz)
+    + '<button onclick="QUIZ_close()" style="padding:.75rem 2.2rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;">Close</button>'
+    + '</div>';
+}
 function QUIZ_finish() {
   QUIZ_clearTimer();
   QUIZ_timedOut = false;
@@ -754,6 +813,7 @@ function QUIZ_finish() {
   atts[q.id]=(atts[q.id]||0)+1;
   localStorage.setItem(attKey,JSON.stringify(atts));
   localStorage.setItem('prism_quiz_mc_'+uid+'_'+q.id, String(mcCorrect));
+  localStorage.setItem('prism_quiz_review_'+uid+'_'+q.id, JSON.stringify(QUIZ_userAnswers));
   var scores=QUIZ_getScores(); scores[q.id]=mcCorrect; QUIZ_saveScores(scores);
   if (typeof PrismQuizzes !== 'undefined' && PrismQuizzes.submitScore) {
     PrismQuizzes.submitScore(q.id, mcCorrect, QUIZ_userAnswers.slice()).catch(function (e) {
@@ -785,6 +845,7 @@ function QUIZ_finish() {
     +'<div style="font-size:.88rem;color:#6b7280;margin-bottom:1rem;">'+(q.title||'')+'</div>'
     +(hasSA?'<div style="font-size:.82rem;background:#fef3c7;color:#92400e;padding:.75rem 1rem;border-radius:10px;margin-bottom:1.5rem;text-align:left;line-height:1.6;">Your written answers were saved. Your teacher will review them and add those points.</div>':'')
     +(QUIZ_tabWarnings>0?'<div style="font-size:.78rem;background:#fee2e2;color:#dc2626;padding:.5rem 1rem;border-radius:10px;margin-bottom:1.5rem;">'+QUIZ_tabWarnings+' tab switch(es) recorded.</div>':'')
+    +QUIZ_reviewBlock(q, QUIZ_userAnswers, null)
     +'<button onclick="QUIZ_close()" style="padding:.75rem 2.2rem;background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;border-radius:12px;font-family:DM Sans,sans-serif;font-size:.95rem;font-weight:700;cursor:pointer;">Done</button>'
     +'</div>';
 }
@@ -825,6 +886,12 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
     var saScoreKey = 'prism_quiz_sa_scores_' + uid + '_' + quiz.id;
     var saScores = JSON.parse(localStorage.getItem(saScoreKey) || '{}');
     var saGraded = Object.keys(saScores).length > 0;
+    var teacherDetail = {};
+    try { teacherDetail = JSON.parse(localStorage.getItem('prism_quiz_teacher_detail') || '{}'); } catch (e) { teacherDetail = {}; }
+    var teacherRow = teacherDetail[quiz.id] || teacherDetail[String(quiz.id)];
+    if (teacherRow && teacherRow.score != null) {
+      return '<div style="font-size:.85rem;color:#10b981;font-weight:700;margin-bottom:.8rem;">Score: '+teacherRow.score+' / '+quiz.totalPoints+'</div>';
+    }
     if (hasSA && !saGraded) {
       var mcKey = 'prism_quiz_mc_' + uid + '_' + quiz.id;
       var mcStored = localStorage.getItem(mcKey);
@@ -866,7 +933,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
       var maxAtts  = parseInt(quiz.attempts) || 1;
       var noAttemptsLeft = maxAtts > 0 && attCount >= maxAtts;
       var btnHtml = status === 'completed'
-        ? '<button class="start-quiz-btn done" disabled>Completed </button>'
+        ? '<button type="button" class="start-quiz-btn done" data-review="'+quiz.id+'">Review</button>'
         : status === 'overdue'
         ? '<button type="button" class="start-quiz-btn late-deadline" onclick="alert(PRISM_LATE_QUIZ_MSG)">Past due date — tap for info</button>'
         : noAttemptsLeft
@@ -900,6 +967,8 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
         // After quiz closes, re-render grid
         var origClose = QUIZ_close;
       });
+      var reviewBtn = card.querySelector('[data-review]');
+      if (reviewBtn) reviewBtn.addEventListener('click', function () { QUIZ_showSavedReview(reviewBtn.getAttribute('data-review')); });
       grid.appendChild(card);
     });
   }

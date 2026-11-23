@@ -180,7 +180,7 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=45"></script>
+<script src="api.js?v=46"></script>
 <script src="script.js?v=23"></script>
 <script src="portal-sidebar.js?v=28"></script>
 <div class="topbar">
@@ -207,7 +207,7 @@
   <main class="main-content">
     <div class="page-header">
       <h1>Security</h1>
-      <p>Set the admin passphrase and review registration attempts. Students, teachers, and administrators are created on the Roster.</p>
+      <p>Choose who can open each part of the admin portal, review sign-in activity, and set how long an account waits after wrong passwords. Accounts are created on the Roster.</p>
     </div>
 
     <div id="sec-access" class="create-card" style="max-width:980px;margin-bottom:1.2rem;" hidden>
@@ -255,64 +255,9 @@
       <div class="form-msg" id="sec-policy-msg"></div>
     </div>
 
-    <div id="tab-security">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;max-width:900px;" class="security-grid">
-
-        <!-- Passphrase card -->
-        <div class="create-card" style="max-width:100%">
-          <div class="card-heading">6. Passphrase</div>
-          <div class="card-sub">The superadmin adds other administrators on the Roster. This passphrase stays on this browser.</div>
-
-          <div style="background:#fef9e7;border:1.5px solid #fde68a;border-radius:12px;padding:.9rem 1rem;margin-bottom:1.3rem;font-size:.8rem;color:#92400e;line-height:1.6;">
-             Public signup with an invite code is closed. Teacher and student accounts are created on the Roster.
-          </div>
-
-          <div id="current-pp-status" style="margin-bottom:1.2rem;"></div>
-
-          <div class="f full" style="margin-bottom:1rem;">
-            <label style="display:block;font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.45rem;">New Passphrase</label>
-            <div class="pw-wrap">
-              <input type="password" id="new-pp" class="f" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Set a strong passphrase�" oninput="ppStrengthCheck()"/>
-              <button class="pw-tog" onclick="togglePP()" type="button"></button>
-            </div>
-            <div id="pp-strength-wrap" style="display:none;margin-top:.4rem;">
-              <div style="height:4px;background:#e4dffa;border-radius:4px;overflow:hidden;"><div id="pp-sfill" style="height:100%;border-radius:4px;transition:width .3s,background .3s;width:0;"></div></div>
-              <div id="pp-slabel" style="font-size:.7rem;margin-top:.25rem;color:#9ca3af;"></div>
-            </div>
-          </div>
-
-          <div class="f full" style="margin-bottom:1.2rem;">
-            <label style="display:block;font-size:.75rem;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;margin-bottom:.45rem;">Confirm Passphrase</label>
-            <div class="pw-wrap">
-              <input type="password" id="confirm-pp" style="width:100%;border:1.5px solid #e4dffa;border-radius:11px;padding:.75rem 1rem;color:#16132b;font-family:'DM Sans',sans-serif;font-size:.95rem;outline:none;transition:border-color .2s;background:#faf9ff;" placeholder="Re-enter passphrase�"/>
-              <button class="pw-tog" onclick="togglePPConfirm()" type="button"></button>
-            </div>
-          </div>
-
-          <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
-            <button onclick="savePassphrase()" style="padding:.72rem 1.6rem;border:none;border-radius:11px;background:#7c3aed;color:#fff;font-family:'DM Sans',sans-serif;font-size:.92rem;font-weight:700;cursor:pointer;transition:opacity .2s,transform .15s;flex:1;">Set Passphrase</button>
-            <button class="clear-btn" onclick="clearPassphrase()" style="padding:.72rem 1.2rem;border:1.5px solid #fecaca;background:none;color:#ef4444;border-radius:11px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .15s;">Clear</button>
-          </div>
-          <div class="form-msg" id="pp-msg"></div>
-
-          <div class="card-note" style="margin-top:1.5rem;padding-top:1.2rem;border-top:1px solid #f0ecff;font-size:.82rem;line-height:1.55;">
-            New admins get their CTU email on the Roster. admin001 stays superadmin.access@ctu.edu.ph.
-          </div>
-        </div>
-
-        <!-- Audit log card -->
-        <div class="create-card" style="max-width:100%">
-          <div class="card-heading"> Admin Registration Audit Log</div>
-          <div class="card-sub">Every admin self-registration attempt is logged here. Review for unauthorized activity.</div>
-          <div id="audit-log-container" style="max-height:420px;overflow-y:auto;"></div>
-          <button class="clear-btn" onclick="clearAuditLog()" style="margin-top:1rem;padding:.55rem 1.1rem;background:none;border:1.5px solid #fecaca;color:#ef4444;border-radius:10px;font-size:.8rem;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;">Clear Log</button>
-        </div>
-
-      </div>
-    </div>
   </main>
 </div>
 
-<script src="pages/manage.js?v=17"></script>
+<script src="pages/manage.js?v=18"></script>
 </body>
 </html>

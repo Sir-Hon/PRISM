@@ -34,6 +34,7 @@
     ['security', 'Security'],
     ['announcements', 'Announcements']
   ];
+  var canViewPasswords = false;
   var catalog = { colleges: {}, years: ['1', '2', '3', '4'], sections: ['A', 'B', 'C', 'D', 'E', 'F'] };
   var collegeNames = { CoED: 'College of Education', CoTE: 'College of Technology' };
 
@@ -97,17 +98,32 @@
     fillSelect(document.getElementById('f-program'), programsFor(''), 'All programs');
   }
 
-  function passwordCell() {
+  function passwordCell(secret) {
     var td = document.createElement('td');
-    var mask = document.createElement('span');
-    mask.className = 'pw-mask';
-    mask.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
-    mask.title = 'Stored encrypted. The original password is not shown again.';
-    var note = document.createElement('span');
-    note.className = 'pw-note';
-    note.textContent = 'encrypted';
-    td.appendChild(mask);
-    td.appendChild(note);
+    if (!canViewPasswords) {
+      var mask = document.createElement('span');
+      mask.className = 'pw-mask';
+      mask.textContent = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
+      mask.title = 'Hidden. An administrator with password permission can view it.';
+      td.appendChild(mask);
+      return td;
+    }
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-ghost';
+    if (!secret) {
+      btn.textContent = 'Not saved yet';
+      btn.disabled = true;
+      td.appendChild(btn);
+      return td;
+    }
+    var open = false;
+    btn.textContent = 'Show';
+    btn.addEventListener('click', function () {
+      open = !open;
+      btn.textContent = open ? secret : 'Hide';
+    });
+    td.appendChild(btn);
     return td;
   }
 
@@ -143,6 +159,7 @@
         section: document.getElementById('f-section').value
       }
     );
+    canViewPasswords = !!data.can_view_passwords;
     pages = data.pages || 1;
     page = data.page || 1;
     document.getElementById('page-label').textContent = 'Page ' + page + ' of ' + pages;
@@ -157,7 +174,7 @@
       tr.appendChild(cell(row.program || ''));
       tr.appendChild(cell(row.year || ''));
       tr.appendChild(cell(row.section || ''));
-      tr.appendChild(passwordCell());
+      tr.appendChild(passwordCell(row.login_secret));
       var actions = document.createElement('td');
       actions.className = 'row-actions';
       actions.appendChild(actionButton('Edit', function () { beginEditStudent(row); }));
@@ -177,6 +194,7 @@
       document.getElementById('tf-college').value,
       teacherPage
     );
+    canViewPasswords = !!data.can_view_passwords;
     teacherPages = data.pages || 1;
     teacherPage = data.page || 1;
     document.getElementById('teacher-page-label').textContent = 'Page ' + teacherPage + ' of ' + teacherPages;
@@ -190,7 +208,7 @@
       tr.appendChild(cell(row.college || ''));
       tr.appendChild(cell(row.department || ''));
       tr.appendChild(cell(row.subjects || ''));
-      tr.appendChild(passwordCell());
+      tr.appendChild(passwordCell(row.login_secret));
       var actions = document.createElement('td');
       actions.className = 'row-actions';
       actions.appendChild(actionButton('Edit', function () { beginEditTeacher(row); }));
@@ -271,6 +289,7 @@
       document.getElementById('af-type').value,
       adminPage
     );
+    canViewPasswords = data.can_view_passwords !== false;
     adminPages = data.pages || 1;
     adminPage = data.page || 1;
     document.getElementById('admin-page-label').textContent = 'Page ' + adminPage + ' of ' + adminPages;
@@ -284,7 +303,7 @@
       tr.appendChild(cell(row.email));
       tr.appendChild(cell(row.type || ''));
       tr.appendChild(cell(row.features || ''));
-      tr.appendChild(passwordCell());
+      tr.appendChild(passwordCell(row.login_secret));
       var actions = document.createElement('td');
       actions.className = 'row-actions';
       if (!row.superadmin) {
@@ -428,7 +447,14 @@
     editingStudent = row.id_number;
     document.getElementById('add-title').textContent = 'Edit student';
     document.getElementById('btn-add').textContent = 'Save changes';
-    document.getElementById('a-hint').textContent = 'Leave the password blank to keep the current one. A new password is saved encrypted and is not shown again.';
+    document.getElementById('a-hint').textContent = canViewPasswords
+      ? 'The password is filled in when this account has a saved copy. Change both fields to set a new one, or leave them blank to keep it.'
+      : 'Leave the password blank to keep the current one.';
+    if (canViewPasswords && row.login_secret) {
+      document.getElementById('a-pw').value = row.login_secret;
+      document.getElementById('a-pw2').value = row.login_secret;
+      document.getElementById('a-pw').type = 'text';
+    }
     document.getElementById('a-id').value = row.id_number || '';
     document.getElementById('a-id').readOnly = true;
     document.getElementById('a-email').value = row.email || '';
@@ -443,7 +469,14 @@
     editingTeacher = row.id;
     document.getElementById('teacher-title').textContent = 'Edit teacher';
     document.getElementById('btn-add-teacher').textContent = 'Save changes';
-    document.getElementById('t-hint').textContent = 'Leave the password blank to keep the current one. A new password is saved encrypted and is not shown again.';
+    document.getElementById('t-hint').textContent = canViewPasswords
+      ? 'The password is filled in when this account has a saved copy. Change both fields to set a new one, or leave them blank to keep it.'
+      : 'Leave the password blank to keep the current one.';
+    if (canViewPasswords && row.login_secret) {
+      document.getElementById('t-pw').value = row.login_secret;
+      document.getElementById('t-pw2').value = row.login_secret;
+      document.getElementById('t-pw').type = 'text';
+    }
     document.getElementById('t-id').value = row.id || '';
     document.getElementById('t-id').readOnly = true;
     document.getElementById('t-email').value = row.email || '';
@@ -461,7 +494,12 @@
     editingAdmin = row.id;
     document.getElementById('admin-title').textContent = 'Edit admin';
     document.getElementById('btn-add-admin').textContent = 'Save changes';
-    document.getElementById('m-hint').textContent = 'Leave the password blank to keep the current one. A new password is saved encrypted and is not shown again.';
+    document.getElementById('m-hint').textContent = 'The password is filled in when this account has a saved copy. Change both fields to set a new one, or leave them blank to keep it.';
+    if (row.login_secret) {
+      document.getElementById('m-pw').value = row.login_secret;
+      document.getElementById('m-pw2').value = row.login_secret;
+      document.getElementById('m-pw').type = 'text';
+    }
     document.getElementById('m-id').value = row.id || '';
     document.getElementById('m-id').readOnly = true;
     document.getElementById('m-email').value = row.email || '';

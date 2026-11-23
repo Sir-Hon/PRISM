@@ -5,8 +5,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     if (typeof prismAuthGuard === 'function') await prismAuthGuard(['admin']);
   } catch (e) { /* the guard redirects when the session is missing */ }
   if (typeof initSidebar === 'function') initSidebar('manage');
-  renderPassphraseStatus();
-  renderAuditLog();
   loadSecurityModule();
 });
 

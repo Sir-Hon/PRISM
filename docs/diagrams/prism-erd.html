@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><title>PRISM Portal ERD</title>
+<style>html,body{margin:0;background:#0b1220}svg{display:block}</style></head>
+<body>
+<!--
+  Hub-and-spoke DOWNWARD layout (like original paper ERD).
+  Children sit under parents; sideways only for siblings.
+  Crow's foot = many; double bar = one. Lines stay in gutters; boxes painted after lines.
+-->
+<svg viewBox="0 0 1480 1320" width="1480" height="1320" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- crow's foot (many) — tip points to the MANY entity -->
+    <marker id="many" markerWidth="14" markerHeight="12" refX="12" refY="6" orient="auto">
+      <path d="M2,1 L12,6 L2,11" fill="none" stroke="#94a3b8" stroke-width="1.3"/>
+      <path d="M6,2.5 L12,6 L6,9.5" fill="none" stroke="#94a3b8" stroke-width="1.3"/>
+    </marker>
+    <!-- one — two parallel bars at the ONE entity -->
+    <marker id="one" markerWidth="10" markerHeight="12" refX="2" refY="6" orient="auto">
+      <path d="M1,1 V11" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+      <path d="M5,1 V11" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+    </marker>
+    <!-- one at end (when line arrives at the one side) -->
+    <marker id="oneEnd" markerWidth="10" markerHeight="12" refX="8" refY="6" orient="auto">
+      <path d="M4,1 V11" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+      <path d="M8,1 V11" fill="none" stroke="#94a3b8" stroke-width="1.4"/>
+    </marker>
+  </defs>
+  <rect width="1480" height="1320" fill="#0b1220"/>
+  <text x="740" y="26" text-anchor="middle" font-size="22" font-weight="700" fill="#f8fafc" font-family="Segoe UI,Arial">PRISM Portal — Entity Relationship Diagram</text>
+  <text x="740" y="46" text-anchor="middle" font-size="11" fill="#94a3b8" font-family="Segoe UI,Arial">Crow’s foot = many · double bar = one · hub flows downward</text>
+
+  <!-- ========== LINES FIRST (under boxes) ========== -->
+  <g stroke="#94a3b8" stroke-width="1.35" fill="none">
+    <!-- TOP: CLASSES(40-250) — ENROLLMENTS(300-480) — USERS(530-790) — ROSTER(870-1160) — TEACHER(1210-1440) -->
+    <path d="M250 100 H300" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M480 100 H530" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M790 100 H870" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M1160 100 H1210" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- USERS → CLASSES (teacher owns) via top rail y=32 -->
+    <path d="M530 70 H505 V32 H145 V50" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- USERS ↓ banners / email -->
+    <path d="M640 180 V210" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M790 150 H890 V210" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- CLASSES ↓ POSTS ; → MATERIALS via under-class gap y=190 -->
+    <path d="M140 170 V210" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M250 150 V190 H360 V210" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- CLASSES ↓ RECORDS / LEARNER via left spine x=18 (never through posts) -->
+    <path d="M40 110 H18 V380" marker-start="url(#one)"/>
+    <path d="M18 380 H360 V400" marker-end="url(#many)"/>
+    <path d="M18 380 V456 H50" marker-end="url(#many)"/>
+
+    <!-- CLASSES → QUIZZES via gutter x=500 (left of quizzes@520) -->
+    <path d="M250 130 H500 V360 H520" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- CLASSES → ASSIGNMENTS: continue class gutter past quiz_scores to gap y=655 -->
+    <path d="M500 500 V655 H560" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- CLASSES → LESSON_PLANS via left spine; plans → files -->
+    <path d="M18 550 V700 H50" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M230 700 H270" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- QUIZZES ↓ SCORES ; → LOGS sideways then down -->
+    <path d="M650 500 V530" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M780 430 H890 V530" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- ASSIGNMENTS ↓ SUBMISSIONS -->
+    <path d="M680 770 V800" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- USERS → ANNOUNCEMENTS (right, clear of roster bottom) -->
+    <path d="M790 80 H1220 V210" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- roster → REG_AUDIT -->
+    <path d="M1160 120 H1280 V210" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- USERS → STUDENT_CORS via right spine -->
+    <path d="M1440 110 V705 H1310" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- USERS → quiz_scores (student) via right spine -->
+    <path d="M1440 110 V585 H1000" marker-start="url(#one)" marker-end="url(#many)"/>
+    <!-- USERS → submissions via right spine -->
+    <path d="M1440 585 V850 H800" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- USERS → EVENTS via separate gutter x=485 (not shared with class gutter x=500) -->
+    <path d="M530 180 H485 V940 H560" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M760 988 H820" marker-start="url(#one)" marker-end="url(#many)"/>
+
+    <!-- USERS → security via left spine then across bottom -->
+    <path d="M530 160 H18 V1088 H50" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M250 1088 H300" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M500 1088 H550" marker-start="url(#one)" marker-end="url(#many)"/>
+    <path d="M750 1088 H800" marker-start="url(#one)" marker-end="url(#many)"/>
+  </g>
+
+  <!-- ========== BOXES (on top of lines) ========== -->
+  <g font-family="Segoe UI,Arial">
+    <!-- ROW: hub -->
+    <g transform="translate(40,50)">
+      <rect width="210" height="120" rx="8" fill="#064e3b" stroke="#34d399"/>
+      <rect width="210" height="26" rx="8" fill="#059669"/><rect y="14" width="210" height="12" fill="#059669"/>
+      <text x="105" y="18" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">CLASSES</text>
+      <text x="12" y="48" font-size="12" fill="#a7f3d0">id <tspan x="180" fill="#6ee7b7">PK</tspan></text>
+      <text x="12" y="68" font-size="12" fill="#a7f3d0">teacher_id <tspan x="180" fill="#6ee7b7">FK</tspan></text>
+      <text x="12" y="88" font-size="12" fill="#e2e8f0">subject · code · color</text>
+      <text x="12" y="108" font-size="12" fill="#e2e8f0">cover · created_at</text>
+    </g>
+
+    <g transform="translate(300,60)">
+      <rect width="180" height="100" rx="8" fill="#115e59" stroke="#2dd4bf"/>
+      <rect width="180" height="26" rx="8" fill="#0d9488"/><rect y="14" width="180" height="12" fill="#0d9488"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">ENROLLMENTS</text>
+      <text x="12" y="50" font-size="12" fill="#99f6e4">id <tspan x="150" fill="#5eead4">PK</tspan></text>
+      <text x="12" y="70" font-size="12" fill="#99f6e4">student_id · class_id FK</text>
+      <text x="12" y="90" font-size="11" fill="#e2e8f0">joined_at</text>
+    </g>
+
+    <g transform="translate(530,40)">
+      <rect width="260" height="140" rx="8" fill="#1e3a5f" stroke="#60a5fa"/>
+      <rect width="260" height="26" rx="8" fill="#2563eb"/><rect y="14" width="260" height="12" fill="#2563eb"/>
+      <text x="130" y="18" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">USERS</text>
+      <text x="12" y="48" font-size="12" fill="#bfdbfe">id <tspan x="230" fill="#93c5fd">PK</tspan></text>
+      <text x="12" y="68" font-size="12" fill="#e2e8f0">name · password · role</text>
+      <text x="12" y="88" font-size="12" fill="#e2e8f0">section · email · id_number</text>
+      <text x="12" y="108" font-size="12" fill="#e2e8f0">avatar · bio · admin_perms</text>
+      <text x="12" y="128" font-size="12" fill="#e2e8f0">email_verified_at · created_at</text>
+    </g>
+
+    <g transform="translate(870,40)">
+      <rect width="290" height="140" rx="8" fill="#3b1d5e" stroke="#c084fc"/>
+      <rect width="290" height="26" rx="8" fill="#7c3aed"/><rect y="14" width="290" height="12" fill="#7c3aed"/>
+      <text x="145" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">STUDENT_ROSTER</text>
+      <text x="12" y="48" font-size="12" fill="#e9d5ff">id_number <tspan x="260" fill="#d8b4fe">PK</tspan></text>
+      <text x="12" y="68" font-size="12" fill="#e2e8f0">email · names · course · year</text>
+      <text x="12" y="88" font-size="12" fill="#e2e8f0">college · section · reg_code_hash</text>
+      <text x="12" y="108" font-size="12" fill="#e2e8f0">expires · claimed_by · revoked</text>
+      <text x="12" y="128" font-size="11" fill="#94a3b8">admin-created (replaces invites)</text>
+    </g>
+
+    <g transform="translate(1210,50)">
+      <rect width="230" height="120" rx="8" fill="#3b1d5e" stroke="#c084fc"/>
+      <rect width="230" height="26" rx="8" fill="#7c3aed"/><rect y="14" width="230" height="12" fill="#7c3aed"/>
+      <text x="115" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">TEACHER_ROSTER</text>
+      <text x="12" y="50" font-size="12" fill="#e9d5ff">id → users <tspan x="200" fill="#d8b4fe">PK/FK</tspan></text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">email · names · college</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">department · subjects</text>
+      <text x="12" y="110" font-size="12" fill="#e2e8f0">created_by_admin_id</text>
+    </g>
+
+    <!-- under USERS (profiles slot) -->
+    <g transform="translate(540,210)">
+      <rect width="200" height="96" rx="8" fill="#312e81" stroke="#a5b4fc"/>
+      <rect width="200" height="26" rx="8" fill="#4f46e5"/><rect y="14" width="200" height="12" fill="#4f46e5"/>
+      <text x="100" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">USER_BANNERS</text>
+      <text x="12" y="50" font-size="12" fill="#c7d2fe">user_id + scope <tspan x="170" fill="#a5b4fc">PK</tspan></text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">color · image</text>
+      <text x="12" y="88" font-size="11" fill="#94a3b8">(was profiles)</text>
+    </g>
+
+    <g transform="translate(780,210)">
+      <rect width="220" height="96" rx="8" fill="#312e81" stroke="#a5b4fc"/>
+      <rect width="220" height="26" rx="8" fill="#4f46e5"/><rect y="14" width="220" height="12" fill="#4f46e5"/>
+      <text x="110" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">EMAIL_VERIFICATIONS</text>
+      <text x="12" y="50" font-size="12" fill="#c7d2fe">user_id · token_hash</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">expires_at · used_at</text>
+    </g>
+
+    <g transform="translate(1100,210)">
+      <rect width="240" height="100" rx="8" fill="#7c2d12" stroke="#fb923c"/>
+      <rect width="240" height="26" rx="8" fill="#ea580c"/><rect y="14" width="240" height="12" fill="#ea580c"/>
+      <text x="120" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">ANNOUNCEMENTS</text>
+      <text x="12" y="50" font-size="12" fill="#ffedd5">id <tspan x="210" fill="#fdba74">PK</tspan></text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">author · text · type</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">audience · college · year</text>
+    </g>
+
+    <g transform="translate(1280,210)">
+      <rect width="160" height="100" rx="8" fill="#3b1d5e" stroke="#c084fc"/>
+      <rect width="160" height="26" rx="8" fill="#7c3aed"/><rect y="14" width="160" height="12" fill="#7c3aed"/>
+      <text x="80" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">REG_AUDIT</text>
+      <text x="10" y="50" font-size="11" fill="#e9d5ff">admin_id</text>
+      <text x="10" y="70" font-size="11" fill="#e2e8f0">roster_id · event</text>
+      <text x="10" y="90" font-size="11" fill="#e2e8f0">ip · created_at</text>
+    </g>
+
+    <!-- class content down-left -->
+    <g transform="translate(50,210)">
+      <rect width="180" height="100" rx="8" fill="#1e3a5f" stroke="#60a5fa"/>
+      <rect width="180" height="26" rx="8" fill="#2563eb"/><rect y="14" width="180" height="12" fill="#2563eb"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">POSTS</text>
+      <text x="12" y="50" font-size="12" fill="#bfdbfe">id · class_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">type · body · attach</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">target_section</text>
+    </g>
+
+    <g transform="translate(270,210)">
+      <rect width="180" height="100" rx="8" fill="#312e81" stroke="#a5b4fc"/>
+      <rect width="180" height="26" rx="8" fill="#4f46e5"/><rect y="14" width="180" height="12" fill="#4f46e5"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">MATERIALS</text>
+      <text x="12" y="50" font-size="12" fill="#c7d2fe">id · class_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">title · type · url/file</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">target_section</text>
+    </g>
+
+    <g transform="translate(50,400)">
+      <rect width="180" height="112" rx="8" fill="#713f12" stroke="#fbbf24"/>
+      <rect width="180" height="26" rx="8" fill="#d97706"/><rect y="14" width="180" height="12" fill="#d97706"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">RECORDS</text>
+      <text x="12" y="50" font-size="11" fill="#fde68a">class_id · student_id</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">session_date</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">attendance P/A/L</text>
+      <text x="12" y="108" font-size="11" fill="#e2e8f0">quiz/act/mid/final</text>
+    </g>
+
+    <g transform="translate(270,400)">
+      <rect width="180" height="112" rx="8" fill="#713f12" stroke="#fbbf24"/>
+      <rect width="180" height="26" rx="8" fill="#d97706"/><rect y="14" width="180" height="12" fill="#d97706"/>
+      <text x="90" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">LEARNER_SHEETS</text>
+      <text x="12" y="50" font-size="11" fill="#fde68a">class+student+kind</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">attendance|assessment</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">payload · weights</text>
+      <text x="12" y="108" font-size="10" fill="#94a3b8">(was sessions+att.)</text>
+    </g>
+
+    <!-- center: quizzes branch down -->
+    <g transform="translate(520,360)">
+      <rect width="260" height="140" rx="8" fill="#164e63" stroke="#22d3ee"/>
+      <rect width="260" height="26" rx="8" fill="#0891b2"/><rect y="14" width="260" height="12" fill="#0891b2"/>
+      <text x="130" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">QUIZZES</text>
+      <text x="12" y="50" font-size="12" fill="#a5f3fc">id · class_id <tspan x="230" fill="#67e8f9">FK</tspan></text>
+      <text x="12" y="70" font-size="12" fill="#fde68a">type: quiz | exam | activity</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">questions · points · due</text>
+      <text x="12" y="110" font-size="12" fill="#e2e8f0">attempts · shuffle · reveal</text>
+      <text x="12" y="130" font-size="12" fill="#e2e8f0">published · target_section</text>
+    </g>
+
+    <g transform="translate(520,530)">
+      <rect width="220" height="110" rx="8" fill="#115e59" stroke="#2dd4bf"/>
+      <rect width="220" height="26" rx="8" fill="#0f766e"/><rect y="14" width="220" height="12" fill="#0f766e"/>
+      <text x="110" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">QUIZ_SCORES</text>
+      <text x="12" y="50" font-size="12" fill="#99f6e4">quiz_id · student_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">score · answers JSON</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">taken_at</text>
+      <text x="12" y="106" font-size="10" fill="#94a3b8">(was quiz_attempts)</text>
+    </g>
+
+    <g transform="translate(780,530)">
+      <rect width="220" height="110" rx="8" fill="#115e59" stroke="#2dd4bf"/>
+      <rect width="220" height="26" rx="8" fill="#0f766e"/><rect y="14" width="220" height="12" fill="#0f766e"/>
+      <text x="110" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">QUIZ_LOGS</text>
+      <text x="12" y="50" font-size="12" fill="#99f6e4">quiz_id · student_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">start|submit|tab-switch</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">abandon · logged_at</text>
+    </g>
+
+    <g transform="translate(560,670)">
+      <rect width="240" height="100" rx="8" fill="#4c0519" stroke="#fb7185"/>
+      <rect width="240" height="26" rx="8" fill="#be123c"/><rect y="14" width="240" height="12" fill="#be123c"/>
+      <text x="120" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">ASSIGNMENTS</text>
+      <text x="12" y="50" font-size="12" fill="#fecdd3">id · class_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">title · points · due · attach</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">written/project/lab/oral</text>
+    </g>
+
+    <g transform="translate(560,800)">
+      <rect width="240" height="100" rx="8" fill="#4c0519" stroke="#fb7185"/>
+      <rect width="240" height="26" rx="8" fill="#e11d48"/><rect y="14" width="240" height="12" fill="#e11d48"/>
+      <text x="120" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">SUBMISSIONS</text>
+      <text x="12" y="50" font-size="12" fill="#fecdd3">assignment_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#fecdd3">student_id FK</text>
+      <text x="12" y="90" font-size="12" fill="#fde68a">score · files · note · link</text>
+    </g>
+
+    <!-- lessons under records -->
+    <g transform="translate(50,650)">
+      <rect width="180" height="100" rx="8" fill="#064e3b" stroke="#34d399"/>
+      <rect width="180" height="26" rx="8" fill="#059669"/><rect y="14" width="180" height="12" fill="#059669"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">LESSON_PLANS</text>
+      <text x="12" y="50" font-size="12" fill="#a7f3d0">id · class_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">teacher_id · title · date</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">plan MEDIUMTEXT</text>
+    </g>
+
+    <g transform="translate(270,650)">
+      <rect width="180" height="100" rx="8" fill="#064e3b" stroke="#34d399"/>
+      <rect width="180" height="26" rx="8" fill="#059669"/><rect y="14" width="180" height="12" fill="#059669"/>
+      <text x="90" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">LESSON_FILES</text>
+      <text x="12" y="50" font-size="12" fill="#a7f3d0">id · lesson_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">file_name · path</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">mime_type</text>
+    </g>
+
+    <!-- COR right mid -->
+    <g transform="translate(1050,650)">
+      <rect width="260" height="110" rx="8" fill="#3b1d5e" stroke="#c084fc"/>
+      <rect width="260" height="26" rx="8" fill="#7c3aed"/><rect y="14" width="260" height="12" fill="#7c3aed"/>
+      <text x="130" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">STUDENT_CORS</text>
+      <text x="12" y="50" font-size="12" fill="#e9d5ff">id · student_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">school_year · semester · label</text>
+      <text x="12" y="90" font-size="12" fill="#e2e8f0">payload · sent_by · sent_at</text>
+    </g>
+
+    <!-- personal bottom-center (like original calendar/notebooks/notes chain) -->
+    <g transform="translate(560,940)">
+      <rect width="200" height="96" rx="8" fill="#3b1d5e" stroke="#c084fc"/>
+      <rect width="200" height="26" rx="8" fill="#7c3aed"/><rect y="14" width="200" height="12" fill="#7c3aed"/>
+      <text x="100" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">EVENTS</text>
+      <text x="12" y="50" font-size="12" fill="#e9d5ff">id · user_id FK</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">title · date · time · alarm</text>
+      <text x="12" y="88" font-size="12" fill="#e2e8f0">notes · color</text>
+    </g>
+
+    <g transform="translate(820,940)">
+      <rect width="230" height="96" rx="8" fill="#1e3a5f" stroke="#60a5fa"/>
+      <rect width="230" height="26" rx="8" fill="#2563eb"/><rect y="14" width="230" height="12" fill="#2563eb"/>
+      <text x="115" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">USER_NOTEBOOKS</text>
+      <text x="12" y="50" font-size="12" fill="#bfdbfe">user_id <tspan x="200" fill="#93c5fd">PK</tspan></text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">payload (notebooks + notes)</text>
+      <text x="12" y="88" font-size="11" fill="#94a3b8">(was notebooks → notes)</text>
+    </g>
+
+    <g transform="translate(1100,940)">
+      <rect width="200" height="96" rx="8" fill="#1e293b" stroke="#94a3b8"/>
+      <rect width="200" height="26" rx="8" fill="#475569"/><rect y="14" width="200" height="12" fill="#475569"/>
+      <text x="100" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">UPLOAD_BLOBS</text>
+      <text x="12" y="50" font-size="12" fill="#cbd5e1">path <tspan x="170" fill="#94a3b8">PK</tspan></text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">mime · name · bytes</text>
+    </g>
+
+    <!-- security bottom -->
+    <g transform="translate(50,1040)">
+      <rect width="200" height="96" rx="8" fill="#3f1d2e" stroke="#fb7185"/>
+      <rect width="200" height="26" rx="8" fill="#e11d48"/><rect y="14" width="200" height="12" fill="#e11d48"/>
+      <text x="100" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">ADMIN_ROLES</text>
+      <text x="12" y="50" font-size="12" fill="#fecdd3">id · name · fine_json</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">permission templates</text>
+    </g>
+
+    <g transform="translate(300,1040)">
+      <rect width="200" height="96" rx="8" fill="#3f1d2e" stroke="#fb7185"/>
+      <rect width="200" height="26" rx="8" fill="#e11d48"/><rect y="14" width="200" height="12" fill="#e11d48"/>
+      <text x="100" y="18" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">SECURITY_POLICY</text>
+      <text x="12" y="50" font-size="12" fill="#fecdd3">max_fails · lock_minutes</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">passphrase store</text>
+    </g>
+
+    <g transform="translate(550,1040)">
+      <rect width="200" height="96" rx="8" fill="#3f1d2e" stroke="#fb7185"/>
+      <rect width="200" height="26" rx="8" fill="#e11d48"/><rect y="14" width="200" height="12" fill="#e11d48"/>
+      <text x="100" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">SECURITY_LOGS</text>
+      <text x="12" y="50" font-size="12" fill="#fecdd3">actor_id · event</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">detail · created_at</text>
+    </g>
+
+    <g transform="translate(800,1040)">
+      <rect width="200" height="96" rx="8" fill="#3f1d2e" stroke="#fb7185"/>
+      <rect width="200" height="26" rx="8" fill="#e11d48"/><rect y="14" width="200" height="12" fill="#e11d48"/>
+      <text x="100" y="18" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">LOGIN_LOCKS</text>
+      <text x="12" y="50" font-size="12" fill="#fecdd3">account_key · fails</text>
+      <text x="12" y="70" font-size="12" fill="#e2e8f0">locked_until</text>
+    </g>
+
+    <text x="740" y="1200" text-anchor="middle" font-size="13" fill="#94a3b8">Hub flows downward like the original. invite_codes removed. Grades = quiz_scores + submissions (UI).</text>
+    <text x="740" y="1222" text-anchor="middle" font-size="12" fill="#64748b">Crow’s foot = many side · double bar = one side · boxes drawn above lines so nothing pierces tables.</text>
+  </g>
+</svg>
+</body></html>

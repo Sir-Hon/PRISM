@@ -505,10 +505,108 @@ function prismMaterialKindLabel(kind) {
   return labels[kind] || 'File';
 }
 
+function prismCloseFilePreview() {
+  const el = document.getElementById('prism-file-preview');
+  if (el) el.remove();
+}
+
+function prismDownloadNamed(url, fileName) {
+  const name = fileName || 'download';
+  if (String(url || '').indexOf('data:') === 0) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    return;
+  }
+  fetch(url, { credentials: 'same-origin' })
+    .then((r) => {
+      if (!r.ok) throw new Error('missing');
+      return r.blob();
+    })
+    .then((blob) => {
+      const u = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = u;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(u), 2000);
+    })
+    .catch(() => {
+      alert('This file could not be downloaded.');
+    });
+}
+
+function prismShowFilePreview(url, mime, fileName) {
+  prismCloseFilePreview();
+  const name = fileName || 'File';
+  const type = mime && mime !== 'application/octet-stream' ? mime : (typeof prismGuessMimeFromName === 'function' ? prismGuessMimeFromName(name) : '');
+  const preview = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(type, name);
+  const kind = typeof prismMaterialKind === 'function' ? prismMaterialKind(type, name, 'file') : 'file';
+  const overlay = document.createElement('div');
+  overlay.id = 'prism-file-preview';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:1.2rem;';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:#fff;border-radius:16px;width:min(920px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.28);';
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;border-bottom:1px solid #e5e7eb;';
+  const title = document.createElement('div');
+  title.textContent = name;
+  title.style.cssText = 'flex:1;font-weight:800;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  const dl = document.createElement('button');
+  dl.type = 'button';
+  dl.textContent = 'Download';
+  dl.style.cssText = 'border:none;background:#7c3aed;color:#fff;border-radius:10px;padding:.45rem .85rem;font-weight:800;cursor:pointer;';
+  dl.addEventListener('click', () => prismDownloadNamed(url, name));
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.textContent = 'Close';
+  close.style.cssText = 'border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:.45rem .85rem;font-weight:700;cursor:pointer;';
+  close.addEventListener('click', prismCloseFilePreview);
+  bar.appendChild(title);
+  bar.appendChild(dl);
+  bar.appendChild(close);
+  const body = document.createElement('div');
+  body.style.cssText = 'padding:1rem;overflow:auto;background:#f8fafc;min-height:180px;';
+  if (preview && (kind === 'image' || /^image\//i.test(type))) {
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = name;
+    img.style.cssText = 'max-width:100%;max-height:70vh;display:block;margin:0 auto;border-radius:8px;';
+    body.appendChild(img);
+  } else if (preview && (kind === 'video-file' || /^video\//i.test(type))) {
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    video.style.cssText = 'width:100%;max-height:70vh;background:#0f172a;border-radius:8px;';
+    body.appendChild(video);
+  } else if (preview) {
+    const frame = document.createElement('iframe');
+    frame.src = url;
+    frame.title = name;
+    frame.style.cssText = 'width:100%;height:70vh;border:0;background:#fff;border-radius:8px;';
+    body.appendChild(frame);
+  } else {
+    const note = document.createElement('p');
+    note.textContent = 'This file opens from the Download button. Word, PowerPoint, Excel, and zip files stay as downloads after you look at this window.';
+    note.style.cssText = 'margin:1.5rem auto;max-width:36rem;text-align:center;color:#374151;line-height:1.5;';
+    body.appendChild(note);
+  }
+  box.appendChild(bar);
+  box.appendChild(body);
+  overlay.appendChild(box);
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) prismCloseFilePreview();
+  });
+  document.body.appendChild(overlay);
+}
+
 function prismOpenMaterialUrl(url, mime, fileName) {
   if (!url) return;
-  let m = mime || '';
-  let fn = fileName || '';
   let abs = typeof prismResolveUploadUrl === 'function' ? prismResolveUploadUrl(url) : url;
   if (!abs) abs = url;
   if (!/^https?:\/\//i.test(abs) && abs.indexOf('data:') !== 0) {
@@ -528,44 +626,8 @@ function prismOpenMaterialUrl(url, mime, fileName) {
       window.open(absUrl.href, '_blank', 'noopener');
       return;
     }
-  } catch (e) { /* fall through to fetch */ }
-  fetch(abs, { credentials: 'same-origin' })
-    .then((r) => {
-      if (!r.ok) throw new Error('missing');
-      return r.blob();
-    })
-    .then((blob) => {
-      let type =
-        m && String(m).trim() && m !== 'application/octet-stream'
-          ? m
-          : blob.type && blob.type !== 'application/octet-stream'
-            ? blob.type
-            : prismGuessMimeFromName(fn);
-      if (!type) type = blob.type || 'application/octet-stream';
-      const b = new Blob([blob], { type });
-      const u = URL.createObjectURL(b);
-      const preview = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(type, fn);
-      if (!preview) {
-        const a = document.createElement('a');
-        a.href = u;
-        a.download = fn || 'download';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(u), 2000);
-        return;
-      }
-      const w = window.open(u, '_blank', 'noopener');
-      if (!w) {
-        URL.revokeObjectURL(u);
-        alert('Pop-up blocked — allow pop-ups for this site to preview files.');
-        return;
-      }
-      setTimeout(() => URL.revokeObjectURL(u), 180000);
-    })
-    .catch(() => {
-      alert('This file could not be opened. Ask your teacher to share it again.');
-    });
+  } catch (e) { /* same-origin or data URL */ }
+  prismShowFilePreview(abs, mime || '', fileName || '');
 }
 
 function prismVideoEmbedFromUrl(pageUrl) {
@@ -1092,6 +1154,9 @@ const PrismQuizzes = {
   },
   async getMyScores() {
     const data = await apiGet('quizzes', 'get_my_scores');
+    if (data.detail) {
+      try { localStorage.setItem('prism_quiz_teacher_detail', JSON.stringify(data.detail)); } catch (e) { /* keep the score map */ }
+    }
     return data.scores || {};
   },
   async submitScore(quiz_id, score, answers) {

@@ -859,9 +859,10 @@ if ($action === 'submit') {
             $mime = prism_mime_from_filename($fn, $up['type'] ?? 'application/octet-stream');
             $safe_name = 'sub_' . $uidSafe . '_' . $asgnSafe . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
             $upload_path = UPLOAD_DIR . $safe_name;
-            if (file_put_contents($upload_path, $bin) !== false) {
-                $attachments[] = ['name' => $fn, 'path' => UPLOAD_URL . $safe_name, 'mime' => $mime];
-            }
+            $urlPath = UPLOAD_URL . $safe_name;
+            @file_put_contents($upload_path, $bin);
+            prism_save_upload_blob($urlPath, (string) $fn, (string) $mime, $bin);
+            $attachments[] = ['name' => $fn, 'path' => $urlPath, 'mime' => $mime];
         }
     }
 
@@ -890,9 +891,10 @@ if ($action === 'submit') {
             $ext = pathinfo($fn, PATHINFO_EXTENSION);
             $safe_name = 'sub_' . $uidSafe . '_' . $asgnSafe . '_' . bin2hex(random_bytes(4)) . ($ext ? '.' . $ext : '');
             $upload_path = UPLOAD_DIR . $safe_name;
-            if (file_put_contents($upload_path, $bin) !== false) {
-                $attachments[] = ['name' => $fn, 'path' => UPLOAD_URL . $safe_name, 'mime' => $mime];
-            }
+            $urlPath = UPLOAD_URL . $safe_name;
+            @file_put_contents($upload_path, $bin);
+            prism_save_upload_blob($urlPath, (string) $fn, (string) $mime, $bin);
+            $attachments[] = ['name' => $fn, 'path' => $urlPath, 'mime' => $mime];
         }
     }
 
@@ -911,7 +913,9 @@ if ($action === 'submit') {
         if ($bin === false) {
             $bin = base64_decode($raw, false);
         }
-        if ($bin !== false && strlen($bin) <= MAX_FILE_SIZE && file_put_contents($upload_path, $bin) !== false) {
+        if ($bin !== false && strlen($bin) <= MAX_FILE_SIZE) {
+            @file_put_contents($upload_path, $bin);
+            prism_save_upload_blob(UPLOAD_URL . $safe_name, (string) $fn, (string) $mime, $bin);
             $attachments[] = ['name' => $fn, 'path' => UPLOAD_URL . $safe_name, 'mime' => $mime];
         } elseif (!empty($b['fileData']['base64'])) {
             $attachments[] = [
