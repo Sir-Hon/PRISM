@@ -128,8 +128,12 @@ async function handleLogin() {
     btn.classList.remove('loading');
     btn.textContent = 'Sign In';
     var raw = (e && e.message) ? String(e.message) : '';
+    if (/password was not checked/i.test(raw)) {
+      showError(raw);
+      return;
+    }
     if (/database connection|could not reach the login service|something went wrong/i.test(raw)) {
-      showError('The portal cannot reach its database, so this sign-in was not checked. Wait a moment and try again. If it stays this way, wake the database on Render and confirm DB_HOST, DB_NAME, DB_USER, and DB_PASS on the web service.');
+      showError('The portal cannot reach its database, so this sign-in was not checked. Wait a moment and try again. If it stays this way, confirm the Aiven database is running.');
       return;
     }
     attempts++;

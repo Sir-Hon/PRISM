@@ -148,21 +148,56 @@ function prism_is_ctu_student_section($section): bool {
     return false;
 }
 
+function prism_pdo_options(): array {
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+    // Aiven rejects plaintext MySQL. MYSQL_ATTR_SSL_CA on Render is the switch.
+    $sslCa = getenv('MYSQL_ATTR_SSL_CA');
+    if (!is_string($sslCa) || $sslCa === '') {
+        $host = (string) DB_HOST;
+        if (stripos($host, 'aivencloud.com') !== false || stripos($host, 'aiven.io') !== false) {
+            $sslCa = '/etc/ssl/certs/ca-certificates.crt';
+        }
+    }
+    if (is_string($sslCa) && $sslCa !== '' && defined('PDO::MYSQL_ATTR_SSL_CA')) {
+        $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+        if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+            // Aiven's certificate is signed by Aiven, not by the public bundle at that path.
+            $verify = getenv('MYSQL_ATTR_SSL_VERIFY_SERVER_CERT');
+            $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = ($verify === '1' || strcasecmp((string) $verify, 'true') === 0);
+        }
+    }
+    return $options;
+}
+
+function prism_db_fail_message(string $detail): string {
+    $tail = 'so the password was not checked.';
+    if (stripos($detail, 'SSL') !== false || stripos($detail, 'certificate') !== false) {
+        return 'Database connection failed. MySQL refused the secure connection, ' . $tail;
+    }
+    if (stripos($detail, 'Access denied') !== false) {
+        return 'Database connection failed. MySQL rejected DB_USER or DB_PASS, ' . $tail;
+    }
+    if (stripos($detail, 'timed out') !== false || stripos($detail, 'Connection refused') !== false || stripos($detail, 'getaddrinfo') !== false || stripos($detail, 'Name or service not known') !== false) {
+        return 'Database connection failed. The database host did not accept a connection, ' . $tail . ' Confirm the Aiven service is running.';
+    }
+    return 'Database connection failed. The portal could not open MySQL, ' . $tail;
+}
+
 function getDB() {
     static $pdo = null;
     if ($pdo === null) {
         try {
             $dsn = 'mysql:host='.DB_HOST.';port='.DB_PORT.';dbname='.DB_NAME.';charset=utf8mb4';
-            $pdo = new PDO($dsn, DB_USER, DB_PASS, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-            ]);
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, prism_pdo_options());
             // Render's MySQL treats double quotes as column names. Keep strings as strings.
             $pdo->exec("SET SESSION sql_mode = REPLACE(@@SESSION.sql_mode, 'ANSI_QUOTES', '')");
         } catch (PDOException $e) {
             error_log('PRISM DB connection failed: ' . $e->getMessage());
-            fail('Database connection failed. The portal could not open MySQL, so the password was not checked.', 500);
+            fail(prism_db_fail_message($e->getMessage()), 500);
         }
     }
     return $pdo;
