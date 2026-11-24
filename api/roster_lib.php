@@ -139,7 +139,22 @@ function prism_csv_safe($value): string {
 }
 
 function prism_roster_schema_flag(): string {
-    return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-roster-schema-v3-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
+    return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-roster-schema-v4-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
+}
+
+function prism_exec_ignore(PDO $db, string $sql): void {
+    try {
+        $db->exec($sql);
+    } catch (PDOException $e) {
+        error_log('PRISM schema: ' . $e->getMessage());
+        try {
+            $ping = $db->query('SELECT 1');
+            if ($ping) {
+                $ping->closeCursor();
+            }
+        } catch (PDOException $ignored) {
+        }
+    }
 }
 
 function prism_ensure_student_roster(PDO $db): void {
@@ -174,7 +189,7 @@ function prism_ensure_student_roster(PDO $db): void {
             UNIQUE KEY uq_roster_email (email),
             KEY idx_roster_claimed (claimed_at),
             KEY idx_roster_expires (expires_at)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci'
     );
     $db->exec(
         'CREATE TABLE IF NOT EXISTS registration_audit_log (
@@ -186,7 +201,7 @@ function prism_ensure_student_roster(PDO $db): void {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             KEY idx_audit_roster (roster_id_number),
             KEY idx_audit_event (event_type)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci'
     );
     $db->exec(
         'CREATE TABLE IF NOT EXISTS email_verifications (
@@ -198,7 +213,7 @@ function prism_ensure_student_roster(PDO $db): void {
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             KEY idx_verify_user (user_id),
             KEY idx_verify_hash (token_hash)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci'
     );
     prism_ensure_user_column($db, 'id_number', 'VARCHAR(20) NULL DEFAULT NULL');
     prism_ensure_user_column($db, 'email_verified_at', 'DATETIME NULL DEFAULT NULL');
@@ -214,6 +229,11 @@ function prism_ensure_student_roster(PDO $db): void {
     }
     prism_ensure_index($db, 'users', 'uq_users_id_number', 'UNIQUE KEY uq_users_id_number (id_number)');
     prism_ensure_index($db, 'users', 'uq_users_email', 'UNIQUE KEY uq_users_email (email)');
+    prism_exec_ignore($db, 'ALTER TABLE users DROP FOREIGN KEY fk_users_roster_id');
+    prism_exec_ignore($db, "ALTER TABLE users MODIFY id_number VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL");
+    prism_exec_ignore($db, "ALTER TABLE student_roster MODIFY id_number VARCHAR(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL");
+    prism_exec_ignore($db, "ALTER TABLE student_roster MODIFY claimed_by_user_id VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL");
+    prism_exec_ignore($db, "ALTER TABLE student_roster MODIFY created_by_admin_id VARCHAR(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL DEFAULT NULL");
     prism_ensure_fk($db, 'users', 'fk_users_roster_id', 'FOREIGN KEY (id_number) REFERENCES student_roster(id_number)');
     prism_ensure_fk($db, 'student_roster', 'fk_roster_claimed_by', 'FOREIGN KEY (claimed_by_user_id) REFERENCES users(id) ON DELETE SET NULL');
     prism_ensure_fk($db, 'student_roster', 'fk_roster_created_by', 'FOREIGN KEY (created_by_admin_id) REFERENCES users(id) ON DELETE SET NULL');
@@ -235,7 +255,7 @@ function prism_ensure_student_roster(PDO $db): void {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             UNIQUE KEY uq_teacher_roster_email (email),
             KEY idx_teacher_college (college, department)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci'
     );
     prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_user', 'FOREIGN KEY (id) REFERENCES users(id) ON DELETE CASCADE');
     prism_ensure_fk($db, 'teacher_roster', 'fk_teacher_roster_created_by', 'FOREIGN KEY (created_by_admin_id) REFERENCES users(id) ON DELETE SET NULL');
