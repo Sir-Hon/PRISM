@@ -319,7 +319,7 @@ CREATE TABLE IF NOT EXISTS student_roster (
   KEY idx_roster_expires (expires_at),
   CONSTRAINT fk_roster_claimed_by FOREIGN KEY (claimed_by_user_id) REFERENCES users (id) ON DELETE SET NULL,
   CONSTRAINT fk_roster_created_by FOREIGN KEY (created_by_admin_id) REFERENCES users (id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS teacher_roster (
   id VARCHAR(50) PRIMARY KEY,
@@ -336,7 +336,7 @@ CREATE TABLE IF NOT EXISTS teacher_roster (
   KEY idx_teacher_college (college, department),
   CONSTRAINT fk_teacher_roster_user FOREIGN KEY (id) REFERENCES users (id) ON DELETE CASCADE,
   CONSTRAINT fk_teacher_roster_created_by FOREIGN KEY (created_by_admin_id) REFERENCES users (id) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS registration_audit_log (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -347,7 +347,7 @@ CREATE TABLE IF NOT EXISTS registration_audit_log (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   KEY idx_audit_roster (roster_id_number),
   KEY idx_audit_event (event_type)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS email_verifications (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -358,7 +358,7 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   KEY idx_verify_user (user_id),
   KEY idx_verify_hash (token_hash)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 ALTER TABLE users
   ADD CONSTRAINT fk_users_roster_id FOREIGN KEY (id_number) REFERENCES student_roster (id_number);
@@ -369,10 +369,10 @@ CREATE TABLE IF NOT EXISTS user_banners (
   color VARCHAR(10) NOT NULL DEFAULT '',
   image MEDIUMTEXT NULL,
   PRIMARY KEY (user_id, scope)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS user_notebooks (
   user_id VARCHAR(50) NOT NULL PRIMARY KEY,
   payload MEDIUMTEXT NOT NULL,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci;

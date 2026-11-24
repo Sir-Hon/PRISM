@@ -252,7 +252,11 @@ function prism_ensure_roster_column(PDO $db, string $table, string $column, stri
     }
     try {
         $stmt = $db->query('SHOW COLUMNS FROM `' . $table . '` LIKE ' . $db->quote($column));
-        if ($stmt && $stmt->fetch()) {
+        $found = $stmt && $stmt->fetch();
+        if ($stmt) {
+            $stmt->closeCursor();
+        }
+        if ($found) {
             return;
         }
         $db->exec('ALTER TABLE `' . $table . '` ADD COLUMN `' . $column . '` ' . $definition);
@@ -293,7 +297,11 @@ function prism_ensure_user_column(PDO $db, string $column, string $definition): 
     }
     try {
         $stmt = $db->query('SHOW COLUMNS FROM users LIKE ' . $db->quote($column));
-        if ($stmt && $stmt->fetch()) {
+        $found = $stmt && $stmt->fetch();
+        if ($stmt) {
+            $stmt->closeCursor();
+        }
+        if ($found) {
             return;
         }
         $db->exec('ALTER TABLE users ADD COLUMN `' . $column . '` ' . $definition);
@@ -309,7 +317,9 @@ function prism_ensure_index(PDO $db, string $table, string $name, string $defini
     try {
         $stmt = $db->prepare('SELECT 1 FROM information_schema.statistics WHERE table_schema = DATABASE() AND table_name = ? AND index_name = ?');
         $stmt->execute([$table, $name]);
-        if ($stmt->fetch()) {
+        $found = (bool) $stmt->fetch();
+        $stmt->closeCursor();
+        if ($found) {
             return;
         }
         $db->exec('ALTER TABLE `' . $table . '` ADD ' . $definition);
@@ -325,7 +335,9 @@ function prism_ensure_fk(PDO $db, string $table, string $name, string $definitio
     try {
         $stmt = $db->prepare('SELECT 1 FROM information_schema.table_constraints WHERE table_schema = DATABASE() AND table_name = ? AND constraint_name = ?');
         $stmt->execute([$table, $name]);
-        if ($stmt->fetch()) {
+        $found = (bool) $stmt->fetch();
+        $stmt->closeCursor();
+        if ($found) {
             return;
         }
         $db->exec('ALTER TABLE `' . $table . '` ADD CONSTRAINT `' . $name . '` ' . $definition);

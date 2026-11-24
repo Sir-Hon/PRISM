@@ -154,6 +154,14 @@ function prism_pdo_options(): array {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
     ];
+    // TiDB leaves native prepared results open, so the next roster query crashes.
+    $host = (string) (defined('DB_HOST') ? DB_HOST : '');
+    if (stripos($host, 'tidbcloud.com') !== false) {
+        $options[PDO::ATTR_EMULATE_PREPARES] = true;
+        if (defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY')) {
+            $options[PDO::MYSQL_ATTR_USE_BUFFERED_QUERY] = true;
+        }
+    }
     // Aiven rejects plaintext MySQL. MYSQL_ATTR_SSL_CA on Render is the switch.
     $sslCa = getenv('MYSQL_ATTR_SSL_CA');
     if (!is_string($sslCa) || $sslCa === '') {
