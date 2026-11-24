@@ -377,7 +377,7 @@ function prism_require_admin_perm(PDO $db, array $user, string $perm): void {
     }
 }
 
-function prism_user_client_payload(PDO $db, array $row): array {
+function prism_user_client_payload(PDO $db, array $row, bool $withAvatar = true): array {
     $out = [
         'id' => (string) ($row['id'] ?? ''),
         'role' => (string) ($row['role'] ?? ''),
@@ -388,13 +388,15 @@ function prism_user_client_payload(PDO $db, array $row): array {
         $out['superadmin'] = prism_is_superadmin_id($out['id']);
         $out['permissions'] = prism_admin_permissions($db, $out['id']);
     }
-    $avatar = array_key_exists('avatar', $row) ? $row['avatar'] : null;
-    if (!array_key_exists('avatar', $row) && $out['id'] !== '') {
-        $av = $db->prepare('SELECT avatar FROM users WHERE id = ?');
-        $av->execute([$out['id']]);
-        $avatar = $av->fetchColumn();
+    if ($withAvatar) {
+        $avatar = array_key_exists('avatar', $row) ? $row['avatar'] : null;
+        if (!array_key_exists('avatar', $row) && $out['id'] !== '') {
+            $av = $db->prepare('SELECT avatar FROM users WHERE id = ?');
+            $av->execute([$out['id']]);
+            $avatar = $av->fetchColumn();
+        }
+        $out['avatar'] = is_string($avatar) ? $avatar : '';
     }
-    $out['avatar'] = is_string($avatar) ? $avatar : '';
     return $out;
 }
 

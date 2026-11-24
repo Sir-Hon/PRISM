@@ -13,6 +13,11 @@ $db     = getDB();
 function prism_ensure_user_banners(PDO $db): bool {
     static $ready = null;
     if ($ready !== null) return $ready;
+    $flag = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'prism-banners-v1-' . substr(hash('sha256', DB_HOST . '|' . DB_NAME), 0, 16) . '.ok';
+    if (is_file($flag)) {
+        $ready = true;
+        return true;
+    }
     try {
         $db->exec(
             'CREATE TABLE IF NOT EXISTS user_banners (
@@ -24,6 +29,7 @@ function prism_ensure_user_banners(PDO $db): bool {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4'
         );
         $ready = true;
+        @file_put_contents($flag, '1');
     } catch (PDOException $e) {
         error_log('PRISM banners: ' . $e->getMessage());
         $ready = false;

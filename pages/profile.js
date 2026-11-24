@@ -171,11 +171,7 @@ window.addEventListener('DOMContentLoaded', async () => {
  const role   = user.role;
  let apiProfile = {};
  try {
-   const pair = await Promise.all([
-     PrismProfile.get().catch(function () { return {}; }),
-     syncProfileClasses(user).catch(function (e) { console.warn('profile class sync:', e); }),
-   ]);
-   apiProfile = pair[0] || {};
+   apiProfile = await PrismProfile.get().catch(function () { return {}; });
  } catch (e) { console.warn('profile load:', e); }
 
  const saved = loadProfile();
@@ -214,6 +210,12 @@ window.addEventListener('DOMContentLoaded', async () => {
  }
  paintProfilePage(profile);
  if (typeof initSidebar === 'function') initSidebar('home');
+ syncProfileClasses(user).then(function () {
+   renderSubjectProgress();
+   renderQuizStatus();
+   renderAssignments();
+   renderQuickStats();
+ }).catch(function (e) { console.warn('profile class sync:', e); });
 });
 
 // 

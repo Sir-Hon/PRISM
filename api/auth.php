@@ -117,11 +117,11 @@ if ($method === 'GET' && $action === 'session') {
     ];
     try {
         $db   = getDB();
-        $stmt = $db->prepare('SELECT id, role, name, section, avatar FROM users WHERE id = ?');
+        $stmt = $db->prepare('SELECT id, role, name, section FROM users WHERE id = ?');
         $stmt->execute([$_SESSION['user_id']]);
         $row = $stmt->fetch();
         if ($row) {
-            $user = prism_user_client_payload($db, $row);
+            $user = prism_user_client_payload($db, $row, false);
             $_SESSION['role']    = $row['role'];
             $_SESSION['name']    = $row['name'];
             $_SESSION['section'] = $row['section'] ?? '';

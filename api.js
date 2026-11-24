@@ -1356,8 +1356,16 @@ function prismCachedSessionUser() {
 
 async function prismAuthGuard(allowedRoles = []) {
   try {
+    const cached = prismCachedSessionUser();
+    const cachedOk = !!(cached && (!allowedRoles.length || allowedRoles.includes(cached.role)));
     if (!__prismAuthPromise) {
       __prismAuthPromise = PrismAuth.checkSession();
+    }
+    if (cachedOk) {
+      __prismAuthPromise.then(function (data) {
+        if (!data || !data.loggedIn || !data.user) window.location.replace('login.html');
+      }).catch(function () {});
+      return cached;
     }
     let data;
     try {
@@ -1646,14 +1654,12 @@ function prismBannerMount(el, scope, opts) {
   else {
     var local = prismBannerRead(scope);
     if (local) prismBannerApply(el, local);
-    prismBannerServerGet(scope).then(function (remote) {
-      if (!el.isConnected) return;
-      if (remote) {
+    else {
+      prismBannerServerGet(scope).then(function (remote) {
+        if (!el.isConnected || !remote) return;
         prismBannerApply(el, remote);
-        return;
-      }
-      if (local) prismBannerServerPut(scope, local);
-    });
+      });
+    }
   }
   if (el.querySelector('.banner-custom')) return;
   var wrap = document.createElement('div');
