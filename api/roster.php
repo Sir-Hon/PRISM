@@ -29,18 +29,23 @@ if ($method === 'GET' && $action === 'list') {
     $status = strtolower(trim((string) ($_GET['status'] ?? '')));
     $page = (int) ($_GET['page'] ?? 1);
     $see = prism_roster_can_see_passwords($db, $admin);
-    $listed = prism_roster_list(
-        $db,
-        $q,
-        $status,
-        $page,
-        20,
-        (string) ($_GET['college'] ?? ''),
-        (string) ($_GET['program'] ?? ''),
-        (string) ($_GET['year'] ?? ''),
-        (string) ($_GET['section'] ?? ''),
-        $see
-    );
+    try {
+        $listed = prism_roster_list(
+            $db,
+            $q,
+            $status,
+            $page,
+            20,
+            (string) ($_GET['college'] ?? ''),
+            (string) ($_GET['program'] ?? ''),
+            (string) ($_GET['year'] ?? ''),
+            (string) ($_GET['section'] ?? ''),
+            $see
+        );
+    } catch (Throwable $e) {
+        error_log('PRISM roster list: ' . $e->getMessage());
+        fail('The student list could not be loaded. ' . $e->getMessage(), 500);
+    }
     $listed['can_view_passwords'] = $see;
     ok($listed);
 }

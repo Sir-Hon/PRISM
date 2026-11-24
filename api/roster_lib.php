@@ -622,6 +622,7 @@ function prism_roster_list(PDO $db, string $q, string $status, int $page, int $p
     $count = $db->prepare('SELECT COUNT(*) FROM student_roster' . $where);
     $count->execute($params);
     $total = (int) $count->fetchColumn();
+    $count->closeCursor();
     $secretCol = $withSecret ? ', login_secret' : '';
     $sql = 'SELECT id_number, email, first_name, last_name, college, course, year_level, section_letter, expires_at, claimed_at, revoked_at, created_at' . $secretCol . ' FROM student_roster'
         . $where . ' ORDER BY college, course, year_level, section_letter, last_name, first_name LIMIT ' . (int) $perPage . ' OFFSET ' . (int) (($page - 1) * $perPage);

@@ -539,7 +539,10 @@
     resetAdminForm();
     openForm('admin');
   });
-  document.getElementById('btn-back-add').addEventListener('click', closeForm);
+  document.getElementById('btn-back-add').addEventListener('click', function () {
+    closeForm();
+    load().catch(function (e) { showError(e.message); });
+  });
   document.getElementById('btn-back-teacher').addEventListener('click', closeForm);
   document.getElementById('btn-back-admin').addEventListener('click', function () {
     var wasEditing = editingAdmin;
