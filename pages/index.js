@@ -12,9 +12,9 @@ var userAnswers    = [];
 
 var classCovers = {};
 function rememberClassCover(id, cover) {
-  if (cover && String(cover).indexOf('data:image/') === 0) classCovers[id] = cover;
-  else delete classCovers[id];
-  if (typeof prismCoverRemember === 'function') prismCoverRemember(id, classCovers[id] || '');
+  if (!cover || String(cover).indexOf('data:image/') !== 0) return;
+  classCovers[id] = cover;
+  if (typeof prismCoverRemember === 'function') prismCoverRemember(id, cover);
 }
 function studentCardCover(id) {
   return classCovers[id] || (typeof prismCoverRecall === 'function' ? prismCoverRecall(id) : '');
@@ -160,13 +160,17 @@ window.addEventListener('DOMContentLoaded', async function() {
 async function loadStudentQuizzesOnce() {
   if (typeof PrismQuizzes === 'undefined' || !PrismQuizzes.getMine) return;
   try {
-    var mine = await PrismQuizzes.getMine();
+    var mine = await PrismQuizzes.getMine({ brief: true });
     var allQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
+    var prevById = {};
+    allQz.forEach(function (q) { prevById[String(q.id)] = q; });
     var keep = allQz.filter(function (q) {
       return !mine.some(function (row) { return String(row.id) === String(q.id); });
     });
     (mine || []).forEach(function (q) {
+      var prev = prevById[String(q.id)];
       var qs = q.questions;
+      if (qs == null && prev) qs = prev.questions;
       if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
       keep.push({
         id: q.id,
@@ -194,11 +198,11 @@ async function loadStudentQuizzesOnce() {
   } catch (e) { console.warn('loadStudentQuizzesOnce:', e); }
 }
 
-async function loadClassDataFromAPI() {
+async function loadClassDataFromAPI(force) {
   try {
     var dashAt = 0;
     try { dashAt = Number(sessionStorage.getItem('prism_dash_at_' + STUDENT_ID) || 0); } catch (e0) { dashAt = 0; }
-    if (dashAt && Date.now() - dashAt < 45000 && localStorage.getItem('prism_joined_' + STUDENT_ID)) {
+    if (!force && dashAt && Date.now() - dashAt < 45000 && localStorage.getItem('prism_joined_' + STUDENT_ID)) {
       return;
     }
     var classesList = typeof PrismClasses !== 'undefined'
@@ -228,6 +232,7 @@ async function loadClassDataFromAPI() {
     if (typeof prismLoadClassCovers === 'function') {
       prismLoadClassCovers(classesList, function () { renderClasses(); });
     }
+    if (!document.getElementById('class-view-overlay')) renderClasses();
     await Promise.all([
       Promise.all(classesList.map(function(cls) {
         return syncStudentClassContent(cls.id, { skipSubs: true, skipQuiz: true });
@@ -279,9 +284,14 @@ async function syncStudentClassContent(classId, opts) {
       localStorage.setItem('prism_teacher_posts', JSON.stringify(allPosts));
     }
     if (qzList) {
-      var allQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]').filter(function(q) { return String(q.classId || q.class_id) !== cid; });
+      var storedQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
+      var prevQuiz = {};
+      storedQz.forEach(function (row) { prevQuiz[String(row.id)] = row; });
+      var allQz = storedQz.filter(function(q) { return String(q.classId || q.class_id) !== cid; });
       qzList.forEach(function(q) {
+        var prev = prevQuiz[String(q.id)];
         var qs = q.questions;
+        if (qs == null && prev) qs = prev.questions;
         if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
         allQz.push({
           id: q.id,
@@ -343,12 +353,12 @@ async function joinClass() {
     localStorage.setItem('prism_profile_'+cls.teacher_id, JSON.stringify({ name: data.teacher_name||cls.teacher_id, avatar: data.teacher_avatar||null }));
     // Update local joined map
     var joined = getJoinedClasses();
-    joined[cls.id] = { classId:cls.id, teacherId:cls.teacher_id, subject:cls.subject, joinedAt:new Date().toISOString() };
+    joined[cls.id] = { classId:cls.id, teacherId:cls.teacher_id, subject:cls.subject, color: cls.color || '', code: cls.code || '', joinedAt:new Date().toISOString(), has_cover: cls.has_cover == 1 || cls.has_cover === true || cls.has_cover === '1' };
     saveJoinedClasses(joined);
     document.getElementById('join-code-input').value = '';
     closeJoinClass();
     showJoinMsg(' Joined "' + cls.subject + '"!', 'ok');
-    await loadClassDataFromAPI();
+    await loadClassDataFromAPI(true);
     renderClasses(); renderStats();
     if (typeof initSidebar === 'function') initSidebar('home');
   } catch(e) {
@@ -954,11 +964,14 @@ function studentSubmissionFilesHtml(sub) {
       + extraPreview
       + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open" ' + oj + '>View</button></div></div></div>');
   });
-  if (sub.file_data && !items.length) {
+  if ((sub.file_data || sub.file_name) && !items.length) {
     var fn = prismEscHtml(sub.file_name || 'Submitted file');
+    var viewBtn = sub.file_data
+      ? '<div class="gc-attach-actions"><button type="button" class="gc-attach-open student-sub-dl-btn">View</button></div>'
+      : '';
     fileCards.push('<div class="gc-attach-card"><div class="gc-attach-bar"></div><div class="gc-attach-preview gc-doc"></div>'
       + '<div class="gc-attach-body"><div class="gc-attach-name">' + fn + '</div>'
-      + '<div class="gc-attach-actions"><button type="button" class="gc-attach-open student-sub-dl-btn">View</button></div></div></div>');
+      + viewBtn + '</div></div>');
   } else if (inlineCount > 0 && !items.length && !sub.file_data) {
     parsed.forEach(function(a) {
       if (a && a.inline) {
@@ -981,8 +994,30 @@ function studentAsgnFileKey(classId, asgnId) {
 function studentPickedFiles(classId, asgnId) {
   return window.__studentAsgnPickedFiles[studentAsgnFileKey(classId, asgnId)] || [];
 }
+function paintStudentPickedFiles(classId, asgnId) {
+  var list = studentPickedFiles(classId, asgnId);
+  var label = document.getElementById('asgn-file-chosen-' + asgnDomId(asgnId));
+  if (!label) return;
+  if (!list.length) {
+    label.style.display = 'none';
+    label.innerHTML = '';
+    return;
+  }
+  label.style.display = 'flex';
+  label.innerHTML = list.map(function (file, index) {
+    return '<span class="pf-chip">' + prismEscHtml(file.name)
+      + '<button type="button" aria-label="Remove ' + prismEscAttr(file.name) + '" onclick=\'event.stopPropagation();removeStudentAsgnFile('
+      + JSON.stringify(classId) + ',' + JSON.stringify(asgnId) + ',' + index + ')\'>\u00d7</button></span>';
+  }).join('');
+}
+function removeStudentAsgnFile(classId, asgnId, index) {
+  var list = studentPickedFiles(classId, asgnId).slice();
+  if (index < 0 || index >= list.length) return;
+  list.splice(index, 1);
+  window.__studentAsgnPickedFiles[studentAsgnFileKey(classId, asgnId)] = list;
+  paintStudentPickedFiles(classId, asgnId);
+}
 function onStudentAsgnFilesChosen(classId, asgnId, input) {
-  var list = [];
   var files = input && input.files ? Array.prototype.slice.call(input.files) : [];
   var maxBytes = typeof PRISM_MAX_FILE_BYTES === 'number' ? PRISM_MAX_FILE_BYTES : 15 * 1024 * 1024;
   var kept = studentPickedFiles(classId, asgnId).slice();
@@ -1002,20 +1037,8 @@ function onStudentAsgnFilesChosen(classId, asgnId, input) {
   }
   if (overCap) alert('You can attach up to 5 files.');
   if (input) input.value = '';
-  list = kept;
-  window.__studentAsgnPickedFiles[studentAsgnFileKey(classId, asgnId)] = list;
-  var label = document.getElementById('asgn-file-chosen-' + asgnDomId(asgnId));
-  if (label) {
-    if (list.length) {
-      label.style.display = 'flex';
-      label.innerHTML = list.map(function (x) {
-        return '<span class="pf-chip">' + prismEscHtml(x.name) + '</span>';
-      }).join('');
-    } else {
-      label.style.display = 'none';
-      label.innerHTML = '';
-    }
-  }
+  window.__studentAsgnPickedFiles[studentAsgnFileKey(classId, asgnId)] = kept;
+  paintStudentPickedFiles(classId, asgnId);
 }
 
 /** Submit note/link/files to API, reload class data, refresh open overlay panel if still on this class. */
@@ -1030,7 +1053,7 @@ async function submitStudentAssignment(classId, asgnId) {
   }
   var files = studentPickedFiles(classId, asgnId);
   var prev = getSubmissionMap(classId)[String(asgnId)];
-  var hasExistingFiles = prev && (prev.file_path || prev.file_data || (prev.attachments_json && String(prev.attachments_json).trim() && String(prev.attachments_json).trim() !== '[]'));
+  var hasExistingFiles = prev && (prev.file_path || prev.file_name || prev.file_data || (prev.attachments_json && String(prev.attachments_json).trim() && String(prev.attachments_json).trim() !== '[]'));
   if (!note && !linkUrl && !files.length && !hasExistingFiles) {
     alert('Add a written response, a file (PDF, image, video…), or a link.');
     return;
@@ -1044,7 +1067,7 @@ async function submitStudentAssignment(classId, asgnId) {
     window.__studentAsgnPickedFiles[studentAsgnFileKey(classId, asgnId)] = [];
     alert('Work submitted.');
     closeStudentAssignmentModal();
-    await loadClassDataFromAPI();
+    await syncStudentClassContent(classId);
     var ov = document.getElementById('class-view-overlay');
     if (ov && activeDetailId === classId) {
       var activeTab = ov.querySelector('.class-view-tab.active');
@@ -1095,7 +1118,7 @@ function resolveStudentStreamAssignment(classId, p) {
 }
 
 function studentWorkState(a, sub) {
-  var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
+  var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_name || sub.file_data || sub.attachments_json);
   var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, a.due_time || null);
   var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due, a.due_time) : (a.due || '');
   if (hasSub) return { key: 'done', label: 'Turned in', rank: 2 };
@@ -1106,7 +1129,7 @@ function studentWorkState(a, sub) {
 function studentAssignmentStreamHtml(classId, a, startOpen) {
   var sid = asgnDomId(a.id);
   var sub = getSubmissionMap(classId)[String(a.id)];
-  var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
+  var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_name || sub.file_data || sub.attachments_json);
   var state = studentWorkState(a, sub);
   var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due, a.due_time) : (a.due || '');
   var overdue = state.key === 'missing';
@@ -1291,9 +1314,9 @@ async function openStudentAssignmentModal(classId, asgnId) {
   var sid = asgnDomId(a.id);
   var subMap = getSubmissionMap(classId);
   var sub = subMap[String(a.id)];
-  var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_data || sub.attachments_json);
+  var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_name || sub.file_data || sub.attachments_json);
   var existingFilesBlock = '';
-  if (hasSub && (sub.file_path || sub.file_data || sub.link_url || (sub.attachments_json && String(sub.attachments_json).trim() && String(sub.attachments_json).trim() !== '[]'))) {
+  if (hasSub && (sub.file_path || sub.file_name || sub.file_data || sub.link_url || (sub.attachments_json && String(sub.attachments_json).trim() && String(sub.attachments_json).trim() !== '[]'))) {
     existingFilesBlock = '<div style="margin:.55rem 0 0;">'
       + '<p style="font-size:.72rem;color:#6b7280;margin:0 0 .5rem;line-height:1.45;">Your submission:</p>'
       + studentSubmissionFilesHtml(sub)

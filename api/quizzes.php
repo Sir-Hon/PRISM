@@ -70,13 +70,17 @@ if ($action === 'get') {
         $stmt->execute([$class_id, $user['id']]);
     } else {
         $stuSec = prism_student_section_for_filter($db, $user);
+        $studentCols = 'id, class_id, teacher_id, title, type, published, time_limit, due_date, attempts, total_points, created_at';
+        if (prism_table_has_column($db, 'quizzes', 'due_time')) $studentCols .= ', due_time';
+        if (prism_table_has_column($db, 'quizzes', 'allow_skip')) $studentCols .= ', allow_skip';
+        if (prism_table_has_column($db, 'quizzes', 'target_section')) $studentCols .= ', target_section';
         if ($stuSec !== null && prism_table_has_column($db, 'quizzes', 'target_section')) {
             $stmt = $db->prepare(
-                'SELECT * FROM quizzes WHERE class_id = ? AND published = 1 AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
+                'SELECT ' . $studentCols . ' FROM quizzes WHERE class_id = ? AND published = 1 AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
             );
             $stmt->execute([$class_id, $stuSec]);
         } else {
-            $stmt = $db->prepare('SELECT * FROM quizzes WHERE class_id = ? AND published = 1 ORDER BY created_at DESC');
+            $stmt = $db->prepare('SELECT ' . $studentCols . ' FROM quizzes WHERE class_id = ? AND published = 1 ORDER BY created_at DESC');
             $stmt->execute([$class_id]);
         }
     }
@@ -86,9 +90,22 @@ if ($action === 'get') {
 // ── GET ALL QUIZZES FOR ENROLLED CLASSES (student) ─────
 if ($action === 'get_mine') {
     if ($user['role'] !== 'student') fail('Forbidden', 403);
+    $brief = (string) ($_GET['brief'] ?? '') === '1';
+    $quizCols = $brief
+        ? 'q.id, q.class_id, q.teacher_id, q.title, q.type, q.time_limit, q.due_date, q.attempts, q.total_points, q.published, q.created_at'
+        : 'q.*';
+    if ($brief && prism_table_has_column($db, 'quizzes', 'due_time')) {
+        $quizCols .= ', q.due_time';
+    }
+    if ($brief && prism_table_has_column($db, 'quizzes', 'allow_skip')) {
+        $quizCols .= ', q.allow_skip';
+    }
+    if ($brief && prism_table_has_column($db, 'quizzes', 'target_section')) {
+        $quizCols .= ', q.target_section';
+    }
     if (prism_table_has_column($db, 'quizzes', 'target_section')) {
         $stmt = $db->prepare(
-            'SELECT q.* FROM quizzes q
+            'SELECT ' . $quizCols . ' FROM quizzes q
              JOIN enrollments e ON q.class_id = e.class_id
              JOIN users u ON u.id = e.student_id
              WHERE e.student_id = ? AND q.published = 1
@@ -97,7 +114,7 @@ if ($action === 'get_mine') {
         );
     } else {
         $stmt = $db->prepare(
-            'SELECT q.* FROM quizzes q
+            'SELECT ' . $quizCols . ' FROM quizzes q
              JOIN enrollments e ON q.class_id = e.class_id
              WHERE e.student_id = ? AND q.published = 1
              ORDER BY q.created_at DESC'

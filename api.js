@@ -1293,8 +1293,9 @@ const PrismQuizzes = {
     const data = await apiGet('quizzes', 'get', { class_id });
     return data.quizzes || [];
   },
-  async getMine() {
-    const data = await apiGet('quizzes', 'get_mine');
+  async getMine(opts) {
+    const params = (opts && opts.brief) ? { brief: '1' } : {};
+    const data = await apiGet('quizzes', 'get_mine', params);
     return data.quizzes || [];
   },
   async save(quiz) {

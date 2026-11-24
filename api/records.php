@@ -192,14 +192,22 @@ function prism_quarter_name(int $i): string {
     return $names[$i] ?? (($i + 1) . 'th');
 }
 
-function prism_push_grade_alert(array &$alerts, string $id, string $subject, string $text): void {
+function prism_push_grade_alert(array &$alerts, string $id, string $subject, string $text, string $pill = 'Below 75%'): void {
     if (count($alerts) >= 12) return;
     $alerts[] = [
         'id' => $id,
         'subject' => $subject,
         'text' => $text,
+        'pill' => $pill,
         'href' => 'status.html',
     ];
+}
+
+function prism_percent_to_point(float $pct): float {
+    // CTU scale: 100% is 1.00, 75% is 3.00, and 50% or lower is 5.00.
+    if ($pct >= 100) return 1.0;
+    if ($pct <= 50) return 5.0;
+    return round(1 + (100 - $pct) * 0.08, 2);
 }
 
 function prism_subject_grade_alerts(PDO $db, string $studentId): array {
@@ -218,6 +226,8 @@ function prism_subject_grade_alerts(PDO $db, string $studentId): array {
         error_log('grade alert sheets: ' . $e->getMessage());
         $rows = [];
     }
+    $graded = [];
+    $scores = [];
     foreach ($rows as $row) {
         $saved = prism_decode_sheet($row['payload'] ?? null);
         if (!$saved) continue;
@@ -228,35 +238,79 @@ function prism_subject_grade_alerts(PDO $db, string $studentId): array {
         $examWeight = $saved['examWeight'] ?? '';
         $quarters = isset($saved['quarters']) && is_array($saved['quarters']) ? array_slice($saved['quarters'], 0, 8) : [];
         $finals = [];
-        $lowQuarters = [];
-        foreach ($quarters as $i => $quarter) {
+        foreach ($quarters as $quarter) {
             $pct = prism_sheet_quarter($quarter, $tables, $examWeight);
             if ($pct === null || !is_finite($pct)) continue;
             $finals[] = $pct;
-            if ($pct < $pass) $lowQuarters[] = [$i, $pct];
         }
         if (!$finals) continue;
-        $final = array_sum($finals) / count($finals);
+        $units = isset($saved['units']) && is_numeric($saved['units']) ? (float) $saved['units'] : 0.0;
+        $graded[] = [
+            'final' => array_sum($finals) / count($finals),
+            'units' => $units > 0 ? $units : 0.0,
+        ];
         $classId = (string) ($row['class_id'] ?? '');
-        if ($final < $pass) {
-            prism_push_grade_alert(
-                $alerts,
-                'standing:' . $classId,
-                $subject,
-                'Your standing in ' . $subject . ' is ' . prism_grade_label($final) . '. That is below the passing rate of 75.'
-            );
-            continue;
-        }
-        foreach ($lowQuarters as $low) {
-            prism_push_grade_alert(
-                $alerts,
-                'quarter:' . $classId . ':' . $low[0],
-                $subject,
-                'Your ' . prism_quarter_name((int) $low[0]) . ' quarter in ' . $subject . ' is ' . prism_grade_label($low[1]) . '. That is below the passing rate of 75.'
-            );
+        foreach ($quarters as $qi => $quarter) {
+            if (!is_array($quarter)) continue;
+            foreach ($tables as $table) {
+                $part = (string) ($table['part'] ?? '');
+                if ($part === '') continue;
+                $scores = $quarter[$part] ?? null;
+                $outs = $quarter[$part . 'Out'] ?? null;
+                if (!is_array($scores)) continue;
+                foreach ($scores as $i => $value) {
+                    if ($value === '' || $value === null || prism_sheet_missing($value) || !is_numeric($value)) continue;
+                    $cap = is_array($outs) && array_key_exists($i, $outs) ? $outs[$i] : null;
+                    if (!is_numeric($cap) || (float) $cap <= 0) continue;
+                    $pct = ((float) $value / (float) $cap) * 100;
+                    if ($pct >= $pass) continue;
+                    $title = trim((string) ($table['title'] ?? 'Score')) ?: 'Score';
+                    prism_push_grade_alert(
+                        $scores,
+                        'score:' . $classId . ':' . $qi . ':' . $part . ':' . $i,
+                        $subject,
+                        'You received ' . prism_grade_label($value) . ' out of ' . prism_grade_label($cap) . ' (' . prism_grade_label($pct) . '%) on ' . $title . ' in ' . $subject . '. That is below 75%.'
+                    );
+                }
+            }
+            $examPct = prism_sheet_exam($quarter);
+            if ($examPct !== null && $examPct < $pass) {
+                prism_push_grade_alert(
+                    $scores,
+                    'exam:' . $classId . ':' . $qi,
+                    $subject,
+                    'You received ' . prism_grade_label($quarter['exam']) . ' out of ' . prism_grade_label($quarter['examHps']) . ' (' . prism_grade_label($examPct) . '%) on the ' . prism_quarter_name((int) $qi) . ' exam in ' . $subject . '. That is below 75%.'
+                );
+            }
         }
     }
-    return $alerts;
+    if ($graded) {
+        $knownUnits = 0;
+        foreach ($graded as $row) {
+            if ($row['units'] > 0) $knownUnits++;
+        }
+        $useUnits = $knownUnits === count($graded);
+        $weightSum = 0.0;
+        $weighted = 0.0;
+        foreach ($graded as $row) {
+            $weight = $useUnits ? $row['units'] : 1.0;
+            $weightSum += $weight;
+            $weighted += prism_percent_to_point($row['final']) * $weight;
+        }
+        if ($weightSum > 0) {
+            $gwa = round($weighted / $weightSum, 2);
+            if ($gwa > 3) {
+                prism_push_grade_alert(
+                    $alerts,
+                    'gwa',
+                    'Overall GWA',
+                    'Your overall GWA is ' . number_format($gwa, 2) . '. That is above 3.00.',
+                    'Above 3.00'
+                );
+            }
+        }
+    }
+    return ['gwa' => $alerts, 'scores' => $scores];
 }
 
 function prism_scored_work_alerts(PDO $db, string $studentId, array $alerts): array {
@@ -282,7 +336,7 @@ function prism_scored_work_alerts(PDO $db, string $studentId, array $alerts): ar
                 $alerts,
                 'quiz:' . (string) $row['id'],
                 $subject,
-                'You received ' . $score . ' out of ' . $max . ' (' . prism_grade_label($pct) . ') on ' . $title . ' in ' . $subject . '. That is below the passing rate of 75.'
+                'You received ' . $score . ' out of ' . $max . ' (' . prism_grade_label($pct) . '%) on ' . $title . ' in ' . $subject . '. That is below 75%.'
             );
         }
     } catch (PDOException $e) {
@@ -310,7 +364,7 @@ function prism_scored_work_alerts(PDO $db, string $studentId, array $alerts): ar
                 $alerts,
                 'work:' . (string) $row['id'],
                 $subject,
-                'You received ' . $score . ' out of ' . $max . ' (' . prism_grade_label($pct) . ') on ' . $title . ' in ' . $subject . '. That is below the passing rate of 75.'
+                'You received ' . $score . ' out of ' . $max . ' (' . prism_grade_label($pct) . '%) on ' . $title . ' in ' . $subject . '. That is below 75%.'
             );
         }
     } catch (PDOException $e) {
@@ -450,8 +504,12 @@ if ($method === 'GET' && $action === 'my_status') {
 
 if ($method === 'GET' && $action === 'grade_alerts') {
     if (($user['role'] ?? '') !== 'student') ok(['alerts' => []]);
-    $alerts = prism_subject_grade_alerts($db, (string) $user['id']);
-    $alerts = prism_scored_work_alerts($db, (string) $user['id'], $alerts);
+    $pack = prism_subject_grade_alerts($db, (string) $user['id']);
+    $alerts = prism_scored_work_alerts($db, (string) $user['id'], $pack['gwa']);
+    foreach ($pack['scores'] as $score) {
+        if (count($alerts) >= 12) break;
+        $alerts[] = $score;
+    }
     ok(['alerts' => $alerts]);
 }
 

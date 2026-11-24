@@ -649,6 +649,27 @@ if ($action === 'delete_assignment') {
 //  SUBMISSIONS
 // ══════════════════════════════════════════════════════
 
+function prism_submission_list_sql(PDO $db, string $alias = ''): string {
+    $p = $alias !== '' ? $alias . '.' : '';
+    $cols = [
+        $p . 'id',
+        $p . 'assignment_id',
+        $p . 'student_id',
+        $p . 'class_id',
+        $p . 'note',
+        $p . 'file_name',
+        $p . 'file_path',
+        $p . 'mime_type',
+        $p . 'submitted_at',
+    ];
+    foreach (['link_url', 'attachments_json', 'score'] as $col) {
+        if (prism_table_has_column($db, 'submissions', $col)) {
+            $cols[] = $p . $col;
+        }
+    }
+    return implode(', ', $cols);
+}
+
 function prism_submission_score_ready(PDO $db): bool {
     static $ready = null;
     if ($ready !== null) return $ready;
@@ -676,19 +697,12 @@ if ($action === 'get_submissions') {
         fail('Assignment not found', 404);
     }
     $stmt = $db->prepare(
-        'SELECT s.*, u.name AS student_name, u.section, u.avatar AS student_avatar
+        'SELECT ' . prism_submission_list_sql($db, 's') . ', u.name AS student_name, u.section
          FROM submissions s JOIN users u ON s.student_id = u.id
          WHERE s.assignment_id = ? ORDER BY s.submitted_at DESC'
     );
     $stmt->execute([$asgn_id]);
-    $rows = $stmt->fetchAll();
-    foreach ($rows as &$r) {
-        if (!empty($r['file_path'])) {
-            $r['file_data'] = null;
-        }
-    }
-    unset($r);
-    ok(['submissions' => $rows]);
+    ok(['submissions' => $stmt->fetchAll()]);
 }
 
 if ($method === 'POST' && $action === 'grade_submission') {
@@ -732,7 +746,7 @@ if ($action === 'get_my_submission') {
     if (!$ar || $ar['class_id'] !== $class_id) {
         fail('Invalid assignment', 400);
     }
-    $stmt = $db->prepare('SELECT * FROM submissions WHERE assignment_id = ? AND student_id = ?');
+    $stmt = $db->prepare('SELECT ' . prism_submission_list_sql($db) . ' FROM submissions WHERE assignment_id = ? AND student_id = ?');
     $stmt->execute([$asgn_id, $user['id']]);
     ok(['submission' => $stmt->fetch() ?: null]);
 }
@@ -741,7 +755,7 @@ if ($action === 'get_my_submissions') {
     if ($user['role'] !== 'student') fail('Forbidden', 403);
     $class_id = $_GET['class_id'] ?? '';
     prism_assert_student_enrolled($db, $user['id'], $class_id);
-    $stmt = $db->prepare('SELECT * FROM submissions WHERE student_id = ? AND class_id = ?');
+    $stmt = $db->prepare('SELECT ' . prism_submission_list_sql($db) . ' FROM submissions WHERE student_id = ? AND class_id = ?');
     $stmt->execute([$user['id'], $class_id]);
     ok(['submissions' => $stmt->fetchAll()]);
 }

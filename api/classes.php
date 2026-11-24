@@ -115,7 +115,11 @@ if ($method === 'POST' && $action === 'join') {
     $code = strtoupper(trim($b['code'] ?? ''));
     if (!$code) fail('Code required');
 
-    $stmt = $db->prepare('SELECT * FROM classes WHERE code = ?');
+    prism_ensure_class_cover($db);
+    $coverBit = prism_table_has_column($db, 'classes', 'cover')
+        ? ', (cover IS NOT NULL) AS has_cover'
+        : ', 0 AS has_cover';
+    $stmt = $db->prepare('SELECT id, teacher_id, subject, code, color, created_at' . $coverBit . ' FROM classes WHERE code = ?');
     $stmt->execute([$code]);
     $class = $stmt->fetch();
     if (!$class) fail('Invalid join code');

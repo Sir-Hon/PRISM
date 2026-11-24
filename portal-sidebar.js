@@ -178,7 +178,7 @@ function prismGradeItemsHtml(alerts) {
   return (alerts || []).map(function (row) {
     return '<a class="topbar-ann-item is-failing" href="' + prismSidebarEsc(row.href || 'status.html') + '">'
       + '<div style="font-weight:800;">' + prismSidebarEsc(row.subject || 'Grade')
-      + '<span class="topbar-ann-pill is-fail">Below 75</span></div>'
+      + '<span class="topbar-ann-pill is-fail">' + prismSidebarEsc(row.pill || 'Below 75%') + '</span></div>'
       + '<div class="topbar-ann-text">' + prismSidebarEsc(row.text || '') + '</div></a>';
   }).join('');
 }
@@ -189,7 +189,7 @@ function prismGradeAlertPaint(alerts) {
   if (btn) {
     var failing = window.__prismGradeAlerts.length > 0;
     btn.classList.toggle('is-failing', failing);
-    btn.title = failing ? 'A grade is below the passing rate' : 'Announcements';
+    btn.title = failing ? 'A score is below 75% or your GWA is above 3.00' : 'Announcements';
     btn.setAttribute('aria-label', btn.title);
   }
   prismAnnPaintCount(window.__prismAnnRows || []);
