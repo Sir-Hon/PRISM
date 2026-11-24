@@ -519,13 +519,8 @@ async function loadStatus() {
   try {
     statusRecords = await PrismRecords.myStatus();
     statusRecords.forEach(function (row) {
-      var cover = row.cover && String(row.cover).indexOf('data:image/') === 0 ? row.cover : '';
-      if (cover && typeof prismCoverRemember === 'function') prismCoverRemember(row.class_id, cover);
-      else if (typeof prismCoverRecall === 'function') row.cover = prismCoverRecall(row.class_id);
+      if (typeof prismCoverRecall === 'function') row.cover = prismCoverRecall(row.class_id);
     });
-    if (typeof prismCoversWarm === 'function') {
-      await prismCoversWarm(statusRecords.map(function (row) { return row.cover || ''; }));
-    }
   } catch (e) {
     statusRecords = [];
     var list = document.getElementById('status-list');

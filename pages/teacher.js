@@ -117,9 +117,10 @@ function saveCodeIndex(v) { localStorage.setItem('prism_join_codes', JSON.string
 function persistTeacherClassesLocal() {
   if (!TEACHER_ID) return;
   const slim = CLASSES.map(c => {
+    var flagged = c.has_cover == 1 || c.has_cover === true || c.has_cover === '1';
     var cover = (c.cover && String(c.cover).indexOf('data:image/') === 0) ? c.cover : '';
-    if (!cover && c.cover == null && c.has_cover && typeof prismCoverRecall === 'function') cover = prismCoverRecall(c.id);
-    if (typeof prismCoverRemember === 'function') prismCoverRemember(c.id, cover);
+    if (!cover && flagged && typeof prismCoverRecall === 'function') cover = prismCoverRecall(c.id);
+    if (cover && typeof prismCoverRemember === 'function') prismCoverRemember(c.id, cover);
     return {
       id: c.id,
       subject: c.subject,
@@ -127,7 +128,7 @@ function persistTeacherClassesLocal() {
       code: c.code,
       teacher_id: c.teacher_id || TEACHER_ID,
       student_count: parseInt(c.student_count, 10) || 0,
-      has_cover: !!cover,
+      has_cover: !!cover || flagged,
     };
   });
   localStorage.setItem('prism_classes_' + TEACHER_ID, JSON.stringify(slim));
@@ -232,10 +233,6 @@ function paintTeacherClassesFromCache() {
   try {
     const cached = JSON.parse(localStorage.getItem('prism_classes_' + TEACHER_ID) || '[]');
     if (!cached.length) return false;
-    const needsPhoto = cached.some(function (cls) {
-      return cls.has_cover == null || (cls.has_cover && !teacherCardCover(cls));
-    });
-    if (needsPhoto) return false;
     CLASSES = cached.map(function (cls) {
       cls.cover = teacherCardCover(cls);
       return cls;
@@ -249,8 +246,8 @@ function paintTeacherClassesFromCache() {
       renderClassGrid();
       if (typeof initSidebar === 'function') initSidebar('home');
     };
-    if (typeof prismCoversWarm === 'function') prismCoversWarm(CLASSES.map(function (cls) { return cls.cover; })).then(paint);
-    else paint();
+    paint();
+    if (typeof prismLoadClassCovers === 'function') prismLoadClassCovers(CLASSES, paint);
     return true;
   } catch (e) {
     return false;
@@ -270,7 +267,8 @@ async function loadClasses() {
     saveCodeIndex(idx);
     persistTeacherClassesLocal();
     classPaintGen++;
-    if (typeof prismCoversWarm === 'function') await prismCoversWarm(CLASSES.map(function (cls) { return cls.cover; }));
+    renderClassGrid();
+    if (typeof prismLoadClassCovers === 'function') prismLoadClassCovers(CLASSES, function () { renderClassGrid(); });
   } catch(e) { console.error('loadClasses:', e); if (!CLASSES.length) CLASSES = []; }
 
   if (!CLASSES.length) {

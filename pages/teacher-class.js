@@ -117,9 +117,10 @@ function saveCodeIndex(v) { localStorage.setItem('prism_join_codes', JSON.string
 function persistTeacherClassesLocal() {
   if (!TEACHER_ID) return;
   const slim = CLASSES.map(c => {
+    var flagged = c.has_cover == 1 || c.has_cover === true || c.has_cover === '1';
     var cover = (c.cover && String(c.cover).indexOf('data:image/') === 0) ? c.cover : '';
-    if (!cover && c.cover == null && c.has_cover && typeof prismCoverRecall === 'function') cover = prismCoverRecall(c.id);
-    if (typeof prismCoverRemember === 'function') prismCoverRemember(c.id, cover);
+    if (!cover && flagged && typeof prismCoverRecall === 'function') cover = prismCoverRecall(c.id);
+    if (cover && typeof prismCoverRemember === 'function') prismCoverRemember(c.id, cover);
     return {
     id: c.id,
     subject: c.subject,
@@ -127,7 +128,7 @@ function persistTeacherClassesLocal() {
     code: c.code,
     teacher_id: c.teacher_id || TEACHER_ID,
     student_count: parseInt(c.student_count, 10) || 0,
-      has_cover: !!cover,
+      has_cover: !!cover || flagged,
     };
   });
   localStorage.setItem('prism_classes_' + TEACHER_ID, JSON.stringify(slim));
@@ -215,7 +216,10 @@ async function initTeacherClassPage() {
   activeClassId = urlClass;
   try { sessionStorage.setItem('prism_teacher_active_class_id', activeClassId); } catch (e) {}
   const cachedCls = CLASSES.find(c => c.id === urlClass);
-  if (cachedCls) paintTeacherClassShell(cachedCls);
+  paintTeacherClassShell(cachedCls || { id: urlClass, subject: cachedCls ? cachedCls.subject : 'Class', color: '#7c3aed', code: '' });
+  const contentReady = refreshClassData(activeClassId).then(function () {
+    renderWorkspacePage();
+  });
   try {
     CLASSES = await PrismClasses.getMyClasses();
     const idx = {};
@@ -226,7 +230,7 @@ async function initTeacherClassPage() {
     console.error('initTeacherClassPage:', e);
     if (!CLASSES.length) CLASSES = [];
   }
-  const cls = CLASSES.find(c => c.id === urlClass);
+  const cls = CLASSES.find(c => c.id === urlClass) || cachedCls;
   if (!cls) {
     window.location.replace('teacher.html');
     return;
@@ -234,7 +238,7 @@ async function initTeacherClassPage() {
   paintTeacherClassShell(cls);
   if (typeof initSidebar === 'function') initSidebar('home');
   if (typeof markSidebarClassActive === 'function') markSidebarClassActive(activeClassId);
-  await refreshClassData(activeClassId);
+  await contentReady;
   renderWorkspacePage();
   var openTab = params.get('tab');
   if (openTab === 'materials' || openTab === 'assignments') openTab = 'classwork';

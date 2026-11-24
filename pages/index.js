@@ -109,10 +109,7 @@ window.addEventListener('DOMContentLoaded', async function() {
   if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.student-hero'), 'greet');
   var joinedNow = getJoinedClasses();
   var joinedEntries = Object.values(joinedNow);
-  var waitingForCovers = !joinedEntries.length || joinedEntries.some(function (entry) {
-    return entry.has_cover == null || (entry.has_cover && !studentCardCover(entry.classId));
-  });
-  if (waitingForCovers && typeof prismShowWait === 'function') {
+  if (!joinedEntries.length && typeof prismShowWait === 'function') {
     prismShowWait(document.getElementById('classes-area'), 'Loading classes');
   } else {
   renderClasses();
@@ -213,8 +210,8 @@ async function loadClassDataFromAPI() {
     }
     var joined = {};
     classesList.forEach(function(cls) {
-      rememberClassCover(cls.id, cls.cover || '');
-      joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', code: cls.code || '', joinedAt: cls.joined_at || '', has_cover: !!(cls.cover && String(cls.cover).indexOf('data:image/') === 0) };
+      if (cls.cover && String(cls.cover).indexOf('data:image/') === 0) rememberClassCover(cls.id, cls.cover);
+      joined[cls.id] = { classId: cls.id, teacherId: cls.teacher_id, subject: cls.subject, color: cls.color || '', code: cls.code || '', joinedAt: cls.joined_at || '', has_cover: cls.has_cover == 1 || cls.has_cover === true || cls.has_cover === '1' };
       if (String(activeDetailId) === String(cls.id)) {
         var openBanner = document.getElementById('class-view-banner');
         var openCover = studentCardCover(cls.id);
@@ -228,11 +225,10 @@ async function loadClassDataFromAPI() {
       localStorage.setItem('prism_profile_' + cls.teacher_id, JSON.stringify(prev));
     });
     localStorage.setItem('prism_joined_' + STUDENT_ID, JSON.stringify(joined));
-    var coverJob = (typeof prismCoversWarm === 'function')
-      ? prismCoversWarm(classesList.map(function (cls) { return cls.cover || ''; }))
-      : Promise.resolve();
+    if (typeof prismLoadClassCovers === 'function') {
+      prismLoadClassCovers(classesList, function () { renderClasses(); });
+    }
     await Promise.all([
-      coverJob,
       Promise.all(classesList.map(function(cls) {
         return syncStudentClassContent(cls.id, { skipSubs: true, skipQuiz: true });
       })),

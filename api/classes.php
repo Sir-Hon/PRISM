@@ -36,7 +36,9 @@ function prism_class_hex(string $raw): string {
 // ── LIST MY CLASSES ────────────────────────────────────
 if ($method === 'GET' && $action === 'mine') {
     if ($user['role'] === 'teacher') {
-        $coverSql = prism_ensure_class_cover($db) ? ', c.cover' : '';
+        $coverSql = prism_ensure_class_cover($db)
+            ? ", (c.cover IS NOT NULL AND c.cover <> '') AS has_cover"
+            : ', 0 AS has_cover';
         $stmt = $db->prepare(
             'SELECT c.id, c.teacher_id, c.subject, c.code, c.color' . $coverSql . ', c.created_at,
                     (SELECT COUNT(*) FROM enrollments e WHERE e.class_id = c.id) AS student_count
@@ -46,8 +48,12 @@ if ($method === 'GET' && $action === 'mine') {
         ok(['classes' => $stmt->fetchAll()]);
     } else {
         // Student — get joined classes with teacher info
+        $coverSql = prism_ensure_class_cover($db)
+            ? ", (c.cover IS NOT NULL AND c.cover <> '') AS has_cover"
+            : ', 0 AS has_cover';
         $stmt = $db->prepare(
-            'SELECT c.*, u.name AS teacher_name
+            'SELECT c.id, c.teacher_id, c.subject, c.code, c.color' . $coverSql . ', c.created_at,
+                    u.name AS teacher_name, e.joined_at
              FROM enrollments e
              JOIN classes c ON e.class_id = c.id
              JOIN users u ON c.teacher_id = u.id
@@ -151,8 +157,10 @@ if ($method === 'POST' && $action === 'leave') {
 if ($method === 'GET' && $action === 'students') {
     $class_id = trim((string) ($_GET['class_id'] ?? ''));
     if ($class_id === '') fail('Class required');
+    $wantAvatars = (string) ($_GET['avatars'] ?? '') === '1';
+    $teacherAvatarSql = $wantAvatars ? ', u.avatar AS teacher_avatar' : '';
     $cls = $db->prepare(
-        'SELECT c.teacher_id, u.name AS teacher_name, u.avatar AS teacher_avatar
+        'SELECT c.teacher_id, u.name AS teacher_name' . $teacherAvatarSql . '
          FROM classes c
          LEFT JOIN users u ON u.id = c.teacher_id
          WHERE c.id = ?'
@@ -167,7 +175,6 @@ if ($method === 'GET' && $action === 'students') {
         $allowed = (bool) $en->fetch();
     }
     if (!$allowed) fail('Forbidden', 403);
-    $wantAvatars = (string) ($_GET['avatars'] ?? '') === '1';
     $cols = $wantAvatars
         ? 'u.id, u.name, u.section, u.avatar, e.joined_at'
         : 'u.id, u.name, u.section, e.joined_at';
@@ -182,9 +189,30 @@ if ($method === 'GET' && $action === 'students') {
         'teacher' => [
             'id' => $class['teacher_id'],
             'name' => $class['teacher_name'] ?: $class['teacher_id'],
-            'avatar' => $class['teacher_avatar'] ?? null,
+            'avatar' => $wantAvatars ? ($class['teacher_avatar'] ?? null) : null,
         ],
     ]);
+}
+
+// ── ONE CLASS PHOTO ────────────────────────────────────
+if ($method === 'GET' && $action === 'cover') {
+    $class_id = trim((string) ($_GET['class_id'] ?? ''));
+    if ($class_id === '') fail('Class required');
+    if (!prism_ensure_class_cover($db)) ok(['cover' => '']);
+    $stmt = $db->prepare('SELECT teacher_id, cover FROM classes WHERE id = ?');
+    $stmt->execute([$class_id]);
+    $class = $stmt->fetch();
+    if (!$class) fail('Not found', 404);
+    $allowed = ($user['role'] === 'teacher' && (string) $class['teacher_id'] === (string) $user['id']);
+    if (!$allowed && $user['role'] === 'student') {
+        $en = $db->prepare('SELECT 1 FROM enrollments WHERE student_id = ? AND class_id = ?');
+        $en->execute([$user['id'], $class_id]);
+        $allowed = (bool) $en->fetch();
+    }
+    if (!$allowed) fail('Forbidden', 403);
+    $cover = is_string($class['cover'] ?? null) ? $class['cover'] : '';
+    if (!preg_match('#^data:image/(jpeg|png|webp);base64,#', $cover)) $cover = '';
+    ok(['cover' => $cover]);
 }
 
 // ── REGENERATE JOIN CODE (teacher) ─────────────────────

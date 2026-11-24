@@ -157,13 +157,74 @@ function prismAnnMarkSeen(rows) {
 }
 
 function prismAnnPaintCount(rows) {
+  if (rows) window.__prismAnnRows = rows;
   var badge = document.querySelector('#prism-ann-btn .topbar-ann-count');
   if (!badge) return;
+  var failing = (window.__prismGradeAlerts || []).length;
+  if (failing) {
+    badge.hidden = false;
+    badge.textContent = failing > 9 ? '9+' : String(failing);
+    return;
+  }
   var seen = prismAnnSeen();
-  var unread = (rows || []).filter(function (row) { return seen.indexOf(prismAnnId(row)) === -1; }).length;
+  var source = window.__prismAnnRows || [];
+  var unread = source.filter(function (row) { return seen.indexOf(prismAnnId(row)) === -1; }).length;
   if (!unread) { badge.hidden = true; badge.textContent = ''; return; }
   badge.hidden = false;
   badge.textContent = unread > 9 ? '9+' : String(unread);
+}
+
+function prismGradeItemsHtml(alerts) {
+  return (alerts || []).map(function (row) {
+    return '<a class="topbar-ann-item is-failing" href="' + prismSidebarEsc(row.href || 'status.html') + '">'
+      + '<div style="font-weight:800;">' + prismSidebarEsc(row.subject || 'Grade')
+      + '<span class="topbar-ann-pill is-fail">Below 75</span></div>'
+      + '<div class="topbar-ann-text">' + prismSidebarEsc(row.text || '') + '</div></a>';
+  }).join('');
+}
+
+function prismGradeAlertPaint(alerts) {
+  window.__prismGradeAlerts = alerts || [];
+  var btn = document.getElementById('prism-ann-btn');
+  if (btn) {
+    var failing = window.__prismGradeAlerts.length > 0;
+    btn.classList.toggle('is-failing', failing);
+    btn.title = failing ? 'A grade is below the passing rate' : 'Announcements';
+    btn.setAttribute('aria-label', btn.title);
+  }
+  prismAnnPaintCount(window.__prismAnnRows || []);
+}
+
+function prismLoadGradeAlerts(force) {
+  var role = '';
+  try { role = sessionStorage.getItem('prism_role') || ''; } catch (e) { role = ''; }
+  if (role !== 'student' || typeof PrismRecords === 'undefined' || !PrismRecords.gradeAlerts) {
+    prismGradeAlertPaint([]);
+    return Promise.resolve([]);
+  }
+  if (!force) {
+    try {
+      var at = parseInt(sessionStorage.getItem('prism_grade_alerts_at') || '0', 10);
+      if (Date.now() - at < 45000) {
+        var cached = JSON.parse(sessionStorage.getItem('prism_grade_alerts') || '[]');
+        if (Array.isArray(cached)) {
+          prismGradeAlertPaint(cached);
+          return Promise.resolve(cached);
+        }
+      }
+    } catch (e2) { /* fetch a fresh list */ }
+  }
+  return PrismRecords.gradeAlerts().then(function (alerts) {
+    alerts = alerts || [];
+    try {
+      sessionStorage.setItem('prism_grade_alerts', JSON.stringify(alerts));
+      sessionStorage.setItem('prism_grade_alerts_at', String(Date.now()));
+    } catch (e3) { /* the bell still updates for this page */ }
+    prismGradeAlertPaint(alerts);
+    return alerts;
+  }).catch(function () {
+    return window.__prismGradeAlerts || [];
+  });
 }
 
 function prismAnnFill(list, rows) {
@@ -198,12 +259,28 @@ function prismOpenAnnouncements(btn) {
   var load = (typeof PrismAdmin !== 'undefined' && PrismAdmin.getAnnouncements)
     ? PrismAdmin.getAnnouncements()
     : Promise.resolve([]);
-  Promise.resolve(load).then(function (rows) {
+  Promise.all([
+    Promise.resolve(load).catch(function () { return null; }),
+    prismLoadGradeAlerts(true)
+  ]).then(function (pair) {
+    var rows = pair[0];
+    var alerts = pair[1] || [];
+    var grades = prismGradeItemsHtml(alerts);
+    if (rows === null) {
+      list.innerHTML = grades + '<div class="topbar-ann-empty">Announcements could not be loaded.</div>';
+      return;
+    }
     rows = rows || [];
-    prismAnnFill(list, rows);
+    var annHtml = '';
+    if (rows.length) {
+      var hold = document.createElement('div');
+      prismAnnFill(hold, rows);
+      annHtml = hold.innerHTML;
+    } else if (!alerts.length) {
+      annHtml = '<div class="topbar-ann-empty">No announcements yet.</div>';
+    }
+    list.innerHTML = grades + annHtml;
     prismAnnMarkSeen(rows);
-  }).catch(function () {
-    list.innerHTML = '<div class="topbar-ann-empty">Announcements could not be loaded.</div>';
   });
 }
 
@@ -243,6 +320,7 @@ function prismEnsureAnnouncements() {
   if (typeof PrismAdmin !== 'undefined' && PrismAdmin.getAnnouncements) {
     PrismAdmin.getAnnouncements().then(function (rows) { prismAnnPaintCount(rows || []); }).catch(function () {});
   }
+  prismLoadGradeAlerts(false);
 }
 
 function initSidebar(activePage) {

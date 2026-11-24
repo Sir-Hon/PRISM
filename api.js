@@ -541,6 +541,142 @@ function prismDownloadNamed(url, fileName) {
     });
 }
 
+function prismOfficeExt(name) {
+  const ext = prismFileExt(name);
+  return ext === 'docx' || ext === 'pptx';
+}
+
+function prismXmlLocal(node) {
+  return (node && (node.localName || node.nodeName || '')).replace(/^.*:/, '');
+}
+
+function prismXmlChildren(el, local) {
+  const out = [];
+  if (!el) return out;
+  for (let i = 0; i < el.childNodes.length; i++) {
+    const node = el.childNodes[i];
+    if (node.nodeType === 1 && prismXmlLocal(node) === local) out.push(node);
+  }
+  return out;
+}
+
+function prismXmlText(el) {
+  let text = '';
+  if (!el) return text;
+  for (let i = 0; i < el.childNodes.length; i++) {
+    const node = el.childNodes[i];
+    if (node.nodeType !== 1) continue;
+    const name = prismXmlLocal(node);
+    if (name === 't') text += node.textContent || '';
+    else if (name === 'tab') text += '\t';
+    else if (name === 'br' || name === 'cr') text += '\n';
+    else text += prismXmlText(node);
+  }
+  return text;
+}
+
+function prismDocxHtml(xml) {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const body = doc.getElementsByTagName('w:body')[0] || doc.getElementsByTagName('body')[0];
+  if (!body) return '';
+  const blocks = [];
+  for (let i = 0; i < body.childNodes.length; i++) {
+    const node = body.childNodes[i];
+    if (node.nodeType !== 1) continue;
+    const name = prismXmlLocal(node);
+    if (name === 'p') {
+      const text = prismXmlText(node);
+      blocks.push('<p>' + (text.trim() ? prismEscHtml(text) : '&nbsp;') + '</p>');
+    } else if (name === 'tbl') {
+      const rows = prismXmlChildren(node, 'tr').map(function (row) {
+        const cells = prismXmlChildren(row, 'tc').map(function (cell) {
+          return '<td>' + prismEscHtml(prismXmlText(cell)) + '</td>';
+        }).join('');
+        return '<tr>' + cells + '</tr>';
+      }).join('');
+      if (rows) blocks.push('<table>' + rows + '</table>');
+    }
+  }
+  return blocks.join('');
+}
+
+function prismPptxHtml(files) {
+  const names = Object.keys(files).filter(function (name) {
+    return /^ppt\/slides\/slide\d+\.xml$/i.test(name);
+  }).sort(function (a, b) {
+    return (parseInt(a.replace(/\D/g, ''), 10) || 0) - (parseInt(b.replace(/\D/g, ''), 10) || 0);
+  });
+  return names.map(function (name, index) {
+    const xml = new TextDecoder().decode(files[name]);
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const bits = [];
+    const nodes = doc.getElementsByTagName('*');
+    for (let i = 0; i < nodes.length; i++) {
+      if (prismXmlLocal(nodes[i]) !== 't') continue;
+      const text = String(nodes[i].textContent || '').trim();
+      if (text) bits.push(text);
+    }
+    if (!bits.length) return '';
+    return '<h3>Slide ' + (index + 1) + '</h3>' + bits.map(function (text) {
+      return '<p>' + prismEscHtml(text) + '</p>';
+    }).join('');
+  }).join('');
+}
+
+async function prismZipEntries(buffer, want) {
+  const view = new DataView(buffer);
+  const bytes = new Uint8Array(buffer);
+  let eocd = -1;
+  const scan = Math.max(0, bytes.length - 22 - 65535);
+  for (let i = bytes.length - 22; i >= scan; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0 || typeof DecompressionStream !== 'function') return {};
+  const count = view.getUint16(eocd + 10, true);
+  let offset = view.getUint32(eocd + 16, true);
+  const files = {};
+  for (let n = 0; n < count && offset + 46 <= bytes.length; n++) {
+    if (view.getUint32(offset, true) !== 0x02014b50) break;
+    const method = view.getUint16(offset + 10, true);
+    const compSize = view.getUint32(offset + 20, true);
+    const nameLen = view.getUint16(offset + 28, true);
+    const extraLen = view.getUint16(offset + 30, true);
+    const commentLen = view.getUint16(offset + 32, true);
+    const localOffset = view.getUint32(offset + 42, true);
+    const name = new TextDecoder().decode(bytes.subarray(offset + 46, offset + 46 + nameLen));
+    offset += 46 + nameLen + extraLen + commentLen;
+    if (!want(name) || localOffset + 30 > bytes.length) continue;
+    const localNameLen = view.getUint16(localOffset + 26, true);
+    const localExtraLen = view.getUint16(localOffset + 28, true);
+    const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+    const comp = bytes.subarray(dataStart, dataStart + compSize);
+    let out = null;
+    if (method === 0) out = comp;
+    else if (method === 8) {
+      const stream = new Blob([comp]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+      out = new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    if (out) files[name] = out;
+  }
+  return files;
+}
+
+async function prismOfficePreviewHtml(url, fileName) {
+  const response = await fetch(url, { credentials: 'same-origin' });
+  if (!response.ok) throw new Error('missing');
+  const buffer = await response.arrayBuffer();
+  const ext = prismFileExt(fileName);
+  const files = await prismZipEntries(buffer, function (name) {
+    if (ext === 'docx') return name === 'word/document.xml';
+    return /^ppt\/slides\/slide\d+\.xml$/i.test(name);
+  });
+  if (ext === 'docx' && files['word/document.xml']) {
+    return prismDocxHtml(new TextDecoder().decode(files['word/document.xml']));
+  }
+  if (ext === 'pptx') return prismPptxHtml(files);
+  return '';
+}
+
 function prismShowFilePreview(url, mime, fileName) {
   prismCloseFilePreview();
   const name = fileName || 'File';
@@ -551,27 +687,31 @@ function prismShowFilePreview(url, mime, fileName) {
   overlay.id = 'prism-file-preview';
   overlay.style.cssText = 'position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:1.2rem;';
   const box = document.createElement('div');
-  box.style.cssText = 'background:#fff;border-radius:16px;width:min(920px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.28);';
+  box.className = 'prism-preview-box';
+  box.style.cssText = 'background:#fff;color:#111827;-webkit-text-fill-color:#111827;border-radius:16px;width:min(920px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.28);';
   const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;border-bottom:1px solid #e5e7eb;';
+  bar.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;border-bottom:1px solid #e5e7eb;background:#fff;color:#111827;-webkit-text-fill-color:#111827;';
   const title = document.createElement('div');
   title.textContent = name;
-  title.style.cssText = 'flex:1;font-weight:800;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  title.style.cssText = 'flex:1;min-width:0;font-weight:800;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827;-webkit-text-fill-color:#111827;';
   const dl = document.createElement('button');
   dl.type = 'button';
+  dl.className = 'prism-preview-dl';
   dl.textContent = 'Download';
-  dl.style.cssText = 'border:none;background:#7c3aed;color:#fff;border-radius:10px;padding:.45rem .85rem;font-weight:800;cursor:pointer;';
+  dl.style.cssText = 'border:none;background:#7c3aed;color:#fff;-webkit-text-fill-color:#fff;border-radius:10px;padding:.45rem .85rem;font-weight:800;cursor:pointer;';
   dl.addEventListener('click', () => prismDownloadNamed(url, name));
   const close = document.createElement('button');
   close.type = 'button';
+  close.className = 'prism-preview-close';
   close.textContent = 'Close';
-  close.style.cssText = 'border:1px solid #e5e7eb;background:#fff;border-radius:10px;padding:.45rem .85rem;font-weight:700;cursor:pointer;';
+  close.style.cssText = 'border:1px solid #d1d5db;background:#fff;color:#111827;-webkit-text-fill-color:#111827;border-radius:10px;padding:.45rem .85rem;font-weight:700;cursor:pointer;';
   close.addEventListener('click', prismCloseFilePreview);
   bar.appendChild(title);
   bar.appendChild(dl);
   bar.appendChild(close);
   const body = document.createElement('div');
-  body.style.cssText = 'padding:1rem;overflow:auto;background:#f8fafc;min-height:180px;';
+  body.className = 'prism-preview-body';
+  body.style.cssText = 'padding:1rem;overflow:auto;background:#f8fafc;color:#111827;-webkit-text-fill-color:#111827;min-height:180px;';
   if (preview && (kind === 'image' || /^image\//i.test(type))) {
     const img = document.createElement('img');
     img.src = url;
@@ -590,10 +730,26 @@ function prismShowFilePreview(url, mime, fileName) {
     frame.title = name;
     frame.style.cssText = 'width:100%;height:70vh;border:0;background:#fff;border-radius:8px;';
     body.appendChild(frame);
+  } else if (prismOfficeExt(name)) {
+    const note = document.createElement('div');
+    note.className = 'prism-doc-view';
+    note.textContent = 'Opening the document…';
+    body.appendChild(note);
+    prismOfficePreviewHtml(url, name).then(function (html) {
+      if (!document.body.contains(body)) return;
+      if (!html || !String(html).replace(/<[^>]+>/g, '').trim()) {
+        note.textContent = 'This document has no text to show here. Use Download to open the original file.';
+        return;
+      }
+      note.innerHTML = html;
+    }).catch(function () {
+      if (!document.body.contains(body)) return;
+      note.textContent = 'This document could not be opened here. Use Download to open the original file.';
+    });
   } else {
     const note = document.createElement('p');
-    note.textContent = 'This file opens from the Download button. Word, PowerPoint, Excel, and zip files stay as downloads after you look at this window.';
-    note.style.cssText = 'margin:1.5rem auto;max-width:36rem;text-align:center;color:#374151;line-height:1.5;';
+    note.textContent = 'This file opens from the Download button. Excel and zip files stay as downloads after you look at this window.';
+    note.style.cssText = 'margin:1.5rem auto;max-width:36rem;text-align:center;color:#111827;-webkit-text-fill-color:#111827;line-height:1.5;';
     body.appendChild(note);
   }
   box.appendChild(bar);
@@ -939,6 +1095,10 @@ const PrismClasses = {
     const data = await apiGet('classes', 'mine');
     return data.classes || [];
   },
+  async cover(class_id) {
+    const data = await apiGet('classes', 'cover', { class_id });
+    return data.cover || '';
+  },
   async create(subject, color) {
     return await apiCall('classes', 'create', 'POST', { subject, color });
   },
@@ -1192,6 +1352,10 @@ const PrismRecords = {
   async myStatus() {
     const data = await apiGet('records', 'my_status');
     return data.records || [];
+  },
+  async gradeAlerts() {
+    const data = await apiGet('records', 'grade_alerts');
+    return data.alerts || [];
   },
   async getSheet(classId, studentId, kind) {
     return await apiGet('records', 'sheet', { class_id: classId, student_id: studentId, kind: kind });
@@ -1491,6 +1655,26 @@ function prismCoverRemember(id, cover) {
   } catch (e) {
     try { localStorage.removeItem(prismCoverKey(id)); } catch (err) {}
   }
+}
+
+function prismHasCoverFlag(row) {
+  if (!row) return false;
+  if (row.cover && String(row.cover).indexOf('data:image/') === 0) return true;
+  return row.has_cover == 1 || row.has_cover === true || row.has_cover === '1';
+}
+
+function prismLoadClassCovers(list, onOne) {
+  (list || []).forEach(function (cls) {
+    const id = cls && (cls.id || cls.class_id || cls.classId);
+    if (!id || !prismHasCoverFlag(cls) || prismCoverRecall(id)) return;
+    if (typeof PrismClasses === 'undefined' || !PrismClasses.cover) return;
+    PrismClasses.cover(id).then(function (cover) {
+      if (!cover || String(cover).indexOf('data:image/') !== 0) return;
+      prismCoverRemember(id, cover);
+      cls.cover = cover;
+      if (onOne) onOne(cls, cover);
+    }).catch(function () {});
+  });
 }
 
 function prismCoversWarm(urls) {
