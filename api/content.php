@@ -830,7 +830,7 @@ if ($action === 'submit') {
 
     $hasJson = prism_table_has_column($db, 'submissions', 'attachments_json');
     $hasLink = prism_table_has_column($db, 'submissions', 'link_url');
-    $maxFiles = ($hasJson && $hasLink) ? 10 : 1;
+    $maxFiles = 5;
 
     $attachments = [];
     $uidSafe = preg_replace('/[^a-zA-Z0-9_]/', '_', $user['id']);

@@ -985,7 +985,9 @@ function onStudentAsgnFilesChosen(classId, asgnId, input) {
   var list = [];
   var files = input && input.files ? Array.prototype.slice.call(input.files) : [];
   var maxBytes = typeof PRISM_MAX_FILE_BYTES === 'number' ? PRISM_MAX_FILE_BYTES : 15 * 1024 * 1024;
-  for (var i = 0; i < files.length && list.length < 10; i++) {
+  var kept = studentPickedFiles(classId, asgnId).slice();
+  var overCap = false;
+  for (var i = 0; i < files.length; i++) {
     var f = files[i];
     if (f.size > maxBytes) {
       alert(f.name + ' is too large. Max 15 MB. For longer videos, paste a YouTube link instead.');
@@ -995,8 +997,12 @@ function onStudentAsgnFilesChosen(classId, asgnId, input) {
       alert(f.name + ' is not an allowed type. Use PDF, image, video, PPT, Word, Excel, text, or ZIP.');
       continue;
     }
-    list.push(f);
+    if (kept.length >= 5) { overCap = true; continue; }
+    kept.push(f);
   }
+  if (overCap) alert('You can attach up to 5 files.');
+  if (input) input.value = '';
+  list = kept;
   window.__studentAsgnPickedFiles[studentAsgnFileKey(classId, asgnId)] = list;
   var label = document.getElementById('asgn-file-chosen-' + asgnDomId(asgnId));
   if (label) {
@@ -1139,14 +1145,14 @@ function studentAssignmentStreamHtml(classId, a, startOpen) {
     html += '<div class="asgn-turnin">'
       + '<div class="asgn-turnin-title">Your work</div>'
       + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
-      + '<div class="asgn-tools">'
-      + '<button type="button" class="asgn-tool" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
-      + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 11.6l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.5-8.5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-2.8-2.8l7.8-7.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Attach</button>'
+      + '<div class="asgn-row">'
+      + '<label class="asgn-link-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2.8-2.8a5 5 0 0 0-7.1-7.1L11 4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 11a5 5 0 0 0-7.1-.1L4.1 13.7a5 5 0 0 0 7.1 7.1L13 19.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+      + '<input type="url" id="asgn-link-' + sid + '" placeholder="Paste a link" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '"/></label>'
+      + '<button type="button" class="asgn-tool" title="Attach up to 5 files" aria-label="Attach files" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
+      + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 11.6l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.5-8.5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-2.8-2.8l7.8-7.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>'
       + '</div>'
       + '<div id="asgn-file-chosen-' + sid + '" class="pf-chips" style="display:none;"></div>'
       + '<input type="file" id="asgn-file-' + sid + '" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange=\'' + pickOnchange + '\'/>'
-      + '<label class="asgn-link-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2.8-2.8a5 5 0 0 0-7.1-7.1L11 4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 11a5 5 0 0 0-7.1-.1L4.1 13.7a5 5 0 0 0 7.1 7.1L13 19.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
-      + '<input type="url" id="asgn-link-' + sid + '" placeholder="Paste a link" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '"/></label>'
       + '<button type="button" class="asgn-send" id="asgn-submit-' + sid + '" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\'>Turn in</button>'
       + '</div>';
   }
@@ -1346,17 +1352,18 @@ async function openStudentAssignmentModal(classId, asgnId) {
     var pickOnchange = 'onStudentAsgnFilesChosen(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ',this)';
     submitBlock = statusLine
       + existingFilesBlock
-      + '<div style="margin-top:.5rem;padding-top:.75rem;border-top:1px solid #fce7f3;">'
-      + '<div style="font-size:.72rem;font-weight:700;color:#9d174d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem;">Turn in</div>'
-      + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…" style="width:100%;min-height:90px;border:1.5px solid #fce7f3;border-radius:10px;padding:.65rem .85rem;font-size:.88rem;font-family:inherit;resize:vertical;box-sizing:border-box;">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
-      + '<div class="prism-file-zone" style="margin-top:.65rem;" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
-      + '<div><div class="pf-title">Attach files</div>'
-      + '<div class="pf-hint">PDF, image, video, or PowerPoint. Up to 15 MB each.</div>'
-      + '<div id="asgn-file-chosen-' + sid + '" class="pf-chips" style="display:none;"></div></div>'
+      + '<div class="asgn-turnin">'
+      + '<div class="asgn-turnin-title">Your work</div>'
+      + '<textarea id="asgn-note-' + sid + '" placeholder="Write your response…">' + prismEscHtml(hasSub && sub.note ? sub.note : '') + '</textarea>'
+      + '<div class="asgn-row">'
+      + '<label class="asgn-link-label"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.1.1l2.8-2.8a5 5 0 0 0-7.1-7.1L11 4.9" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M14 11a5 5 0 0 0-7.1-.1L4.1 13.7a5 5 0 0 0 7.1 7.1L13 19.1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
+      + '<input type="url" id="asgn-link-' + sid + '" placeholder="Paste a link" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '"/></label>'
+      + '<button type="button" class="asgn-tool" title="Attach up to 5 files" aria-label="Attach files" onclick="document.getElementById(\'asgn-file-' + sid + '\').click()">'
+      + '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.4 11.6l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.5-8.5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-2.8-2.8l7.8-7.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>'
       + '</div>'
+      + '<div id="asgn-file-chosen-' + sid + '" class="pf-chips" style="display:none;"></div>'
       + '<input type="file" id="asgn-file-' + sid + '" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif,.webp,.svg,.bmp,.mp4,.webm,.mov,.ogg,.ogv,.zip" style="display:none;" onchange=\'' + pickOnchange + '\'/>'
-      + '<input type="url" id="asgn-link-' + sid + '" placeholder="Or paste a link (article, Google Doc, YouTube…)" value="' + prismEscAttr(hasSub && sub.link_url ? sub.link_url : '') + '" style="width:100%;margin-top:.5rem;border:1.5px solid #fce7f3;border-radius:10px;padding:.5rem .85rem;font-size:.85rem;box-sizing:border-box;"/>'
-      + '<button type="button" id="asgn-submit-' + sid + '" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\' style="margin-top:.85rem;padding:.58rem 1.5rem;background:linear-gradient(135deg,#ec4899,#be185d);color:#fff;border:none;border-radius:10px;font-weight:800;font-size:.9rem;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Submit work</button>'
+      + '<button type="button" class="asgn-send" id="asgn-submit-' + sid + '" onclick=\'submitStudentAssignment(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ')\'>Turn in</button>'
       + '</div>';
   }
   var inner = '<div class="student-asgn-modal" role="dialog" aria-modal="true" aria-labelledby="student-asgn-modal-title">'
