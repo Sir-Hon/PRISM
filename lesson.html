@@ -8,18 +8,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Lesson plan</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=33"/>
+  <link rel="stylesheet" href="portal.css?v=35"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; }
     .class-bar { background:#fff; border-radius:12px; padding:.7rem 1rem; border:1px solid rgba(16,185,129,.14); margin-bottom:1rem; display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; }
     .t-select, .lp-input, .lp-area { border:1.5px solid #d1fae5; border-radius:10px; padding:.55rem .75rem; font-family:'DM Sans',sans-serif; font-size:.9rem; color:#16132b; outline:none; background:#fff; width:100%; box-sizing:border-box; }
     .t-select { width:auto; min-width:220px; font-weight:600; }
-    .lp-area { min-height:140px; resize:vertical; }
+    .lp-area { resize:vertical; }
     .t-card { background:#fff; border-radius:14px; padding:1.15rem 1.2rem; border:1px solid rgba(16,185,129,.12); margin-bottom:1rem; }
     .t-card h2 { font-family:'DM Sans',sans-serif; font-size:1rem; font-weight:800; margin:0 0 .85rem; }
     .lp-grid { display:grid; grid-template-columns:1fr 180px; gap:.7rem; }
-    .lp-label { display:block; font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6b7280; margin-bottom:.3rem; }
+    .lp-head { display:flex; align-items:center; justify-content:space-between; gap:.7rem; margin-bottom:.85rem; }
+    .lp-head h2 { margin:0; }
+    .lp-head-actions { display:flex; align-items:center; gap:.45rem; }
+    .lp-clip { width:38px; height:38px; border-radius:10px; border:1px solid #d1fae5; background:#fff; color:#047857; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+    .lp-clip:hover { background:#ecfdf5; }
+    .lp-label { display:block; font-size:.7rem; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:#6b7280; margin:.85rem 0 .3rem; }
+    .lp-area { min-height:72px; }
+    .lp-block { margin:0 0 .7rem; }
+    .lp-block h4 { margin:0 0 .2rem; font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; color:#047857; }
+    .lp-block p { margin:0; }
     .t-btn { padding:.55rem 1.1rem; background:#047857; color:#fff; -webkit-text-fill-color:#fff; border:none; border-radius:10px; font-family:'DM Sans',sans-serif; font-size:.88rem; font-weight:700; cursor:pointer; }
     .t-btn:disabled { opacity:.6; cursor:default; }
     .file-pick { margin-top: .15rem; }
@@ -38,13 +47,23 @@
     .lp-del { border:none; background:none; color:#9ca3af; font-size:.75rem; font-weight:700; cursor:pointer; }
     .lp-del:hover { color:#dc2626; }
     .empty-lessons { color:#6b7280; font-size:.9rem; padding:.4rem 0 1rem; }
+    html[data-theme="dark"] .t-card,
+    html[data-theme="dark"] .class-bar { background:#1a1d2e; color:#f3f4f6; border-color:#2e3350; }
+    html[data-theme="dark"] .lp-input,
+    html[data-theme="dark"] .lp-area,
+    html[data-theme="dark"] .t-select,
+    html[data-theme="dark"] .lp-clip { background:#24283d; color:#f3f4f6; -webkit-text-fill-color:#f3f4f6; border-color:#3d4468; }
+    html[data-theme="dark"] .lp-label,
+    html[data-theme="dark"] .lesson-meta,
+    html[data-theme="dark"] .empty-lessons { color:#d1d5db; }
+    html[data-theme="dark"] .lp-block h4 { color:#6ee7b7; }
     @media (max-width:640px) { .lp-grid { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
-<script src="api.js?v=50"></script>
-<script src="script.js?v=23"></script>
-<script src="portal-sidebar.js?v=30"></script>
+<script src="api.js?v=53"></script>
+<script src="script.js?v=24"></script>
+<script src="portal-sidebar.js?v=31"></script>
 <div class="topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -71,49 +90,61 @@
   <main class="main-content">
     <div class="page-header">
       <h1>Lesson plan</h1>
-      <p>Write the lesson for a class and attach the PowerPoint, PDF, or images you will teach from.</p>
+      <p>Write the lesson in the class format, from the objective through standards, and attach the files you will teach from.</p>
     </div>
     <div class="class-bar">
       <span style="font-size:.82rem;font-weight:700;color:#6b7280;">Class</span>
       <select id="class-select" class="t-select"></select>
     </div>
     <div class="t-card">
-      <h2>New lesson</h2>
+      <div class="lp-head">
+        <h2>Lesson plan</h2>
+        <div class="lp-head-actions">
+          <button type="button" class="lp-clip" id="lp-clip" aria-label="Attach files" title="Attach files">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.4 11.6l-8.5 8.5a5 5 0 0 1-7.1-7.1l8.5-8.5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-2.8-2.8l7.8-7.8"/></svg>
+          </button>
+          <button class="t-btn" id="lp-save" type="button">Save lesson</button>
+        </div>
+      </div>
+      <input id="lp-files" type="file" accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.bmp,image/*" multiple hidden/>
+      <div id="lp-file-names" class="pf-chips"></div>
       <div class="lp-grid">
         <div>
-          <label class="lp-label" for="lp-title">Title</label>
-          <input class="lp-input" id="lp-title" type="text" maxlength="160" placeholder="e.g. Week 4 � Networking basics"/>
+          <label class="lp-label" for="lp-title" style="margin-top:0;">Lesson plan</label>
+          <input class="lp-input" id="lp-title" type="text" maxlength="160" placeholder="Title of the lesson"/>
         </div>
         <div>
-          <label class="lp-label" for="lp-date">Date</label>
+          <label class="lp-label" for="lp-date" style="margin-top:0;">Date</label>
           <input class="lp-input" id="lp-date" type="date"/>
         </div>
       </div>
-      <div style="margin-top:.7rem;">
-        <label class="lp-label" for="lp-plan">Plan</label>
-        <textarea class="lp-area" id="lp-plan" placeholder="Objectives, activities, and what students should do."></textarea>
-      </div>
-      <div style="margin-top:.7rem;">
-        <label class="lp-label" for="lp-files">Instruction materials</label>
-        <div class="file-pick">
-          <div class="prism-file-zone" id="lp-drop" tabindex="0" role="button">
-            <div>
-              <div class="pf-title">Choose files</div>
-              <div class="pf-hint">PDF, PowerPoint, or images. Add more than one if you need to.</div>
-              <div id="lp-file-names" class="pf-chips"></div>
-            </div>
-          </div>
-          <input id="lp-files" type="file" accept=".pdf,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.bmp,image/*" multiple hidden/>
-        </div>
-      </div>
-      <div style="margin-top:.8rem;">
-        <button class="t-btn" id="lp-save" type="button">Save lesson</button>
-      </div>
+      <label class="lp-label" for="lp-objective">Learning objective</label>
+      <textarea class="lp-area" id="lp-objective" placeholder="What students should be able to do by the end of the lesson."></textarea>
+      <label class="lp-label" for="lp-assessments">Assessments</label>
+      <textarea class="lp-area" id="lp-assessments" placeholder="How you will know students met the objective."></textarea>
+      <label class="lp-label" for="lp-key_points">Key points</label>
+      <textarea class="lp-area" id="lp-key_points" placeholder="The ideas this lesson has to cover."></textarea>
+      <label class="lp-label" for="lp-opening">Opening</label>
+      <textarea class="lp-area" id="lp-opening" placeholder="How the lesson starts."></textarea>
+      <label class="lp-label" for="lp-introduction">Introduction to new material</label>
+      <textarea class="lp-area" id="lp-introduction" placeholder="How the new material is taught."></textarea>
+      <label class="lp-label" for="lp-guided">Guided practice</label>
+      <textarea class="lp-area" id="lp-guided" placeholder="Practice students do with you."></textarea>
+      <label class="lp-label" for="lp-independent">Independent practice</label>
+      <textarea class="lp-area" id="lp-independent" placeholder="Practice students do on their own."></textarea>
+      <label class="lp-label" for="lp-closing">Closing</label>
+      <textarea class="lp-area" id="lp-closing" placeholder="How the lesson ends."></textarea>
+      <label class="lp-label" for="lp-extension">Extension activity</label>
+      <textarea class="lp-area" id="lp-extension" placeholder="Extra work for students who finish early."></textarea>
+      <label class="lp-label" for="lp-homework">Homework</label>
+      <textarea class="lp-area" id="lp-homework" placeholder="Work students take home."></textarea>
+      <label class="lp-label" for="lp-standards">Standards aligned</label>
+      <textarea class="lp-area" id="lp-standards" placeholder="The standards this lesson meets."></textarea>
       <div class="lp-msg" id="lp-msg"></div>
     </div>
     <div id="lesson-list"></div>
   </main>
 </div>
-<script src="pages/lesson.js?v=3"></script>
+<script src="pages/lesson.js?v=4"></script>
 </body>
 </html>

@@ -514,22 +514,60 @@ function bindStatusPage() {
   }
 }
 
+function statusFromJoined() {
+  var uid = '';
+  try { uid = sessionStorage.getItem('prism_user_id') || ''; } catch (e) { uid = ''; }
+  var joined = {};
+  try { joined = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}'); } catch (e2) { joined = {}; }
+  return Object.keys(joined).map(function (id) {
+    var row = joined[id] || {};
+    return {
+      class_id: row.classId || id,
+      subject: row.subject || 'Subject',
+      code: row.code || '',
+      color: row.color || '#7c3aed',
+      cover: '',
+      teacher_name: '',
+      attendance: null,
+      assessment: null
+    };
+  });
+}
+
 async function loadStatus() {
   var empty = document.getElementById('status-empty');
+  var cached = statusFromJoined();
+  if (cached.length) {
+    statusRecords = cached;
+    renderStatusList();
+    renderStatusSheet();
+  }
   try {
     statusRecords = await PrismRecords.myStatus();
     statusRecords.forEach(function (row) {
       if (typeof prismCoverRecall === 'function') row.cover = prismCoverRecall(row.class_id);
     });
   } catch (e) {
+    if (statusRecords.length) {
+      renderStatusList();
+      if (empty) {
+        empty.style.display = '';
+        empty.textContent = 'The saved record could not be refreshed. The subjects already on this page are still here.';
+      }
+      return;
+    }
     statusRecords = [];
     var list = document.getElementById('status-list');
     if (list) list.innerHTML = '';
     if (empty) {
       empty.style.display = '';
-      empty.textContent = (e && e.message) ? e.message : 'The records could not be loaded. Refresh the page and try again.';
+      empty.textContent = 'The records could not be loaded. Refresh the page and try again.';
     }
     return;
+  }
+  if (!statusRecords.length && empty) {
+    empty.style.display = '';
+    empty.textContent = 'You have not joined a class yet. Once a teacher adds you, the record will show up here.';
   }
   renderStatusList();
   renderStatusSheet();

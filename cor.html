@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Certificate of Registration</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=33"/>
+  <link rel="stylesheet" href="portal.css?v=35"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     .cor-wrap { max-width: 980px; }
@@ -119,18 +119,21 @@
     html[data-theme="dark"] .cor-doc span,
     html[data-theme="dark"] .cor-doc strong { color:#111 !important; background:transparent !important; -webkit-text-fill-color:#111; }
     html[data-theme="dark"] .cor-doc { background:#fff !important; color-scheme:light; }
+    #cor-print { position:absolute; left:0; top:0; width:0; height:0; overflow:hidden; clip:rect(0,0,0,0); }
+    #cor-sheet-preview .cor-doc + .cor-doc { margin-top:1.25rem; }
     @media print {
       body * { visibility:hidden; }
       #cor-print, #cor-print * { visibility:visible; }
-      #cor-print { position:absolute; left:0; top:0; width:100%; }
-      .cor-doc { border:none; }
+      #cor-print { position:absolute; left:0; top:0; width:100%; height:auto; overflow:visible; clip:auto; }
+      .cor-doc { border:none; break-after:page; page-break-after:always; }
+      .cor-doc:last-child { break-after:auto; page-break-after:auto; }
     }
   </style>
 </head>
 <body>
-<script src="api.js?v=50"></script>
-<script src="script.js?v=23"></script>
-<script src="portal-sidebar.js?v=30"></script>
+<script src="api.js?v=53"></script>
+<script src="script.js?v=24"></script>
+<script src="portal-sidebar.js?v=31"></script>
 <div class="topbar">
   <a class="topbar-logo" href="index.html" id="cor-home"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="topbar-spacer"></div>
@@ -191,6 +194,6 @@
     </div>
   </main>
 </div>
-<script src="pages/cor.js?v=12"></script>
+<script src="pages/cor.js?v=14"></script>
 </body>
 </html>

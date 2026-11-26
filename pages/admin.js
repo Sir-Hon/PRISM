@@ -46,7 +46,7 @@ function renderDashboardIncomingEvents() {
   if (!el) return;
   let raw = [];
   try { raw = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : []; } catch (e) { raw = []; }
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = typeof prismLocalDateStr === 'function' ? prismLocalDateStr() : '';
   const upcoming = raw.filter(e => e.date >= todayStr)
     .sort((a, b) => {
       const c = a.date.localeCompare(b.date);

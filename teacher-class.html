@@ -8,7 +8,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>PRISM � Subject workspace</title>
   <link rel="icon" type="image/png" href="Prismcrys.png"/>
-  <link rel="stylesheet" href="portal.css?v=33"/>
+  <link rel="stylesheet" href="portal.css?v=35"/>
   <script src="portal-mobile.js?v=4" defer></script>
   <style>
     :root { --t:#10b981; --t-dark:#059669; --t-light:#d1fae5; --t-mid:#6ee7b7; }
@@ -165,6 +165,10 @@
     .mat-info { flex:1; }
     .mat-title { font-weight:700; font-size:.9rem; color:#16132b; }
     .mat-meta  { font-size:.75rem; color:#9ca3af; margin-top:2px; }
+    .cw-edit { border:none; background:none; color:#6d28d9; width:28px; height:28px; border-radius:8px; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0; }
+    .cw-edit:hover { background:#ede9fe; }
+    .cw-summary-tools { display:inline-flex; align-items:center; gap:.15rem; margin-left:auto; }
+    #asgn-gate { margin:.2rem 0 .4rem; }
     .mat-del { background:none; border:none; color:#9ca3af; cursor:pointer; font-size:.72rem; font-weight:700; padding:3px 7px; border-radius:7px; transition:all .15s; }
     .mat-del:hover { background:#fee2e2; color:#ef4444; }
 
@@ -331,6 +335,27 @@
     .src-chip { font-size:.72rem; font-weight:700; padding:.2rem .55rem; border-radius:999px; background:#ecfdf5; color:#065f46; border:1px solid #a7f3d0; }
     .mat-thumb { width:40px; height:40px; object-fit:cover; border-radius:10px; border:1px solid #d1fae5; flex-shrink:0; background:#fff; }
 
+    .gc-grid { display:flex; flex-wrap:wrap; gap:1rem; }
+    .gc-card { width:220px; max-width:100%; background:#fff; border:1px solid #e0e0e0; border-radius:8px; overflow:hidden; cursor:pointer; display:flex; flex-direction:column; text-align:left; padding:0; font-family:'DM Sans',sans-serif; color:inherit; }
+    .gc-card:hover { box-shadow:0 1px 3px rgba(60,64,67,.3); }
+    .gc-card-top { height:78px; padding:.75rem .85rem; display:flex; align-items:flex-end; }
+    .gc-card-title { color:#fff; font-size:.98rem; font-weight:700; line-height:1.25; }
+    .gc-card-body { padding:.7rem .85rem .8rem; }
+    .gc-meta { font-size:.75rem; color:#5f6368; }
+    .gc-empty { color:#5f6368; font-size:.92rem; padding:1.5rem 0; }
+    .sheet-back, .browse-back { border:none; background:none; color:#7c3aed; font-weight:800; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:.82rem; padding:0; }
+    .sheet-bar .sheet-back { margin:0; }
+    .browse-title { font-family:'DM Sans',sans-serif; font-size:1.15rem; font-weight:800; margin:0 0 .8rem; color:#16132b; }
+    .type-picks, .activity-picks { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .type-picks button, .activity-picks button { border:1px solid #e4dffa; background:#fff; color:#16132b; border-radius:12px; padding:.7rem .9rem; font-family:'DM Sans',sans-serif; font-weight:700; cursor:pointer; text-align:left; }
+    .type-picks button:hover, .activity-picks button:hover { border-color:#7c3aed; }
+    button.people-row, .roster-name { width:100%; cursor:pointer; text-align:left; font-family:'DM Sans',sans-serif; color:inherit; }
+    html[data-theme="dark"] .browse-title,
+    html[data-theme="dark"] .type-picks button,
+    html[data-theme="dark"] .activity-picks button,
+    html[data-theme="dark"] .gc-card { color:#f3f4f6; background:#1a1d2e; }
+    html[data-theme="dark"] .gc-meta, html[data-theme="dark"] .gc-empty { color:#d1d5db; }
+    @media(max-width:640px){ .gc-card{ width:100%; } }
     .sheet-bar { display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin-bottom:1rem; }
     .sheet-nav { width:36px; height:36px; border-radius:50%; border:1.5px solid var(--t-light, #ddd6fe); background:#fff; color:var(--t, #7c3aed); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; flex-shrink:0; }
     .sheet-nav:hover:not(:disabled) { background:var(--t, #7c3aed); color:#fff; }
@@ -547,9 +572,9 @@
   </style>
 </head>
 <body>
-<script src="api.js?v=50"></script>
-<script src="script.js?v=23"></script>
-<script src="portal-sidebar.js?v=30"></script>
+<script src="api.js?v=53"></script>
+<script src="script.js?v=24"></script>
+<script src="portal-sidebar.js?v=31"></script>
 <div class="topbar tc-topbar">
   <a class="topbar-logo" href="teacher.html"><div class="topbar-logo-gem"><img src="Prismcrys.png" style="width:100%;height:100%;object-fit:contain;display:block;" alt="PRISM"/></div>PRISM</a>
   <div class="tc-bar-class">
@@ -591,7 +616,7 @@
 
   <main class="main-content">
 
-    <div id="tc-page-wait" class="prism-wait" role="status">Loading</div>
+    <div id="tc-page-wait" class="prism-wait prism-wait-only" role="status" aria-label="Please wait"></div>
     <div id="teacher-section-pills-wrap" style="display:none;margin:0 0 .45rem;"></div>
 
     <div id="class-content" hidden>
@@ -723,6 +748,7 @@
             </div>
             <p class="gc-drop-hint" id="asgn-drop-label">Drop a file here, or use Upload. One file, 15 MB.</p>
               </div>
+              <div id="asgn-gate" hidden></div>
             </div>
             <aside class="gc-side">
               <div class="gc-side-class" id="asgn-class-name">This class</div>
@@ -759,11 +785,13 @@
         <iframe id="class-quiz-frame" title="Quizzes for this class" style="width:100%;height:640px;border:0;background:transparent;display:block;overflow:hidden;"></iframe>
       </div>
       <div class="sub-panel" id="sub-grades">
-        <div class="t-card">
-          <div class="t-card-title" id="grade-title">Quiz grades</div>
-          <p class="qg-empty" id="grade-lead" style="margin-top:0;">Choose a quiz, then open a student to see each item. Short answers and essays stay unmarked until you set the points. You can change the points on any item.</p>
+        <div id="grades-browse"></div>
+        <div class="t-card" id="grades-work" hidden>
+          <button type="button" class="browse-back" id="grades-back" onclick="QG_back()">Activities</button>
+          <div class="t-card-title" id="grade-title">Grades</div>
+          <p class="qg-empty" id="grade-lead" style="margin-top:0;">Open a student to review the score.</p>
           <div class="qg-filters">
-            <label>Category
+            <label style="display:none;">Category
               <select id="grade-category" onchange="QG_open()">
                 <option value="quiz">Quizzes</option>
                 <option value="exam">Exams</option>
@@ -771,7 +799,7 @@
                 <option value="assignment">Assignments</option>
               </select>
             </label>
-            <label><span id="grade-item-label">Quiz</span>
+            <label style="display:none;"><span id="grade-item-label">Quiz</span>
               <select id="grade-quiz-select" onchange="QG_loadScores()"></select>
             </label>
             <label>Student
@@ -786,7 +814,10 @@
         <div id="people-list"></div>
       </div>
       <div class="sub-panel" id="sub-records">
+        <div id="records-browse"></div>
+        <div id="records-sheet" hidden>
         <div class="sheet-bar" id="sheet-bar">
+          <button type="button" class="sheet-back" onclick="backToRecordStudents()">Students</button>
           <button type="button" class="sheet-nav" id="sheet-prev" onclick="stepSheetStudent(-1)" aria-label="Previous student" title="Previous student"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
           <label for="sheet-student">Student</label>
           <select id="sheet-student" onchange="onSheetStudentChange()"></select>
@@ -799,14 +830,15 @@
         </div>
         <div id="view-attendance"><div id="attendance-sheet"></div></div>
         <div id="view-assessment" style="display:none;"><div id="assessment-sheet"></div></div>
+        </div>
       </div>
 
     </div><!-- /class-content -->
   </main>
 </div>
 
-<script src="pages/teacher-class.js?v=43"></script>
-<script src="pages/quizgrades.js?v=7"></script>
-<script src="pages/sheets.js?v=12"></script>
+<script src="pages/teacher-class.js?v=48"></script>
+<script src="pages/quizgrades.js?v=8"></script>
+<script src="pages/sheets.js?v=13"></script>
 </body>
 </html>

@@ -124,7 +124,7 @@ function prism_sheet_exam($q): ?float {
     return ((float) $q['exam'] / $hps) * 100;
 }
 
-function prism_sheet_tables($saved): array {
+function prism_sheet_parts($saved): array {
     $tables = [];
     if (is_array($saved) && isset($saved['tables']) && is_array($saved['tables']) && $saved['tables']) {
         foreach ($saved['tables'] as $i => $table) {
@@ -227,14 +227,14 @@ function prism_subject_grade_alerts(PDO $db, string $studentId): array {
         $rows = [];
     }
     $graded = [];
-    $scores = [];
+    $scoreAlerts = [];
     foreach ($rows as $row) {
         $saved = prism_decode_sheet($row['payload'] ?? null);
         if (!$saved) continue;
         $subject = trim((string) ($row['subject'] ?? ''));
         if ($subject === '') $subject = trim((string) ($saved['subject'] ?? 'Subject'));
         if ($subject === '') $subject = 'Subject';
-        $tables = prism_sheet_tables($saved);
+        $tables = prism_sheet_parts($saved);
         $examWeight = $saved['examWeight'] ?? '';
         $quarters = isset($saved['quarters']) && is_array($saved['quarters']) ? array_slice($saved['quarters'], 0, 8) : [];
         $finals = [];
@@ -255,10 +255,10 @@ function prism_subject_grade_alerts(PDO $db, string $studentId): array {
             foreach ($tables as $table) {
                 $part = (string) ($table['part'] ?? '');
                 if ($part === '') continue;
-                $scores = $quarter[$part] ?? null;
+                $lineScores = $quarter[$part] ?? null;
                 $outs = $quarter[$part . 'Out'] ?? null;
-                if (!is_array($scores)) continue;
-                foreach ($scores as $i => $value) {
+                if (!is_array($lineScores)) continue;
+                foreach ($lineScores as $i => $value) {
                     if ($value === '' || $value === null || prism_sheet_missing($value) || !is_numeric($value)) continue;
                     $cap = is_array($outs) && array_key_exists($i, $outs) ? $outs[$i] : null;
                     if (!is_numeric($cap) || (float) $cap <= 0) continue;
@@ -266,7 +266,7 @@ function prism_subject_grade_alerts(PDO $db, string $studentId): array {
                     if ($pct >= $pass) continue;
                     $title = trim((string) ($table['title'] ?? 'Score')) ?: 'Score';
                     prism_push_grade_alert(
-                        $scores,
+                        $scoreAlerts,
                         'score:' . $classId . ':' . $qi . ':' . $part . ':' . $i,
                         $subject,
                         'You received ' . prism_grade_label($value) . ' out of ' . prism_grade_label($cap) . ' (' . prism_grade_label($pct) . '%) on ' . $title . ' in ' . $subject . '. That is below 75%.'
@@ -276,7 +276,7 @@ function prism_subject_grade_alerts(PDO $db, string $studentId): array {
             $examPct = prism_sheet_exam($quarter);
             if ($examPct !== null && $examPct < $pass) {
                 prism_push_grade_alert(
-                    $scores,
+                    $scoreAlerts,
                     'exam:' . $classId . ':' . $qi,
                     $subject,
                     'You received ' . prism_grade_label($quarter['exam']) . ' out of ' . prism_grade_label($quarter['examHps']) . ' (' . prism_grade_label($examPct) . '%) on the ' . prism_quarter_name((int) $qi) . ' exam in ' . $subject . '. That is below 75%.'
@@ -310,7 +310,7 @@ function prism_subject_grade_alerts(PDO $db, string $studentId): array {
             }
         }
     }
-    return ['gwa' => $alerts, 'scores' => $scores];
+    return ['gwa' => $alerts, 'scores' => $scoreAlerts];
 }
 
 function prism_scored_work_alerts(PDO $db, string $studentId, array $alerts): array {
@@ -383,10 +383,10 @@ function prism_clean_text($value, $max) {
 
 try {
     prism_sheet_tables($db);
-} catch (PDOException $e) {
+} catch (Throwable $e) {
     error_log('records tables: ' . $e->getMessage());
-    // Students can still open the subject list if sheet storage is not ready yet.
-    if (!($method === 'GET' && ($action === 'my_status' || $action === 'grade_alerts'))) {
+    // Students can still open the subject list and certificates if sheet storage is not ready yet.
+    if (!($method === 'GET' && in_array($action, ['my_status', 'grade_alerts', 'cors', 'cor'], true))) {
         fail('Could not prepare records storage', 500);
     }
 }
@@ -506,8 +506,9 @@ if ($method === 'GET' && $action === 'grade_alerts') {
     if (($user['role'] ?? '') !== 'student') ok(['alerts' => []]);
     $pack = prism_subject_grade_alerts($db, (string) $user['id']);
     $alerts = prism_scored_work_alerts($db, (string) $user['id'], $pack['gwa']);
-    foreach ($pack['scores'] as $score) {
+    foreach (($pack['scores'] ?? []) as $score) {
         if (count($alerts) >= 12) break;
+        if (!is_array($score) || empty($score['id'])) continue;
         $alerts[] = $score;
     }
     ok(['alerts' => $alerts]);
@@ -552,14 +553,30 @@ if ($method === 'GET' && $action === 'cors') {
     }
     $yearSql .= ' ORDER BY school_year DESC';
 
-    $sql = 'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at, u.name AS student_name,
-                   JSON_UNQUOTE(JSON_EXTRACT(c.payload, \'$.program\')) AS program,
-                   JSON_UNQUOTE(JSON_EXTRACT(c.payload, \'$.block\')) AS block
-            FROM student_cors c
-            JOIN users u ON u.id COLLATE utf8mb4_unicode_ci = c.student_id COLLATE utf8mb4_unicode_ci'
-        . $where
-        . ' ORDER BY c.school_year DESC, c.sent_at DESC, u.name ASC
-            LIMIT 1000';
+    $order = ' ORDER BY c.school_year DESC, c.sent_at DESC LIMIT 1000';
+    $joined = 'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at,
+                      IFNULL(u.name, c.student_id) AS student_name
+               FROM student_cors c
+               LEFT JOIN users u ON u.id = c.student_id'
+        . $where . $order;
+    $plainWhere = $where;
+    $plainParams = $params;
+    if ($user['role'] === 'admin' && $q !== '') {
+        $plainWhere = ' WHERE 1=1';
+        $plainParams = [];
+        if ($schoolYear !== '') {
+            $plainWhere .= ' AND c.school_year = ?';
+            $plainParams[] = $schoolYear;
+        }
+        if ($semester !== '') {
+            $plainWhere .= ' AND c.semester = ?';
+            $plainParams[] = $semester;
+        }
+    }
+    $plain = 'SELECT c.id, c.student_id, c.school_year, c.semester, c.label, c.sent_at,
+                     c.student_id AS student_name
+              FROM student_cors c'
+        . $plainWhere . $order;
     try {
         try {
             $yearStmt = $db->prepare($yearSql);
@@ -574,9 +591,28 @@ if ($method === 'GET' && $action === 'cors') {
         foreach ($yearStmt->fetchAll() as $yearRow) {
             $years[] = $yearRow['school_year'];
         }
-        $stmt = $db->prepare($sql);
-        $stmt->execute($params);
-        $cors = $stmt->fetchAll();
+        try {
+            $stmt = $db->prepare($joined);
+            $stmt->execute($params);
+            $cors = $stmt->fetchAll();
+        } catch (PDOException $joinErr) {
+            error_log('PRISM cors join: ' . $joinErr->getMessage());
+            $stmt = $db->prepare($plain);
+            $stmt->execute($plainParams);
+            $cors = $stmt->fetchAll();
+            if ($user['role'] === 'admin' && $q !== '') {
+                $needle = strtolower($q);
+                $cors = array_values(array_filter($cors, function ($row) use ($needle) {
+                    $hay = strtolower((string) ($row['student_name'] ?? '') . ' ' . (string) ($row['student_id'] ?? '') . ' ' . (string) ($row['label'] ?? ''));
+                    return strpos($hay, $needle) !== false;
+                }));
+            }
+        }
+        foreach ($cors as &$corRow) {
+            $corRow['program'] = '';
+            $corRow['block'] = '';
+        }
+        unset($corRow);
     } catch (PDOException $e) {
         error_log('PRISM cors: ' . $e->getMessage());
         fail('Certificates could not be loaded. Please try again.', 500);

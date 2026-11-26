@@ -1376,6 +1376,7 @@ a.is-busy::after {
   font-size: .9rem;
   font-weight: 700;
 }
+.prism-wait-only { justify-content: center; font-size: 0; gap: 0; }
 .prism-wait::before {
   content: '';
   width: 22px;
@@ -1470,3 +1471,28 @@ html[data-theme="dark"] .prism-wait { color: #e5e7eb; }
   -webkit-text-fill-color:#b91c1c;
 }
 html[data-theme="dark"] .banner-pop { background:#fff; color:#16132b; border-color:#e5e7eb; }
+.work-gate {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:.4rem;
+  margin:.55rem 0 .2rem;
+}
+.work-gate-state { font-size:.75rem; font-weight:800; color:#7c3aed; }
+.work-gate button, .work-gate select {
+  border:1px solid #ddd6fe;
+  background:#f5f3ff;
+  color:#4c1d95;
+  border-radius:8px;
+  padding:.28rem .55rem;
+  font:700 .72rem/1.2 'DM Sans',sans-serif;
+  cursor:pointer;
+}
+.work-gate label { display:inline-flex; align-items:center; gap:.3rem; font-size:.72rem; font-weight:700; color:#6b7280; }
+html[data-theme="dark"] .work-gate-state { color:#ddd6fe; }
+html[data-theme="dark"] .work-gate button,
+html[data-theme="dark"] .work-gate select {
+  background:#2a2344;
+  color:#f5f3ff;
+  border-color:#5b4b86;
+}

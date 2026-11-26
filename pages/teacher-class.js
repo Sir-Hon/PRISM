@@ -33,6 +33,8 @@ function mapApiQuizRowToLocalTeacher(q, classId) {
     questions: qs || [],
     target_section: ts,
     allowSkip: !!(+q.allow_skip || q.allowSkip),
+    closed: q.closed,
+    reopen_json: q.reopen_json || null,
   };
 }
 /** Merge API quizzes into localStorage; keep unpublished local-only drafts; drop published rows deleted on server. */
@@ -56,30 +58,69 @@ async function syncTeacherQuizzesFromApiForClass(classId) {
   }
 }
 
-async function refreshClassData(classId) {
+function slimStoredMaterial(m) {
+  if (!m || typeof m !== 'object' || !m.file_data) return m;
+  var copy = Object.assign({}, m);
+  if (!copy.file_path) copy.has_file = 1;
+  delete copy.file_data;
+  return copy;
+}
+function compactStoredMaterials() {
   try {
-    const [posts, mats, asgns, students] = await Promise.all([
-      PrismPosts.get(classId),
-      PrismMaterials.get(classId),
-      PrismAssignments.get(classId),
-      PrismClasses.getStudents(classId),
-    ]);
-    syncTeacherQuizzesFromApiForClass(classId).catch(function(){});
-    _postsCache        = _postsCache.filter(p=>p.class_id!==classId && p.classId!==classId).concat(posts);
-    _materialsCache[classId]   = mats;
-    _assignmentsCache[classId] = asgns;
-    try {
-      const allA = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
-      allA[classId] = asgns;
-      localStorage.setItem('prism_teacher_assignments', JSON.stringify(allA));
-      const allM = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
-      allM[classId] = mats;
-      localStorage.setItem('prism_teacher_materials', JSON.stringify(allM));
-    } catch (e) { /* ignore */ }
+    var raw = localStorage.getItem('prism_teacher_materials');
+    if (!raw || raw.indexOf('file_data') === -1) return;
+    var all = JSON.parse(raw);
+    Object.keys(all).forEach(function (id) {
+      if (Array.isArray(all[id])) all[id] = all[id].map(slimStoredMaterial);
+    });
+    localStorage.setItem('prism_teacher_materials', JSON.stringify(all));
+  } catch (e) {}
+}
+function seedClassCaches(classId) {
+  try {
+    var mats = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
+    if (Array.isArray(mats[classId])) _materialsCache[classId] = mats[classId].map(slimStoredMaterial);
+    var asgn = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+    if (Array.isArray(asgn[classId])) _assignmentsCache[classId] = asgn[classId];
+    var posts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]');
+    var mine = posts.filter(function (p) {
+      return String(p.class_id || p.classId) === String(classId);
+    });
+    if (mine.length) _postsCache = mine;
+  } catch (e) {}
+}
+function storeClassWork(classId, mats, asgns) {
+  _materialsCache[classId] = (mats || []).map(slimStoredMaterial);
+  _assignmentsCache[classId] = asgns || [];
+  try {
+    const allA = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+    allA[classId] = _assignmentsCache[classId];
+    localStorage.setItem('prism_teacher_assignments', JSON.stringify(allA));
+    const allM = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
+    allM[classId] = _materialsCache[classId];
+    localStorage.setItem('prism_teacher_materials', JSON.stringify(allM));
+  } catch (e) { /* ignore */ }
+}
+
+async function refreshClassData(classId) {
+  const workReady = Promise.all([
+    PrismMaterials.get(classId),
+    PrismAssignments.get(classId),
+  ]).then(function (pair) {
+    storeClassWork(classId, pair[0], pair[1]);
+    if (String(activeClassId) === String(classId) && typeof renderClasswork === 'function') renderClasswork();
+  }).catch(function (e) { console.error('refreshClassData classwork:', e); });
+  const restReady = Promise.all([
+    PrismPosts.get(classId),
+    PrismClasses.getStudents(classId),
+  ]).then(function (pair) {
+    var posts = pair[0] || [];
+    var students = pair[1] || [];
+    _postsCache = _postsCache.filter(function (p) { return p.class_id !== classId && p.classId !== classId; }).concat(posts);
     try {
       const allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]');
-      const others = allPosts.filter(p => String(p.class_id) !== String(classId) && String(p.classId) !== String(classId));
-      const merged = (posts || []).map(p => {
+      const others = allPosts.filter(function (p) { return String(p.class_id) !== String(classId) && String(p.classId) !== String(classId); });
+      const merged = posts.map(function (p) {
         const copy = Object.assign({}, p);
         copy.classId = p.class_id || p.classId;
         copy.quizId = p.quiz_id || p.quizId;
@@ -89,11 +130,11 @@ async function refreshClassData(classId) {
       });
       localStorage.setItem('prism_teacher_posts', JSON.stringify(others.concat(merged)));
     } catch (e) { /* ignore */ }
-    // Keep students in localStorage for records.html compatibility
-    localStorage.setItem('prism_students_'+classId, JSON.stringify(
-      students.map(s => typeof prismMapStudentRow === 'function' ? prismMapStudentRow(s) : { id:s.id, name:s.name, section:s.section||'', avatar:s.avatar||'' })
+    localStorage.setItem('prism_students_' + classId, JSON.stringify(
+      students.map(function (s) { return typeof prismMapStudentRow === 'function' ? prismMapStudentRow(s) : { id: s.id, name: s.name, section: s.section || '', avatar: s.avatar || '' }; })
     ));
-  } catch(e) { console.error('refreshClassData:', e); }
+  }).catch(function (e) { console.error('refreshClassData:', e); });
+  await Promise.all([workReady, restReady]);
 }
 
 function getClasses()      { return CLASSES; }
@@ -215,6 +256,8 @@ async function initTeacherClassPage() {
   }
   activeClassId = urlClass;
   try { sessionStorage.setItem('prism_teacher_active_class_id', activeClassId); } catch (e) {}
+  compactStoredMaterials();
+  seedClassCaches(urlClass);
   const cachedCls = CLASSES.find(c => c.id === urlClass);
   paintTeacherClassShell(cachedCls || { id: urlClass, subject: cachedCls ? cachedCls.subject : 'Class', color: '#7c3aed', code: '' });
   const contentReady = refreshClassData(activeClassId).then(function () {
@@ -272,6 +315,135 @@ function ensureWorkspacePanel() {
   bindAsgnDropZone();
 }
 
+function prismFormalName(raw) {
+  var name = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (!name) return 'Student';
+  if (name.indexOf(',') !== -1) return name;
+  var parts = name.split(' ');
+  if (parts.length < 2) return name;
+  var last = parts.pop();
+  return last + ', ' + parts.join(' ');
+}
+function prismFormalCompare(a, b) {
+  var an = prismFormalName(a && (a.name || a.student_name));
+  var bn = prismFormalName(b && (b.name || b.student_name));
+  var by = an.localeCompare(bn, undefined, { sensitivity: 'base' });
+  if (by) return by;
+  return String((a && (a.id || a.student_id)) || '').localeCompare(String((b && (b.id || b.student_id)) || ''));
+}
+function studentsInSection(sec) {
+  return (getStudents(activeClassId) || []).filter(function (s) {
+    return String(s.section || '').trim() === String(sec || '');
+  }).slice().sort(prismFormalCompare);
+}
+function classSectionsForBrowse() {
+  var sections = uniqueSectionsFromStudents(activeClassId);
+  var students = getStudents(activeClassId) || [];
+  var hasBlank = students.some(function (s) { return !String(s.section || '').trim(); });
+  if (activeWorkspaceSection && activeWorkspaceSection !== '__all__') {
+    return sections.filter(function (sec) { return sec === activeWorkspaceSection; });
+  }
+  if (hasBlank) sections = sections.concat(['']);
+  return sections;
+}
+function paintSectionCards(host, onPick) {
+  if (!host) return;
+  host.innerHTML = '';
+  var cls = CLASSES.find(function (c) { return c.id === activeClassId; });
+  var color = cls && /^#[0-9a-fA-F]{3,8}$/.test(String(cls.color || '')) ? cls.color : '#7c3aed';
+  var sections = classSectionsForBrowse();
+  if (!sections.length) {
+    host.innerHTML = '<div class="gc-empty">No students in this class yet.</div>';
+    return;
+  }
+  var grid = document.createElement('div');
+  grid.className = 'gc-grid';
+  sections.forEach(function (sec) {
+    var people = studentsInSection(sec);
+    var card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'gc-card';
+    card.innerHTML = '<div class="gc-card-top"><div class="gc-card-title"></div></div><div class="gc-card-body"><div class="gc-meta"></div></div>';
+    card.querySelector('.gc-card-top').style.background = color;
+    card.querySelector('.gc-card-title').textContent = sec || 'No section';
+    card.querySelector('.gc-meta').textContent = people.length + (people.length === 1 ? ' student' : ' students');
+    card.onclick = function () { onPick(sec); };
+    grid.appendChild(card);
+  });
+  host.appendChild(grid);
+}
+var recordsBrowseSection = null;
+function renderRecordsBrowse() {
+  var browse = document.getElementById('records-browse');
+  var sheet = document.getElementById('records-sheet');
+  if (!browse) return;
+  if (sheetStudentId && recordsBrowseSection != null) {
+    browse.hidden = true;
+    if (sheet) sheet.hidden = false;
+    if (typeof renderActiveSheet === 'function') renderActiveSheet();
+    return;
+  }
+  if (sheet) sheet.hidden = true;
+  browse.hidden = false;
+  if (recordsBrowseSection == null) {
+    paintSectionCards(browse, function (sec) {
+      recordsBrowseSection = sec;
+      renderRecordsBrowse();
+    });
+    return;
+  }
+  var people = studentsInSection(recordsBrowseSection);
+  browse.innerHTML = '';
+  var back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'browse-back';
+  back.textContent = 'Sections';
+  back.onclick = function () { recordsBrowseSection = null; renderRecordsBrowse(); };
+  browse.appendChild(back);
+  var title = document.createElement('h2');
+  title.className = 'browse-title';
+  title.textContent = recordsBrowseSection || 'No section';
+  browse.appendChild(title);
+  if (!people.length) {
+    var empty = document.createElement('div');
+    empty.className = 'gc-empty';
+    empty.textContent = 'No students in this section.';
+    browse.appendChild(empty);
+    return;
+  }
+  people.forEach(function (s) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'people-row roster-name';
+    var av = document.createElement('span');
+    av.className = 'people-av';
+    av.textContent = prismFormalName(s.name).charAt(0);
+    var main = document.createElement('div');
+    main.className = 'people-main';
+    var name = document.createElement('div');
+    name.className = 'people-name';
+    name.textContent = prismFormalName(s.name);
+    main.appendChild(name);
+    btn.appendChild(av);
+    btn.appendChild(main);
+    btn.onclick = function () {
+      sheetStudentId = s.id;
+      renderRecordsBrowse();
+    };
+    browse.appendChild(btn);
+  });
+}
+function backToRecordStudents() {
+  if (typeof flushSave === 'function') flushSave();
+  sheetStudentId = '';
+  renderRecordsBrowse();
+}
+function closeRecordsForFilter() {
+  if (typeof flushSave === 'function') flushSave();
+  recordsBrowseSection = null;
+  sheetStudentId = '';
+  if (activeSub === 'records') renderRecordsBrowse();
+}
 function uniqueSectionsFromStudents(classId) {
   const studs = getStudents(classId) || [];
   const set = {};
@@ -342,6 +514,8 @@ function renderWorkspaceSectionPills() {
       fillAnnouncementAudience();
       renderMaterials(); renderAssignments();
       renderSubjectAnnouncements();
+      closeRecordsForFilter();
+      if (typeof closeGradesForFilter === 'function') closeGradesForFilter();
     };
   });
   fillAsgnSide();
@@ -403,6 +577,8 @@ function renderWorkspacePage() {
   const newBtn = document.getElementById('tc-new-code-btn');
   if (newBtn) newBtn.onclick = function () { regenJoinCode(cls.id); };
   fillAsgnSide();
+  if (activeSub === 'records' && recordsBrowseSection == null && !sheetStudentId) renderRecordsBrowse();
+  if (activeSub === 'grades' && typeof QG_renderBrowse === 'function' && (typeof QG_section === 'undefined' || QG_section == null)) QG_renderBrowse();
 }
 
 function switchSub(name, btn) {
@@ -419,8 +595,8 @@ function switchSub(name, btn) {
   if (pick && pick.value !== name) pick.value = name;
   if (name === 'announcements') renderSubjectAnnouncements();
   if (name === 'quizzes') ensureClassQuizFrame();
-  if (name === 'grades' && typeof QG_open === 'function') QG_open();
-  if (name === 'records' && typeof renderActiveSheet === 'function') renderActiveSheet();
+  if (name === 'grades' && typeof QG_renderBrowse === 'function') QG_renderBrowse();
+  if (name === 'records') renderRecordsBrowse();
   if (name === 'people') renderClassPeople();
 }
 
@@ -476,8 +652,9 @@ function renderClassPeople() {
   var classId = activeClassId;
   host.innerHTML = '';
   var wait = document.createElement('div');
-  wait.className = 'gc-empty';
-  wait.textContent = 'Loading people…';
+  wait.className = 'prism-wait prism-wait-only';
+  wait.setAttribute('role', 'status');
+  wait.setAttribute('aria-label', 'Please wait');
   host.appendChild(wait);
   var task = (typeof PrismClasses !== 'undefined' && PrismClasses.getMembers)
     ? PrismClasses.getMembers(classId)
@@ -526,10 +703,14 @@ function renderClassPeople() {
 function ensureClassQuizFrame() {
   var frame = document.getElementById('class-quiz-frame');
   if (!frame || !activeClassId) return;
-  var next = 'quizmaker.html?embed=1&v=10&class=' + encodeURIComponent(activeClassId);
+  var next = 'quizmaker.html?embed=1&v=11&class=' + encodeURIComponent(activeClassId);
   if (frame.dataset.src !== next) {
     frame.dataset.src = next;
     frame.src = next;
+  }
+  if (frame.dataset.quizSync !== String(activeClassId)) {
+    frame.dataset.quizSync = String(activeClassId);
+    syncTeacherQuizzesFromApiForClass(activeClassId).catch(function () {});
   }
 }
 
@@ -722,7 +903,12 @@ async function regenJoinCode(classId) {
 
 /* ═══════════════════════════ MATERIALS ═══════════════════════════ */
 var _matFiles = [];
+var _matKept = [];
 var _asgnFile = null;
+var _asgnKept = null;
+var _asgnDropKept = false;
+var editingMaterialId = '';
+var editingAssignmentId = '';
 
 function prismTeacherMaxBytes() {
   return (typeof PRISM_MAX_FILE_BYTES === 'number') ? PRISM_MAX_FILE_BYTES : 15 * 1024 * 1024;
@@ -787,19 +973,26 @@ function removeMatLinkRow(btn) {
   row.remove();
 }
 
+function matChip(name, removeCall) {
+  return '<span class="pf-chip" onclick="event.stopPropagation()">' + teacherEsc(name)
+    + '<button type="button" onclick="event.stopPropagation();' + removeCall + '" aria-label="Remove file">\u00d7</button></span>';
+}
 function renderMatChosenFiles() {
   const chosen = document.getElementById('mat-file-chosen');
   if (!chosen) return;
-  if (!_matFiles.length) {
+  var chips = _matKept.map(function (file, i) { return matChip(file.name || 'File', 'removeKeptMatFile(' + i + ')'); })
+    .concat(_matFiles.map(function (file, i) { return matChip(file.name, 'removeMatFile(' + i + ')'); }));
+  if (!chips.length) {
     chosen.style.display = 'none';
     chosen.innerHTML = '';
     return;
   }
   chosen.style.display = 'flex';
-  chosen.innerHTML = _matFiles.map(function (file, i) {
-    return '<span class="pf-chip" onclick="event.stopPropagation()">' + teacherEsc(file.name)
-      + '<button type="button" onclick="event.stopPropagation();removeMatFile(' + i + ')" aria-label="Remove file">\u00d7</button></span>';
-  }).join('');
+  chosen.innerHTML = chips.join('');
+}
+function removeKeptMatFile(index) {
+  _matKept.splice(index, 1);
+  renderMatChosenFiles();
 }
 
 function removeMatFile(index) {
@@ -827,6 +1020,7 @@ function onMatFileChosen(input) {
 
 function resetMatComposer() {
   _matFiles = [];
+  _matKept = [];
   const fileInp = document.getElementById('mat-file-input');
   if (fileInp) fileInp.value = '';
   renderMatChosenFiles();
@@ -834,6 +1028,19 @@ function resetMatComposer() {
   if (list) list.innerHTML = matLinkRowHtml();
   const panel = document.getElementById('mat-link-panel');
   if (panel) panel.classList.remove('is-open');
+}
+function fillMatLinks(urls) {
+  var list = document.getElementById('mat-link-list');
+  if (!list) return;
+  list.innerHTML = '';
+  var rows = urls && urls.length ? urls : [''];
+  rows.forEach(function (url) {
+    list.insertAdjacentHTML('beforeend', matLinkRowHtml());
+    var inputs = list.querySelectorAll('.mat-link-input');
+    if (inputs.length) inputs[inputs.length - 1].value = url || '';
+  });
+  var panel = document.getElementById('mat-link-panel');
+  if (panel) panel.classList.toggle('is-open', !!(urls && urls.length));
 }
 
 function bindDropZone(zoneId, inputId, onChosen) {
@@ -865,26 +1072,53 @@ function bindAsgnDropZone() {
   bindDropZone('asgn-drop-zone', 'asgn-file-input', onAsgnFileChosen, '#ec4899', '#fbcfe8');
 }
 
+function renderAsgnChosen() {
+  var chosen = document.getElementById('asgn-file-chosen');
+  if (!chosen) return;
+  if (_asgnFile) {
+    chosen.style.display = 'flex';
+    chosen.innerHTML = matChip(_asgnFile.name, 'clearAsgnFile()');
+    return;
+  }
+  if (_asgnKept && !_asgnDropKept) {
+    chosen.style.display = 'flex';
+    chosen.innerHTML = matChip(_asgnKept.name || 'File', 'dropKeptAsgnFile()');
+    return;
+  }
+  chosen.style.display = 'none';
+  chosen.innerHTML = '';
+}
 function onAsgnFileChosen(input) {
   const file = input.files[0];
   if (!file) return;
   const err = prismTeacherCheckFile(file);
-  if (err) { alert(err); input.value = ''; _asgnFile = null; return; }
+  if (err) { alert(err); input.value = ''; _asgnFile = null; renderAsgnChosen(); return; }
   _asgnFile = file;
-  const chosen = document.getElementById('asgn-file-chosen');
-  if (chosen) {
-    chosen.style.display = 'flex';
-    chosen.innerHTML = '<span class="pf-chip">' + teacherEsc(file.name)
-      + '<button type="button" onclick="clearAsgnFile()" aria-label="Remove file">\u00d7</button></span>';
-  }
+  renderAsgnChosen();
 }
-
+function dropKeptAsgnFile() {
+  _asgnDropKept = true;
+  renderAsgnChosen();
+}
 function clearAsgnFile() {
   _asgnFile = null;
   const input = document.getElementById('asgn-file-input');
   if (input) input.value = '';
-  const chosen = document.getElementById('asgn-file-chosen');
-  if (chosen) { chosen.style.display = 'none'; chosen.innerHTML = ''; }
+  renderAsgnChosen();
+}
+function clearAssignmentFields() {
+  ['asgn-title','asgn-pts','asgn-instructions','asgn-due','asgn-due-time','asgn-url'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  var type = document.getElementById('asgn-type');
+  if (type) type.value = 'written';
+  clearAsgnFile();
+  _asgnKept = null;
+  _asgnDropKept = false;
+  var linkPanel = document.getElementById('asgn-link-panel');
+  if (linkPanel) linkPanel.classList.remove('is-open');
+  syncAsgnReady();
 }
 
 function showMatMsg(msg,type){ const el=document.getElementById('mat-msg'); if(!el) return; el.textContent=msg; el.className='form-msg '+type; setTimeout(()=>el.textContent='',3000); }
@@ -922,42 +1156,140 @@ async function addMaterial(){
     const found = prismExtractFirstUrl(desc) || '';
     if (found) urls = [found];
   }
-  if (!_matFiles.length && !urls.length && !desc) {
+  if (!_matFiles.length && !_matKept.length && !urls.length && !desc) {
     showMatMsg('Attach a file, paste a link, or add a short note.','err');
     return;
   }
-  const type = _matFiles.length ? 'file' : (urls[0] && typeof prismVideoEmbedFromUrl === 'function' && prismVideoEmbedFromUrl(urls[0]) ? 'video' : 'link');
+  const type = (_matFiles.length || _matKept.length) ? 'file' : (urls[0] && typeof prismVideoEmbedFromUrl === 'function' && prismVideoEmbedFromUrl(urls[0]) ? 'video' : 'link');
   const btn=document.getElementById('mat-upload-btn');
   if (typeof prismSetBusy === 'function') prismSetBusy(btn, true, 'Saving…');
   else { btn.disabled=true; btn.textContent='Saving…'; }
   try {
-    const matRes = await PrismMaterials.add({
-      class_id:activeClassId, title, type, urls: urls,
+    var editingId = editingMaterialId;
+    var matBody = {
+      id: editingId,
+      class_id: activeClassId,
+      title: title,
+      type: type,
+      urls: urls,
       files: _matFiles.slice(),
+      keep_files: _matKept.map(function (file) { return file.path; }).filter(Boolean),
       desc: desc,
-      target_section: getWorkspaceTargetSectionForApi(),
-    });
-    const streamAttach = (matRes && matRes.file_path) ? matRes.file_path : (urls[0] || '');
-    await PrismPosts.add({
-      class_id:activeClassId, teacherId:TEACHER_ID, type:'material',
-      body:'New material: "'+title+'"', attachment: streamAttach,
-      author:sessionStorage.getItem('prism_user_name')||'Teacher',
-      target_section: getWorkspaceTargetSectionForApi(),
-    });
+      target_section: editingId ? (findClassworkItem('material', editingId).target_section || '') : getWorkspaceTargetSectionForApi(),
+    };
+    const matRes = editingId ? await saveMaterialUpdate(matBody) : await PrismMaterials.add(matBody);
+    if (!editingId) {
+      const streamAttach = (matRes && matRes.file_path) ? matRes.file_path : (urls[0] || '');
+      await PrismPosts.add({
+        class_id:activeClassId, teacherId:TEACHER_ID, type:'material',
+        body:'New material: "'+title+'"', attachment: streamAttach,
+        author:sessionStorage.getItem('prism_user_name')||'Teacher',
+        target_section: getWorkspaceTargetSectionForApi(),
+      });
+    }
     document.getElementById('mat-title').value='';
     if (descEl) descEl.value='';
     resetMatComposer();
     await refreshClassData(activeClassId);
     renderMaterials(); renderWorkspacePage();
     closeClassworkComposer();
-    showMatMsg(' Shared with the class.','ok');
+    showMatMsg(editingId ? ' Saved.' : ' Shared with the class.','ok');
   } catch(e) { showMatMsg(e.message||'Upload failed.','err'); }
   finally {
     if (typeof prismSetBusy === 'function') prismSetBusy(btn, false);
-    else { btn.disabled=false; btn.textContent='Share with class'; }
+    setComposerMode('material', !!editingMaterialId);
   }
 }
 
+function findClassworkItem(kind, id) {
+  var bag = kind === 'assignment' ? (getAssignments()[activeClassId] || []) : (getMaterials()[activeClassId] || []);
+  return bag.filter(function (row) { return String(row.id) === String(id); })[0] || {};
+}
+function saveMaterialUpdate(fields) {
+  var files = fields.files || [];
+  if (files.length) {
+    var fd = new FormData();
+    fd.append('id', fields.id || '');
+    fd.append('title', fields.title || '');
+    fd.append('desc', fields.desc || '');
+    fd.append('urls', JSON.stringify(fields.urls || []));
+    fd.append('keep_files', JSON.stringify(fields.keep_files || []));
+    if (fields.target_section) fd.append('target_section', fields.target_section);
+    files.forEach(function (file) { fd.append('files[]', file, file.name); });
+    return apiForm('content', 'update_material', fd);
+  }
+  return apiCall('content', 'update_material', 'POST', fields);
+}
+function saveAssignmentUpdate(fields) {
+  if (fields.file instanceof File) {
+    var fd = new FormData();
+    ['id', 'title', 'type', 'instructions', 'pts', 'due', 'due_time', 'attach_url', 'target_section', 'clear_file'].forEach(function (key) {
+      if (fields[key] != null && fields[key] !== '') fd.append(key, fields[key]);
+    });
+    fd.append('file', fields.file, fields.file.name);
+    return apiForm('content', 'update_assignment', fd);
+  }
+  return apiCall('content', 'update_assignment', 'POST', fields);
+}
+function paintAssignmentGate(it) {
+  var host = document.getElementById('asgn-gate');
+  if (!host) return;
+  var people = [];
+  try { people = getStudents(activeClassId) || []; } catch (e) { people = []; }
+  host.hidden = false;
+  host.innerHTML = typeof prismTeacherGateControls === 'function' ? prismTeacherGateControls('assignment', it, people) : '';
+}
+function editMaterial(id) {
+  var it = findClassworkItem('material', id);
+  if (!it.id) return;
+  editingMaterialId = it.id;
+  document.getElementById('mat-title').value = it.title || '';
+  var desc = document.getElementById('mat-desc');
+  if (desc) desc.value = it.description || it.desc || '';
+  var pieces = teacherMaterialPieces(it);
+  _matFiles = [];
+  _matKept = pieces.filter(function (piece) { return piece.kind === 'file' && piece.path; });
+  fillMatLinks(pieces.filter(function (piece) { return piece.kind === 'link'; }).map(function (piece) { return piece.url; }));
+  renderMatChosenFiles();
+  setComposerMode('material', true);
+  openClassworkComposer('material', true);
+}
+function editAssignment(id) {
+  var it = findClassworkItem('assignment', id);
+  if (!it.id) return;
+  editingAssignmentId = it.id;
+  document.getElementById('asgn-title').value = it.title || '';
+  document.getElementById('asgn-instructions').value = it.instructions || '';
+  document.getElementById('asgn-pts').value = it.points || it.pts || '';
+  document.getElementById('asgn-due').value = String(it.due_date || it.due || '').slice(0, 10);
+  document.getElementById('asgn-due-time').value = String(it.due_time || '').slice(0, 5);
+  var type = document.getElementById('asgn-type');
+  if (type) type.value = it.type || 'written';
+  var url = String(it.attach_url || it.attachUrl || '');
+  var urlEl = document.getElementById('asgn-url');
+  if (urlEl) urlEl.value = url;
+  var panel = document.getElementById('asgn-link-panel');
+  if (panel) panel.classList.toggle('is-open', !!url);
+  _asgnFile = null;
+  _asgnDropKept = false;
+  _asgnKept = (it.attach_file_path || it.attachFilePath) ? {
+    name: it.attach_file_name || it.attachFileName || 'File',
+    path: it.attach_file_path || it.attachFilePath
+  } : null;
+  renderAsgnChosen();
+  paintAssignmentGate(it);
+  setComposerMode('assignment', true);
+  syncAsgnReady();
+  openClassworkComposer('assignment', true);
+  var sel = document.getElementById('asgn-assign-to');
+  var sec = String(it.target_section || '').trim();
+  if (sel) sel.value = sec && [].some.call(sel.options, function (opt) { return opt.value === sec; }) ? sec : '__all__';
+}
+function classworkEditButton(kind, id) {
+  var fn = kind === 'assignment' ? 'editAssignment' : 'editMaterial';
+  return '<button type="button" class="cw-edit" title="Edit" aria-label="Edit" onclick="event.preventDefault();event.stopPropagation();' + fn + '(' + JSON.stringify(String(id)) + ')">'
+    + '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>';
+}
 function teacherMaterialPieces(it) {
   var raw = it && it.attachments_json;
   if (typeof raw === 'string' && raw.trim()) {
@@ -972,7 +1304,7 @@ function teacherMaterialPieces(it) {
     });
   }
   if (!pieces.length && it) {
-    if (it.file_path || it.file_data) pieces.push({ kind: 'file', name: it.file_name || 'Attachment', path: it.file_path || '', mime: it.mime_type || '', legacyId: it.id });
+    if (it.file_path || it.file_data || (it.file_name && String(it.type || 'file') !== 'link')) pieces.push({ kind: 'file', name: it.file_name || 'Attachment', path: it.file_path || '', mime: it.mime_type || '', legacyId: it.id });
     var href = typeof prismMaterialHttpUrl === 'function' ? prismMaterialHttpUrl(it) : (it.url || '');
     if (href) pieces.push({ kind: 'link', url: href });
   }
@@ -984,9 +1316,32 @@ function toggleClassworkMenu(ev) {
   var menu = document.getElementById('cw-menu');
   if (menu) menu.hidden = !menu.hidden;
 }
-function openClassworkComposer(kind) {
+function setComposerMode(kind, editing) {
+  var root = document.getElementById(kind === 'assignment' ? 'cw-composer-assignment' : 'cw-composer-material');
+  var name = root && root.querySelector('.gc-name');
+  if (name) name.textContent = editing ? (kind === 'assignment' ? 'Edit assignment' : 'Edit material') : (kind === 'assignment' ? 'Assignment' : 'Material');
+  var btn = document.getElementById(kind === 'assignment' ? 'asgn-assign-btn' : 'mat-upload-btn');
+  if (btn && btn.getAttribute('data-prism-busy') !== '1') btn.textContent = editing ? 'Save' : (kind === 'assignment' ? 'Assign' : 'Share');
+}
+function resetClassworkEdit() {
+  editingMaterialId = '';
+  editingAssignmentId = '';
+  _matKept = [];
+  _asgnKept = null;
+  _asgnDropKept = false;
+  setComposerMode('material', false);
+  setComposerMode('assignment', false);
+  var gate = document.getElementById('asgn-gate');
+  if (gate) { gate.hidden = true; gate.innerHTML = ''; }
+}
+function openClassworkComposer(kind, keepEdit) {
   var menu = document.getElementById('cw-menu');
   if (menu) menu.hidden = true;
+  if (!keepEdit) {
+    resetClassworkEdit();
+    resetMatComposer();
+    clearAssignmentFields();
+  }
   var mat = document.getElementById('cw-composer-material');
   var asgn = document.getElementById('cw-composer-assignment');
   if (mat) mat.hidden = kind !== 'material';
@@ -1000,6 +1355,7 @@ function closeClassworkComposer() {
   var asgn = document.getElementById('cw-composer-assignment');
   if (mat) mat.hidden = true;
   if (asgn) asgn.hidden = true;
+  resetClassworkEdit();
 }
 document.addEventListener('click', function (e) {
   var menu = document.getElementById('cw-menu');
@@ -1059,7 +1415,7 @@ function renderClasswork() {
       + (note ? '<div style="margin-top:.25rem;white-space:pre-wrap;">' + teacherEsc(note) + '</div>' : '')
       + '<div class="cw-actions">' + actions
       + '<button type="button" class="mat-del" onclick="deleteMaterial(\'' + it.id + '\')">Remove</button></div>';
-    return '<details class="cw-item"><summary><span class="cw-ico">' + classworkIcon('material') + '</span><span class="cw-title">' + teacherEsc(it.title || 'Material') + '</span><span class="cw-date">' + teacherEsc(classworkPosted(it.created_at || it.date)) + '</span></summary><div class="cw-body">' + body + '</div></details>';
+    return '<details class="cw-item"><summary><span class="cw-ico">' + classworkIcon('material') + '</span><span class="cw-title">' + teacherEsc(it.title || 'Material') + '</span><span class="cw-summary-tools">' + classworkEditButton('material', it.id) + '</span><span class="cw-date">' + teacherEsc(classworkPosted(it.created_at || it.date)) + '</span></summary><div class="cw-body">' + body + '</div></details>';
   }
   function asgnRow(it) {
     var dStr = it.due_date || it.due || '';
@@ -1079,13 +1435,14 @@ function renderClasswork() {
     if (it.points || it.pts) bits.push((it.points || it.pts) + ' pts');
     if (dueDisp) bits.push('Due ' + dueDisp);
     if (it.target_section && String(it.target_section).trim()) bits.push(String(it.target_section).trim());
+    if (it.closed != null && String(it.closed) !== '' && String(it.closed) !== '0') bits.push('Closed');
     var instructions = String(it.instructions || '').trim();
     var body = (bits.length ? '<div>' + teacherEsc(bits.join(' · ')) + '</div>' : '')
       + (instructions ? '<div style="margin-top:.25rem;white-space:pre-wrap;">' + teacherEsc(instructions) + '</div>' : '')
       + '<div class="cw-actions">' + actions
       + '<button type="button" onclick="openSubjectRecords()" style="border:none;background:none;color:#059669;font-weight:700;cursor:pointer;font-family:inherit;font-size:.78rem;">Records</button>'
       + '<button type="button" class="mat-del" onclick="deleteAssignment(\'' + it.id + '\')">Remove</button></div>';
-    return '<details class="cw-item"><summary><span class="cw-ico assignment">' + classworkIcon('assignment') + '</span><span class="cw-title">' + teacherEsc(it.title || 'Assignment') + '</span><span class="cw-date">' + teacherEsc(classworkPosted(it.created_at || it.date)) + '</span></summary><div class="cw-body">' + body + '</div></details>';
+    return '<details class="cw-item"><summary><span class="cw-ico assignment">' + classworkIcon('assignment') + '</span><span class="cw-title">' + teacherEsc(it.title || 'Assignment') + '</span><span class="cw-summary-tools">' + classworkEditButton('assignment', it.id) + '</span><span class="cw-date">' + teacherEsc(classworkPosted(it.created_at || it.date)) + '</span></summary><div class="cw-body">' + body + '</div></details>';
   }
   var groups = [];
   if (mats.length) groups.push(classworkTopic('Materials', mats.map(matRow).join('')));
@@ -1154,21 +1511,36 @@ function renderMaterials(){
       + '<div class="mat-meta">'+teacherEsc(metaBits.join(' · '))+secTag+' · '+new Date(it.created_at||it.date).toLocaleDateString()+'</div>'
       + noteHtml + '</div>'
       + actionBtn
+      + '<button type="button" class="cw-edit" title="Edit" aria-label="Edit" onclick="editMaterial(\''+it.id+'\')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>'
       + '<button class="mat-del" onclick="deleteMaterial(\''+it.id+'\')">Remove</button>'
       + '</div>';
   }).join('');
 }
 
-function downloadMaterial(id){
+async function downloadMaterial(id){
   const items=getMaterials()[activeClassId]||[];
   const it=items.find(x=>x.id===id);
   if(!it)return;
-  if (typeof prismOpenMaterialUrl === 'function' && (it.file_path || it.file_data)) {
-    prismOpenMaterialUrl(it.file_path || it.file_data, it.mime_type || '', it.file_name || it.title || 'file');
+  var src = it.file_path || it.file_data || '';
+  var mime = it.mime_type || '';
+  var name = it.file_name || it.title || 'file';
+  if (!src && typeof apiGet === 'function') {
+    try {
+      var data = await apiGet('content', 'material_file', { id: id });
+      src = data.file_path || data.file_data || '';
+      mime = data.mime_type || mime;
+      name = data.file_name || name;
+    } catch (e) {
+      alert((e && e.message) || 'Could not open this file.');
+      return;
+    }
+  }
+  if (!src) return;
+  if (typeof prismOpenMaterialUrl === 'function') {
+    prismOpenMaterialUrl(src, mime, name);
     return;
   }
-  if(!it.file_data)return;
-  const a=document.createElement('a'); a.href=it.file_data; a.download=it.file_name||it.title;
+  const a=document.createElement('a'); a.href=src; a.download=name;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 
@@ -1194,9 +1566,11 @@ async function addAssignment(){
     if (!attachUrl) { alert('Please enter a valid website or video link, or leave the link field empty.'); return; }
   }
   var asgnBtn = document.querySelector('button[onclick="addAssignment()"]');
-  if (typeof prismSetBusy === 'function') prismSetBusy(asgnBtn, true, 'Creating…');
+  var editingId = editingAssignmentId;
+  if (typeof prismSetBusy === 'function') prismSetBusy(asgnBtn, true, 'Saving…');
   try {
-    const asgnRes = await PrismAssignments.add({
+    var asgnBody = {
+      id: editingId,
       class_id:activeClassId, title,
       due: due||null,
       due_time: dueTime || null,
@@ -1206,26 +1580,29 @@ async function addAssignment(){
       target_section: assignmentTargetSection(),
       attach_url: attachUrl || '',
       file: _asgnFile || null,
-    });
-    const dueLine = due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(due, dueTime) : due;
-    const streamAttach = (asgnRes && asgnRes.attach_file_path) ? asgnRes.attach_file_path : (attachUrl || null);
-    await PrismPosts.add({
-      class_id:activeClassId, teacherId:TEACHER_ID, type:'assignment',
-      body:'New assignment: "'+title+'"'+(due?' · Due '+dueLine:''),
-      attachment: streamAttach,
-      author:sessionStorage.getItem('prism_user_name')||'Teacher',
-      target_section: assignmentTargetSection(),
-    });
-    ['asgn-title','asgn-pts','asgn-instructions','asgn-due','asgn-due-time','asgn-url'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-    syncAsgnReady();
+      clear_file: (! _asgnFile && _asgnDropKept) ? '1' : '',
+    };
+    const asgnRes = editingId ? await saveAssignmentUpdate(asgnBody) : await PrismAssignments.add(asgnBody);
+    if (!editingId) {
+      const dueLine = due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(due, dueTime) : due;
+      const streamAttach = (asgnRes && asgnRes.attach_file_path) ? asgnRes.attach_file_path : (attachUrl || null);
+      await PrismPosts.add({
+        class_id:activeClassId, teacherId:TEACHER_ID, type:'assignment',
+        body:'New assignment: "'+title+'"'+(due?' · Due '+dueLine:''),
+        attachment: streamAttach,
+        author:sessionStorage.getItem('prism_user_name')||'Teacher',
+        target_section: assignmentTargetSection(),
+      });
+    }
+    clearAssignmentFields();
     closeClassworkComposer();
-    clearAsgnFile();
-    const linkPanel = document.getElementById('asgn-link-panel');
-    if (linkPanel) linkPanel.classList.remove('is-open');
     await refreshClassData(activeClassId);
     renderAssignments(); renderWorkspacePage();
-  } catch(e){ alert(e.message||'Failed to create assignment.'); }
-  finally { if (typeof prismSetBusy === 'function') prismSetBusy(asgnBtn, false); }
+  } catch(e){ alert(e.message||'Could not save the assignment.'); }
+  finally {
+    if (typeof prismSetBusy === 'function') prismSetBusy(asgnBtn, false);
+    setComposerMode('assignment', !!editingAssignmentId);
+  }
 }
 
 function renderAssignments(){
@@ -1269,10 +1646,34 @@ function renderAssignments(){
       + srcBtns
       +(dStr?'<div class="asgn-due'+(overdue?' overdue':'')+'">'+( overdue?' ':'' )+'Due '+dueDisp+'</div>':'')
       +'<button type="button" onclick="openSubjectRecords()" style="font-size:.72rem;color:#059669;font-weight:700;white-space:nowrap;background:none;border:none;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Records</button>'
+      +'<button type="button" class="cw-edit" title="Edit" aria-label="Edit" onclick="editAssignment(\''+it.id+'\')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>'
       +'<button class="mat-del" onclick="deleteAssignment(\''+it.id+'\')">Remove</button>'
       +'</div>';
   }).join('');
 }
+
+window.__prismAfterWorkGate = function (kind, id, res) {
+  if (kind !== 'assignment' || !activeClassId) return;
+  var all = getAssignments();
+  var list = all[activeClassId] || [];
+  list.forEach(function (it) {
+    if (String(it.id) !== String(id)) return;
+    it.closed = res && res.closed ? 1 : 0;
+    it.reopen_json = res && res.reopen ? res.reopen : null;
+  });
+  _assignmentsCache[activeClassId] = list;
+  try {
+    var stored = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+    stored[activeClassId] = list;
+    localStorage.setItem('prism_teacher_assignments', JSON.stringify(stored));
+  } catch (e) {}
+  renderClasswork();
+  renderAssignments();
+  if (kind === 'assignment' && String(editingAssignmentId) === String(id)) {
+    var fresh = findClassworkItem('assignment', id);
+    if (fresh.id) paintAssignmentGate(fresh);
+  }
+};
 
 async function deleteAssignment(id){
   try {

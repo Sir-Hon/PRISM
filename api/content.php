@@ -18,6 +18,7 @@ function prism_ensure_post_target_student(PDO $db): bool {
     try {
         if (!prism_table_has_column($db, 'posts', 'target_student')) {
             $db->exec('ALTER TABLE posts ADD COLUMN target_student VARCHAR(50) NULL DEFAULT NULL');
+            prism_table_columns($db, 'posts', true);
         }
         $ready = prism_table_has_column($db, 'posts', 'target_student');
     } catch (Throwable $e) {
@@ -265,17 +266,13 @@ function prism_ensure_material_attachments(PDO $db): bool {
     if ($ready !== null) {
         return $ready;
     }
-    try {
-        $stmt = $db->query('SHOW COLUMNS FROM `materials` LIKE ' . $db->quote('attachments_json'));
-        $ready = $stmt && $stmt->rowCount() > 0;
-    } catch (PDOException $e) {
-        $ready = false;
-    }
-    if ($ready) {
+    if (prism_table_has_column($db, 'materials', 'attachments_json')) {
+        $ready = true;
         return true;
     }
     try {
         $db->exec('ALTER TABLE materials ADD COLUMN attachments_json MEDIUMTEXT NULL');
+        prism_table_columns($db, 'materials', true);
         $ready = true;
     } catch (PDOException $e) {
         error_log('PRISM materials attachments: ' . $e->getMessage());
@@ -400,8 +397,8 @@ if ($action === 'get_materials') {
     $hasSec = prism_table_has_column($db, 'materials', 'target_section');
     $hasAttach = prism_ensure_material_attachments($db);
     $sel = $hasSec
-        ? 'id, class_id, teacher_id, target_section, title, type, url, file_name, IF(file_path IS NULL OR file_path = \'\', file_data, NULL) AS file_data, file_path, mime_type, description, created_at'
-        : 'id, class_id, teacher_id, title, type, url, file_name, IF(file_path IS NULL OR file_path = \'\', file_data, NULL) AS file_data, file_path, mime_type, description, created_at';
+        ? 'id, class_id, teacher_id, target_section, title, type, url, file_name, file_path, mime_type, description, created_at'
+        : 'id, class_id, teacher_id, title, type, url, file_name, file_path, mime_type, description, created_at';
     if ($hasAttach) {
         $sel .= ', attachments_json';
     }
@@ -415,6 +412,22 @@ if ($action === 'get_materials') {
         $stmt->execute([$class_id]);
     }
     ok(['materials' => $stmt->fetchAll()]);
+}
+
+if ($action === 'material_file') {
+    $id = trim((string) ($_GET['id'] ?? ''));
+    if ($id === '') fail('Missing material', 400);
+    $stmt = $db->prepare('SELECT class_id, file_name, file_data, file_path, mime_type FROM materials WHERE id = ?');
+    $stmt->execute([$id]);
+    $row = $stmt->fetch();
+    if (!$row) fail('Material not found', 404);
+    prism_assert_class_access($db, $user, (string) $row['class_id']);
+    ok([
+        'file_name' => $row['file_name'] ?? '',
+        'file_path' => $row['file_path'] ?? '',
+        'mime_type' => $row['mime_type'] ?? '',
+        'file_data' => ($row['file_path'] ?? '') !== '' ? '' : ($row['file_data'] ?? ''),
+    ]);
 }
 
 if ($action === 'add_material') {
@@ -520,6 +533,118 @@ if ($action === 'add_material') {
     ok(['id' => $id, 'file_path' => $file_path, 'type' => $type, 'attachments' => $attachments]);
 }
 
+if ($action === 'update_material') {
+    if ($user['role'] !== 'teacher') fail('Forbidden', 403);
+    if (prism_request_is_multipart()) {
+        $b = [
+            'id' => $_POST['id'] ?? '',
+            'title' => $_POST['title'] ?? '',
+            'type' => $_POST['type'] ?? '',
+            'url' => $_POST['url'] ?? '',
+            'urls' => $_POST['urls'] ?? '',
+            'desc' => $_POST['desc'] ?? '',
+            'target_section' => $_POST['target_section'] ?? '',
+            'keep_files' => $_POST['keep_files'] ?? '[]',
+        ];
+    } else {
+        $b = getBody();
+    }
+    $id = trim((string) ($b['id'] ?? ''));
+    if ($id === '') fail('Missing material', 400);
+    $stmt = $db->prepare('SELECT * FROM materials WHERE id = ? AND teacher_id = ?');
+    $stmt->execute([$id, $user['id']]);
+    $row = $stmt->fetch();
+    if (!$row) fail('Material not found', 404);
+    $title = trim((string) ($b['title'] ?? ''));
+    if ($title === '') fail('Title is required', 400);
+    $desc = trim((string) ($b['desc'] ?? $b['description'] ?? ''));
+    $hasAttach = prism_ensure_material_attachments($db);
+    $existing = [];
+    if (!empty($row['attachments_json'])) {
+        $decoded = json_decode((string) $row['attachments_json'], true);
+        if (is_array($decoded)) $existing = $decoded;
+    }
+    if (!$existing) {
+        if (!empty($row['file_path']) || !empty($row['file_name'])) {
+            $existing[] = [
+                'kind' => 'file',
+                'name' => $row['file_name'] ?? 'Attachment',
+                'path' => $row['file_path'] ?? '',
+                'mime' => $row['mime_type'] ?? '',
+            ];
+        }
+        if (!empty($row['url'])) $existing[] = ['kind' => 'link', 'url' => $row['url']];
+    }
+    $keepRaw = $b['keep_files'] ?? [];
+    if (is_string($keepRaw)) {
+        $decodedKeep = json_decode($keepRaw, true);
+        $keepRaw = is_array($decodedKeep) ? $decodedKeep : [];
+    }
+    $keepPaths = [];
+    foreach ((array) $keepRaw as $kept) {
+        $path = is_array($kept) ? (string) ($kept['path'] ?? '') : (string) $kept;
+        $path = trim($path);
+        if ($path !== '') $keepPaths[] = $path;
+    }
+    $keptFiles = [];
+    $dropped = [];
+    foreach ($existing as $item) {
+        if (!is_array($item) || empty($item['path'])) continue;
+        if (in_array((string) $item['path'], $keepPaths, true)) $keptFiles[] = $item;
+        else $dropped[] = (string) $item['path'];
+    }
+    $urls = prism_collect_material_urls($b);
+    $uploads = prism_read_multipart_files('files');
+    if (!$uploads) {
+        $single = prism_read_multipart_file('file');
+        if ($single) $uploads = [$single];
+    }
+    if (count($keptFiles) + count($uploads) > 8) fail('You can attach up to 8 files.', 400);
+    if (!$keptFiles && !$uploads && !$urls && $desc === '') {
+        fail('Add a file, a link, or a short note.', 400);
+    }
+    foreach ($dropped as $path) {
+        if ($path !== '') prism_delete_material_files(['file_path' => $path]);
+    }
+    $attachments = $keptFiles;
+    $file_name = null;
+    $file_path = null;
+    $mime = null;
+    foreach ($uploads as $i => $up) {
+        list($storedName, $storedPath, $storedMime) = prism_store_binary_upload($id, '_e' . $i . '_' . substr(uniqid(), -4), $up['name'], $up['bin'], $up['mime']);
+        $attachments[] = ['kind' => 'file', 'name' => $storedName, 'path' => $storedPath, 'mime' => $storedMime];
+    }
+    foreach ($attachments as $item) {
+        if ($file_path === null && !empty($item['path'])) {
+            $file_name = $item['name'] ?? null;
+            $file_path = $item['path'];
+            $mime = $item['mime'] ?? null;
+        }
+    }
+    foreach ($urls as $oneUrl) {
+        $attachments[] = ['kind' => 'link', 'url' => $oneUrl];
+    }
+    $url = $urls[0] ?? '';
+    if ($uploads || $keptFiles) $uiType = 'file';
+    elseif ($url !== '') $uiType = prism_is_video_page_url($url) ? 'video' : 'link';
+    else $uiType = 'link';
+    $type = prism_material_type_from_ui($uiType, $url, $mime, $file_name);
+    $sets = ['title = ?', 'type = ?', 'url = ?', 'file_name = ?', 'file_data = ?', 'file_path = ?', 'mime_type = ?', 'description = ?'];
+    $vals = [$title, $type, $url, $file_name, null, $file_path, $mime, $desc];
+    if (prism_table_has_column($db, 'materials', 'target_section')) {
+        $sets[] = 'target_section = ?';
+        $vals[] = prism_target_section_from_body($b);
+    }
+    if ($hasAttach) {
+        $sets[] = 'attachments_json = ?';
+        $vals[] = json_encode($attachments);
+    }
+    $vals[] = $id;
+    $vals[] = $user['id'];
+    $db->prepare('UPDATE materials SET ' . implode(', ', $sets) . ' WHERE id = ? AND teacher_id = ?')->execute($vals);
+    ok(['id' => $id, 'file_path' => $file_path, 'type' => $type, 'attachments' => $attachments]);
+}
+
 if ($action === 'delete_material') {
     $b = getBody();
     // Remove file from disk if exists
@@ -544,14 +669,19 @@ if ($action === 'delete_material') {
 if ($action === 'get_assignments') {
     $class_id = $_GET['class_id'] ?? '';
     prism_assert_class_access($db, $user, $class_id);
+    prism_ensure_work_gate($db, 'assignments');
+    $cols = ['id', 'class_id', 'teacher_id', 'title', 'type', 'instructions', 'points', 'due_date', 'created_at'];
+    foreach (['target_section', 'attach_url', 'attach_file_name', 'attach_file_path', 'attach_mime', 'due_time', 'closed', 'reopen_json'] as $col) {
+        if (prism_table_has_column($db, 'assignments', $col)) $cols[] = $col;
+    }
     $stuSec = prism_student_section_for_filter($db, $user);
     if ($stuSec !== null && prism_table_has_column($db, 'assignments', 'target_section')) {
         $stmt = $db->prepare(
-            'SELECT * FROM assignments WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
+            'SELECT ' . implode(', ', $cols) . ' FROM assignments WHERE class_id = ? AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
         );
         $stmt->execute([$class_id, $stuSec]);
     } else {
-        $stmt = $db->prepare('SELECT * FROM assignments WHERE class_id = ? ORDER BY created_at DESC');
+        $stmt = $db->prepare('SELECT ' . implode(', ', $cols) . ' FROM assignments WHERE class_id = ? ORDER BY created_at DESC');
         $stmt->execute([$class_id]);
     }
     ok(['assignments' => $stmt->fetchAll()]);
@@ -627,6 +757,79 @@ if ($action === 'add_assignment') {
     ok(['id' => $id, 'attach_file_path' => $afp]);
 }
 
+if ($action === 'update_assignment') {
+    if ($user['role'] !== 'teacher') fail('Forbidden', 403);
+    if (prism_request_is_multipart()) {
+        $b = [
+            'id' => $_POST['id'] ?? '',
+            'title' => $_POST['title'] ?? '',
+            'type' => $_POST['type'] ?? 'written',
+            'instructions' => $_POST['instructions'] ?? '',
+            'pts' => $_POST['pts'] ?? 0,
+            'due' => $_POST['due'] ?? null,
+            'due_time' => $_POST['due_time'] ?? null,
+            'attach_url' => $_POST['attach_url'] ?? '',
+            'target_section' => $_POST['target_section'] ?? '',
+            'clear_file' => $_POST['clear_file'] ?? '',
+        ];
+    } else {
+        $b = getBody();
+    }
+    $id = trim((string) ($b['id'] ?? ''));
+    if ($id === '') fail('Missing assignment', 400);
+    $title = trim((string) ($b['title'] ?? ''));
+    if ($title === '') fail('Title is required', 400);
+    $stmt = $db->prepare('SELECT * FROM assignments WHERE id = ? AND teacher_id = ?');
+    $stmt->execute([$id, $user['id']]);
+    $row = $stmt->fetch();
+    if (!$row) fail('Assignment not found', 404);
+    $dueA = $b['due'] ?? null;
+    $dueA = ($dueA !== null && $dueA !== '') ? $dueA : null;
+    $dueTimeA = $b['due_time'] ?? null;
+    $dueTimeA = ($dueTimeA !== null && trim((string) $dueTimeA) !== '') ? trim((string) $dueTimeA) : null;
+    if ($dueTimeA !== null && !preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $dueTimeA)) $dueTimeA = null;
+    if ($dueA === null) $dueTimeA = null;
+    $attach_url = prism_normalize_http_url($b['attach_url'] ?? '');
+    $attach_url = $attach_url !== '' ? $attach_url : null;
+    $afn = $row['attach_file_name'] ?? null;
+    $afp = $row['attach_file_path'] ?? null;
+    $amm = $row['attach_mime'] ?? null;
+    $hasAssignAttach = prism_table_has_column($db, 'assignments', 'attach_url')
+        || prism_table_has_column($db, 'assignments', 'attach_file_path');
+    $clearFile = (string) ($b['clear_file'] ?? '') === '1';
+    if ($hasAssignAttach) {
+        $up = prism_read_multipart_file('file');
+        if (!$up) $up = prism_read_base64_file($b['fileData'] ?? $b['file_data'] ?? null);
+        if ($up) {
+            if (!empty($afp)) prism_delete_material_files(['file_path' => $afp]);
+            list($afn, $afp, $amm) = prism_store_binary_upload($id, '_ref', $up['name'], $up['bin'], $up['mime']);
+        } elseif ($clearFile && !empty($afp)) {
+            prism_delete_material_files(['file_path' => $afp]);
+            $afn = null;
+            $afp = null;
+            $amm = null;
+        }
+    }
+    $sets = ['title = ?', 'type = ?', 'instructions = ?', 'points = ?', 'due_date = ?'];
+    $vals = [$title, $b['type'] ?? 'written', $b['instructions'] ?? '', intval($b['pts'] ?? 0), $dueA];
+    if (prism_table_has_column($db, 'assignments', 'target_section')) {
+        $sets[] = 'target_section = ?';
+        $vals[] = prism_target_section_from_body($b);
+    }
+    if (prism_table_has_column($db, 'assignments', 'due_time')) {
+        $sets[] = 'due_time = ?';
+        $vals[] = $dueTimeA;
+    }
+    if ($hasAssignAttach) {
+        array_push($sets, 'attach_url = ?', 'attach_file_name = ?', 'attach_file_path = ?', 'attach_mime = ?');
+        array_push($vals, $attach_url, $afn, $afp, $amm);
+    }
+    $vals[] = $id;
+    $vals[] = $user['id'];
+    $db->prepare('UPDATE assignments SET ' . implode(', ', $sets) . ' WHERE id = ? AND teacher_id = ?')->execute($vals);
+    ok(['id' => $id, 'attach_file_path' => $afp]);
+}
+
 if ($action === 'delete_assignment') {
     $b = getBody();
     $aid = $b['id'] ?? '';
@@ -676,6 +879,7 @@ function prism_submission_score_ready(PDO $db): bool {
     if (!prism_table_has_column($db, 'submissions', 'score')) {
         try {
             $db->exec('ALTER TABLE submissions ADD COLUMN score INT NULL DEFAULT NULL');
+            prism_table_columns($db, 'submissions', true);
         } catch (Throwable $e) {
             error_log('PRISM submission score: ' . $e->getMessage());
         }
@@ -807,10 +1011,14 @@ if ($action === 'submit') {
     $note     = trim((string) ($b['note'] ?? ''));
 
     prism_assert_student_enrolled($db, $user['id'], $class_id);
-    $dueCols = prism_table_has_column($db, 'assignments', 'due_time')
-        ? 'class_id, due_date, due_time'
-        : 'class_id, due_date';
-    $asgnClassChk = $db->prepare('SELECT ' . $dueCols . ' FROM assignments WHERE id = ?');
+    prism_ensure_work_gate($db, 'assignments');
+    $dueCols = ['class_id', 'due_date'];
+    if (prism_table_has_column($db, 'assignments', 'due_time')) $dueCols[] = 'due_time';
+    if (prism_table_has_column($db, 'assignments', 'closed')) {
+        $dueCols[] = 'closed';
+        $dueCols[] = 'reopen_json';
+    }
+    $asgnClassChk = $db->prepare('SELECT ' . implode(', ', $dueCols) . ' FROM assignments WHERE id = ?');
     $asgnClassChk->execute([$asgn_id]);
     $asgnClassRow = $asgnClassChk->fetch();
     if (!$asgnClassRow || $asgnClassRow['class_id'] !== $class_id) {
@@ -838,8 +1046,11 @@ if ($action === 'submit') {
     $link_url = $link_url !== '' ? $link_url : null;
 
     $asgnRow = $asgnClassRow;
-    if ($asgnRow && !empty($asgnRow['due_date']) && prism_is_past_deadline($asgnRow['due_date'], $asgnRow['due_time'] ?? null)) {
-        fail('The deadline for this assignment has passed. Please contact your teacher if you need more time.', 403);
+    if ($asgnRow && prism_work_locked_for_student($db, $asgnRow, $user)) {
+        $manual = isset($asgnRow['closed']) && (string) $asgnRow['closed'] !== '' && (string) $asgnRow['closed'] !== '0';
+        fail($manual
+            ? 'Your teacher closed this assignment. It stays closed unless they open it for you.'
+            : 'The deadline for this assignment has passed. Please contact your teacher if you need more time.', 403);
     }
 
     $hasJson = prism_table_has_column($db, 'submissions', 'attachments_json');
@@ -1072,6 +1283,10 @@ if ($action === 'save_record') {
         $b['remarks']    ?? '',
     ]);
     ok();
+}
+
+if ($method === 'POST' && $action === 'work_gate') {
+    prism_apply_work_gate($db, $user, 'assignments');
 }
 
 fail('Unknown action');

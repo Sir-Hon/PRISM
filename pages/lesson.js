@@ -1,6 +1,47 @@
 /** Lesson plans for the signed-in teacher. */
 var lessonClassId = '';
 var lessonPicked = [];
+var LESSON_FILE_MAX = 8;
+var LESSON_PARTS = [
+  ['objective', 'Learning objective'],
+  ['assessments', 'Assessments'],
+  ['key_points', 'Key points'],
+  ['opening', 'Opening'],
+  ['introduction', 'Introduction to new material'],
+  ['guided', 'Guided practice'],
+  ['independent', 'Independent practice'],
+  ['closing', 'Closing'],
+  ['extension', 'Extension activity'],
+  ['homework', 'Homework'],
+  ['standards', 'Standards aligned']
+];
+
+function lessonReadParts() {
+  var parts = {};
+  LESSON_PARTS.forEach(function (part) {
+    var el = document.getElementById('lp-' + part[0]);
+    parts[part[0]] = el ? el.value.trim() : '';
+  });
+  return parts;
+}
+
+function lessonPartsFromPlan(plan) {
+  try {
+    var data = JSON.parse(plan || '');
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    var known = LESSON_PARTS.some(function (part) { return Object.prototype.hasOwnProperty.call(data, part[0]); });
+    return known ? data : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function lessonClearParts() {
+  LESSON_PARTS.forEach(function (part) {
+    var el = document.getElementById('lp-' + part[0]);
+    if (el) el.value = '';
+  });
+}
 
 function lessonEsc(s) {
   return String(s == null ? '' : s)
@@ -38,7 +79,14 @@ function renderLessons(list) {
       ? new Date(lesson.lesson_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : 'No date';
     var files = (lesson.files || []).map(lessonFileLabel).join('');
-    var plan = lesson.plan ? '<p>' + lessonEsc(lesson.plan) + '</p>' : '';
+    var parts = lessonPartsFromPlan(lesson.plan);
+    var plan = parts
+      ? LESSON_PARTS.map(function (part) {
+          var text = parts[part[0]];
+          if (!text) return '';
+          return '<section class="lp-block"><h4>' + lessonEsc(part[1]) + '</h4><p>' + lessonEsc(text) + '</p></section>';
+        }).join('')
+      : (lesson.plan ? '<p>' + lessonEsc(lesson.plan) + '</p>' : '');
     return '<article class="lesson">'
       + '<div class="lesson-top"><h3>' + lessonEsc(lesson.title) + '</h3>'
       + '<button type="button" class="lp-del" data-id="' + lessonEsc(lesson.id) + '">Remove</button></div>'
@@ -96,12 +144,18 @@ function lessonRenderPicked() {
 }
 
 function lessonAddFiles(list) {
+  var stopped = false;
   Array.prototype.forEach.call(list || [], function (file) {
+    if (lessonPicked.length >= LESSON_FILE_MAX) {
+      stopped = true;
+      return;
+    }
     var same = lessonPicked.some(function (have) {
       return have.name === file.name && have.size === file.size && have.lastModified === file.lastModified;
     });
     if (!same) lessonPicked.push(file);
   });
+  if (stopped) lessonMsg('You can attach up to 8 files.', 'err');
   lessonRenderPicked();
 }
 
@@ -119,12 +173,12 @@ async function saveLesson() {
       class_id: lessonClassId,
       title: title,
       lesson_date: document.getElementById('lp-date').value,
-      plan: document.getElementById('lp-plan').value.trim(),
+      plan: JSON.stringify(lessonReadParts()),
       files: files
     });
     document.getElementById('lp-title').value = '';
     document.getElementById('lp-date').value = '';
-    document.getElementById('lp-plan').value = '';
+    lessonClearParts();
     lessonPicked = [];
     lessonRenderPicked();
     lessonMsg('Lesson saved.', 'ok');
@@ -172,22 +226,12 @@ document.addEventListener('DOMContentLoaded', async function () {
   if (!user) return;
   if (typeof initSidebar === 'function') initSidebar('lesson');
   var fileInput = document.getElementById('lp-files');
-  var drop = document.getElementById('lp-drop');
+  var clip = document.getElementById('lp-clip');
   fileInput.addEventListener('change', function () {
     lessonAddFiles(this.files);
     this.value = '';
   });
-  drop.addEventListener('click', function () { fileInput.click(); });
-  drop.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
-  });
-  drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('is-drag'); });
-  drop.addEventListener('dragleave', function () { drop.classList.remove('is-drag'); });
-  drop.addEventListener('drop', function (e) {
-    e.preventDefault();
-    drop.classList.remove('is-drag');
-    lessonAddFiles(e.dataTransfer && e.dataTransfer.files);
-  });
+  if (clip) clip.addEventListener('click', function () { fileInput.click(); });
   document.getElementById('lp-save').addEventListener('click', saveLesson);
   document.getElementById('class-select').addEventListener('change', function () {
     lessonClassId = this.value;

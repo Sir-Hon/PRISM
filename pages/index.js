@@ -25,6 +25,24 @@ function getCodeIndex()       { return JSON.parse(localStorage.getItem('prism_jo
 function getTeacherClasses(t) { return JSON.parse(localStorage.getItem('prism_classes_'+t)||'[]'); }
 function getPosts()           { return JSON.parse(localStorage.getItem('prism_teacher_posts')||'[]'); }
 function getTeacherQuizzes()  { return JSON.parse(localStorage.getItem('prism_teacher_quizzes')||'[]'); }
+function slimStoredMaterial(m) {
+  if (!m || typeof m !== 'object' || !m.file_data) return m;
+  var copy = Object.assign({}, m);
+  if (!copy.file_path) copy.has_file = 1;
+  delete copy.file_data;
+  return copy;
+}
+function compactStoredMaterials() {
+  try {
+    var raw = localStorage.getItem('prism_teacher_materials');
+    if (!raw || raw.indexOf('file_data') === -1) return;
+    var all = JSON.parse(raw);
+    Object.keys(all).forEach(function (id) {
+      if (Array.isArray(all[id])) all[id] = all[id].map(slimStoredMaterial);
+    });
+    localStorage.setItem('prism_teacher_materials', JSON.stringify(all));
+  } catch (e) {}
+}
 function getMaterials()       { return JSON.parse(localStorage.getItem('prism_teacher_materials')||'{}'); }
 function getAssignments()     { return JSON.parse(localStorage.getItem('prism_teacher_assignments')||'{}'); }
 function listForClass(map, classId) {
@@ -82,7 +100,7 @@ function renderDashboardIncomingEvents() {
   if (!el) return;
   var raw = [];
   try { raw = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : []; } catch (e) { raw = []; }
-  var todayStr = new Date().toISOString().split('T')[0];
+  var todayStr = typeof prismLocalDateStr === 'function' ? prismLocalDateStr() : '';
   var upcoming = raw.filter(function(e) { return e.date >= todayStr; })
     .sort(function(a, b) {
       var c = a.date.localeCompare(b.date);
@@ -101,21 +119,15 @@ function renderDashboardIncomingEvents() {
 }
 
 window.addEventListener('DOMContentLoaded', async function() {
+  compactStoredMaterials();
   if (typeof initSidebar === 'function') initSidebar('home');
   var hour = new Date().getHours();
   var g = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
   var greetEl = document.getElementById('student-greeting');
   if (greetEl) greetEl.textContent = g + ', ' + STUDENT_NAME;
   if (typeof prismBannerMount === 'function') prismBannerMount(document.querySelector('.student-hero'), 'greet');
-  var joinedNow = getJoinedClasses();
-  var joinedEntries = Object.values(joinedNow);
-  if (!joinedEntries.length && typeof prismShowWait === 'function') {
-    prismShowWait(document.getElementById('classes-area'), 'Loading classes');
-  } else {
-  renderClasses();
-  }
-  renderStats();
-  renderActivity();
+  window.__prismDashSettle = typeof prismPageSettle === 'function' ? prismPageSettle(720) : Promise.resolve();
+  if (typeof prismShowWait === 'function') prismShowWait(document.getElementById('classes-area'));
   renderDashboardIncomingEvents();
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
@@ -134,6 +146,7 @@ window.addEventListener('DOMContentLoaded', async function() {
         }
       } catch (e) { console.warn('API session check failed:', e); }
   try { await loadClassDataFromAPI(); } catch (loadErr) { console.warn('loadClassDataFromAPI failed:', loadErr); }
+  if (window.__prismDashSettle) { try { await window.__prismDashSettle; } catch (eSettle) {} }
       if (typeof initSidebar === 'function') initSidebar('home');
       if (!document.getElementById('class-view-overlay')) renderClasses();
       renderStats();
@@ -186,6 +199,8 @@ async function loadStudentQuizzesOnce() {
         totalPoints: parseInt(q.total_points, 10) || 0,
         questions: qs || [],
         allowSkip: !!(+q.allow_skip || q.allowSkip),
+        closed: q.closed,
+        reopen_json: q.reopen_json || null,
       });
     });
     localStorage.setItem('prism_teacher_quizzes', JSON.stringify(keep));
@@ -232,6 +247,7 @@ async function loadClassDataFromAPI(force) {
     if (typeof prismLoadClassCovers === 'function') {
       prismLoadClassCovers(classesList, function () { renderClasses(); });
     }
+    if (window.__prismDashSettle) await window.__prismDashSettle;
     if (!document.getElementById('class-view-overlay')) renderClasses();
     await Promise.all([
       Promise.all(classesList.map(function(cls) {
@@ -250,83 +266,123 @@ async function loadClassDataFromAPI(force) {
 async function syncStudentClassContent(classId, opts) {
   var cid = String(classId);
   var skipSubs = opts && opts.skipSubs;
+  var skipQuiz = opts && opts.skipQuiz;
+  function paintIfOpen() {
+    if (opts && opts.paint && String(activeDetailId) === cid && document.getElementById('class-view-overlay')) {
+      refreshOpenClassPanel();
+    }
+  }
+  function storePosts(postsList) {
+    if (!postsList) return;
+    var allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]').filter(function(p) { return String(p.classId || p.class_id) !== cid; });
+    postsList.forEach(function(p) {
+      p.classId = p.class_id || p.classId;
+      p.quizId = p.quiz_id || p.quizId;
+      p.date = p.created_at || p.date || new Date().toISOString();
+      allPosts.push(p);
+    });
+    localStorage.setItem('prism_teacher_posts', JSON.stringify(allPosts));
+  }
+  function storeQuizzes(qzList) {
+    if (!qzList) return;
+    var storedQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
+    var prevQuiz = {};
+    storedQz.forEach(function (row) { prevQuiz[String(row.id)] = row; });
+    var allQz = storedQz.filter(function(q) { return String(q.classId || q.class_id) !== cid; });
+    qzList.forEach(function(q) {
+      var prev = prevQuiz[String(q.id)];
+      var qs = q.questions;
+      if (qs == null && prev) qs = prev.questions;
+      if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
+      allQz.push({
+        id: q.id,
+        classId: q.class_id || cid,
+        teacherId: q.teacher_id,
+        title: q.title,
+        type: q.type || 'quiz',
+        published: !!+q.published,
+        due: q.due_date || q.due || '',
+        due_time: q.due_time || '',
+        time: parseInt(q.time_limit, 10) || 0,
+        attempts: parseInt(q.attempts, 10) || 1,
+        totalPoints: parseInt(q.total_points, 10) || 0,
+        questions: qs || [],
+        allowSkip: !!(+q.allow_skip || q.allowSkip),
+        closed: q.closed,
+        reopen_json: q.reopen_json || null,
+      });
+    });
+    localStorage.setItem('prism_teacher_quizzes', JSON.stringify(allQz));
+  }
+  function storeMaterials(matsList) {
+    if (!matsList) return;
+    var allMats = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
+    allMats[cid] = matsList.map(function(m) { return slimStoredMaterial(Object.assign({}, m, { desc: m.description || m.desc || '' })); });
+    localStorage.setItem('prism_teacher_materials', JSON.stringify(allMats));
+  }
+  function storeAssignments(asgnList) {
+    if (!asgnList) return;
+    var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
+    allAsgns[cid] = asgnList.map(function(a) {
+      return normalizeAssignmentForUI(Object.assign({}, a, {
+        due: a.due_date || a.due || '',
+        due_time: a.due_time || '',
+        pts: a.points || a.pts || 0,
+      }));
+    });
+    localStorage.setItem('prism_teacher_assignments', JSON.stringify(allAsgns));
+  }
+  function postsCall() {
+    return (typeof PrismPosts !== 'undefined' && PrismPosts.get) ? PrismPosts.get(cid) : Promise.reject(new Error('no posts api'));
+  }
+  function matsCall() {
+    return (typeof PrismMaterials !== 'undefined' && PrismMaterials.get) ? PrismMaterials.get(cid) : Promise.reject(new Error('no materials api'));
+  }
+  function asgnCall() {
+    return (typeof PrismAssignments !== 'undefined' && PrismAssignments.get) ? PrismAssignments.get(cid) : Promise.reject(new Error('no assignments api'));
+  }
+  function quizCall() {
+    if (skipQuiz) return Promise.resolve({ quizzes: null });
+    return (typeof apiGet === 'function') ? apiGet('quizzes', 'get', { class_id: cid }) : Promise.reject(new Error('no quizzes api'));
+  }
   try {
+    if (opts && opts.paint) {
+      var workPacked = await Promise.allSettled([
+        matsCall(),
+        asgnCall(),
+        skipSubs ? Promise.resolve(null) : PrismSubmissions.getMineForClass(cid),
+      ]);
+      if (workPacked[0].status === 'fulfilled') storeMaterials(workPacked[0].value || []);
+      else console.warn('sync materials:', workPacked[0].reason);
+      if (workPacked[1].status === 'fulfilled') storeAssignments(workPacked[1].value || []);
+      else console.warn('sync assignments:', workPacked[1].reason);
+      if (!skipSubs && workPacked[2].status === 'fulfilled' && workPacked[2].value) {
+        localStorage.setItem('prism_asgn_mine_' + STUDENT_ID + '_' + cid, JSON.stringify(workPacked[2].value));
+      }
+      paintIfOpen();
+      var restPacked = await Promise.allSettled([postsCall(), quizCall()]);
+      if (restPacked[0].status === 'fulfilled') storePosts(restPacked[0].value || []);
+      else console.warn('sync posts:', restPacked[0].reason);
+      if (!skipQuiz && restPacked[1].status === 'fulfilled') storeQuizzes((restPacked[1].value || {}).quizzes || []);
+      else if (!skipQuiz) console.warn('sync quizzes:', restPacked[1].reason);
+      paintIfOpen();
+      return;
+    }
     var postsList = null, matsList = null, asgnList = null, qzList = null;
-    var packed = await Promise.allSettled([
-      (typeof PrismPosts !== 'undefined' && PrismPosts.get) ? PrismPosts.get(cid) : Promise.reject(new Error('no posts api')),
-      (typeof PrismMaterials !== 'undefined' && PrismMaterials.get) ? PrismMaterials.get(cid) : Promise.reject(new Error('no materials api')),
-      (typeof PrismAssignments !== 'undefined' && PrismAssignments.get) ? PrismAssignments.get(cid) : Promise.reject(new Error('no assignments api')),
-      (opts && opts.skipQuiz)
-        ? Promise.resolve({ quizzes: null })
-        : ((typeof apiGet === 'function') ? apiGet('quizzes', 'get', { class_id: cid }) : Promise.reject(new Error('no quizzes api'))),
-    ]);
+    var packed = await Promise.allSettled([postsCall(), matsCall(), asgnCall(), quizCall()]);
     if (packed[0].status === 'fulfilled') postsList = packed[0].value || [];
     else console.warn('sync posts:', packed[0].reason);
     if (packed[1].status === 'fulfilled') matsList = packed[1].value || [];
     else console.warn('sync materials:', packed[1].reason);
     if (packed[2].status === 'fulfilled') asgnList = packed[2].value || [];
     else console.warn('sync assignments:', packed[2].reason);
-    if (opts && opts.skipQuiz) {
-      qzList = null;
-    } else if (packed[3].status === 'fulfilled') {
-      var qzRes = packed[3].value || {};
-      qzList = qzRes.quizzes || [];
-    } else console.warn('sync quizzes:', packed[3].reason);
-
-    if (postsList) {
-      var allPosts = JSON.parse(localStorage.getItem('prism_teacher_posts') || '[]').filter(function(p) { return String(p.classId || p.class_id) !== cid; });
-      postsList.forEach(function(p) {
-        p.classId = p.class_id || p.classId;
-        p.quizId = p.quiz_id || p.quizId;
-        p.date = p.created_at || p.date || new Date().toISOString();
-        allPosts.push(p);
-      });
-      localStorage.setItem('prism_teacher_posts', JSON.stringify(allPosts));
-    }
-    if (qzList) {
-      var storedQz = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
-      var prevQuiz = {};
-      storedQz.forEach(function (row) { prevQuiz[String(row.id)] = row; });
-      var allQz = storedQz.filter(function(q) { return String(q.classId || q.class_id) !== cid; });
-      qzList.forEach(function(q) {
-        var prev = prevQuiz[String(q.id)];
-        var qs = q.questions;
-        if (qs == null && prev) qs = prev.questions;
-        if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (x) { qs = []; } }
-        allQz.push({
-          id: q.id,
-          classId: q.class_id || cid,
-          teacherId: q.teacher_id,
-          title: q.title,
-          type: q.type || 'quiz',
-          published: !!+q.published,
-          due: q.due_date || q.due || '',
-          due_time: q.due_time || '',
-          time: parseInt(q.time_limit, 10) || 0,
-          attempts: parseInt(q.attempts, 10) || 1,
-          totalPoints: parseInt(q.total_points, 10) || 0,
-          questions: qs || [],
-          allowSkip: !!(+q.allow_skip || q.allowSkip),
-        });
-      });
-      localStorage.setItem('prism_teacher_quizzes', JSON.stringify(allQz));
-    }
-    if (matsList) {
-      var allMats = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
-      allMats[cid] = matsList.map(function(m) { return Object.assign({}, m, { desc: m.description || m.desc || '' }); });
-      localStorage.setItem('prism_teacher_materials', JSON.stringify(allMats));
-    }
-    if (asgnList) {
-      var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
-      allAsgns[cid] = asgnList.map(function(a) {
-        return normalizeAssignmentForUI(Object.assign({}, a, {
-          due: a.due_date || a.due || '',
-          due_time: a.due_time || '',
-          pts: a.points || a.pts || 0,
-        }));
-      });
-      localStorage.setItem('prism_teacher_assignments', JSON.stringify(allAsgns));
-    }
+    if (skipQuiz) qzList = null;
+    else if (packed[3].status === 'fulfilled') qzList = (packed[3].value || {}).quizzes || [];
+    else console.warn('sync quizzes:', packed[3].reason);
+    storePosts(postsList);
+    storeQuizzes(qzList);
+    storeMaterials(matsList);
+    storeAssignments(asgnList);
     if (!skipSubs) {
       try {
         var mineSubs = await PrismSubmissions.getMineForClass(cid);
@@ -580,7 +636,7 @@ async function openClassDetail(classId, teacherId, subject, color) {
   classId = String(classId);
   if (activeDetailId === classId && document.getElementById('class-view-overlay')) {
     var genKeep = ++__openClassGen;
-    syncStudentClassContent(classId).then(function() {
+    syncStudentClassContent(classId, { paint: true }).then(function() {
       if (genKeep === __openClassGen) refreshOpenClassPanel();
     }).catch(function() {});
     return;
@@ -594,7 +650,7 @@ async function openClassDetail(classId, teacherId, subject, color) {
   } catch (histErr) { /* the class view still opens */ }
   var gen = ++__openClassGen;
   try {
-    await syncStudentClassContent(classId);
+    await syncStudentClassContent(classId, { paint: true });
   } catch (e) { /* keep cached view */ }
   if (gen !== __openClassGen) return;
   refreshOpenClassPanel();
@@ -746,7 +802,7 @@ function buildPeoplePanel(classId) {
   var cached = peopleCache[String(classId)];
   loadClassPeople(classId);
   if (cached) return renderPeopleHtml(cached);
-  return '<div class="empty-state">Loading classmates…</div>';
+  return '<div class="prism-wait prism-wait-only" role="status" aria-label="Please wait"></div>';
 }
 
 function showStudentClassTab(tab) {
@@ -795,7 +851,7 @@ function streamMaterialActionsStudent(classId, p) {
   if (mat && mat.file_path) {
     bits += '<button type="button" onclick=\'prismOpenMaterialUrl('+JSON.stringify(mat.file_path)+','+JSON.stringify(mat.mime_type||'')+','+JSON.stringify(mat.file_name||'')+')\' style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">View</button>';
   }
-  if (mat && mat.file_data && !mat.file_path) {
+  if (mat && !mat.file_path && (mat.file_data || mat.file_name)) {
     bits += '<button type="button" onclick="previewStudentMaterialBlob(\''+classId+'\',\''+mat.id+'\')" style="'+btn+'background:linear-gradient(135deg,#7c3aed,#6d28d9);color:#fff;border:none;cursor:pointer;">View</button>';
   }
   var hrefM = '';
@@ -815,40 +871,23 @@ function streamMaterialActionsStudent(classId, p) {
 function downloadStudentMaterial(classId, id) {
   previewStudentMaterialBlob(classId, id);
 }
-function previewStudentMaterialBlob(classId, id) {
+async function previewStudentMaterialBlob(classId, id) {
   var items = listForClass(getMaterials(), classId);
-  var it = items.find(function(x) { return x.id === id; });
-  if (!it || !it.file_data) return;
-  if (typeof prismOpenMaterialUrl === 'function') {
-    prismOpenMaterialUrl(it.file_data, it.mime_type || '', it.file_name || it.title || 'file');
-    return;
+  var it = items.find(function(x) { return String(x.id) === String(id); });
+  if (!it) return;
+  var src = it.file_path || it.file_data || '';
+  var mime = it.mime_type || '';
+  var name = it.file_name || it.title || 'file';
+  if (!src && typeof apiGet === 'function') {
+    try {
+      var data = await apiGet('content', 'material_file', { id: id });
+      src = data.file_path || data.file_data || '';
+      mime = data.mime_type || mime;
+      name = data.file_name || name;
+    } catch (e) { return; }
   }
-  var prev = typeof prismCanPreviewInBrowser === 'function' && prismCanPreviewInBrowser(it.mime_type, it.file_name);
-  if (!prev) { downloadStudentMaterial(classId, id); return; }
-  // data: URL → Blob → object URL so preview MIME matches (revoked after a few minutes)
-  fetch(it.file_data)
-    .then(function(r) { return r.blob(); })
-    .then(function(blob) {
-      var type = it.mime_type || blob.type;
-      if (!type || type === 'application/octet-stream') {
-        var ext = (String(it.file_name || '').split('.').pop() || '').toLowerCase();
-        if (ext === 'pdf') type = 'application/pdf';
-        else if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'gif' || ext === 'webp') type = 'image/' + (ext === 'jpg' ? 'jpeg' : ext);
-      }
-      var b = type ? new Blob([blob], { type: type }) : blob;
-      var u = URL.createObjectURL(b);
-      var w = window.open(u, '_blank', 'noopener');
-      if (!w) {
-        URL.revokeObjectURL(u);
-        alert('Pop-up blocked — allow pop-ups for this site to preview files.');
-        return;
-      }
-      setTimeout(function() { URL.revokeObjectURL(u); }, 180000);
-    })
-    .catch(function() {
-      var w = window.open('', '_blank', 'noopener');
-      if (w) w.location = it.file_data;
-    });
+  if (!src || typeof prismOpenMaterialUrl !== 'function') return;
+  prismOpenMaterialUrl(src, mime, name);
 }
 
 function prismEscAttr(s) {
@@ -1119,10 +1158,11 @@ function resolveStudentStreamAssignment(classId, p) {
 
 function studentWorkState(a, sub) {
   var hasSub = sub && (sub.note || sub.link_url || sub.file_path || sub.file_name || sub.file_data || sub.attachments_json);
-  var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, a.due_time || null);
+  var lock = typeof prismWorkLockReason === 'function' ? prismWorkLockReason(a) : '';
   var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due, a.due_time) : (a.due || '');
   if (hasSub) return { key: 'done', label: 'Turned in', rank: 2 };
-  if (overdue) return { key: 'missing', label: 'Missing', rank: 0 };
+  if (lock === 'closed') return { key: 'missing', label: 'Closed', rank: 0 };
+  if (lock === 'deadline') return { key: 'missing', label: 'Missing', rank: 0 };
   return { key: 'due', label: dueLine ? ('Due ' + dueLine) : 'Due', rank: 1 };
 }
 
@@ -1161,9 +1201,12 @@ function studentAssignmentStreamHtml(classId, a, startOpen) {
     });
   }
   if (hasSub) html += studentSubmissionFilesHtml(sub);
-  if (overdue && !hasSub) {
-    html += '<div style="font-size:.82rem;color:#991b1b;margin-top:.75rem;">This work is missing. Contact your teacher if you need to turn it in late.</div>';
-  } else if (!overdue) {
+  var lock = typeof prismWorkLockReason === 'function' ? prismWorkLockReason(a) : '';
+  if (lock && !hasSub) {
+    html += '<div style="font-size:.82rem;color:#991b1b;margin-top:.75rem;">' + (lock === 'closed'
+      ? 'Your teacher closed this assignment.'
+      : 'This work is missing. Contact your teacher if you need to turn it in late.') + '</div>';
+  } else if (!lock) {
     var pickOnchange = 'onStudentAsgnFilesChosen(' + JSON.stringify(classId) + ',' + JSON.stringify(a.id) + ',this)';
     html += '<div class="asgn-turnin">'
       + '<div class="asgn-turnin-title">Your work</div>'
@@ -1209,10 +1252,13 @@ function buildStreamPanel(classId) {
       if (matchedQuiz) {
         var done    = scores[matchedQuiz.id] !== undefined || scores[String(matchedQuiz.id)] !== undefined;
         var qDue    = matchedQuiz.due || matchedQuiz.due_date || '';
-        var overdue = qDue && typeof prismIsPastDue === 'function' && prismIsPastDue(qDue, matchedQuiz.due_time) && !done;
+        var qLock   = !done && typeof prismWorkLockReason === 'function' ? prismWorkLockReason(matchedQuiz) : '';
+        var overdue = qLock === 'deadline' || (!qLock && qDue && typeof prismIsPastDue === 'function' && prismIsPastDue(qDue, matchedQuiz.due_time) && !done);
         var scoreVal = scores[matchedQuiz.id] !== undefined ? scores[matchedQuiz.id] : scores[String(matchedQuiz.id)];
         if (done) {
           quizActionHtml = '<div style="margin-top:.8rem;"><button class="take-btn done" disabled>Completed  · Score: '+scoreVal+'/'+matchedQuiz.totalPoints+'</button></div>';
+        } else if (qLock === 'closed') {
+          quizActionHtml = '<div style="margin-top:.8rem;"><button type="button" class="take-btn" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;" onclick="alert(\'Your teacher closed this quiz.\')">Closed</button></div>';
         } else if (overdue) {
           quizActionHtml = '<div style="margin-top:.8rem;"><button type="button" class="take-btn" style="background:#fee2e2;color:#991b1b;border:1px solid #fecaca;" onclick="alert(\'This quiz is past its due date. Please contact your teacher if you need an extension.\')">Past deadline — tap for info</button></div>';
         } else {
@@ -1309,7 +1355,8 @@ async function openStudentAssignmentModal(classId, asgnId) {
   }
   a = normalizeAssignmentForUI(a);
   closeStudentAssignmentModal();
-  var overdue = a.due && typeof prismIsPastDue === 'function' && prismIsPastDue(a.due, a.due_time || null);
+  var lock = typeof prismWorkLockReason === 'function' ? prismWorkLockReason(a) : '';
+  var overdue = lock === 'deadline' || lock === 'closed';
   var dueLine = a.due && typeof prismFormatAssignmentDue === 'function' ? prismFormatAssignmentDue(a.due, a.due_time) : a.due;
   var sid = asgnDomId(a.id);
   var subMap = getSubmissionMap(classId);
@@ -1366,7 +1413,9 @@ async function openStudentAssignmentModal(classId, asgnId) {
   }
   var submitBlock = '';
   if (overdue) {
-    submitBlock = '<div style="font-size:.78rem;color:#991b1b;margin-top:.75rem;padding-top:.65rem;border-top:1px dashed #fecdd3;">Deadline passed — contact your teacher if you need to submit late.</div>';
+    submitBlock = '<div style="font-size:.78rem;color:#991b1b;margin-top:.75rem;padding-top:.65rem;border-top:1px dashed #fecdd3;">' + (lock === 'closed'
+      ? 'Your teacher closed this assignment.'
+      : 'Deadline passed — contact your teacher if you need to submit late.') + '</div>';
   } else {
     var statusLine = '';
     if (hasSub && sub.submitted_at) {
@@ -1481,13 +1530,12 @@ function studentMaterialPieces(it) {
     });
   }
   if (!pieces.length && it) {
-    if (it.file_path || it.file_data) {
+    if (it.file_path || it.file_data || (it.file_name && String(it.type || 'file') !== 'link')) {
       pieces.push({
         kind: 'file',
         file_path: it.file_path || '',
         file_name: it.file_name || 'Attachment',
         mime_type: it.mime_type || '',
-        file_data: it.file_data || '',
         id: it.id
       });
     }
@@ -1528,7 +1576,7 @@ function studentMaterialPieceInner(classId, piece) {
   if (piece.file_path) {
     return '<button type="button" class="student-mat-file" onclick=\'prismOpenMaterialUrl(' + JSON.stringify(piece.file_path) + ',' + JSON.stringify(piece.mime_type || '') + ',' + JSON.stringify(name) + ')\'>' + prismEscHtml(name) + '</button>';
   }
-  if (piece.file_data) {
+  if (piece.id) {
     return '<button type="button" class="student-mat-file" onclick=\'previewStudentMaterialBlob(' + JSON.stringify(classId) + ',' + JSON.stringify(piece.id || '') + ')\'>' + prismEscHtml(name) + '</button>';
   }
   return '';

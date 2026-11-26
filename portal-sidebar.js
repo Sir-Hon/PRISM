@@ -440,7 +440,12 @@ function initSidebar(activePage) {
         if (!teacherClasses.length) {
           var emp = document.createElement('div');
           emp.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
-          emp.textContent = window.__prismClassesFetched ? 'No subjects yet' : 'Loading classes';
+          if (window.__prismClassesFetched) emp.textContent = 'No subjects yet';
+          else {
+            emp.className = 'prism-wait prism-wait-only';
+            emp.setAttribute('role', 'status');
+            emp.setAttribute('aria-label', 'Please wait');
+          }
           classCont.appendChild(emp);
         } else {
           teacherClasses.forEach(function (cls) {
@@ -473,7 +478,12 @@ function initSidebar(activePage) {
         if (!joinedList.length) {
           var emp2 = document.createElement('div');
           emp2.style.cssText = 'font-size:.78rem;color:#6b7280;padding:.4rem 1.3rem;';
-          emp2.textContent = window.__prismClassesFetched ? 'No classes joined yet' : 'Loading classes';
+          if (window.__prismClassesFetched) emp2.textContent = 'No classes joined yet';
+          else {
+            emp2.className = 'prism-wait prism-wait-only';
+            emp2.setAttribute('role', 'status');
+            emp2.setAttribute('aria-label', 'Please wait');
+          }
           classCont.appendChild(emp2);
         } else {
           var colors = ['#7c3aed', '#0d9488', '#d97706', '#2563eb', '#be123c', '#15803d'];

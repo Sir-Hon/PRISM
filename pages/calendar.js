@@ -114,11 +114,11 @@ if (typeof initSidebar === 'function') initSidebar('calendar');
  function renderEventsList() {
  const list = document.getElementById('events-list');
  if (!eventsLoaded && !events.length) {
-   list.innerHTML = '<div class="no-events">Loading events</div>';
+   list.innerHTML = '<div class="prism-wait prism-wait-only" role="status" aria-label="Please wait"></div>';
    return;
  }
  const sorted = [...events].sort((a,b)=>a.date.localeCompare(b.date));
- const upcoming = sorted.filter(e => e.date >= today.toISOString().split('T')[0]);
+ const upcoming = sorted.filter(e => e.date >= (typeof prismLocalDateStr === 'function' ? prismLocalDateStr(today) : ''));
 
  if (!upcoming.length) { list.innerHTML = '<div class="no-events">No upcoming events. Click a date or + Add Event to create one.</div>'; return; }
  list.innerHTML = '';
@@ -144,7 +144,7 @@ if (typeof initSidebar === 'function') initSidebar('calendar');
  editingId = null;
  document.getElementById('ev-modal-title').textContent = 'Add Event';
  document.getElementById('ev-title').value = '';
- document.getElementById('ev-date').value = ds || today.toISOString().split('T')[0];
+ document.getElementById('ev-date').value = ds || (typeof prismLocalDateStr === 'function' ? prismLocalDateStr(today) : '');
  document.getElementById('ev-time').value = '';
  document.getElementById('ev-notes').value = '';
  document.getElementById('ev-alarm').value = '';

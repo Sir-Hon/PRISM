@@ -14,6 +14,7 @@ function prism_quiz_item_scores_ready(PDO $db): bool {
     if (!prism_table_has_column($db, 'quiz_scores', 'item_scores')) {
         try {
             $db->exec('ALTER TABLE quiz_scores ADD COLUMN item_scores TEXT NULL');
+            prism_table_columns($db, 'quiz_scores', true);
         } catch (Throwable $e) {
             error_log('PRISM item_scores: ' . $e->getMessage());
         }
@@ -53,6 +54,7 @@ function prism_quiz_allow_skip_ready(PDO $db): bool {
     if (!prism_table_has_column($db, 'quizzes', 'allow_skip')) {
         try {
             $db->exec('ALTER TABLE quizzes ADD COLUMN allow_skip TINYINT(1) NOT NULL DEFAULT 0');
+            prism_table_columns($db, 'quizzes', true);
         } catch (Throwable $e) {
             error_log('PRISM allow_skip: ' . $e->getMessage());
         }
@@ -65,6 +67,7 @@ function prism_quiz_allow_skip_ready(PDO $db): bool {
 if ($action === 'get') {
     $class_id = $_GET['class_id'] ?? '';
     prism_assert_class_access($db, $user, $class_id);
+    prism_ensure_work_gate($db, 'quizzes');
     if ($user['role'] === 'teacher') {
         $stmt = $db->prepare('SELECT * FROM quizzes WHERE class_id = ? AND teacher_id = ? ORDER BY created_at DESC');
         $stmt->execute([$class_id, $user['id']]);
@@ -74,6 +77,7 @@ if ($action === 'get') {
         if (prism_table_has_column($db, 'quizzes', 'due_time')) $studentCols .= ', due_time';
         if (prism_table_has_column($db, 'quizzes', 'allow_skip')) $studentCols .= ', allow_skip';
         if (prism_table_has_column($db, 'quizzes', 'target_section')) $studentCols .= ', target_section';
+        if (prism_table_has_column($db, 'quizzes', 'closed')) $studentCols .= ', closed, reopen_json';
         if ($stuSec !== null && prism_table_has_column($db, 'quizzes', 'target_section')) {
             $stmt = $db->prepare(
                 'SELECT ' . $studentCols . ' FROM quizzes WHERE class_id = ? AND published = 1 AND (target_section IS NULL OR TRIM(target_section) = \'\' OR TRIM(target_section) = ?) ORDER BY created_at DESC'
@@ -90,6 +94,7 @@ if ($action === 'get') {
 // ── GET ALL QUIZZES FOR ENROLLED CLASSES (student) ─────
 if ($action === 'get_mine') {
     if ($user['role'] !== 'student') fail('Forbidden', 403);
+    prism_ensure_work_gate($db, 'quizzes');
     $brief = (string) ($_GET['brief'] ?? '') === '1';
     $quizCols = $brief
         ? 'q.id, q.class_id, q.teacher_id, q.title, q.type, q.time_limit, q.due_date, q.attempts, q.total_points, q.published, q.created_at'
@@ -102,6 +107,9 @@ if ($action === 'get_mine') {
     }
     if ($brief && prism_table_has_column($db, 'quizzes', 'target_section')) {
         $quizCols .= ', q.target_section';
+    }
+    if ($brief && prism_table_has_column($db, 'quizzes', 'closed')) {
+        $quizCols .= ', q.closed, q.reopen_json';
     }
     if (prism_table_has_column($db, 'quizzes', 'target_section')) {
         $stmt = $db->prepare(
@@ -263,9 +271,12 @@ if ($method === 'POST' && $action === 'submit_score') {
     }
     prism_assert_student_enrolled($db, $user['id'], $qrow['class_id']);
     prism_assert_student_matches_quiz_section($db, $user, $qrow);
-    $dueTimeCol = $qrow['due_time'] ?? null;
-    if ($qrow && !empty($qrow['due_date']) && prism_is_past_deadline($qrow['due_date'], $dueTimeCol)) {
-        fail('The deadline for this quiz has passed. Please contact your teacher if you need an extension.', 403);
+    prism_ensure_work_gate($db, 'quizzes');
+    if (prism_work_locked_for_student($db, $qrow, $user)) {
+        $manual = isset($qrow['closed']) && (string) $qrow['closed'] !== '' && (string) $qrow['closed'] !== '0';
+        fail($manual
+            ? 'Your teacher closed this quiz. It stays closed unless they open it for you.'
+            : 'The deadline for this quiz has passed. Please contact your teacher if you need an extension.', 403);
     }
     $scoreSql = 'INSERT INTO quiz_scores (quiz_id, student_id, score, answers)
          VALUES (?,?,?,?)
@@ -364,6 +375,10 @@ if ($method === 'POST' && $action === 'upload_image') {
     $path = UPLOAD_URL . $safe;
     prism_save_upload_blob($path, (string) $f['name'], $mimeMap[$ext], $bin);
     ok(['path' => $path]);
+}
+
+if ($method === 'POST' && $action === 'work_gate') {
+    prism_apply_work_gate($db, $user, 'quizzes');
 }
 
 fail('Unknown action');

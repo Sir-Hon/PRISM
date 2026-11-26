@@ -184,7 +184,12 @@ function prismShowWait(el, message) {
   if (!el) return;
   var note = document.createElement('div');
   note.className = 'prism-wait';
-  note.textContent = message || 'Loading';
+  note.setAttribute('role', 'status');
+  if (message) note.textContent = message;
+  else {
+    note.classList.add('prism-wait-only');
+    note.setAttribute('aria-label', 'Please wait');
+  }
   el.textContent = '';
   el.appendChild(note);
 }

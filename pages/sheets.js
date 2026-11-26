@@ -141,7 +141,7 @@ function padScores(arr, n) {
 function blankAttendance(student) {
   var cls = (typeof getClasses === 'function' ? getClasses() : []).filter(function (c) { return c.id === activeClassId; })[0];
   return {
-    name: student ? student.name : '',
+    name: sheetShownName(student, ''),
     section: student ? (student.section || '') : '',
     subject: cls ? (cls.subject || '') : '',
     tracker: '',
@@ -177,12 +177,22 @@ function selectedStudent() {
   return null;
 }
 
+function sheetShownName(student, savedName) {
+  var formal = typeof prismFormalName === 'function' ? prismFormalName(student && student.name) : (student ? student.name : '');
+  var saved = savedName != null ? String(savedName).trim() : '';
+  var raw = student ? String(student.name || '').replace(/\s+/g, ' ').trim() : '';
+  if (!saved || saved.toLowerCase() === raw.toLowerCase()) return formal || saved;
+  return saved;
+}
 function sheetRoster() {
   var students = typeof getStudents === 'function' ? getStudents(activeClassId) : [];
-  return students.slice().sort(function (a, b) {
-    var byName = String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
-    if (byName) return byName;
-    return String(a.id).localeCompare(String(b.id));
+  if (typeof recordsBrowseSection !== 'undefined' && recordsBrowseSection != null) {
+    students = students.filter(function (s) {
+      return String(s.section || '').trim() === String(recordsBrowseSection);
+    });
+  }
+  return students.slice().sort(typeof prismFormalCompare === 'function' ? prismFormalCompare : function (a, b) {
+    return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
   });
 }
 
@@ -223,15 +233,15 @@ function refreshSheetBar() {
   sel.innerHTML = '';
   var placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = students.length ? 'Choose a student' : 'No students in this class';
+  placeholder.textContent = students.length ? 'Choose a student' : 'No students in this section';
   sel.appendChild(placeholder);
   students.forEach(function (s) {
     var opt = document.createElement('option');
     opt.value = s.id;
-    opt.textContent = s.name + (s.section ? ' · ' + s.section : '');
+    opt.textContent = typeof prismFormalName === 'function' ? prismFormalName(s.name) : s.name;
     sel.appendChild(opt);
   });
-  var keep = students.some(function (s) { return s.id === prev; });
+  var keep = students.some(function (s) { return String(s.id) === String(prev); });
   sheetStudentId = keep ? prev : '';
   sel.value = sheetStudentId;
   updateSheetNav();
@@ -257,7 +267,7 @@ function readLocalSheet(kind, classId, studentId) {
 function applyAttendance(saved, student) {
   var base = blankAttendance(student);
   if (!saved || typeof saved !== 'object') return base;
-  base.name = saved.name != null ? String(saved.name) : base.name;
+  base.name = sheetShownName(student, saved.name);
   base.section = saved.section != null ? String(saved.section) : base.section;
   base.subject = saved.subject != null ? String(saved.subject) : base.subject;
   base.tracker = saved.tracker != null ? String(saved.tracker) : '';
@@ -270,7 +280,7 @@ function applyAttendance(saved, student) {
 function applyAssessment(saved, student) {
   var base = blankAssessment(student);
   if (!saved || typeof saved !== 'object') return base;
-  base.name = saved.name != null ? String(saved.name) : base.name;
+  base.name = sheetShownName(student, saved.name);
   base.section = saved.section != null ? String(saved.section) : base.section;
   base.subject = saved.subject != null ? String(saved.subject) : base.subject;
   base.tracker = saved.tracker != null ? String(saved.tracker) : '';

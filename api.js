@@ -311,7 +311,7 @@ async function apiCall(endpoint, action, method = 'GET', body = null, _retried) 
     }
     if (data.csrf_token) prismRememberCsrf(data.csrf_token);
     if (data.error) throw new Error(data.error);
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!res.ok) throw new Error(data.error || 'The page could not load this. Refresh and try again.');
     return data;
   } catch (e) {
     if (!_retried && method !== 'GET' && prismIsSessionExpiredError(e)) {
@@ -337,7 +337,7 @@ async function apiGet(endpoint, action, params = {}) {
   }
   if (data.csrf_token) prismRememberCsrf(data.csrf_token);
   if (data.error) throw new Error(data.error);
-  if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+  if (!res.ok) throw new Error(data.error || 'The page could not load this. Refresh and try again.');
   return data;
 }
 
@@ -354,6 +354,102 @@ function prismIsPastDue(dateStr, timeStr) {
   const end = prismDueEndMs(dateStr, timeStr);
   if (end === null) return false;
   return Date.now() > end;
+}
+
+function prismLocalDateStr(date) {
+  var d = date || new Date();
+  var m = d.getMonth() + 1;
+  var day = d.getDate();
+  return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+}
+
+function prismPageSettle(ms) {
+  return new Promise(function (resolve) { setTimeout(resolve, ms || 700); });
+}
+
+function prismCopyWorkGate(item) {
+  var reopen = item && (item.reopen_json != null ? item.reopen_json : item.reopen);
+  if (typeof reopen === 'string') {
+    try { reopen = JSON.parse(reopen || '{}'); } catch (e) { reopen = {}; }
+  }
+  if (!reopen || typeof reopen !== 'object') reopen = {};
+  return {
+    closed: !!(item && item.closed != null && String(item.closed) !== '' && String(item.closed) !== '0'),
+    sections: Array.isArray(reopen.sections) ? reopen.sections.map(function (s) { return String(s).trim(); }).filter(Boolean) : [],
+    students: Array.isArray(reopen.students) ? reopen.students.map(function (s) { return String(s); }) : [],
+  };
+}
+
+function prismWorkLockReason(item) {
+  if (!item) return '';
+  var gate = prismCopyWorkGate(item);
+  var due = item.due || item.due_date || '';
+  var past = !!(due && prismIsPastDue(due, item.due_time || ''));
+  if (!gate.closed && !past) return '';
+  var me = '';
+  var section = '';
+  try {
+    me = sessionStorage.getItem('prism_user_id') || '';
+    section = String(sessionStorage.getItem('prism_section') || '').trim();
+  } catch (e) {}
+  if (me && gate.students.some(function (id) { return String(id) === String(me); })) return '';
+  if (section && gate.sections.some(function (s) { return s === section; })) return '';
+  return gate.closed ? 'closed' : 'deadline';
+}
+
+function prismTeacherGateControls(kind, item, people) {
+  var gate = prismCopyWorkGate(item);
+  var id = String(item.id || '');
+  var safe = id.replace(/[^A-Za-z0-9_-]/g, '');
+  var sections = [];
+  (people || []).forEach(function (person) {
+    var section = String(person.section || '').trim();
+    if (section && sections.indexOf(section) < 0) sections.push(section);
+  });
+  sections.sort();
+  var bits = [];
+  if (gate.sections.length) bits.push('open for ' + gate.sections.join(', '));
+  if (gate.students.length) {
+    var names = gate.students.map(function (sid) {
+      var person = (people || []).find(function (row) { return String(row.id) === String(sid); });
+      return person && person.name ? person.name : sid;
+    });
+    bits.push('open for ' + names.join(', '));
+  }
+  var secOpts = '<option value="">Section</option>' + sections.map(function (section) {
+    return '<option value="' + prismEscAttr(section) + '">' + prismEscHtml(section) + '</option>';
+  }).join('');
+  var stuOpts = '<option value="">Student</option>' + (people || []).map(function (person) {
+    var label = (person.name || person.id || 'Student') + (person.section ? ' · ' + person.section : '');
+    return '<option value="' + prismEscAttr(person.id || '') + '">' + prismEscHtml(label) + '</option>';
+  }).join('');
+  var state = gate.closed ? 'Closed' : 'Open';
+  var main = gate.closed
+    ? '<button type="button" onclick=\'prismSetWorkGate(' + JSON.stringify(kind) + ',' + JSON.stringify(id) + ',"open")\'>Open for everyone</button>'
+      + '<label>Section <select id="gate-sec-' + safe + '">' + secOpts + '</select></label>'
+      + '<button type="button" onclick=\'prismSetWorkGate(' + JSON.stringify(kind) + ',' + JSON.stringify(id) + ',"section", document.getElementById("gate-sec-' + safe + '").value)\'>Open for section</button>'
+      + '<label>Student <select id="gate-stu-' + safe + '">' + stuOpts + '</select></label>'
+      + '<button type="button" onclick=\'prismSetWorkGate(' + JSON.stringify(kind) + ',' + JSON.stringify(id) + ',"student", document.getElementById("gate-stu-' + safe + '").value)\'>Open for student</button>'
+    : '<button type="button" onclick=\'prismSetWorkGate(' + JSON.stringify(kind) + ',' + JSON.stringify(id) + ',"close")\'>Close</button>';
+  return '<div class="work-gate"><span class="work-gate-state">' + prismEscHtml(state + (bits.length ? ' · ' + bits.join(' · ') : '')) + '</span>'
+    + main + '</div>';
+}
+
+async function prismSetWorkGate(kind, id, mode, value) {
+  if ((mode === 'section' || mode === 'student') && !String(value || '').trim()) {
+    alert(mode === 'section' ? 'Choose a section.' : 'Choose a student.');
+    return;
+  }
+  var body = { id: id, mode: mode };
+  if (mode === 'section') body.section = value;
+  if (mode === 'student') body.student_id = value;
+  var api = kind === 'quiz' ? PrismQuizzes : PrismAssignments;
+  try {
+    var res = await api.setGate(body);
+    if (typeof window.__prismAfterWorkGate === 'function') window.__prismAfterWorkGate(kind, id, res || {});
+  } catch (e) {
+    alert((e && e.message) || 'Could not update that item.');
+  }
 }
 
 function prismFormatDueLine(dateStr, timeStr) {
@@ -926,7 +1022,7 @@ async function apiForm(endpoint, action, formData, _retried) {
     }
     if (data.csrf_token) prismRememberCsrf(data.csrf_token);
     if (data.error) throw new Error(data.error);
-    if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    if (!res.ok) throw new Error(data.error || 'The page could not load this. Refresh and try again.');
     return data;
   } catch (e) {
     if (!_retried && prismIsSessionExpiredError(e)) {
@@ -1226,6 +1322,9 @@ const PrismAssignments = {
   async delete(id) {
     return await apiCall('content', 'delete_assignment', 'POST', { id });
   },
+  async setGate(body) {
+    return await apiCall('content', 'work_gate', 'POST', body);
+  },
 };
 
 // ══════════════════════════════════════════════════════
@@ -1308,6 +1407,9 @@ const PrismQuizzes = {
   },
   async delete(id) {
     return await apiCall('quizzes', 'delete', 'DELETE', { id });
+  },
+  async setGate(body) {
+    return await apiCall('quizzes', 'work_gate', 'POST', body);
   },
   async getScores(quiz_id) {
     const data = await apiGet('quizzes', 'get_scores', { quiz_id });

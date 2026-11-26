@@ -695,11 +695,16 @@ function prism_student_section_for_filter(PDO $db, array $user): ?string {
     if (($user['role'] ?? '') !== 'student') {
         return null;
     }
+    static $cache = [];
+    $id = (string) ($user['id'] ?? '');
+    if (array_key_exists($id, $cache)) {
+        return $cache[$id];
+    }
     $st = $db->prepare('SELECT section FROM users WHERE id = ?');
-    $st->execute([$user['id']]);
+    $st->execute([$id]);
     $row = $st->fetch();
-
-    return trim((string) ($row['section'] ?? ''));
+    $cache[$id] = trim((string) ($row['section'] ?? ''));
+    return $cache[$id];
 }
 
 /** Block students when quiz is restricted to another section. */
@@ -753,13 +758,150 @@ function prism_due_end_datetime(?string $date, $time = null): ?string {
     return $date . ' ' . $t;
 }
 
+function prism_now_manila(): string {
+    return (new DateTime('now', new DateTimeZone('Asia/Manila')))->format('Y-m-d H:i:s');
+}
+
 function prism_is_past_deadline(?string $date, $time = null): bool {
     $end = prism_due_end_datetime($date, $time);
     if (!$end) {
         return false;
     }
 
-    return date('Y-m-d H:i:s') > $end;
+    return prism_now_manila() > $end;
+}
+
+function prism_ensure_work_gate(PDO $db, string $table): void {
+    if ($table !== 'assignments' && $table !== 'quizzes') {
+        return;
+    }
+    static $done = [];
+    if (!empty($done[$table])) {
+        return;
+    }
+    try {
+        if (!prism_table_has_column($db, $table, 'closed')) {
+            $db->exec('ALTER TABLE `' . $table . '` ADD COLUMN closed TINYINT(1) NOT NULL DEFAULT 0');
+            prism_table_columns($db, $table, true);
+        }
+        if (!prism_table_has_column($db, $table, 'reopen_json')) {
+            $db->exec('ALTER TABLE `' . $table . '` ADD COLUMN reopen_json TEXT NULL');
+            prism_table_columns($db, $table, true);
+        }
+    } catch (Throwable $e) {
+        error_log('PRISM work gate: ' . $e->getMessage());
+    }
+    $done[$table] = true;
+}
+
+function prism_reopen_list($raw): array {
+    $data = is_array($raw) ? $raw : json_decode((string) $raw, true);
+    if (!is_array($data)) {
+        $data = [];
+    }
+    $sections = [];
+    $students = [];
+    foreach (($data['sections'] ?? []) as $section) {
+        $section = trim((string) $section);
+        if ($section !== '' && !in_array($section, $sections, true)) {
+            $sections[] = $section;
+        }
+    }
+    foreach (($data['students'] ?? []) as $studentId) {
+        $studentId = trim((string) $studentId);
+        if ($studentId !== '' && !in_array($studentId, $students, true)) {
+            $students[] = $studentId;
+        }
+    }
+    return ['sections' => $sections, 'students' => $students];
+}
+
+function prism_work_locked_for_student(PDO $db, array $row, array $user): bool {
+    $manual = isset($row['closed']) && (string) $row['closed'] !== '' && (string) $row['closed'] !== '0';
+    $past = prism_is_past_deadline($row['due_date'] ?? null, $row['due_time'] ?? null);
+    if (!$manual && !$past) {
+        return false;
+    }
+    $reopen = prism_reopen_list($row['reopen_json'] ?? '');
+    $id = (string) ($user['id'] ?? '');
+    if ($id !== '' && in_array($id, $reopen['students'], true)) {
+        return false;
+    }
+    $section = prism_student_section_for_filter($db, $user);
+    if ($section && in_array($section, $reopen['sections'], true)) {
+        return false;
+    }
+    return true;
+}
+
+function prism_apply_work_gate(PDO $db, array $user, string $table): void {
+    if (($user['role'] ?? '') !== 'teacher') {
+        fail('Forbidden', 403);
+    }
+    if ($table !== 'assignments' && $table !== 'quizzes') {
+        fail('Unsupported item', 400);
+    }
+    prism_ensure_work_gate($db, $table);
+    $b = getBody();
+    $id = trim((string) ($b['id'] ?? ''));
+    $mode = trim((string) ($b['mode'] ?? ''));
+    if ($id === '' || !in_array($mode, ['close', 'open', 'section', 'student'], true)) {
+        fail('Choose what to open or close', 400);
+    }
+    $alias = $table === 'assignments' ? 'a' : 'q';
+    $owner = $table === 'assignments' ? 'c.teacher_id = ?' : $alias . '.teacher_id = ?';
+    $stmt = $db->prepare(
+        'SELECT ' . $alias . '.class_id, ' . $alias . '.closed, ' . $alias . '.reopen_json
+         FROM ' . $table . ' ' . $alias . '
+         JOIN classes c ON c.id = ' . $alias . '.class_id
+         WHERE ' . $alias . '.id = ? AND ' . $owner
+    );
+    $stmt->execute([$id, $user['id']]);
+    $row = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$row) {
+        fail('Not found or not yours', 404);
+    }
+    $reopen = prism_reopen_list($row['reopen_json'] ?? '');
+    $closed = 1;
+    if ($mode === 'close') {
+        $reopen = ['sections' => [], 'students' => []];
+    } elseif ($mode === 'open') {
+        $closed = 0;
+        $reopen = ['sections' => [], 'students' => []];
+    } elseif ($mode === 'section') {
+        $section = trim((string) ($b['section'] ?? ''));
+        if ($section === '') {
+            fail('Choose a section', 400);
+        }
+        $chk = $db->prepare(
+            'SELECT 1 FROM enrollments e JOIN users u ON u.id = e.student_id
+             WHERE e.class_id = ? AND TRIM(COALESCE(u.section, \'\')) = ? LIMIT 1'
+        );
+        $chk->execute([$row['class_id'], $section]);
+        if (!$chk->fetch()) {
+            fail('That section is not in this class', 400);
+        }
+        if (!in_array($section, $reopen['sections'], true)) {
+            $reopen['sections'][] = $section;
+        }
+    } else {
+        $studentId = trim((string) ($b['student_id'] ?? ''));
+        if ($studentId === '') {
+            fail('Choose a student', 400);
+        }
+        $chk = $db->prepare('SELECT 1 FROM enrollments WHERE class_id = ? AND student_id = ?');
+        $chk->execute([$row['class_id'], $studentId]);
+        if (!$chk->fetch()) {
+            fail('That student is not in this class', 400);
+        }
+        if (!in_array($studentId, $reopen['students'], true)) {
+            $reopen['students'][] = $studentId;
+        }
+    }
+    $json = ($reopen['sections'] || $reopen['students']) ? json_encode($reopen) : null;
+    $db->prepare('UPDATE ' . $table . ' SET closed = ?, reopen_json = ? WHERE id = ?')
+        ->execute([$closed, $json, $id]);
+    ok(['closed' => $closed, 'reopen' => $reopen]);
 }
 
 function prism_ensure_upload_blobs(PDO $db): bool {
@@ -858,23 +1000,40 @@ function prism_delete_upload_blob(string $urlPath): void {
     }
 }
 
-/** True if the column exists (cached per request). Safe for known table/column names only. */
-function prism_table_has_column(PDO $db, string $table, string $column): bool {
+/** Column names for one table, loaded once per request. */
+function prism_table_columns(PDO $db, string $table, bool $refresh = false): array {
     static $cache = [];
-    if (!preg_match('/^[a-z][a-z0-9_]{0,62}$/i', $table) || !preg_match('/^[a-z][a-z0-9_]{0,62}$/i', $column)) {
-        return false;
+    if (!preg_match('/^[a-z][a-z0-9_]{0,62}$/i', $table)) {
+        return [];
     }
-    $key = $table . "\0" . $column;
-    if (array_key_exists($key, $cache)) {
-        return $cache[$key];
+    if ($refresh) {
+        unset($cache[$table]);
+    }
+    if (isset($cache[$table])) {
+        return $cache[$table];
     }
     try {
         $t = '`' . str_replace('`', '', $table) . '`';
-        $stmt = $db->query('SHOW COLUMNS FROM ' . $t . ' LIKE ' . $db->quote($column));
-        $cache[$key] = $stmt && $stmt->rowCount() > 0;
+        $stmt = $db->query('SHOW COLUMNS FROM ' . $t);
+        $names = [];
+        foreach (($stmt ? $stmt->fetchAll() : []) as $row) {
+            $field = strtolower((string) ($row['Field'] ?? ''));
+            if ($field !== '') {
+                $names[$field] = true;
+            }
+        }
+        $cache[$table] = $names;
     } catch (PDOException $e) {
-        $cache[$key] = false;
+        $cache[$table] = [];
     }
+    return $cache[$table];
+}
 
-    return $cache[$key];
+/** True if the column exists (cached per request). Safe for known table/column names only. */
+function prism_table_has_column(PDO $db, string $table, string $column): bool {
+    if (!preg_match('/^[a-z][a-z0-9_]{0,62}$/i', $column)) {
+        return false;
+    }
+    $names = prism_table_columns($db, $table);
+    return !empty($names[strtolower($column)]);
 }

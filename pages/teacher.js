@@ -56,6 +56,14 @@ async function syncTeacherQuizzesFromApiForClass(classId) {
   }
 }
 
+function slimStoredMaterial(m) {
+  if (!m || typeof m !== 'object' || !m.file_data) return m;
+  var copy = Object.assign({}, m);
+  if (!copy.file_path) copy.has_file = 1;
+  delete copy.file_data;
+  return copy;
+}
+
 async function refreshClassData(classId) {
   try {
     const [posts, mats, asgns, students] = await Promise.all([
@@ -64,16 +72,15 @@ async function refreshClassData(classId) {
       PrismAssignments.get(classId),
       PrismClasses.getStudents(classId),
     ]);
-    syncTeacherQuizzesFromApiForClass(classId).catch(function(){});
     _postsCache        = _postsCache.filter(p=>p.class_id!==classId && p.classId!==classId).concat(posts);
-    _materialsCache[classId]   = mats;
+    _materialsCache[classId]   = (mats || []).map(slimStoredMaterial);
     _assignmentsCache[classId] = asgns;
     try {
       const allA = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
       allA[classId] = asgns;
       localStorage.setItem('prism_teacher_assignments', JSON.stringify(allA));
       const allM = JSON.parse(localStorage.getItem('prism_teacher_materials') || '{}');
-      allM[classId] = mats;
+      allM[classId] = _materialsCache[classId];
       localStorage.setItem('prism_teacher_materials', JSON.stringify(allM));
     } catch (e) { /* ignore */ }
     try {
@@ -190,7 +197,7 @@ function renderDashboardIncomingEvents() {
   if (!el) return;
   let raw = [];
   try { raw = (typeof prismLoadScopedList === 'function') ? prismLoadScopedList('prism_events') : []; } catch (e) { raw = []; }
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = typeof prismLocalDateStr === 'function' ? prismLocalDateStr() : '';
   const upcoming = raw.filter(e => e.date >= todayStr)
     .sort((a, b) => {
       const c = a.date.localeCompare(b.date);
@@ -209,7 +216,20 @@ function renderDashboardIncomingEvents() {
 }
 
 /* ═══════════════════════════ INIT ═══════════════════════════ */
+function compactStoredMaterials() {
+  try {
+    var raw = localStorage.getItem('prism_teacher_materials');
+    if (!raw || raw.indexOf('file_data') === -1) return;
+    var all = JSON.parse(raw);
+    Object.keys(all).forEach(function (id) {
+      if (Array.isArray(all[id])) all[id] = all[id].map(slimStoredMaterial);
+    });
+    localStorage.setItem('prism_teacher_materials', JSON.stringify(all));
+  } catch (e) {}
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
+  compactStoredMaterials();
   const user = await prismAuthGuard(['teacher']);
   if (!user) return;
   TEACHER_ID = user.id; // set AFTER auth resolves
@@ -255,13 +275,12 @@ function paintTeacherClassesFromCache() {
 }
 
 async function loadClasses() {
-  var painted = paintTeacherClassesFromCache();
   var grid = document.getElementById('classes-grid');
-  if (!painted && grid && !grid.children.length && typeof prismShowWait === 'function') {
-    prismShowWait(grid, 'Loading classes');
-  }
+  if (typeof prismShowWait === 'function') prismShowWait(grid);
+  var settle = typeof prismPageSettle === 'function' ? prismPageSettle(720) : Promise.resolve();
   try {
-    CLASSES = await PrismClasses.getMyClasses();
+    var loaded = await Promise.all([PrismClasses.getMyClasses(), settle]);
+    CLASSES = loaded[0];
     const idx = {};
     CLASSES.forEach(cls => { if(cls.code) idx[cls.code] = { classId:cls.id, teacherId:cls.teacher_id||TEACHER_ID, subject:cls.subject }; });
     saveCodeIndex(idx);
@@ -269,7 +288,12 @@ async function loadClasses() {
     classPaintGen++;
     renderClassGrid();
     if (typeof prismLoadClassCovers === 'function') prismLoadClassCovers(CLASSES, function () { renderClassGrid(); });
-  } catch(e) { console.error('loadClasses:', e); if (!CLASSES.length) CLASSES = []; }
+  } catch(e) {
+    console.error('loadClasses:', e);
+    try { await settle; } catch (e2) {}
+    if (!CLASSES.length) paintTeacherClassesFromCache();
+    if (!CLASSES.length) CLASSES = [];
+  }
 
   if (!CLASSES.length) {
     if (TEACHER_ID) localStorage.setItem('prism_classes_' + TEACHER_ID, '[]');
@@ -289,9 +313,6 @@ async function loadClasses() {
   if (typeof markSidebarClassActive === 'function') markSidebarClassActive(activeClassId);
   await refreshClassData(activeClassId);
   renderClassGrid();
-  CLASSES.filter(function(c){ return c.id !== activeClassId; }).forEach(function(cls){
-    refreshClassData(cls.id).catch(function(){});
-  });
 }
 
 async function onTeacherClassChange(id) {

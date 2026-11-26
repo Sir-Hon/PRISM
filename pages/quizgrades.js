@@ -3,6 +3,142 @@ var QG_assignments = [];
 var QG_scores = [];
 var QG_log = [];
 var QG_openStudent = '';
+var QG_section = null;
+var QG_type = '';
+var QG_kinds = [
+  { id: 'quiz', label: 'Quiz' },
+  { id: 'exam', label: 'Exam' },
+  { id: 'activity', label: 'Activity' },
+  { id: 'written', label: 'Written assignment' },
+  { id: 'project', label: 'Project' },
+  { id: 'lab', label: 'Lab' },
+  { id: 'oral', label: 'Oral' }
+];
+
+function QG_isAssignmentType(id) {
+  return id === 'written' || id === 'project' || id === 'lab' || id === 'oral';
+}
+
+function QG_kindLabel(id) {
+  var kind = QG_kinds.filter(function (row) { return row.id === id; })[0];
+  return kind ? kind.label : 'work';
+}
+
+function closeGradesForFilter() {
+  QG_section = null;
+  QG_type = '';
+  QG_openStudent = '';
+  var work = document.getElementById('grades-work');
+  var browse = document.getElementById('grades-browse');
+  if (work) work.hidden = true;
+  if (browse) browse.hidden = false;
+  if (typeof activeSub !== 'undefined' && activeSub === 'grades') QG_renderBrowse();
+}
+
+function QG_renderBrowse() {
+  var browse = document.getElementById('grades-browse');
+  var work = document.getElementById('grades-work');
+  if (!browse) return;
+  if (work) work.hidden = true;
+  browse.hidden = false;
+  if (QG_section == null) {
+    if (typeof paintSectionCards === 'function') {
+      paintSectionCards(browse, function (sec) {
+        QG_section = sec;
+        QG_type = '';
+        QG_renderBrowse();
+      });
+    }
+    return;
+  }
+  browse.innerHTML = '';
+  var back = document.createElement('button');
+  back.type = 'button';
+  back.className = 'browse-back';
+  back.textContent = QG_type ? 'Types' : 'Sections';
+  back.onclick = function () {
+    if (QG_type) QG_type = '';
+    else QG_section = null;
+    QG_renderBrowse();
+  };
+  browse.appendChild(back);
+  var title = document.createElement('h2');
+  title.className = 'browse-title';
+  title.textContent = QG_section || 'No section';
+  browse.appendChild(title);
+  if (!QG_type) {
+    var picks = document.createElement('div');
+    picks.className = 'type-picks';
+    QG_kinds.forEach(function (kind) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = kind.label;
+      btn.onclick = function () {
+        QG_type = kind.id;
+        QG_renderBrowse();
+      };
+      picks.appendChild(btn);
+    });
+    browse.appendChild(picks);
+    return;
+  }
+  QG_listActivities(browse);
+}
+
+async function QG_listActivities(browse) {
+  var stamp = String(QG_section) + '|' + QG_type;
+  browse.dataset.gradeStamp = stamp;
+  var catEl = document.getElementById('grade-category');
+  if (catEl) catEl.value = QG_isAssignmentType(QG_type) ? 'assignment' : QG_type;
+  var host = document.createElement('div');
+  host.className = 'activity-picks';
+  host.innerHTML = '<div class="prism-wait prism-wait-only" role="status" aria-label="Please wait"></div>';
+  browse.appendChild(host);
+  try { await QG_open({ listOnly: true }); } catch (e) { /* the list below shows the empty message */ }
+  if (browse.dataset.gradeStamp !== stamp) return;
+  var rows = QG_isAssignmentType(QG_type) ? (QG_assignments || []) : (QG_quizzes || []);
+  if (QG_isAssignmentType(QG_type)) {
+    rows = rows.filter(function (item) { return (item.type || 'written') === QG_type; });
+  }
+  rows = rows.filter(function (item) {
+    var aimed = String(item.target_section || '').trim();
+    if (!aimed) return true;
+    return aimed === String(QG_section || '');
+  });
+  host.innerHTML = '';
+  if (!rows.length) {
+    host.innerHTML = '<p class="gc-empty">No ' + QG_kindLabel(QG_type).toLowerCase() + ' in this section yet.</p>';
+    return;
+  }
+  rows.forEach(function (item) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = item.title || 'Untitled';
+    btn.onclick = function () { QG_openActivity(item.id); };
+    host.appendChild(btn);
+  });
+}
+
+function QG_openActivity(id) {
+  var sel = document.getElementById('grade-quiz-select');
+  var browse = document.getElementById('grades-browse');
+  var work = document.getElementById('grades-work');
+  if (sel) sel.value = id;
+  if (browse) browse.hidden = true;
+  if (work) work.hidden = false;
+  var pool = QG_isAssignmentType(QG_type) ? QG_assignments : QG_quizzes;
+  var item = (pool || []).filter(function (row) { return String(row.id) === String(id); })[0];
+  var title = document.getElementById('grade-title');
+  if (title) title.textContent = (item && item.title) || 'Grades';
+  QG_loadScores();
+}
+
+function QG_back() {
+  QG_openStudent = '';
+  var detail = document.getElementById('grade-detail');
+  if (detail) detail.innerHTML = '';
+  QG_renderBrowse();
+}
 var QG_presetUsed = false;
 
 function QG_category() {
@@ -135,12 +271,13 @@ function QG_answerText(q, ans) {
   return String(ans);
 }
 
-async function QG_open() {
+async function QG_open(opts) {
+  var listOnly = opts && opts.listOnly;
   var host = document.getElementById('grade-list');
   if (!host || !activeClassId) return;
   QG_labels();
   var cat = QG_category();
-  host.innerHTML = '<p class="qg-empty">Loading ' + (cat === 'assignment' ? 'assignments' : cat === 'exam' ? 'exams' : cat === 'activity' ? 'activities' : 'quizzes') + '…</p>';
+  if (!listOnly) host.innerHTML = '<div class="prism-wait prism-wait-only" role="status" aria-label="Please wait"></div>';
   if (cat === 'assignment') {
     try {
       QG_assignments = await PrismAssignments.get(activeClassId);
@@ -155,7 +292,7 @@ async function QG_open() {
       var section = item.target_section ? ' · ' + item.target_section : '';
       return kind + (item.title || 'Assignment') + section;
     });
-    await QG_loadScores();
+    if (!listOnly) await QG_loadScores();
     return;
   }
   var all = [];
@@ -166,7 +303,7 @@ async function QG_open() {
     return;
   }
   all = (all || []).filter(function (q) { return String(q.published) === '1' || q.published === 1 || q.published === true; });
-  if (!QG_presetUsed) {
+  if (!listOnly && !QG_presetUsed) {
     QG_presetUsed = true;
     var preset = '';
     try { preset = new URLSearchParams(location.search).get('quiz') || ''; } catch (e3) { preset = ''; }
@@ -189,7 +326,7 @@ async function QG_open() {
   var presetId = '';
   try { presetId = new URLSearchParams(location.search).get('quiz') || ''; } catch (e4) { presetId = ''; }
   if (sel && presetId && QG_quizzes.some(function (q) { return String(q.id) === String(presetId); })) sel.value = presetId;
-  await QG_loadScores();
+  if (!listOnly) await QG_loadScores();
 }
 
 async function QG_loadScores() {
@@ -206,7 +343,7 @@ async function QG_loadScores() {
     host.innerHTML = '<p class="qg-empty">' + waiting + '</p>';
     return;
   }
-  host.innerHTML = '<p class="qg-empty">Loading scores…</p>';
+  host.innerHTML = '<div class="prism-wait prism-wait-only" role="status" aria-label="Please wait"></div>';
   if (QG_isAssignment()) {
     try {
       var submissions = await PrismSubmissions.getAll(sel.value);
@@ -285,7 +422,27 @@ function QG_people() {
     byId[id] = { id: id, name: e.student_name || id, score: null };
     order.push(id);
   });
-  return order.map(function (id) { return byId[id]; });
+  var people = order.map(function (id) { return byId[id]; });
+  if (QG_section != null && typeof getStudents === 'function') {
+    var roster = getStudents(activeClassId) || [];
+    roster.forEach(function (student) {
+      if (String(student.section || '').trim() !== String(QG_section)) return;
+      var id = String(student.id);
+      if (byId[id]) {
+        if (!byId[id].name || byId[id].name === id) byId[id].name = student.name || byId[id].name;
+        return;
+      }
+      people.push({ id: id, name: student.name || id, score: null });
+    });
+    people = people.filter(function (person) {
+      var row = roster.filter(function (student) { return String(student.id) === String(person.id); })[0];
+      return row && String(row.section || '').trim() === String(QG_section);
+    });
+  }
+  people.sort(typeof prismFormalCompare === 'function' ? prismFormalCompare : function (a, b) {
+    return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+  });
+  return people;
 }
 
 function QG_renderList() {
@@ -294,8 +451,9 @@ function QG_renderList() {
   var assignment = QG_isAssignment() ? QG_currentAssignment() : null;
   var filter = (document.getElementById('grade-student-filter').value || '').trim().toLowerCase();
   var people = QG_people().filter(function (person) {
-    var name = String(person.name || '').toLowerCase();
-    return !filter || name.indexOf(filter) !== -1;
+    var shown = (typeof prismFormalName === 'function' ? prismFormalName(person.name) : (person.name || '')).toLowerCase();
+    var raw = String(person.name || '').toLowerCase();
+    return !filter || shown.indexOf(filter) !== -1 || raw.indexOf(filter) !== -1;
   });
   if (!people.length) {
     var noun = QG_isAssignment() ? 'assignment' : (QG_category() === 'exam' ? 'exam' : QG_category() === 'activity' ? 'activity' : 'quiz');
@@ -314,7 +472,7 @@ function QG_renderList() {
     if (row && QG_isAssignment()) scoreText = QG_hasScore(row) ? (QG_esc(row.score) + (total ? ' / ' + total : '')) : 'Not graded';
     else if (row) scoreText = QG_esc(row.score) + ' / ' + total;
     return '<button type="button" class="qg-student' + (open ? ' is-open' : '') + (flag ? ' has-flag' : '') + '" data-student="' + QG_esc(person.id) + '" aria-expanded="' + (open ? 'true' : 'false') + '">'
-      + '<span><b>' + QG_esc(person.name) + '</b><small>' + whenHtml + '</small></span>'
+      + '<span><b>' + QG_esc(typeof prismFormalName === 'function' ? prismFormalName(person.name) : person.name) + '</b><small>' + whenHtml + '</small></span>'
       + '<strong>' + scoreText + '</strong></button>';
   }).join('');
   host.querySelectorAll('.qg-student').forEach(function (btn) {
@@ -433,7 +591,7 @@ function QG_showStudent(studentId) {
   if (!quiz || !person || !detail) return;
   QG_openStudent = studentId;
   if (!row) {
-    detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(person.name) + '</h3></div>'
+    detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(typeof prismFormalName === 'function' ? prismFormalName(person.name) : person.name) + '</h3></div>'
       + QG_leaveHtml(studentId)
       + '<p class="qg-empty">No submission yet.</p>';
     QG_markOpenStudent();
@@ -482,7 +640,7 @@ function QG_showAssignment(studentId) {
   if (!assignment || !person || !detail) return;
   QG_openStudent = studentId;
   if (!row) {
-    detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(person.name) + '</h3></div><p class="qg-empty">No submission yet.</p>';
+    detail.innerHTML = '<div class="qg-detail-head"><h3>' + QG_esc(typeof prismFormalName === 'function' ? prismFormalName(person.name) : person.name) + '</h3></div><p class="qg-empty">No submission yet.</p>';
     QG_markOpenStudent();
     return;
   }

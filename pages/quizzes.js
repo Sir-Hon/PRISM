@@ -21,8 +21,8 @@ function QUIZ_isPastDue(q) {
   var d = QUIZ_quizDueDate(q);
   if (!d) return false;
   if (typeof prismIsPastDue === 'function') return prismIsPastDue(d, q.due_time);
-  var today = new Date().toISOString().split('T')[0];
-  return d < today;
+  var today = typeof prismLocalDateStr === 'function' ? prismLocalDateStr() : '';
+  return today !== '' && d < today;
 }
 function QUIZ_normalizeQuizFields(raw) {
   if (!raw) return raw;
@@ -366,7 +366,28 @@ function QUIZ_normalizeQuestion(raw) {
   }
   return out;
 }
-function QUIZ_open(qid, sourceQuizzes) {
+async function QUIZ_fillQuestions(raw) {
+  if (!raw || (Array.isArray(raw.questions) && raw.questions.length)) return raw;
+  if (typeof PrismQuizzes === 'undefined' || !PrismQuizzes.getMine) return raw;
+  try {
+    var full = await PrismQuizzes.getMine();
+    var row = (full || []).find(function (q) { return String(q.id) === String(raw.id); });
+    var qs = row && row.questions;
+    if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (e) { qs = []; } }
+    if (!Array.isArray(qs) || !qs.length) return raw;
+    raw.questions = qs;
+    try {
+      var stored = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
+      var ix = stored.findIndex(function (q) { return String(q.id) === String(raw.id); });
+      if (ix >= 0) {
+        stored[ix].questions = qs;
+        localStorage.setItem('prism_teacher_quizzes', JSON.stringify(stored));
+      }
+    } catch (eStore) {}
+  } catch (e) {}
+  return raw;
+}
+async function QUIZ_open(qid, sourceQuizzes) {
   var all = sourceQuizzes || JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]');
   var raw = all.find(function(q) { return String(q.id) === String(qid); });
   if (!raw) {
@@ -377,11 +398,17 @@ function QUIZ_open(qid, sourceQuizzes) {
   if (typeof raw.questions === 'string') {
     try { raw.questions = JSON.parse(raw.questions || '[]'); } catch (e) { raw.questions = []; }
   }
+  if (!Array.isArray(raw.questions) || !raw.questions.length) raw = await QUIZ_fillQuestions(raw);
   if (!Array.isArray(raw.questions) || !raw.questions.length) {
     alert('This quiz has no questions yet. Ask your teacher to publish it again.');
     return;
   }
-  if (QUIZ_isPastDue(raw)) {
+  var quizLock = typeof prismWorkLockReason === 'function' ? prismWorkLockReason(raw) : (QUIZ_isPastDue(raw) ? 'deadline' : '');
+  if (quizLock === 'closed') {
+    alert('Your teacher closed this quiz.');
+    return;
+  }
+  if (quizLock === 'deadline' || QUIZ_isPastDue(raw)) {
     alert(PRISM_LATE_QUIZ_MSG);
     return;
   }
@@ -870,12 +897,10 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
     var atts   = JSON.parse(localStorage.getItem('prism_quiz_attempts_'+STUDENT_ID)||'{}');
     var ip     = JSON.parse(localStorage.getItem('prism_quiz_inprogress_'+STUDENT_ID)||'{}');
     if (scores[quiz.id] !== undefined || scores[String(quiz.id)] !== undefined) return 'completed';
+    var lock = typeof prismWorkLockReason === 'function' ? prismWorkLockReason(quiz) : '';
+    if (lock) return 'overdue';
     var due = quiz.due || quiz.due_date || '';
-    if (due) {
-      if (typeof prismIsPastDue === 'function' && prismIsPastDue(due, quiz.due_time)) return 'overdue';
-      var today = new Date().toISOString().split('T')[0];
-      if (due < today) return 'overdue';
-    }
+    if (due && typeof prismIsPastDue === 'function' && prismIsPastDue(due, quiz.due_time)) return 'overdue';
     if (atts[quiz.id] || ip[quiz.id]) return 'pending';
     return 'not-started';
   }
@@ -914,8 +939,8 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
     var quizzes = getAllTeacherQuizzes();
     if (activeFilter !== 'all') quizzes = quizzes.filter(function(q){ return getStatus(q) === activeFilter; });
     if (!quizzes.length) {
-      grid.innerHTML = '<div style="text-align:center;padding:3rem;color:#9ca3af;grid-column:1/-1;">'
-        + (getAllTeacherQuizzes().length ? 'No quizzes match this filter.' : 'No quizzes available yet — join a class to see quizzes from your teacher.')
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1;">'
+        + (getAllTeacherQuizzes().length ? 'No quizzes match this filter.' : 'No quizzes yet. They show up here after your teacher publishes one.')
         + '</div>';
       return;
     }
@@ -935,7 +960,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
       var btnHtml = status === 'completed'
         ? '<button type="button" class="start-quiz-btn done" data-review="'+quiz.id+'">Review</button>'
         : status === 'overdue'
-        ? '<button type="button" class="start-quiz-btn late-deadline" onclick="alert(PRISM_LATE_QUIZ_MSG)">Past due date — tap for info</button>'
+        ? '<button type="button" class="start-quiz-btn late-deadline" onclick="alert(' + ((typeof prismWorkLockReason === 'function' && prismWorkLockReason(quiz) === 'closed') ? '\'Your teacher closed this quiz.\'' : 'PRISM_LATE_QUIZ_MSG') + ')">' + ((typeof prismWorkLockReason === 'function' && prismWorkLockReason(quiz) === 'closed') ? 'Closed' : 'Past due date — tap for info') + '</button>'
         : noAttemptsLeft
         ? '<button class="start-quiz-btn over" disabled>No Attempts Left</button>'
         : status === 'pending'
@@ -982,7 +1007,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
 
   async function syncQuizzesFromAPI() {
     try {
-      var list = await PrismQuizzes.getMine();
+      var list = await PrismQuizzes.getMine({ brief: true });
       var joined = getJoinedClasses();
       var joinedClassIds = Object.keys(joined);
       var apiIds = new Set((list || []).map(function(q) { return String(q.id); }));
@@ -995,7 +1020,9 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
         return apiIds.has(String(q.id));
       });
       (list || []).forEach(function(q) {
+        var prev = all.find(function (x) { return String(x.id) === String(q.id); });
         var qs = q.questions;
+        if ((qs == null || qs === '') && prev) qs = prev.questions;
         if (typeof qs === 'string') { try { qs = JSON.parse(qs || '[]'); } catch (e) { qs = []; } }
         var jc = joined[q.class_id] || joined[String(q.class_id)];
         var mapped = {
@@ -1014,7 +1041,9 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
           attempts: parseInt(q.attempts, 10) || 1,
           totalPoints: parseInt(q.total_points, 10) || 0,
           questions: qs || [],
-          allowSkip: !!(+q.allow_skip || q.allowSkip)
+          allowSkip: !!(+q.allow_skip || q.allowSkip),
+          closed: q.closed,
+          reopen_json: q.reopen_json || null,
         };
         var ix = all.findIndex(function(x) { return String(x.id) === String(q.id); });
         if (ix >= 0) all[ix] = Object.assign({}, all[ix], mapped);
@@ -1036,6 +1065,7 @@ var STUDENT_ID = sessionStorage.getItem('prism_user_id') || 'student';
     if (typeof initSidebar === 'function') initSidebar('quizzes');
     var wantQuiz = '';
     try { wantQuiz = new URLSearchParams(window.location.search).get('quiz') || ''; } catch (e) { wantQuiz = ''; }
+    renderGrid();
     syncQuizzesFromAPI().finally(function() {
       renderGrid();
       if (wantQuiz) QUIZ_open(wantQuiz);

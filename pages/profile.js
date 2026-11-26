@@ -31,15 +31,18 @@ function getClasswork() {
   var joined   = JSON.parse(localStorage.getItem('prism_joined_' + uid) || '{}');
   var classIds = Object.keys(joined);
   var allAsgns = JSON.parse(localStorage.getItem('prism_teacher_assignments') || '{}');
-  var today    = new Date().toISOString().split('T')[0];
   var result   = [];
   classIds.forEach(function(cid) {
     var entry = joined[cid];
     (allAsgns[cid] || []).forEach(function(a) {
+      var due = a.due || a.due_date || '';
+      var past = due && (typeof prismIsPastDue === 'function'
+        ? prismIsPastDue(due, a.due_time || '')
+        : due < (typeof prismLocalDateStr === 'function' ? prismLocalDateStr() : ''));
       result.push({
         subject: entry.subject, subjectColor: '#7c3aed',
-        title: a.title, due: a.due || '',
-        status: a.due && a.due < today ? 'overdue' : 'pending',
+        title: a.title, due: due,
+        status: past ? 'overdue' : 'pending',
         type: a.type || 'assignment'
       });
     });
@@ -668,8 +671,6 @@ function renderQuizStatus() {
   var classIds = Object.keys(joined);
   var quizzes  = JSON.parse(localStorage.getItem('prism_teacher_quizzes') || '[]')
                    .filter(function(q){ return q.published && classIds.indexOf(q.classId)!==-1; });
-  var today    = new Date().toISOString().split('T')[0];
-
   if (!quizzes.length) {
     container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>No quizzes assigned yet.</div></div>';
     return;
@@ -677,7 +678,10 @@ function renderQuizStatus() {
 
   container.innerHTML = quizzes.slice(0,8).map(function(q) {
     var isDone    = scores[q.id] !== undefined;
-    var isOverdue = !isDone && q.due && q.due < today;
+    var quizDue = q.due || q.due_date || '';
+    var isOverdue = !isDone && quizDue && (typeof prismIsPastDue === 'function'
+      ? prismIsPastDue(quizDue, q.due_time || '')
+      : quizDue < (typeof prismLocalDateStr === 'function' ? prismLocalDateStr() : ''));
     var badge  = isDone ? ' Done' : isOverdue ? ' Overdue' : ' Pending';
     var badgeBg= isDone ? '#d1fae5' : isOverdue ? '#fee2e2' : '#fef3c7';
     var badgeC = isDone ? '#065f46' : isOverdue ? '#991b1b' : '#92400e';
@@ -724,7 +728,6 @@ function renderAssignments() {
     return;
   }
   ALL_CLASSWORK = getClasswork();
-  var today    = new Date().toISOString().split('T')[0];
   var combined = ALL_CLASSWORK.filter(function(a){ return a.status==='overdue'||a.status==='pending'; }).slice(0,8);
   if (!combined.length) {
     container.innerHTML = '<div class="p-empty"><div class="p-empty-icon"></div><div>No pending assignments.</div></div>';

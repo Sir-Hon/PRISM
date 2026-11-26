@@ -304,6 +304,7 @@ function prism_ensure_announcement_audience(PDO $db): bool {
         foreach ($cols as $name => $def) {
             if (!prism_table_has_column($db, 'announcements', $name)) {
                 $db->exec('ALTER TABLE announcements ADD COLUMN ' . $name . ' ' . $def);
+                prism_table_columns($db, 'announcements', true);
             }
         }
         $ready = prism_table_has_column($db, 'announcements', 'audience');

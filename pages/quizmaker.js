@@ -27,6 +27,8 @@ function mapApiQuizRowToLocal(q, classId) {
     questions: qs || [],
     target_section: ts,
     allowSkip: !!(+q.allow_skip || q.allowSkip),
+    closed: q.closed,
+    reopen_json: q.reopen_json || null,
     instructions: q.instructions || '',
     shuffle: (+q.shuffle || q.shuffle === 'yes') ? 'yes' : 'no',
     reveal: q.reveal || 'submit',
@@ -86,6 +88,7 @@ var qmQuizViewFilter = '__all__';
 var CLASSES = [];
 var questions = [];
 var editingQuizId = null;
+var editingWasPublished = false;
 
 function qmUniqueSections(classId) {
   try {
@@ -197,6 +200,8 @@ function updateQuizScopeBanner() {
 
 async function onClassChange(id) {
   activeClassId = id;
+  window.__qmPeople = [];
+  window.__qmPeopleLoading = false;
   try { sessionStorage.setItem('prism_teacher_active_class_id', id); } catch (e) {}
   CLASSES = getClasses();
   qmLoadTargetSection(id);
@@ -901,14 +906,16 @@ async function publishQuiz(){
     const saved=await PrismQuizzes.save(payload);
     const quizId=saved.id||d.id;
     const author=sessionStorage.getItem('prism_user_name')||'Teacher';
-    await PrismPosts.add({
-      class_id:activeClassId,
-      type:'quiz',
-      body:`New quiz: "${d.title}" — ${realCount} questions, ${d.totalPoints} pts${d.due?' · Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(d.due,d.due_time):d.due):''}`,
-      quiz_id:quizId,
-      author,
-      target_section:qmGetTargetSectionForApi(),
-    });
+    if (!editingWasPublished) {
+      await PrismPosts.add({
+        class_id:activeClassId,
+        type:'quiz',
+        body:`New quiz: "${d.title}" — ${realCount} questions, ${d.totalPoints} pts${d.due?' · Due '+(typeof prismFormatDueLine==='function'?prismFormatDueLine(d.due,d.due_time):d.due):''}`,
+        quiz_id:quizId,
+        author,
+        target_section:qmGetTargetSectionForApi(),
+      });
+    }
     d.published=true; d.publishedAt=new Date().toISOString(); d.id=quizId;
     d.target_section = qmGetTargetSectionForApi() || '';
     const quizzes=getQuizzes().filter(function(q){ return String(q.id)!==String(editingQuizId) || String(editingQuizId)===String(quizId); });
@@ -917,7 +924,7 @@ async function publishQuiz(){
     else quizzes.push(d);
     saveQuizzes(quizzes);
     await syncQuizzesFromApiForClass(activeClassId);
-    showQMsg(' Published!','ok'); resetQM(); renderSavedQuizzes();
+    showQMsg(editingWasPublished ? 'Saved.' : ' Published!','ok'); resetQM(); renderSavedQuizzes();
   }catch(e){ showQMsg(e.message||'Publish failed.','err'); }
   finally { if(typeof prismSetBusy==='function') prismSetBusy(publishBtn,false); }
 }
@@ -948,14 +955,45 @@ async function saveDraft(){
     if(typeof prismSetBusy==='function') prismSetBusy(draftBtn,false);
   }
 }
-function syncDraftButton(){
-  var btn=document.querySelector('.draft-btn');
-  if(btn) btn.textContent=editingQuizId?'Update draft':'Save Draft';
+function syncQuizButtons(){
+  var publish=document.querySelector('.publish-btn');
+  var draft=document.querySelector('.draft-btn');
+  if(publish) publish.textContent=editingWasPublished?'Save changes':(editingQuizId?'Publish changes':'Publish Quiz');
+  if(draft){
+    draft.hidden=!!editingWasPublished;
+    draft.textContent=editingQuizId?'Update draft':'Save Draft';
+  }
 }
-function openDraft(id){
+function syncDraftButton(){ syncQuizButtons(); }
+function paintQuizGate(quiz){
+  var host=document.getElementById('qm-gate');
+  if(!host) return;
+  if(!quiz || !quiz.published || typeof prismTeacherGateControls!=='function'){
+    host.hidden=true;
+    host.innerHTML='';
+    return;
+  }
+  host.hidden=false;
+  host.innerHTML=prismTeacherGateControls('quiz', quiz, window.__qmPeople||[]);
+}
+function openDraft(id){ openQuizEditor(id); }
+async function openQuizEditor(id){
   var quiz=getQuizzes().find(function(q){ return String(q.id)===String(id); });
-  if(!quiz || quiz.published) return;
+  if(!quiz) return;
+  if(!(quiz.questions||[]).length && activeClassId){
+    try{
+      var rows=await PrismQuizzes.get(activeClassId);
+      var fresh=(rows||[]).map(function(row){ return mapApiQuizRowToLocal(row, activeClassId); }).find(function(row){ return String(row.id)===String(id); });
+      if(fresh){
+        quiz=fresh;
+        var all=getQuizzes().filter(function(item){ return String(item.id)!==String(id); });
+        all.push(fresh);
+        saveQuizzes(all);
+      }
+    }catch(e){}
+  }
   editingQuizId=quiz.id;
+  editingWasPublished=!!quiz.published;
   document.getElementById('qm-title').value=quiz.title||'';
   document.getElementById('qm-instructions').value=quiz.instructions||'';
   document.getElementById('qm-time').value=quiz.time?String(quiz.time):'';
@@ -977,8 +1015,9 @@ function openDraft(id){
   try{ sessionStorage.setItem('prism_qm_target_section_'+activeClassId, activeQmTargetSection); }catch(e){}
   renderQmSectionPills();
   renderQMQuestions();
-  syncDraftButton();
-  showQMsg('Draft loaded. Save again to keep your changes.','ok');
+  paintQuizGate(quiz);
+  syncQuizButtons();
+  showQMsg(quiz.published ? 'Loaded. Save changes when you are done. Closed work can be opened again for a section or a student below.' : 'Draft loaded. Save again to keep your changes.','ok');
   var title=document.getElementById('qm-title');
   if(title&&title.scrollIntoView) title.scrollIntoView({behavior:'smooth',block:'center'});
 }
@@ -990,7 +1029,7 @@ function setQmSelect(id, value){
   if(has) el.value=wanted;
 }
 function showQMsg(m,t){const el=document.getElementById('qm-msg');el.textContent=m;el.className='form-msg '+t;setTimeout(()=>el.textContent='',2500);}
-function resetQM(){editingQuizId=null;document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';var skipBox=document.getElementById('qm-skip');if(skipBox)skipBox.checked=false;questions=[];syncDraftButton();renderQMQuestions();}
+function resetQM(){editingQuizId=null;editingWasPublished=false;document.getElementById('qm-title').value='';document.getElementById('qm-instructions').value='';document.getElementById('qm-time').value='';document.getElementById('qm-due').value='';document.getElementById('qm-due-time').value='';var skipBox=document.getElementById('qm-skip');if(skipBox)skipBox.checked=false;questions=[];paintQuizGate(null);syncQuizButtons();renderQMQuestions();}
 
 function loadQmQuizViewFilter(){
   if(!activeClassId){ qmQuizViewFilter='__all__'; return; }
@@ -1064,22 +1103,48 @@ function renderSavedQuizzes(){
     list.innerHTML='<p style="font-size:.82rem;color:#9ca3af;text-align:center;padding:.5rem 0;">No quiz matches this filter. Choose <strong>All quizzes</strong> above.</p>';
     return;
   }
+  var qmPeople = window.__qmPeople || [];
+  if (!qmPeople.length && activeClassId && !window.__qmPeopleLoading && typeof PrismClasses !== 'undefined') {
+    window.__qmPeopleLoading = true;
+    PrismClasses.getStudents(activeClassId).then(function (rows) {
+      window.__qmPeople = rows || [];
+      window.__qmPeopleLoading = false;
+      renderSavedQuizzes();
+    }).catch(function () { window.__qmPeopleLoading = false; });
+  }
   list.innerHTML=displayQuizzes.slice().reverse().map(q=>{
     var secLab = (q.target_section && String(q.target_section).trim()) ? ' · <span style="color:#059669;font-weight:700;">'+String(q.target_section).trim()+'</span>' : '';
+    var closedLab = (q.closed != null && String(q.closed) !== '' && String(q.closed) !== '0') ? ' · <span style="color:#991b1b;font-weight:700;">Closed</span>' : '';
     var qid = "'" + String(q.id).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
     return `<div class="saved-q-item">
       <div class="sq-top">
       <div class="sq-icon">${q.type==='exam'?'Exam':q.type==='activity'?'Activity':'Quiz'}</div>
-        <div class="sq-copy"><div class="sq-title">${q.title}</div><div class="sq-meta">${(q.questions||[]).filter(function(item){ return item.type!=='part'; }).length}Q · ${q.totalPoints||0}pts${secLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
+        <div class="sq-copy"><div class="sq-title">${q.title}</div><div class="sq-meta">${(q.questions||[]).filter(function(item){ return item.type!=='part'; }).length}Q · ${q.totalPoints||0}pts${secLab}${closedLab} · ${q.published?'<span style="color:#10b981;">Published</span>':'<span style="color:#9ca3af;">Draft</span>'}</div></div>
       </div>
       <div class="sq-actions">
-        ${q.published ? '' : `<button type="button" class="sq-log-btn" onclick="openDraft(${qid})" title="Open this draft">Edit</button>`}
+        <button type="button" class="sq-edit" title="Edit" aria-label="Edit" onclick="openQuizEditor(${qid})"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
         <button type="button" class="sq-del-btn" onclick="deleteQuiz(${qid})" title="Remove this quiz">Delete</button>
       </div>
     </div>`;
   }).join('');
   if (typeof qmFitEmbed === 'function') setTimeout(qmFitEmbed, 40);
 }
+
+window.__prismAfterWorkGate = function (kind, id, res) {
+  if (kind !== 'quiz') return;
+  var all = getQuizzes();
+  all.forEach(function (q) {
+    if (String(q.id) !== String(id)) return;
+    q.closed = res && res.closed ? 1 : 0;
+    q.reopen_json = res && res.reopen ? res.reopen : null;
+  });
+  saveQuizzes(all);
+  renderSavedQuizzes();
+  if (String(editingQuizId) === String(id)) {
+    var fresh = getQuizzes().find(function (q) { return String(q.id) === String(id); });
+    if (fresh) paintQuizGate(fresh);
+  }
+};
 
 async function deleteQuiz(id){
   if(!confirm('Delete this quiz? Students will no longer see it.'))return;

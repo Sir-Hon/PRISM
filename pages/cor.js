@@ -179,9 +179,21 @@ function matchingCors(year, sem, query) {
   });
 }
 
+function corFailText(err) {
+  var msg = err && err.message ? String(err.message) : '';
+  if (!msg || /^HTTP\s+\d+/i.test(msg) || /could not load this/i.test(msg) || /invalid response/i.test(msg)) {
+    return 'Certificates could not be loaded. Refresh the page and try again.';
+  }
+  return msg;
+}
+
 function loadStudentCors() {
   var year = document.getElementById('cor-view-year').value;
   var sem = document.getElementById('cor-view-sem').value;
+  var host = document.getElementById('cor-choices');
+  if (host && !corCatalog) {
+    host.innerHTML = '<div class="prism-wait prism-wait-only" role="status" aria-label="Please wait"></div>';
+  }
   var remote = corCatalog && corCatalog.capped && (year || sem);
   var requestGen = corCatalogGen;
   var pending = remote
@@ -194,13 +206,15 @@ function loadStudentCors() {
     var list = remote ? (data.cors || []) : matchingCors(year, sem, '');
     renderCorChoices(list, !!(year && sem), years.length);
   }).catch(function (e) {
-    document.getElementById('cor-choices').innerHTML = '<p class="cor-empty">' + corEsc(e.message || 'Could not load certificates') + '</p>';
+    document.getElementById('cor-choices').innerHTML = '<p class="cor-empty">' + corEsc(corFailText(e)) + '</p>';
   });
 }
 
 function clearStudentCor() {
   selectedCor = null;
-  document.getElementById('cor-print').innerHTML = '';
+  closeCorSheet();
+  var host = document.getElementById('cor-print');
+  if (host) host.innerHTML = '';
   var bar = document.getElementById('cor-download-bar');
   if (bar) bar.style.display = 'none';
 }
@@ -244,16 +258,13 @@ async function openCor(id, btn) {
   selectedCor = cor;
   document.querySelectorAll('.cor-choice').forEach(function (el) { el.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  document.getElementById('cor-print').innerHTML = corDocument(cor.payload || {});
   document.getElementById('cor-download-bar').style.display = 'flex';
+  showCorSheet(corDocument(cor.payload || {}), cor.label || 'Certificate of Registration');
 }
 
 function downloadSelectedCor() {
-  if (!selectedCor) return;
-  var previous = document.title;
-  document.title = selectedCor.label || 'Certificate of Registration';
-  window.print();
-  document.title = previous;
+  if (!selectedCor && !(document.getElementById('cor-print') || {}).innerHTML) return;
+  printCorSheet(selectedCor && selectedCor.label);
 }
 
 function blankSubject() {
@@ -729,15 +740,93 @@ function previewPayload(body) {
 
 function previewAdminCor() {
   var body = collectCor();
-  var payload = previewPayload(body);
-  if (sendMode === 'section' && body.student_ids && body.student_ids.length) {
-    var sample = adminStudents.filter(function (s) { return s.id === body.student_ids[0]; })[0];
-    if (sample) {
-      payload.studentName = corOfficialName(sample.name || '');
-      payload.studentId = sample.id;
-    }
+  var base = previewPayload(body);
+  var sheets = [];
+  var people = sendMode === 'section' ? (body.student_ids || []) : [];
+  if (people.length) {
+    people.forEach(function (id) {
+      var sample = adminStudents.filter(function (s) { return s.id === id; })[0];
+      var payload = Object.assign({}, base);
+      if (sample) {
+        payload.studentName = corOfficialName(sample.name || '');
+        payload.studentId = sample.id;
+      }
+      sheets.push(corDocument(payload));
+    });
+  } else {
+    sheets.push(corDocument(base));
   }
-  document.getElementById('cor-print').innerHTML = corDocument(payload);
+  var title = sheets.length > 1 ? (sheets.length + ' certificates') : 'Certificate preview';
+  showCorSheet(sheets.join(''), title);
+}
+
+function printCorSheet(title) {
+  var host = document.getElementById('cor-print');
+  if (!host || !host.innerHTML) return;
+  var previous = document.title;
+  document.title = title || 'Certificate of Registration';
+  window.print();
+  document.title = previous;
+}
+
+function closeCorSheet() {
+  var open = document.getElementById('cor-sheet-preview');
+  if (open) open.remove();
+  document.removeEventListener('keydown', corSheetEscape);
+}
+
+function showCorSheet(html, title) {
+  closeCorSheet();
+  var host = document.getElementById('cor-print');
+  if (host) host.innerHTML = html || '';
+  if (!html) return;
+  var overlay = document.createElement('div');
+  overlay.id = 'cor-sheet-preview';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:12000;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:1.2rem;';
+  var box = document.createElement('div');
+  box.className = 'prism-preview-box';
+  box.style.cssText = 'background:#fff;color:#111827;-webkit-text-fill-color:#111827;border-radius:16px;width:min(920px,100%);max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.28);';
+  var bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;border-bottom:1px solid #e5e7eb;background:#fff;color:#111827;-webkit-text-fill-color:#111827;';
+  var heading = document.createElement('div');
+  heading.textContent = title || 'Certificate of Registration';
+  heading.style.cssText = 'flex:1;min-width:0;font-weight:800;font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#111827;-webkit-text-fill-color:#111827;';
+  var download = document.createElement('button');
+  download.type = 'button';
+  download.className = 'prism-preview-dl';
+  download.textContent = 'Download';
+  download.style.cssText = 'border:none;background:#7c3aed;color:#fff;-webkit-text-fill-color:#fff;border-radius:10px;padding:.45rem .85rem;font-weight:800;cursor:pointer;';
+  download.addEventListener('click', function () { printCorSheet(title); });
+  var close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'prism-preview-close';
+  close.textContent = 'Close';
+  close.style.cssText = 'border:1px solid #d1d5db;background:#fff;color:#111827;-webkit-text-fill-color:#111827;border-radius:10px;padding:.45rem .85rem;font-weight:700;cursor:pointer;';
+  close.addEventListener('click', closeCorSheet);
+  bar.appendChild(heading);
+  bar.appendChild(download);
+  bar.appendChild(close);
+  var body = document.createElement('div');
+  body.className = 'prism-preview-body';
+  body.style.cssText = 'padding:1rem;overflow:auto;background:#f8fafc;color:#111827;-webkit-text-fill-color:#111827;min-height:180px;';
+  body.innerHTML = html;
+  box.appendChild(bar);
+  box.appendChild(body);
+  overlay.appendChild(box);
+  overlay.addEventListener('click', function (e) {
+    if (e.target === overlay) closeCorSheet();
+  });
+  document.addEventListener('keydown', corSheetEscape);
+  document.body.appendChild(overlay);
+}
+
+function corSheetEscape(e) {
+  if (e.key !== 'Escape') return;
+  if (!document.getElementById('cor-sheet-preview')) {
+    document.removeEventListener('keydown', corSheetEscape);
+    return;
+  }
+  closeCorSheet();
 }
 
 function setCorMsg(text, isError) {
@@ -779,7 +868,6 @@ async function deliverCor(body, sendBtn) {
     var res = await PrismRecords.sendCor(body);
     var n = res && res.count ? res.count : (body.student_ids || []).length;
     setCorMsg('Sent ' + (res.label || 'certificate') + ' to ' + n + (n === 1 ? ' student.' : ' students.'), false);
-    previewAdminCor();
     invalidateCorCatalog();
     loadSentCors();
   } catch (e) {
@@ -877,7 +965,6 @@ async function editSentCor(id) {
     var el = document.getElementById('fee-' + fee[0]);
     if (el) el.value = fees[fee[0]] != null ? fees[fee[0]] : '';
   });
-  document.getElementById('cor-print').innerHTML = corDocument(p);
   setCorMsg('Loaded ' + (cor.label || 'certificate') + '. Send again to update it.', false);
   var form = document.getElementById('cor-form');
   if (form && form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'start' });

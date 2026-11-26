@@ -15,6 +15,7 @@ function prism_ensure_class_cover(PDO $db): bool {
     try {
         if (!prism_table_has_column($db, 'classes', 'cover')) {
             $db->exec('ALTER TABLE classes ADD COLUMN cover MEDIUMTEXT NULL');
+            prism_table_columns($db, 'classes', true);
         }
         $done = true;
     } catch (Throwable $e) {
